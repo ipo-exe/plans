@@ -14,22 +14,28 @@ Modules
 .. autosummary::
    :toctree: generated
 
-   src
+   plans
 
 .. autosummary::
    :toctree: generated
 
-   src.datasets
+   plans.datasets
+
+
+Datasets module
+-----------------
+.. automodule:: plans.datasets
+   :members:
    
 
 Datasets functions
 -----------------
 
-.. autofunction:: src.datasets.my_function
+.. autofunction:: plans.datasets.my_function
 
 
 Datasets classes
 -----------------
 
-.. autoclass:: src.datasets.MyClass
+.. autoclass:: plans.datasets.MyClass
    :members:
