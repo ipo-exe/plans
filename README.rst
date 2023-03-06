@@ -7,7 +7,7 @@ Example: Basic Sphinx project for Read the Docs
 
 A cool image
 
-.. image:: https://raw.githubusercontent.com/ipo-exe/docsdemo_spx/main/docs/figs/fig.png
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/fig.png
     :width: 200 px
     :alt: an image
 
@@ -15,7 +15,7 @@ A Figure
 
 .. _myfig:
 
-.. figure:: https://raw.githubusercontent.com/ipo-exe/docsdemo_spx/main/docs/figs/cat.gif
+.. figure:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/cat.gif
    :scale: 20 %
    :figwidth: 200 px
    :alt: map to buried treasure
