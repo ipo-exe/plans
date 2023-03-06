@@ -1,4 +1,4 @@
-Example: Basic Sphinx project for Read the Docs
+PLANS - Planning Nature-based Solutions
 ===============================================
 
 .. image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
