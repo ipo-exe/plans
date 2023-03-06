@@ -141,36 +141,4 @@ def my_function(kind=None):
     return ["shells", "gorgonzola", "parsley"]
 
 
-if __name__ == '__main__':
 
-
-    ts = DailySeries(
-        name="MyTS",
-        file="C:/bin/calib_series.txt",
-        varfield="Prec",
-        datefield="Date",
-        location={
-            "lat": -30.0,
-            "long": -51.0,
-            "CRS": "SIRGAS 2000"
-        }
-    )
-
-    print(ts)
-    n = ts._dummy()
-    print(n)
-
-    ts_p = PrecipitationSeries(
-        name="MyTS",
-        file="C:/bin/calib_series.txt",
-        varfield="Prec",
-        datefield="Date",
-        location={
-            "lat": -30.0,
-            "long": -51.0,
-            "CRS": "SIRGAS 2000"
-        }
-    )
-    print(ts_p.data)
-    print(ts_p._dummy())
-    print(ts_p.new_method())
