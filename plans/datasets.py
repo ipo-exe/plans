@@ -73,7 +73,23 @@ class DailySeries:
 
 
     def resample_sum(self, period):
-        print(period)
+        '''
+        Resampler method for daily time series
+        :param period: pandas standard period code
+
+        `W-MON` -- weekly starting on mondays
+        `MS` --  monthly on start of month
+        `QS` -- quarterly on start of quarter
+        `YS` -- yearly on start of year
+
+        :type period: str
+        :return: resampled pandas dataframe
+        :rtype: :class:`pandas.DataFrame`
+        '''
+        df_aux = self.df_daily.set_index(self.datefield)
+        df_aux = df_aux.resample(period).sum()[self.varfield]
+        df_aux = df_aux.reset_index()
+        return df_aux
 
     def resample_mean(self, period):
         print(period)
