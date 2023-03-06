@@ -20,23 +20,3 @@ Modules
    :toctree: generated
 
    plans.datasets
-
-
-Datasets module
------------------
-.. automodule:: plans.datasets
-   :members:
-   :undoc-members:
-
-
-Datasets functions
------------------
-
-.. autofunction:: plans.datasets.my_function
-
-
-Datasets classes
------------------
-
-.. autoclass:: plans.datasets.DailySeries
-   :members:
