@@ -26,7 +26,7 @@ Datasets module
 -----------------
 .. automodule:: plans.datasets
    :members:
-   
+
 
 Datasets functions
 -----------------
@@ -37,5 +37,5 @@ Datasets functions
 Datasets classes
 -----------------
 
-.. autoclass:: plans.datasets.MyClass
+.. autoclass:: plans.datasets.DailySeries
    :members:

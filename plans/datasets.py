@@ -97,8 +97,6 @@ class StreamflowSeries(DailySeries):
     pass
 
 
-
-
 class MyClass:
     """A new Object"""
     
