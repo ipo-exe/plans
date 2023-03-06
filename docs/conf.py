@@ -18,8 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = "plans"
-copyright = "2023, Ipora Possantti"
-author = "Ipora Possantti"
+copyright = "2023, Iporã Possantti"
+author = "Iporã Possantti"
 
 
 # -- General configuration ---------------------------------------------------
@@ -31,6 +31,15 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
 ]
+
+autodoc_member_order = 'bysource'
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'private-members': True,
+    'special-members': True,
+    'show-inheritance': True,
+}
 
 intersphinx_mapping = {
     "rtd": ("https://docs.readthedocs.io/en/stable/", None),

@@ -26,6 +26,7 @@ Datasets module
 -----------------
 .. automodule:: plans.datasets
    :members:
+   :undoc-members:
 
 
 Datasets functions
