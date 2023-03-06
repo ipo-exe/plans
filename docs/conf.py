@@ -33,12 +33,18 @@ extensions = [
 ]
 
 autodoc_member_order = 'bysource'
+
+# Exclude the __dict__, __weakref__, and __module__ attributes from being documented
+exclude_members = ['__dict__', '__weakref__', '__module__']
+
+# Configure autodoc options
 autodoc_default_options = {
     'members': True,
     'undoc-members': False,
     'private-members': True,
     'special-members': True,
     'show-inheritance': True,
+    'exclude-members': ','.join(exclude_members)
 }
 
 intersphinx_mapping = {
