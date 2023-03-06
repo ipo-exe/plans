@@ -16,10 +16,6 @@ For more information, see https://github.com/ipo-exe/plans
 
 __version__ = "0.1.0"
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 
 class DailySeries:
     """
@@ -97,7 +93,6 @@ class DailySeries:
 
     def resample_mean(self, period):
         print(period)
-
 
 
 class MyClass:
