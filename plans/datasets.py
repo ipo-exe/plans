@@ -138,6 +138,10 @@ def my_function(kind=None):
 
 if __name__ == '__main__':
 
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
 
     ts = DailySeries(
         name="MyTS",
