@@ -20,3 +20,8 @@ Modules
    :toctree: generated
 
    plans.datasets
+
+.. autosummary::
+   :toctree: generated
+
+   plans.analyst

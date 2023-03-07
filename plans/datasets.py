@@ -1,17 +1,27 @@
 """
+PLANS - Planning Nature-based Solutions
 
-This module provides a set of dataset objects for input, output and processing.
+Module description:
+This module stores all dataset objects of plans.
 
-.. code-block:: python
-    # Import Datasets
-    import datasets
-    # Call its only function
-    datasets.my_function(kind=["cheeses"])
+Copyright (C) 2022 Iporã Brito Possantti
 
-This file is part of the PLANS project.
-Licensed under the GNU GENERAL PUBLIC LICENSE (GPL 3).
-For more information, see https://github.com/ipo-exe/plans
+************ GNU GENERAL PUBLIC LICENSE ************
 
+https://www.gnu.org/licenses/gpl-3.0.en.html
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 __version__ = "0.1.0"
@@ -25,32 +35,68 @@ class DailySeries:
 
     """
 
-    def __init__(self, name, file, varname, varfield, datefield, location):
+    def __init__(self, metadata, varfield, datefield="Date"):
         '''
-        Deploy the basic Time Series object
+        Deploy the daily time series object
 
-        :param name: daily time series name
-        :type name: str
-        :param file: dataset path to `.txt` CSV file (separator = ;)
-        :type file: str
-        :param varname: name of the interest variable
-        :type varname: str
-        :param varfield: name of the interest variable field in file dataset
+         Keys in metadata must include:
+        * Name -- name of dataset :class:`str`
+        * Variable -- name of variable :class:`str`
+        * Latitude -- latitude of dataset :class:`float`
+        * Longitude -- latitude of dataset :class:`float`
+        * CRS -- standard name of Coordinate Reference System :class:`str`
+
+        :param data: DataFrame of time series. Must include the variable and date fields.
+        :type data: :class:`pandas.DataFrame`
+        :param metadata: Metadata of time series.
+        :type metadata: dict
+        :param varfield: name of variable field
         :type varfield: str
-        :param datefield: name of date field in file
+        :param datefield: name of date field (default: Date)
         :type datefield: str
-        :param location: dictionary of `lat`, `long` and `CRS` of measuring station
-        :type location: dict
         '''
         # -------------------------------------
         # set basic attributes
-        self.name = name
-        self.file = file
-        self.varname = varname
+        self.data = None  # start with no data
+        self.metadata = metadata
         self.varfield = varfield
         self.datefield = datefield
-        self.location = location
 
+
+    def __str__(self):
+        s_aux = "\n{}\n{}\n".format(
+            self.metadata,
+            self.data
+        )
+        return s_aux
+
+
+    def set_data(self, dataframe):
+        '''
+        Set the data from incoming pandas DataFrame.
+        Note: must include varfield and datefield
+        :param dataframe: incoming pandas DataFrame
+        :type dataframe: :class:`pandas.DataFrame`
+        '''
+        # slice only interest fields
+        self.data = dataframe[[self.datefield, self.varfield]]
+        # ensure datetime format
+        self.data[self.datefield] = pd.to_datetime(self.data[self.datefield])
+
+
+    def load_data(self, file):
+        '''
+        Load data from CSV file.
+
+        CSV file must:
+        * be a txt file
+        * use ; as field separator
+        * include datefields and varfields
+
+        :param file: path to CSV file
+        :type file: str
+        '''
+        self.file = file
         # -------------------------------------
         # import data
         df_aux = pd.read_csv(
@@ -62,24 +108,14 @@ class DailySeries:
         self.data = df_aux[[self.datefield, self.varfield]]
 
 
-    def __str__(self):
-        s_aux = "\n{}\n{}\n{}\n".format(
-            self.name,
-            self.location,
-            self.data
-        )
-        return s_aux
-
-
     def export_data(self, folder):
-        """
+        '''
         Export dataset to CSV file
         :param folder: path to output directory
         :type folder: str
-        :rtype: None
-        """
+        '''
         self.data.to_csv(
-            "{}/{}_{}.txt".format(folder, self.varname, self.name),
+            "{}/{}_{}.txt".format(folder, self.metadata["Variable"], self.metadata["Name"]),
             sep=";",
             index=False
         )
@@ -189,31 +225,27 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import matplotlib as mpl
 
+    meta = {
+        "Name": "MyTS",
+        "Variable": "Random",
+        "Latitude": -30,
+        "Longitude": -51,
+        "CRS": "SIRGAS 2000"
+    }
+
     ts = DailySeries(
-        name="MyTS",
-        file="C:/bin/calib_series.txt",
-        varname="P",
-        varfield="Prec",
-        datefield="Date",
-        location={
-            "lat": -30.0,
-            "long": -51.0,
-            "CRS": "SIRGAS 2000"
-        }
+        metadata=meta,
+        varfield="R"
     )
 
-    df = ts.resample_sum(period="YS")
-    print(df.head(10))
-
-    ts_p = PrecipitationSeries(
-        name="MyTS",
-        file="C:/bin/calib_series.txt",
-        varfield="Prec",
-        datefield="Date",
-        location={
-            "lat": -30.0,
-            "long": -51.0,
-            "CRS": "SIRGAS 2000"
+    df = pd.DataFrame(
+        {
+            "Date": pd.date_range(start="2000-01-01", end="2020-01-01", freq="D"),
+            "R": 0
         }
     )
-    print(ts_p.data.head())
+    df["R"] = np.random.normal(loc=100, scale=5, size=len(df))
+
+    ts.set_data(dataframe=df)
+    print(ts)
+
