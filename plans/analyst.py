@@ -2,7 +2,7 @@
 PLANS - Planning Nature-based Solutions
 
 Module description:
-This module stores all analyst objects of plans.
+This module stores all analyst objects of PLANS.
 
 Copyright (C) 2022 Iporã Brito Possantti
 
@@ -24,6 +24,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
     '''
@@ -41,6 +44,8 @@ def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
     :return: array of the computed normal curve
     :rtype: :class:`numpy.ndarray`
     '''
+    import numpy as np
+
     # Generate x values
     x = np.linspace(vmin, vmax, ngrid)
 
@@ -58,6 +63,8 @@ class Univar:
     The Univariate Analyst Object
 
     """
+
+
 
     def __init__(self, data, name="myvar"):
         '''
@@ -185,7 +192,7 @@ class Univar:
             "title": "Histogram of {}".format(self.name),
             "width": 4 * 1.618,
             "height": 4,
-            "ylabel": "count",
+            "ylabel": "frequency",
             "xlabel": "value",
             "ylim": (0, int(self.data.size / 4)),
             "xlim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
@@ -323,7 +330,7 @@ class Univar:
         )
 
 
-    def assessment_normal(self):
+    def assessment_normality(self):
         '''
         Assessment on normality using standard tests
         :return: dataframe of assessment results
@@ -358,6 +365,34 @@ class Univar:
         return df_assessment
 
 
+    def assessment_frequency(self):
+        '''
+        Assessment on data frequency
+        :return: result dataframe
+        :rtype: :class:`pandas.DataFrame`
+        '''
+        # compute percentiles
+        vct_percentiles = np.arange(0, 100)
+        # get CFC values
+        vct_cfc = np.percentile(self.data, vct_percentiles)
+        # reverse to get exceedance
+        vct_exeed = 100 - vct_percentiles
+        # get count
+        vct_count = np.histogram(self.data, bins=len(vct_percentiles))[0]
+        # get empirical prob
+        vct_empprob = vct_count / np.sum(vct_count)
+
+        dct_out = {
+            'Percentiles': vct_percentiles,
+            'Exceedance': vct_exeed,
+            'Frequency': vct_count,
+            'Empirical Probability': vct_empprob,
+            'Values': vct_cfc
+        }
+
+        return pd.DataFrame(dct_out)
+
+
 if __name__ == '__main__':
     import pandas as pd
     import numpy as np
@@ -378,7 +413,7 @@ if __name__ == '__main__':
 
     uni = Univar(data=vct, name="Random")
 
-    df = uni.assessment_normal()
+    df = uni.assessment_normality()
     print(df)
     dct_norm = normal_curve(
         mu=np.mean(uni.data),

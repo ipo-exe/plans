@@ -2,7 +2,7 @@
 PLANS - Planning Nature-based Solutions
 
 Module description:
-This module stores all dataset objects of plans.
+This module stores all dataset objects of PLANS.
 
 Copyright (C) 2022 Iporã Brito Possantti
 
@@ -161,7 +161,119 @@ class DailySeries:
         return df_aux
 
 
-class PrecipitationSeries(DailySeries):
+    def plot_basic_view(self, show=False, folder="C:/data", filename="histogram", specs=None, dpi=96):
+        '''
+        Plot series basic view
+
+        :type show: bool
+        :param folder: output folder
+        :type folder: str
+        :param filename: image file name
+        :type filename: str
+        :param specs: specification dictionary
+        :type specs: dict
+        :param dpi: image resolution (default = 96)
+        :type dpi: int
+        '''
+
+        from analyst import Univar
+
+        plt.style.use('seaborn-v0_8')
+
+        # get univar object
+        uni = Univar(data=self.data[self.varfield].values)
+
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "suptitle": "Series Overview",
+            "a_title": "Series",
+            "b_title": "Histogram",
+            "c_title": "CFC",
+            "width": 5 * 1.618,
+            "height": 5,
+            "ylabel": "units",
+            "ylim": (0, 1.2 * self.data[self.varfield].max()),
+            "a_xlabel": "Date",
+            "b_xlabel": "Frequency",
+            "c_xlabel": "Probability",
+            "a_data_label": "Data Series",
+            "a_mavg_label": "Moving Average",
+            "mavg period": 10,
+            "mavg color": "tab:blue",
+            "nbins": uni.nbins_fd()
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        gs = mpl.gridspec.GridSpec(4, 5, wspace=0.5, hspace=0.9, left=0.05, bottom=0.1, top=0.9, right=0.95)
+        fig.suptitle(specs["suptitle"])
+
+        # Series
+        plt.subplot(gs[0:3, :3])
+        plt.title("a. {}".format(specs["a_title"]), loc='left')
+        plt.plot(
+            self.data[self.datefield],
+            self.data[self.varfield],
+            marker='o',
+            label="Data Series",
+            color=specs["color"]
+        )
+        plt.plot(
+            self.data[self.datefield],
+            self.data[self.varfield].rolling(specs["mavg period"], min_periods=2).mean(),
+            label=specs["a_mavg_label"],
+            color=specs["mavg color"]
+        )
+        plt.ylim(specs["ylim"])
+        plt.xlim(self.data[self.datefield].values[0], self.data[self.datefield].values[-1])
+        plt.ylabel(specs["ylabel"])
+        plt.xlabel(specs["a_xlabel"])
+        plt.legend(
+            frameon=True,
+            loc=(0.0, -0.3),
+            ncol=1
+        )
+        # Hist
+        plt.subplot(gs[0:3, 3:4])
+        plt.title("b. {}".format(specs["b_title"]), loc='left')
+        plt.hist(
+            x=self.data[self.varfield],
+            bins=specs["nbins"],
+            orientation='horizontal',
+            color=specs["color"]
+        )
+        plt.ylim(specs["ylim"])
+        plt.ylabel(specs["ylabel"])
+        plt.xlabel(specs["b_xlabel"])
+
+        # CFC
+        df_freq = uni.assessment_frequency()
+        plt.subplot(gs[0:3, 4:5])
+        plt.title("c. {}".format(specs["c_title"]), loc='left')
+        plt.plot(df_freq["Empirical Probability"], df_freq["Values"])
+        plt.ylim(specs["ylim"])
+        plt.ylabel(specs["ylabel"])
+        plt.xlabel(specs["c_xlabel"])
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            plt.savefig(
+                '{}/{}.png'.format(folder, filename),
+                dpi=96
+            )
+
+
+class PrecipSeries(DailySeries):
     """
     The precipitation daily time series object
 
@@ -248,4 +360,7 @@ if __name__ == '__main__':
 
     ts.set_data(dataframe=df)
     print(ts)
+
+    ts.plot_basic_view(show=True)
+
 

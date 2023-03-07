@@ -32,6 +32,10 @@ extensions = [
     "sphinx.ext.intersphinx",
 ]
 
+
+# In your conf.py file
+autodoc_mock_imports = ['numpy', 'pandas', 'scipy', 'matplotlib']
+
 autodoc_member_order = 'bysource'
 
 # Exclude the __dict__, __weakref__, and __module__ attributes from being documented
