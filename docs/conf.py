@@ -35,7 +35,7 @@ extensions = [
 autodoc_member_order = 'bysource'
 
 # Exclude the __dict__, __weakref__, and __module__ attributes from being documented
-exclude_members = ['__dict__', '__weakref__', '__module__']
+exclude_members = ['__dict__', '__weakref__', '__module__', '__str__']
 
 # Configure autodoc options
 autodoc_default_options = {

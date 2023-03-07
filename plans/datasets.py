@@ -25,15 +25,17 @@ class DailySeries:
 
     """
 
-    def __init__(self, name, file, varfield, datefield, location):
+    def __init__(self, name, file, varname, varfield, datefield, location):
         '''
         Deploy the basic Time Series object
 
-        :param name: Time Series name
+        :param name: daily time series name
         :type name: str
         :param file: dataset path to `.txt` CSV file (separator = ;)
         :type file: str
-        :param varfield: name of the variable field in file
+        :param varname: name of the interest variable
+        :type varname: str
+        :param varfield: name of the interest variable field in file dataset
         :type varfield: str
         :param datefield: name of date field in file
         :type datefield: str
@@ -44,6 +46,7 @@ class DailySeries:
         # set basic attributes
         self.name = name
         self.file = file
+        self.varname = varname
         self.varfield = varfield
         self.datefield = datefield
         self.location = location
@@ -55,7 +58,7 @@ class DailySeries:
             sep=";",
             parse_dates=[self.datefield]
         )
-        # slice only varfield and datefield
+        # slice only varfield and datefield from dataframe
         self.data = df_aux[[self.datefield, self.varfield]]
 
 
@@ -68,31 +71,68 @@ class DailySeries:
         return s_aux
 
 
-    def _dummy(self):
-        return self.data[self.varfield].mean()
+    def export_data(self, folder):
+        """
+        Export dataset to CSV file
+        :param folder: path to output directory
+        :type folder: str
+        :rtype: None
+        """
+        self.data.to_csv(
+            "{}/{}_{}.txt".format(folder, self.varname, self.name),
+            sep=";",
+            index=False
+        )
 
 
-    def resample_sum(self, period):
+    def resample_sum(self, period="MS"):
         '''
-        Resampler method for daily time series
+        Resampler method for daily time series using the .sum() function
         :param period: pandas standard period code
 
-        `W-MON` -- weekly starting on mondays
-        `MS` --  monthly on start of month
-        `QS` -- quarterly on start of quarter
-        `YS` -- yearly on start of year
+        * `W-MON` -- weekly starting on mondays
+        * `MS` --  monthly on start of month
+        * `QS` -- quarterly on start of quarter
+        * `YS` -- yearly on start of year
 
         :type period: str
-        :return: resampled pandas dataframe
+        :return: resampled time series
         :rtype: :class:`pandas.DataFrame`
         '''
-        df_aux = self.df_daily.set_index(self.datefield)
+        df_aux = self.data.set_index(self.datefield)
         df_aux = df_aux.resample(period).sum()[self.varfield]
         df_aux = df_aux.reset_index()
         return df_aux
 
-    def resample_mean(self, period):
-        print(period)
+
+    def resample_mean(self, period="MS"):
+        '''
+        Resampler method for daily time series using the .mean() function
+        :param period: pandas standard period code
+
+        * `W-MON` -- weekly starting on mondays
+        * `MS` --  monthly on start of month
+        * `QS` -- quarterly on start of quarter
+        * `YS` -- yearly on start of year
+
+        :type period: str
+        :return: resampled time series
+        :rtype: :class:`pandas.DataFrame`
+        '''
+        df_aux = self.data.set_index(self.datefield)
+        df_aux = df_aux.resample(period).mean()[self.varfield]
+        df_aux = df_aux.reset_index()
+        return df_aux
+
+
+class PrecipitationSeries(DailySeries):
+
+    def __init__(self, name, file, varfield, datefield, location):
+        # ---------------------------------------------------
+        # use superior initialization
+        super().__init__(name, file, "P", varfield, datefield, location)
+        # override varfield
+        self.data = self.data.rename(columns={varfield: "P"})
 
 
 class MyClass:
@@ -146,6 +186,7 @@ if __name__ == '__main__':
     ts = DailySeries(
         name="MyTS",
         file="C:/bin/calib_series.txt",
+        varname="P",
         varfield="Prec",
         datefield="Date",
         location={
@@ -155,9 +196,8 @@ if __name__ == '__main__':
         }
     )
 
-    print(ts)
-    n = ts._dummy()
-    print(n)
+    df = ts.resample_sum(period="YS")
+    print(df.head(10))
 
     ts_p = PrecipitationSeries(
         name="MyTS",
@@ -170,6 +210,4 @@ if __name__ == '__main__':
             "CRS": "SIRGAS 2000"
         }
     )
-    print(ts_p.data)
-    print(ts_p._dummy())
-    print(ts_p.new_method())
+    print(ts_p.data.head())
