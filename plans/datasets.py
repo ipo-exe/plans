@@ -126,6 +126,12 @@ class DailySeries:
 
 
 class PrecipitationSeries(DailySeries):
+    """
+    The precipitation daily time series object
+
+    Example of using this object:
+
+    """
 
     def __init__(self, name, file, varfield, datefield, location):
         # ---------------------------------------------------
