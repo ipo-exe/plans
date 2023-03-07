@@ -24,7 +24,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-__version__ = "0.1.0"
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
 class DailySeries:
@@ -198,10 +201,16 @@ class DailySeries:
             "b_xlabel": "Frequency",
             "c_xlabel": "Probability",
             "a_data_label": "Data Series",
+            "skip mavg": False,
             "a_mavg_label": "Moving Average",
             "mavg period": 10,
             "mavg color": "tab:blue",
-            "nbins": uni.nbins_fd()
+            "nbins": uni.nbins_fd(),
+            "series marker": "o",
+            "series linestyle": "-",
+            "series alpha": 1.0,
+
+
         }
         # handle input specs
         if specs is None:
@@ -222,16 +231,21 @@ class DailySeries:
         plt.plot(
             self.data[self.datefield],
             self.data[self.varfield],
-            marker='o',
+            linestyle=specs["series linestyle"],
+            marker=specs["series marker"],
             label="Data Series",
-            color=specs["color"]
+            color=specs["color"],
+            alpha=specs["series alpha"]
         )
-        plt.plot(
-            self.data[self.datefield],
-            self.data[self.varfield].rolling(specs["mavg period"], min_periods=2).mean(),
-            label=specs["a_mavg_label"],
-            color=specs["mavg color"]
-        )
+        if specs["skip mavg"]:
+            pass
+        else:
+            plt.plot(
+                self.data[self.datefield],
+                self.data[self.varfield].rolling(specs["mavg period"], min_periods=2).mean(),
+                label=specs["a_mavg_label"],
+                color=specs["mavg color"]
+            )
         plt.ylim(specs["ylim"])
         plt.xlim(self.data[self.datefield].values[0], self.data[self.datefield].values[-1])
         plt.ylabel(specs["ylabel"])
@@ -258,10 +272,11 @@ class DailySeries:
         df_freq = uni.assessment_frequency()
         plt.subplot(gs[0:3, 4:5])
         plt.title("c. {}".format(specs["c_title"]), loc='left')
-        plt.plot(df_freq["Empirical Probability"], df_freq["Values"])
+        plt.plot(df_freq["Exceedance"], df_freq["Values"])
         plt.ylim(specs["ylim"])
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["c_xlabel"])
+        plt.xlim(0, 100)
 
         # show or save
         if show:
@@ -332,10 +347,7 @@ def my_function(kind=None):
 
 if __name__ == '__main__':
 
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib as mpl
+
 
     meta = {
         "Name": "MyTS",
@@ -347,20 +359,31 @@ if __name__ == '__main__':
 
     ts = DailySeries(
         metadata=meta,
-        varfield="R"
+        varfield="Prec"
     )
+
 
     df = pd.DataFrame(
         {
             "Date": pd.date_range(start="2000-01-01", end="2020-01-01", freq="D"),
-            "R": 0
+            "Prec": 0
         }
     )
-    df["R"] = np.random.normal(loc=100, scale=5, size=len(df))
+    df["Prec"] = np.random.normal(loc=100, scale=10, size=len(df))
+
+
+    #df = pd.read_csv("C:/data/series.txt", sep=";", parse_dates=["Date"])
 
     ts.set_data(dataframe=df)
     print(ts)
 
-    ts.plot_basic_view(show=True)
+    specs = {
+        "series linestyle": "",
+        "series marker": ".",
+        "series alpha": 0.3,
+        "mavg color": "navy"
+    }
+
+    ts.plot_basic_view(show=True, specs=specs)
 
 

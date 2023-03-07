@@ -28,6 +28,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
     '''
     Return the normal curve
@@ -44,8 +45,6 @@ def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
     :return: array of the computed normal curve
     :rtype: :class:`numpy.ndarray`
     '''
-    import numpy as np
-
     # Generate x values
     x = np.linspace(vmin, vmax, ngrid)
 
