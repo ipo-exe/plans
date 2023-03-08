@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 
 
 def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
-    '''
+    """
     Return the normal curve
     :param mu: mean
     :type mu: float
@@ -44,17 +44,14 @@ def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
     :type ngrid: int
     :return: array of the computed normal curve
     :rtype: :class:`numpy.ndarray`
-    '''
+    """
     # Generate x values
     x = np.linspace(vmin, vmax, ngrid)
 
     # Calculate y values using Gaussian formula
-    y = 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    y = 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
 
-    return {
-        "x": x,
-        "y": y
-    }
+    return {"x": x, "y": y}
 
 
 class Univar:
@@ -63,59 +60,53 @@ class Univar:
 
     """
 
-
-
     def __init__(self, data, name="myvar"):
-        '''
+        """
         Deploy the Analyst
         :param data: n-D vector of data
         :type data: :class:`numpy.ndarray`
-        '''
+        """
         self.data = data
         self.name = name
 
-
     def nbins_fd(self):
-        '''
+        """
         This function computes the number of bins for histograms using the Freedman-Diaconis rule,
         which takes into account the interquartile range (IQR) of the data, in addition to its range.
         :return: number of bins for histogram using the Freedman-Diaconis rule
         :rtype: int
-        '''
+        """
         iqr = np.subtract(*np.percentile(self.data, [75, 25]))
         binsize = 2 * iqr * len(self.data) ** (-1 / 3)
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
-
     def nbins_sturges(self):
-        '''
+        """
         This function computes the number of bins using the Sturges rule, which assumes that
         the data follows a normal distribution and computes the number of bins based on its sample size.
         :return: number of bins using the Sturges rule
         :rtype: int
-        '''
+        """
         return int(np.ceil(np.log2(len(self.data)) + 1))
 
-
     def nbins_scott(self):
-        '''
+        """
         This function computes the number of bins using the Scott rule, which is
         similar to the Freedman-Diaconis rule, but uses the standard deviation of the data to compute the bin size.
         :return: number of bins using the Scott rule
         :rtype: int
-        '''
+        """
         binsize = 3.5 * np.std(self.data) * len(self.data) ** (-1 / 3)
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
-
     def _nbins(self, rule=None):
-        '''
+        """
         Util function for rule-based nbins computation
         :param rule: rule code
         :type rule: str
         :return: number of bins for histogram
         :rtype: int
-        '''
+        """
         bins = 10
         if rule is None:
             pass
@@ -130,9 +121,8 @@ class Univar:
                 pass
         return bins
 
-
     def histogram(self, bins=100, rule=None):
-        '''
+        """
         Compute the histogram of the sample
         :param bins: number of bins
         :type bins: int
@@ -140,7 +130,7 @@ class Univar:
         :type rule: str
         :return: dataframe of histogram
         :rtype: :class:`pandas.DataFrame`
-        '''
+        """
 
         if rule is None:
             pass
@@ -149,17 +139,20 @@ class Univar:
         # compute histogram
         vct_hist, vct_bins = np.histogram(self.data, bins=bins)
         # get dataframe
-        df_hist = pd.DataFrame(
-            {
-                "Upper value": vct_bins[1:],
-                "Count": vct_hist
-            }
-        )
+        df_hist = pd.DataFrame({"Upper value": vct_bins[1:], "Count": vct_hist})
         return df_hist
 
-
-    def plot_hist(self, bins=100, rule=None, show=False, folder="C:/data", filename="histogram", specs=None, dpi=96):
-        '''
+    def plot_hist(
+        self,
+        bins=100,
+        rule=None,
+        show=False,
+        folder="C:/data",
+        filename="histogram",
+        specs=None,
+        dpi=96,
+    ):
+        """
         Plot histogram of data
 
         :param bins: number of bins
@@ -176,8 +169,8 @@ class Univar:
         :type specs: dict
         :param dpi: image resolution (default = 96)
         :type dpi: int
-        '''
-        plt.style.use('seaborn-v0_8')
+        """
+        plt.style.use("seaborn-v0_8")
 
         # get bins
         if rule is None:
@@ -195,12 +188,12 @@ class Univar:
             "xlabel": "value",
             "ylim": (0, int(self.data.size / 4)),
             "xlim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
-            "subtitle": None
+            "subtitle": None,
         }
         # handle input specs
         if specs is None:
             pass
-        else: # override default
+        else:  # override default
             for k in specs:
                 default_specs[k] = specs[k]
         specs = default_specs
@@ -212,11 +205,7 @@ class Univar:
             plt.title(specs["title"])
         else:
             plt.title("{} | {}".format(specs["title"], specs["subtitle"]))
-        plt.hist(
-            self.data,
-            bins=bins,
-            color=specs["color"]
-        )
+        plt.hist(self.data, bins=bins, color=specs["color"])
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["xlabel"])
         plt.ylim(specs["ylim"])
@@ -226,14 +215,10 @@ class Univar:
         if show:
             plt.show()
         else:
-            plt.savefig(
-                '{}/{}.png'.format(folder, filename),
-                dpi=96
-            )
-
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
     def _distribution_test(self, test_name, stat, p, clevel=0.05, distr="normal"):
-        '''
+        """
         Util function
         :param test_name: name of test
         :type test_name: str
@@ -247,13 +232,13 @@ class Univar:
         :type distr: str
         :return: summary of test
         :rtype: dict
-        '''
+        """
         # built output dict
         dct_out = {
             "Test": test_name,
             "Statistic": stat,
             "p-value": p,
-            "Confidence": 1 - clevel
+            "Confidence": 1 - clevel,
         }
 
         if p > clevel:
@@ -263,9 +248,8 @@ class Univar:
 
         return dct_out
 
-
     def test_normal_ks(self):
-        '''
+        """
         Test for normality using the Kolmogorov-Smirnov test
 
         Kolmogorov-Smirnov Test: This test compares the observed distribution with
@@ -274,67 +258,58 @@ class Univar:
 
         :return: test result dictionary. Keys: Statistic, p-value and Is normal
         :rtype: dct
-        '''
+        """
         from scipy.stats import kstest
 
         vct_norm = (self.data - np.mean(self.data)) / np.std(self.data)
 
         # test
-        result = kstest(vct_norm, 'norm')
+        result = kstest(vct_norm, "norm")
         return self._distribution_test(
             test_name="Kolmogorov-Smirnov",
             stat=result.statistic,
             p=result.pvalue,
-            distr="normal"
+            distr="normal",
         )
 
-
     def test_shapiro_wilk(self):
-        '''
+        """
         Test for normality using the Shapiro-Wilk test.
 
         :return: test result dictionary. Keys: Statistic, p-value and Is normal
         :rtype: dct
-        '''
+        """
         from scipy.stats import shapiro
 
         # test
         stat, p = shapiro(self.data)
 
         return self._distribution_test(
-            test_name="Shapiro-Wilk",
-            stat=stat,
-            p=p,
-            distr="normal"
+            test_name="Shapiro-Wilk", stat=stat, p=p, distr="normal"
         )
 
-
     def test_dagostino_pearson(self):
-        '''
+        """
         Test for normality using the D'Agostino-Pearson test.
 
         :return: test result dictionary. Keys: Statistic, p-value and Is normal
         :rtype: dct
-        '''
+        """
         from scipy.stats import normaltest
 
         # test
         stat, p = normaltest(self.data)
 
         return self._distribution_test(
-            test_name="D'Agostino-Pearson",
-            stat=stat,
-            p=p,
-            distr="normal"
+            test_name="D'Agostino-Pearson", stat=stat, p=p, distr="normal"
         )
 
-
     def assessment_normality(self):
-        '''
+        """
         Assessment on normality using standard tests
         :return: dataframe of assessment results
         :rtype: :class:`pandas.DataFrame`
-        '''
+        """
         # run tests
         lst_tests = []
         lst_tests.append(self.test_normal_ks())
@@ -358,18 +333,17 @@ class Univar:
                 "Statistic": lst_stats,
                 "P-value": lst_p,
                 "Is Normal": lst_is,
-                "Confidence": lst_clvl
+                "Confidence": lst_clvl,
             }
         )
         return df_assessment
 
-
     def assessment_frequency(self):
-        '''
+        """
         Assessment on data frequency
         :return: result dataframe
         :rtype: :class:`pandas.DataFrame`
-        '''
+        """
         # compute percentiles
         vct_percentiles = np.arange(0, 100)
         # get CFC values
@@ -382,33 +356,26 @@ class Univar:
         vct_empprob = vct_count / np.sum(vct_count)
 
         dct_out = {
-            'Percentiles': vct_percentiles,
-            'Exceedance': vct_exeed,
-            'Frequency': vct_count,
-            'Empirical Probability': vct_empprob,
-            'Values': vct_cfc
+            "Percentiles": vct_percentiles,
+            "Exceedance": vct_exeed,
+            "Frequency": vct_count,
+            "Empirical Probability": vct_empprob,
+            "Values": vct_cfc,
         }
 
         return pd.DataFrame(dct_out)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
-
 
     np.random.seed(6175)
     vct = np.random.normal(100, 10, 1000)
     vct_random = np.random.randint(10, 100, 1000)
 
-    vct_norm = normal_curve(
-        mu=100,
-        sigma=10,
-        vmin=50,
-        vmax=150,
-        ngrid=1000
-    )
+    vct_norm = normal_curve(mu=100, sigma=10, vmin=50, vmax=150, ngrid=1000)
 
     uni = Univar(data=vct, name="Random")
 
@@ -427,5 +394,3 @@ if __name__ == '__main__':
     plt.hist(uni.data, bins=100)
     plt.plot(dct_norm["x"], dct_norm["y"] * len(uni.data))
     plt.show()
-
-

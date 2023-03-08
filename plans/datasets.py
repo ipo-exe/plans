@@ -30,16 +30,18 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
+# -----------------------------------------
+# Series data structures
+
+
 class DailySeries:
     """
     The basic daily time series object
 
-    Example of using this object:
-
     """
 
     def __init__(self, metadata, varfield, datefield="Date"):
-        '''
+        """
         Deploy the daily time series object
 
          Keys in metadata must include:
@@ -57,38 +59,33 @@ class DailySeries:
         :type varfield: str
         :param datefield: name of date field (default: Date)
         :type datefield: str
-        '''
+        """
         # -------------------------------------
         # set basic attributes
         self.data = None  # start with no data
         self.metadata = metadata
         self.varfield = varfield
         self.datefield = datefield
-
+        self.name = self.metadata["Name"]
 
     def __str__(self):
-        s_aux = "\n{}\n{}\n".format(
-            self.metadata,
-            self.data
-        )
+        s_aux = "\n{}\n{}\n".format(self.metadata, self.data)
         return s_aux
 
-
     def set_data(self, dataframe):
-        '''
+        """
         Set the data from incoming pandas DataFrame.
         Note: must include varfield and datefield
         :param dataframe: incoming pandas DataFrame
         :type dataframe: :class:`pandas.DataFrame`
-        '''
+        """
         # slice only interest fields
         self.data = dataframe[[self.datefield, self.varfield]]
         # ensure datetime format
         self.data[self.datefield] = pd.to_datetime(self.data[self.datefield])
 
-
     def load_data(self, file):
-        '''
+        """
         Load data from CSV file.
 
         CSV file must:
@@ -98,34 +95,30 @@ class DailySeries:
 
         :param file: path to CSV file
         :type file: str
-        '''
+        """
         self.file = file
         # -------------------------------------
         # import data
-        df_aux = pd.read_csv(
-            self.file,
-            sep=";",
-            parse_dates=[self.datefield]
-        )
+        df_aux = pd.read_csv(self.file, sep=";", parse_dates=[self.datefield])
         # slice only varfield and datefield from dataframe
         self.data = df_aux[[self.datefield, self.varfield]]
 
-
     def export_data(self, folder):
-        '''
+        """
         Export dataset to CSV file
         :param folder: path to output directory
         :type folder: str
-        '''
-        self.data.to_csv(
-            "{}/{}_{}.txt".format(folder, self.metadata["Variable"], self.metadata["Name"]),
-            sep=";",
-            index=False
+        :return: file path
+        :rtype: str
+        """
+        s_filepath = "{}/{}_{}.txt".format(
+            folder, self.metadata["Variable"], self.metadata["Name"]
         )
-
+        self.data.to_csv(s_filepath, sep=";", index=False)
+        return s_filepath
 
     def resample_sum(self, period="MS"):
-        '''
+        """
         Resampler method for daily time series using the .sum() function
         :param period: pandas standard period code
 
@@ -137,15 +130,14 @@ class DailySeries:
         :type period: str
         :return: resampled time series
         :rtype: :class:`pandas.DataFrame`
-        '''
+        """
         df_aux = self.data.set_index(self.datefield)
         df_aux = df_aux.resample(period).sum()[self.varfield]
         df_aux = df_aux.reset_index()
         return df_aux
 
-
     def resample_mean(self, period="MS"):
-        '''
+        """
         Resampler method for daily time series using the .mean() function
         :param period: pandas standard period code
 
@@ -157,15 +149,16 @@ class DailySeries:
         :type period: str
         :return: resampled time series
         :rtype: :class:`pandas.DataFrame`
-        '''
+        """
         df_aux = self.data.set_index(self.datefield)
         df_aux = df_aux.resample(period).mean()[self.varfield]
         df_aux = df_aux.reset_index()
         return df_aux
 
-
-    def plot_basic_view(self, show=False, folder="C:/data", filename="histogram", specs=None, dpi=96):
-        '''
+    def plot_basic_view(
+        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+    ):
+        """
         Plot series basic view
 
         :type show: bool
@@ -177,11 +170,11 @@ class DailySeries:
         :type specs: dict
         :param dpi: image resolution (default = 96)
         :type dpi: int
-        '''
+        """
 
         from analyst import Univar
 
-        plt.style.use('seaborn-v0_8')
+        plt.style.use("seaborn-v0_8")
 
         # get univar object
         uni = Univar(data=self.data[self.varfield].values)
@@ -209,8 +202,6 @@ class DailySeries:
             "series marker": "o",
             "series linestyle": "-",
             "series alpha": 1.0,
-
-
         }
         # handle input specs
         if specs is None:
@@ -220,14 +211,16 @@ class DailySeries:
                 default_specs[k] = specs[k]
         specs = default_specs
 
-
+        # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        gs = mpl.gridspec.GridSpec(4, 5, wspace=0.5, hspace=0.9, left=0.05, bottom=0.1, top=0.9, right=0.95)
+        gs = mpl.gridspec.GridSpec(
+            4, 5, wspace=0.5, hspace=0.9, left=0.05, bottom=0.1, top=0.9, right=0.95
+        )
         fig.suptitle(specs["suptitle"])
 
-        # Series
+        # plot Series
         plt.subplot(gs[0:3, :3])
-        plt.title("a. {}".format(specs["a_title"]), loc='left')
+        plt.title("a. {}".format(specs["a_title"]), loc="left")
         plt.plot(
             self.data[self.datefield],
             self.data[self.varfield],
@@ -235,43 +228,44 @@ class DailySeries:
             marker=specs["series marker"],
             label="Data Series",
             color=specs["color"],
-            alpha=specs["series alpha"]
+            alpha=specs["series alpha"],
         )
         if specs["skip mavg"]:
             pass
         else:
             plt.plot(
                 self.data[self.datefield],
-                self.data[self.varfield].rolling(specs["mavg period"], min_periods=2).mean(),
+                self.data[self.varfield]
+                .rolling(specs["mavg period"], min_periods=2)
+                .mean(),
                 label=specs["a_mavg_label"],
-                color=specs["mavg color"]
+                color=specs["mavg color"],
             )
         plt.ylim(specs["ylim"])
-        plt.xlim(self.data[self.datefield].values[0], self.data[self.datefield].values[-1])
+        plt.xlim(
+            self.data[self.datefield].values[0], self.data[self.datefield].values[-1]
+        )
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["a_xlabel"])
-        plt.legend(
-            frameon=True,
-            loc=(0.0, -0.3),
-            ncol=1
-        )
-        # Hist
+        plt.legend(frameon=True, loc=(0.0, -0.3), ncol=1)
+
+        # plot Hist
         plt.subplot(gs[0:3, 3:4])
-        plt.title("b. {}".format(specs["b_title"]), loc='left')
+        plt.title("b. {}".format(specs["b_title"]), loc="left")
         plt.hist(
             x=self.data[self.varfield],
             bins=specs["nbins"],
-            orientation='horizontal',
-            color=specs["color"]
+            orientation="horizontal",
+            color=specs["color"],
         )
         plt.ylim(specs["ylim"])
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["b_xlabel"])
 
-        # CFC
+        # plot CFC
         df_freq = uni.assessment_frequency()
         plt.subplot(gs[0:3, 4:5])
-        plt.title("c. {}".format(specs["c_title"]), loc='left')
+        plt.title("c. {}".format(specs["c_title"]), loc="left")
         plt.plot(df_freq["Exceedance"], df_freq["Values"])
         plt.ylim(specs["ylim"])
         plt.ylabel(specs["ylabel"])
@@ -282,10 +276,9 @@ class DailySeries:
         if show:
             plt.show()
         else:
-            plt.savefig(
-                '{}/{}.png'.format(folder, filename),
-                dpi=96
-            )
+            if filename is None:
+                filename = self.name
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
 
 class PrecipSeries(DailySeries):
@@ -304,86 +297,313 @@ class PrecipSeries(DailySeries):
         self.data = self.data.rename(columns={varfield: "P"})
 
 
-class MyClass:
-    """A new Object"""
-    
-    def __init__(self, s_name="MyName"):
+class StreamflowSeries(DailySeries):
+    pass
+
+
+class RasterMap:
+    """
+    The basic Raster map data structure
+
+    """
+
+    def __init__(self, name="myRasterMap", dtype="float32"):
         """
-        Initiation of the MyClass object.
-        
-        :param s_name: Name of object.
-        :type s_name: str
+        Deploy basic raster map object
+        :param name: map name
+        :type name: str
+        :param dtype: data type of raster cells - options: byte, uint8, int16, int32, float32, etc
+        :type dtype: str
         """
-        self.name = s_name
-        print(self.name)
-    
-    def do_stuff(self, s_str1, n_value):
+        # -------------------------------------
+        # set basic attributes
+        self.grid = None  # start with no data
+        self.asc_metadata = None
+        self.name = name
+        self.dtype = dtype
+
+    def set_grid(self, grid):
         """
-        A demo method.
-        
-        :param s_str1: string to print.
-        :type s_str1: str
-        :param n_value: value to print.
-        :type n_value: float
-        :return: a concatenated string
+        Set data from incoming objects
+        :param grid: data grid
+        :type grid: :class:`numpy.ndarray`
+        """
+        self.grid = grid.astype(self.dtype)
+
+    def set_metadata(self, metadata):
+        """
+        Set metadata from incoming objects
+
+        Example of metadata for ASC raster:
+        meta = {
+            'ncols': 366,
+            'nrows': 434,
+            'xllcorner': 559493.08,
+            'yllcorner': 6704832.2,
+            'cellsize': 30,
+            'NODATA_value': -1
+        }
+
+        :param metadata: metadata dictionary
+        :type metadata: dict
+        """
+
+        self.asc_metadata = metadata
+
+    def load_asc_raster(self, file, nan=False):
+        """
+        A function to load data and metadata from .ASC raster files
+        :param file: string of file path with the '.asc' extension
+        :type file: str
+        :param nan: boolean to convert nan values to np.nan
+        :type nan: bool
+        """
+        f_file = open(file)
+        lst_file = f_file.readlines()
+        f_file.close()
+        #
+        # get metadata constructor loop
+        tpl_meta_labels = (
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "cellsize",
+            "NODATA_value",
+        )
+        tpl_meta_format = ("int", "int", "float", "float", "float", "float")
+        dct_meta = dict()
+        for i in range(6):
+            lcl_lst = lst_file[i].split(" ")
+            lcl_meta_str = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
+            if tpl_meta_format[i] == "int":
+                dct_meta[tpl_meta_labels[i]] = int(lcl_meta_str)
+            else:
+                dct_meta[tpl_meta_labels[i]] = float(lcl_meta_str)
+        #
+        # array constructor loop:
+        lst_grid = list()
+        for i in range(6, len(lst_file)):
+            lcl_lst = lst_file[i].split(" ")[1:]
+            lcl_lst[len(lcl_lst) - 1] = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
+            lst_grid.append(lcl_lst)
+        # create grid file
+        grd_data = np.array(lst_grid, dtype=self.dtype)
+        #
+        # replace NoData value by np.nan
+        if nan:
+            ndv = float(dct_meta["NODATA_value"])
+            for i in range(len(grd_data)):
+                lcl_row_sum = np.sum((grd_data[i] == ndv) * 1)
+                if lcl_row_sum > 0:
+                    for j in range(len(grd_data[i])):
+                        if grd_data[i][j] == ndv:
+                            grd_data[i][j] = np.nan
+
+        self.asc_metadata = dct_meta
+        self.grid = grd_data
+
+    def load_asc_metadata(self, file):
+        """
+        A function to load only metadata from .ASC raster files
+        :param file: string of file path with the '.asc' extension
+        :type file: str
+        """
+
+        with open(file) as f:
+            def_lst = []
+            for i, line in enumerate(f):
+                if i >= 6:
+                    break
+                def_lst.append(line.strip())  # append each line to the list
+        #
+        # get metadata constructor loop
+        meta_lbls = (
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "cellsize",
+            "NODATA_value",
+        )
+        meta_format = ("int", "int", "float", "float", "float", "float")
+        meta_dct = dict()
+        for i in range(6):
+            lcl_lst = def_lst[i].split(" ")
+            lcl_meta_str = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
+            if meta_format[i] == "int":
+                meta_dct[meta_lbls[i]] = int(lcl_meta_str)
+            else:
+                meta_dct[meta_lbls[i]] = float(lcl_meta_str)
+        # set attribute
+        self.asc_metadata = meta_dct
+
+    def export_asc_raster(self, folder, filename=None):
+        """
+        Function for exporting an .ASC raster file.
+        :param folder: string of directory path
+        :type folder: str
+        :param filename: string of file without extension
+        :type filename: str
+        :return: full file name (path and extension) string
         :rtype: str
-        
         """
-        s_aux = s_str1 + str(n_value)
-        return s_aux
+        if self.grid is None or self.asc_metadata is None:
+            pass
+        else:
+            meta_lbls = (
+                "ncols",
+                "nrows",
+                "xllcorner",
+                "yllcorner",
+                "cellsize",
+                "NODATA_value",
+            )
+            ndv = float(self.asc_metadata["NODATA_value"])
+            exp_lst = list()
+            for i in range(len(meta_lbls)):
+                line = "{}    {}\n".format(
+                    meta_lbls[i], self.asc_metadata[meta_lbls[i]]
+                )
+                exp_lst.append(line)
+            #
+            # data constructor loop:
+            def_array = np.array(self.grid, dtype=self.dtype)
+            for i in range(len(def_array)):
+                # replace np.nan to no data values
+                lcl_row_sum = np.sum((np.isnan(def_array[i])) * 1)
+                if lcl_row_sum > 0:
+                    # print('Yeas')
+                    for j in range(len(def_array[i])):
+                        if np.isnan(def_array[i][j]):
+                            def_array[i][j] = int(ndv)
+                str_join = " " + " ".join(np.array(def_array[i], dtype="str")) + "\n"
+                exp_lst.append(str_join)
+
+            if filename is None:
+                filename = self.name
+            flenm = folder + "/" + filename + ".asc"
+            fle = open(flenm, "w+")
+            fle.writelines(exp_lst)
+            fle.close()
+            return flenm
+
+    def plot_basic_view(
+        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+    ):
+        from analyst import Univar
+
+        plt.style.use("seaborn-v0_8")
+
+        # get univar object
+        uni = Univar(data=self.grid.flatten())
+
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "cmap": "viridis",
+            "suptitle": "{} Overview".format(self.name),
+            "a_title": "{} map".format(self.name),
+            "b_title": "Histogram",
+            "c_title": "Metadata",
+            "width": 5 * 1.618,
+            "height": 5,
+            "b_ylabel": "frequency",
+            "b_xlabel": "units",
+            "nbins": uni.nbins_fd(),
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        gs = mpl.gridspec.GridSpec(
+            4, 5, wspace=0.8, hspace=0.1, left=0.0, bottom=0.1, top=0.85, right=0.9
+        )
+        fig.suptitle(specs["suptitle"])
+
+        # plot map
+        plt.subplot(gs[:3, :3])
+        plt.title("a. {}".format(specs["a_title"]), loc="left")
+        im = plt.imshow(
+            self.grid,
+            cmap=specs["cmap"]
+
+        )
+        fig.colorbar(im, shrink=0.5)
+        plt.axis('off')
+
+        # plot Hist
+        plt.subplot(gs[:2, 3:])
+        plt.title("b. {}".format(specs["b_title"]), loc="left")
+        plt.hist(
+            x=self.grid.flatten(),
+            bins=specs["nbins"],
+            color=specs["color"],
+            #orientation="horizontal"
+        )
+        #plt.ylim(specs["ylim"])
+        plt.ylabel(specs["b_ylabel"])
+        plt.xlabel(specs["b_xlabel"])
+
+        # plot metadata
+        plt.text(
+            x=0.59,
+            y=0.35,
+            s="c. {}".format(specs["c_title"]),
+            fontsize=12,
+            transform=fig.transFigure
+        )
+        n_y = 0.32
+        n_step = 0.04
+        for k in self.asc_metadata:
+            s_head = k
+            s_value = self.asc_metadata[k]
+            s_line = s_head + ": " + str(s_value)
+            n_y = n_y - n_step
+            plt.text(
+                x=0.60,
+                y=n_y,
+                s=s_line,
+                fontsize=12,
+                transform=fig.transFigure
+            )
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = self.name
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
 
-def my_function(kind=None):
-    """
-    Return a list of random ingredients as strings.
-    :param kind: Optional "kind" of ingredients.
-    :type kind: list[str] or None
-    :raise lumache.InvalidKindError: If the kind is invalid.
-    :return: The ingredients list.
-    :rtype: list[str]
-    """
-    return ["shells", "gorgonzola", "parsley"]
+if __name__ == "__main__":
+    sfile = "C:/data/twi.asc"
 
+    rst_map = RasterMap(dtype="float32", name="LULC")
+    np.random.seed(5)
+    #
 
-if __name__ == '__main__':
-
-
-
-    meta = {
-        "Name": "MyTS",
-        "Variable": "Random",
-        "Latitude": -30,
-        "Longitude": -51,
-        "CRS": "SIRGAS 2000"
-    }
-
-    ts = DailySeries(
-        metadata=meta,
-        varfield="Prec"
-    )
-
-
-    df = pd.DataFrame(
-        {
-            "Date": pd.date_range(start="2000-01-01", end="2020-01-01", freq="D"),
-            "Prec": 0
+    rst_map.set_grid(grid=np.random.normal(100, 3, size=(100, 100)))
+    rst_map.set_metadata(
+        metadata={
+            "ncols": 366,
+            "nrows": 434,
+            "xllcorner": 559493.08,
+            "yllcorner": 6704832.2,
+            "cellsize": 30,
+            "NODATA_value": -1,
         }
     )
-    df["Prec"] = np.random.normal(loc=100, scale=10, size=len(df))
+    
+
+    #rst_map.load_asc_raster(file=sfile)
 
 
-    #df = pd.read_csv("C:/data/series.txt", sep=";", parse_dates=["Date"])
-
-    ts.set_data(dataframe=df)
-    print(ts)
-
-    specs = {
-        "series linestyle": "",
-        "series marker": ".",
-        "series alpha": 0.3,
-        "mavg color": "navy"
-    }
-
-    ts.plot_basic_view(show=True, specs=specs)
-
-
+    rst_map.plot_basic_view(show=True)
