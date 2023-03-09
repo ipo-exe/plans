@@ -34,7 +34,7 @@ extensions = [
 
 
 # In your conf.py file
-autodoc_mock_imports = ['numpy', 'pandas', 'scipy', 'matplotlib']
+autodoc_mock_imports = ['numpy', 'pandas', 'scipy', 'matplotlib', 'warnings']
 
 autodoc_member_order = 'bysource'
 

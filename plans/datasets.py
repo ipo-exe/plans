@@ -263,7 +263,7 @@ class DailySeries:
         plt.xlabel(specs["b_xlabel"])
 
         # plot CFC
-        df_freq = uni.assessment_frequency()
+        df_freq = uni.assess_frequency()
         plt.subplot(gs[0:3, 4:5])
         plt.title("c. {}".format(specs["c_title"]), loc="left")
         plt.plot(df_freq["Exceedance"], df_freq["Values"])
@@ -322,7 +322,15 @@ class RasterMap:
         # -------------------------------------
         # set basic attributes
         self.grid = None  # start with no data
-        self.asc_metadata = None
+        self.asc_metadata = {
+            "ncols": None,
+            "nrows": None,
+            "xllcorner": 0.0,
+            "yllcorner": 0.0,
+            "cellsize": 1.0,
+            "NODATA_value": -1,
+        }
+        self.nodatavalue = self.asc_metadata["NODATA_value"]
         self.name = name
         self.dtype = dtype
         self.cmap = "jet"
@@ -338,8 +346,9 @@ class RasterMap:
         :type grid: :class:`numpy.ndarray`
         """
         self.grid = grid.astype(self.dtype)
+        self.mask_nodata()
 
-    def set_metadata(self, metadata):
+    def set_asc_metadata(self, metadata):
         """
         Set metadata from incoming objects
 
@@ -356,8 +365,14 @@ class RasterMap:
         :param metadata: metadata dictionary
         :type metadata: dict
         """
+        for k in self.asc_metadata:
+            if k in metadata:
+                self.asc_metadata[k] = metadata[k]
+        # update nodata value
+        self.nodatavalue = self.asc_metadata["NODATA_value"]
 
-        self.asc_metadata = metadata
+    def update_asc_metadata(self):
+        self.asc_metadata["NODATA_value"] = self.nodatavalue
 
     def load_asc_raster(self, file, nan=False):
         """
@@ -409,8 +424,8 @@ class RasterMap:
                         if grd_data[i][j] == ndv:
                             grd_data[i][j] = np.nan
 
-        self.asc_metadata = dct_meta
-        self.grid = grd_data
+        self.set_asc_metadata(metadata=dct_meta)
+        self.set_grid(grid=grd_data)
 
     def load_asc_metadata(self, file):
         """
@@ -445,7 +460,7 @@ class RasterMap:
             else:
                 meta_dct[meta_lbls[i]] = float(lcl_meta_str)
         # set attribute
-        self.asc_metadata = meta_dct
+        self.set_asc_metadata(metadata=meta_dct)
 
     def export_asc_raster(self, folder, filename=None):
         """
@@ -477,6 +492,7 @@ class RasterMap:
                 exp_lst.append(line)
             #
             # data constructor loop:
+            self.insert_nodata()
             def_array = np.array(self.grid, dtype=self.dtype)
             for i in range(len(def_array)):
                 # replace np.nan to no data values
@@ -497,15 +513,66 @@ class RasterMap:
             fle.close()
             return flenm
 
+    def mask_nodata(self):
+        """
+        Mask grid cells as NaN where data is NODATA
+        """
+        if self.nodatavalue is None:
+            pass
+        else:
+            self.grid[self.grid == self.nodatavalue] = np.nan
+
+    def insert_nodata(self):
+        """
+        Insert grid cells as NODATA where data is NaN
+        :return:
+        :rtype:
+        """
+        if self.nodatavalue is None:
+            pass
+        else:
+            self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
+
+    def get_data(self):
+        """
+        Get flat and cleared data
+        :return: 1d vector of data
+        :rtype: :class:`numpy.ndarray`
+        """
+        return self.grid.ravel()[~np.isnan(self.grid.ravel())]
+
+    def get_basic_stats(self):
+        """
+        Get basic statistics from flat and clear data
+        :return: dataframe of basic statistics
+        :rtype: :class:`pandas.DataFrame`
+        """
+        from analyst import Univar
+
+        return Univar(data=self.get_data()).assess_basic_stats()
+
     def plot_basic_view(
         self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
     ):
+        """
+        Plot basic view of raster map
+        :param show: boolean to show plot instead of saving
+        :type show: bool
+        :param folder: path to output folder
+        :type folder: str
+        :param filename: name of file
+        :type filename: str
+        :param specs: specifications dictionary
+        :type specs: dict
+        :param dpi: image resolution
+        :type dpi: int
+        """
         from analyst import Univar
 
         plt.style.use("seaborn-v0_8")
 
         # get univar object
-        uni = Univar(data=self.grid.flatten())
+        uni = Univar(data=self.get_data())
 
         # get specs
         default_specs = {
@@ -533,9 +600,9 @@ class RasterMap:
         specs = default_specs
 
         if specs["vmin"] is None:
-            specs["vmin"] = np.min(self.grid)
+            specs["vmin"] = np.min(uni.data)
         if specs["vmax"] is None:
-            specs["vmax"] = np.max(self.grid)
+            specs["vmax"] = np.max(uni.data)
 
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
@@ -557,12 +624,12 @@ class RasterMap:
         plt.subplot(gs[:2, 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         vct_result = plt.hist(
-            x=self.grid.flatten(),
+            x=uni.data,
             bins=specs["nbins"],
             color=specs["color"],
             # orientation="horizontal"
         )
-        n_mean = np.mean(self.grid.flatten())
+        n_mean = np.mean(uni.data)
         if specs["hist_vmax"] is None:
             specs["hist_vmax"] = 1.2 * np.max(vct_result[0])
         plt.vlines(
@@ -681,17 +748,38 @@ class QualiRasterMap(RasterMap):
         self.description = "Unknown"
         self.units = "category ID"
         self.table = None
-        self.nodatavalue = 0
         self.idfield = "Id"
         self.namefield = "Name"
         self.aliasfield = "Name"
         self.colorfield = "Color"
         self.areafield = "Area"
+        self._overwrite_nodata()
 
-    def load_asc_raster(self, file, nan=False):
-        super().load_asc_raster(file, nan)
-        # overwrite nodata
+    def _overwrite_nodata(self):
+        self.nodatavalue = 0
         self.asc_metadata["NODATA_value"] = self.nodatavalue
+
+    def set_asc_metadata(self, metadata):
+        super().set_asc_metadata(metadata)
+        self._overwrite_nodata()
+
+    def mask_nodata(self):
+        """
+        Mask grid cells where data is NODATA
+        """
+        if self.nodatavalue is None:
+            pass
+        else:
+            self.grid = np.ma.masked_where(self.grid == self.nodatavalue, self.grid)
+
+    def insert_nodata(self):
+        """
+        Insert grid cells as NODATA where data is maked
+        """
+        if self.nodatavalue is None:
+            pass
+        else:
+            self.grid = np.ma.filled(self.grid, fill_value=self.nodatavalue)
 
     def _dataframe_prepro(self, dataframe):
         """
@@ -711,7 +799,7 @@ class QualiRasterMap(RasterMap):
                 ].str.strip()
         return dataframe
 
-    def load_attributes(self, file):
+    def load_table(self, file):
         """
         Load attributes dataframe from CSV txt file (separator must be ;)
         :param file: path to file
@@ -722,7 +810,7 @@ class QualiRasterMap(RasterMap):
         # set to self
         self.table = self._dataframe_prepro(dataframe=df_aux)
 
-    def export_attributes(self, folder="C:/data", filename=None):
+    def export_table(self, folder="C:/data", filename=None):
         """
         Export an CSV .txt  file.
         :param folder: string of directory path
@@ -738,7 +826,7 @@ class QualiRasterMap(RasterMap):
         self.table.to_csv(flenm, sep=";", index=False)
         return flenm
 
-    def set_attributes(self, dataframe):
+    def set_table(self, dataframe):
         """
         Set attributes dataframe from incoming pandas dataframe
         :param dataframe: incoming pandas dataframe
@@ -799,8 +887,14 @@ class QualiRasterMap(RasterMap):
         self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
     ):
         from matplotlib.colors import ListedColormap
+        from matplotlib.patches import Patch
 
         plt.style.use("seaborn-v0_8")
+
+        if self.colorfield in self.table.columns:
+            pass
+        else:
+            self.set_random_colors()
 
         # get specs
         default_specs = {
@@ -829,29 +923,46 @@ class QualiRasterMap(RasterMap):
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            4, 5, wspace=0.8, hspace=0.1, left=0.01, bottom=0.1, top=0.85, right=0.95
+            7, 5, wspace=0.8, hspace=0.05, left=0.01, bottom=0.1, top=0.85, right=0.95
         )
         fig.suptitle(specs["suptitle"])
 
         # plot map
-        plt.subplot(gs[:3, :3])
+        plt.subplot(gs[:5, :3])
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         im = plt.imshow(
             self.grid, cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
         )
-        #fig.colorbar(im, shrink=0.5)
         plt.axis("off")
+        # place legend
+        legend_elements = []
+        for i in range(len(self.table)):
+            legend_elements.append(
+                Patch(
+                    facecolor=self.table[self.colorfield].values[i],
+                    label=self.table[self.namefield].values[i],
+                )
+            )
+        plt.legend(
+            frameon=True,
+            handles=legend_elements,
+            bbox_to_anchor=(0.5, 0.25),
+            bbox_transform=fig.transFigure,
+            ncol=3,
+        )
 
         # plot hbar
         # ensure areas are computed
         self.get_areas()
-        df_aux = self.table.sort_values(by="{}_m2".format(self.areafield), ascending=True)
-        plt.subplot(gs[:2, 3:])
+        df_aux = self.table.sort_values(
+            by="{}_m2".format(self.areafield), ascending=True
+        )
+        plt.subplot(gs[:4, 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         plt.barh(
             df_aux[self.namefield],
             df_aux["{}_ha".format(self.areafield)],
-            color=df_aux[self.colorfield]
+            color=df_aux[self.colorfield],
         )
 
         # Add labels for each bar
@@ -859,10 +970,14 @@ class QualiRasterMap(RasterMap):
         for i in range(len(df_aux)):
             v = df_aux["{}_ha".format(self.areafield)].values[i]
             p = df_aux["{}_%".format(self.areafield)].values[i]
-            plt.text(v + _n_max / 50, i - 0.3, "{:.1f} ({:.1f}%)".format(v, p), fontsize=9)
+            plt.text(
+                v + _n_max / 50, i - 0.3, "{:.1f} ({:.1f}%)".format(v, p), fontsize=9
+            )
         plt.xlim(0, 1.5 * _n_max)
         plt.xlabel("hectares")
-        plt.grid(axis='y')
+        plt.grid(axis="y")
+        # ax = plt.gca()
+        # ax.set_position([0.15, 0.15, 0.75, 0.75])
 
         # plot metadata
         n_y = 0.25
@@ -891,24 +1006,68 @@ class QualiRasterMap(RasterMap):
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
 
-
 if __name__ == "__main__":
     sfile = "C:/data/lulc.asc"
     rst_lulc = QualiRasterMap(name="Andreas")
     rst_lulc.varname = "LULC"
     rst_lulc.load_asc_raster(file=sfile)
 
-    rst_lulc.load_attributes(file="C:/data/lulc.txt")
-    rst_lulc.set_attributes(dataframe=rst_lulc.table[["Id", "Name", "Alias", "Color"]])
-    #rst_lulc.set_random_colors()
+    rst_lulc.load_table(file="C:/data/lulc.txt")
+    rst_lulc.set_table(dataframe=rst_lulc.table[["Id", "Name", "Alias", "Color"]])
+    # rst_lulc.set_random_colors()
 
     print(rst_lulc.asc_metadata)
+    print(rst_lulc.grid.dtype)
     # rst_lulc.attributes["Color"].values[2] = "green"
     # rst_lulc.attributes["Color"].values[4] = "orange"
 
     rst_lulc.plot_basic_view(show=True)
     rst_lulc.get_areas()
     print(rst_lulc.table.to_string())
+
+    sfile = "C:/data/slope.asc"
+    rst_slp = SlopeMap(name="Andreas")
+    rst_slp.load_asc_raster(file=sfile)
+    # rst_slp.plot_basic_view(show=True)
+
+    print(rst_slp.get_basic_stats())
+
+    rst_slp.grid[10:50] = -1
+    rst_slp.set_grid(grid=rst_slp.grid)
+    # rst_slp.plot_basic_view(show=True)
+    print(rst_slp.get_basic_stats())
+
+    sfile = "C:/data/basin.asc"
+    rst_basin = QualiRasterMap(name="Andreas")
+    rst_basin.varname = "Basin"
+    rst_basin.load_asc_raster(file=sfile)
+    rst_basin.table = pd.DataFrame(
+        {"Id": [1], "Name": "Andreas", "Alias": "And", "Color": "blue"}
+    )
+    # rst_basin.plot_basic_view(show=True)
+
+    np.random.seed(4)
+    grd_quali = np.random.randint(1, 15, (50, 40))
+    df_table = pd.DataFrame(
+        {
+            "Id": np.unique(grd_quali),
+            "Name": ["Cat" + str(num) for num in np.unique(grd_quali)],
+        }
+    )
+    df_table["Alias"] = df_table["Name"]
+
+    rst_quali = QualiRasterMap(name="Random")
+    rst_quali.set_grid(grid=grd_quali)
+    rst_quali.set_asc_metadata(
+        metadata={
+            "cellsize": 10,
+        }
+    )
+    rst_quali.set_table(dataframe=df_table)
+    # rst_quali.set_random_colors()
+    print(rst_quali.table)
+    rst_quali.plot_basic_view(show=True)
+    print(rst_quali.table)
 
     """
     sfile = "C:/data/slope.asc"

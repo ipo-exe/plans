@@ -99,10 +99,10 @@ class Univar:
         binsize = 3.5 * np.std(self.data) * len(self.data) ** (-1 / 3)
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
-    def _nbins(self, rule=None):
+    def nbins_by_rule(self, rule=None):
         """
         Util function for rule-based nbins computation
-        :param rule: rule code
+        :param rule: rule code (sturges, fd, scott)
         :type rule: str
         :return: number of bins for histogram
         :rtype: int
@@ -135,7 +135,7 @@ class Univar:
         if rule is None:
             pass
         else:
-            bins = self._nbins(rule=rule)
+            bins = self.nbins_by_rule(rule=rule)
         # compute histogram
         vct_hist, vct_bins = np.histogram(self.data, bins=bins)
         # get dataframe
@@ -176,7 +176,7 @@ class Univar:
         if rule is None:
             pass
         else:
-            bins = self._nbins(rule=rule)
+            bins = self.nbins_by_rule(rule=rule)
 
         # get specs
         default_specs = {
@@ -304,7 +304,7 @@ class Univar:
             test_name="D'Agostino-Pearson", stat=stat, p=p, distr="normal"
         )
 
-    def assessment_normality(self):
+    def assess_normality(self):
         """
         Assessment on normality using standard tests
         :return: dataframe of assessment results
@@ -327,7 +327,7 @@ class Univar:
             lst_p.append(e["p-value"])
             lst_clvl.append(e["Confidence"])
             lst_is.append(e["Is normal"])
-        df_assessment = pd.DataFrame(
+        df_result = pd.DataFrame(
             {
                 "Test": lst_names,
                 "Statistic": lst_stats,
@@ -336,9 +336,9 @@ class Univar:
                 "Confidence": lst_clvl,
             }
         )
-        return df_assessment
+        return df_result
 
-    def assessment_frequency(self):
+    def assess_frequency(self):
         """
         Assessment on data frequency
         :return: result dataframe
@@ -355,42 +355,38 @@ class Univar:
         # get empirical prob
         vct_empprob = vct_count / np.sum(vct_count)
 
-        dct_out = {
-            "Percentiles": vct_percentiles,
-            "Exceedance": vct_exeed,
-            "Frequency": vct_count,
-            "Empirical Probability": vct_empprob,
-            "Values": vct_cfc,
-        }
+        df_result = pd.DataFrame(
+            {
+                "Percentiles": vct_percentiles,
+                "Exceedance": vct_exeed,
+                "Frequency": vct_count,
+                "Empirical Probability": vct_empprob,
+                "Values": vct_cfc,
+            }
+        )
+        return df_result
 
-        return pd.DataFrame(dct_out)
+    def assess_basic_stats(self):
+        df_aux = pd.DataFrame(
+            {
+                "Data": self.data
+            }
+        )
+        df_stats = df_aux.describe()
+        df_result = df_stats.reset_index().rename(columns={"index": "Stats"})
+        return df_result
 
 
 if __name__ == "__main__":
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
 
     np.random.seed(6175)
-    vct = np.random.normal(100, 10, 1000)
+    vct = np.random.normal(100, 10, 50)
     vct_random = np.random.randint(10, 100, 1000)
 
     vct_norm = normal_curve(mu=100, sigma=10, vmin=50, vmax=150, ngrid=1000)
 
     uni = Univar(data=vct, name="Random")
 
-    df = uni.assessment_normality()
+
+    df = uni.assess_basic_stats()
     print(df)
-    dct_norm = normal_curve(
-        mu=np.mean(uni.data),
-        sigma=np.std(uni.data),
-        vmin=np.min(uni.data),
-        vmax=np.max(uni.data),
-    )
-    print(np.min(uni.data))
-
-    uni.plot_hist(rule="fd", show=True)
-
-    plt.hist(uni.data, bins=100)
-    plt.plot(dct_norm["x"], dct_norm["y"] * len(uni.data))
-    plt.show()
