@@ -795,15 +795,101 @@ class QualiRasterMap(RasterMap):
                 "{}_%".format(self.areafield)
             ].round(2)
 
-    def plot_basic_view(self, show=False, folder="C:/data", filename=None, dpi=96):
+    def plot_basic_view(
+        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+    ):
         from matplotlib.colors import ListedColormap
 
-        specs = {
+        plt.style.use("seaborn-v0_8")
+
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "cmap": ListedColormap(self.table[self.colorfield]),
+            "suptitle": "{} | {}".format(self.varname, self.name),
+            "a_title": "{} ({})".format(self.varname, self.units),
+            "b_title": "Prevalence",
+            "c_title": "Metadata",
+            "width": 5 * 1.618,
+            "height": 5,
+            "b_ylabel": "frequency",
+            "b_xlabel": self.units,
             "vmin": self.table[self.idfield].min(),
             "vmax": self.table[self.idfield].max(),
-            "cmap": ListedColormap(self.table[self.colorfield]),
+            "hist_vmax": None,
         }
-        super().plot_basic_view(show, folder, filename, specs, dpi)
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        gs = mpl.gridspec.GridSpec(
+            4, 5, wspace=0.8, hspace=0.1, left=0.01, bottom=0.1, top=0.85, right=0.95
+        )
+        fig.suptitle(specs["suptitle"])
+
+        # plot map
+        plt.subplot(gs[:3, :3])
+        plt.title("a. {}".format(specs["a_title"]), loc="left")
+        im = plt.imshow(
+            self.grid, cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
+        )
+        #fig.colorbar(im, shrink=0.5)
+        plt.axis("off")
+
+        # plot hbar
+        # ensure areas are computed
+        self.get_areas()
+        df_aux = self.table.sort_values(by="{}_m2".format(self.areafield), ascending=True)
+        plt.subplot(gs[:2, 3:])
+        plt.title("b. {}".format(specs["b_title"]), loc="left")
+        plt.barh(
+            df_aux[self.namefield],
+            df_aux["{}_ha".format(self.areafield)],
+            color=df_aux[self.colorfield]
+        )
+
+        # Add labels for each bar
+        _n_max = df_aux["{}_ha".format(self.areafield)].max()
+        for i in range(len(df_aux)):
+            v = df_aux["{}_ha".format(self.areafield)].values[i]
+            p = df_aux["{}_%".format(self.areafield)].values[i]
+            plt.text(v + _n_max / 50, i - 0.3, "{:.1f} ({:.1f}%)".format(v, p), fontsize=9)
+        plt.xlim(0, 1.5 * _n_max)
+        plt.xlabel("hectares")
+        plt.grid(axis='y')
+
+        # plot metadata
+        n_y = 0.25
+        plt.text(
+            x=0.63,
+            y=n_y,
+            s="c. {}".format(specs["c_title"]),
+            fontsize=12,
+            transform=fig.transFigure,
+        )
+        n_y = n_y - 0.01
+        n_step = 0.03
+        for k in self.asc_metadata:
+            s_head = k
+            s_value = self.asc_metadata[k]
+            s_line = s_head + ": " + str(s_value)
+            n_y = n_y - n_step
+            plt.text(x=0.65, y=n_y, s=s_line, fontsize=10, transform=fig.transFigure)
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = "{}_{}".format(self.varalias, self.name)
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+
 
 
 if __name__ == "__main__":
@@ -813,8 +899,8 @@ if __name__ == "__main__":
     rst_lulc.load_asc_raster(file=sfile)
 
     rst_lulc.load_attributes(file="C:/data/lulc.txt")
-    rst_lulc.set_attributes(dataframe=rst_lulc.table[["Id", "Name", "Alias"]])
-    rst_lulc.set_random_colors()
+    rst_lulc.set_attributes(dataframe=rst_lulc.table[["Id", "Name", "Alias", "Color"]])
+    #rst_lulc.set_random_colors()
 
     print(rst_lulc.asc_metadata)
     # rst_lulc.attributes["Color"].values[2] = "green"
