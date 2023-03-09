@@ -300,11 +300,13 @@ class PrecipSeries(DailySeries):
 class StreamflowSeries(DailySeries):
     pass
 
+# -----------------------------------------
+# Raster data structures
+# todo __str__() method
 
 class RasterMap:
     """
-    The basic Raster map data structure
-
+    The basic raster map dataset.
     """
 
     def __init__(self, name="myRasterMap", dtype="float32"):
@@ -321,6 +323,11 @@ class RasterMap:
         self.asc_metadata = None
         self.name = name
         self.dtype = dtype
+        self.cmap = "jet"
+        self.varname = "Unknown variable"
+        self.varalias = "Var"
+        self.description = "Unknown"
+        self.units = "units"
 
     def set_grid(self, grid):
         """
@@ -501,16 +508,19 @@ class RasterMap:
         # get specs
         default_specs = {
             "color": "tab:grey",
-            "cmap": "viridis",
-            "suptitle": "{} Overview".format(self.name),
-            "a_title": "{} map".format(self.name),
+            "cmap": self.cmap,
+            "suptitle": "{} | {}".format(self.varname, self.name),
+            "a_title": "{} ({})".format(self.varname, self.units),
             "b_title": "Histogram",
             "c_title": "Metadata",
             "width": 5 * 1.618,
             "height": 5,
             "b_ylabel": "frequency",
-            "b_xlabel": "units",
+            "b_xlabel": self.units,
             "nbins": uni.nbins_fd(),
+            "vmin": None,
+            "vmax": None,
+            "hist_vmax": None,
         }
         # handle input specs
         if specs is None:
@@ -520,10 +530,15 @@ class RasterMap:
                 default_specs[k] = specs[k]
         specs = default_specs
 
+        if specs["vmin"] is None:
+            specs["vmin"] = np.min(self.grid)
+        if specs["vmax"] is None:
+            specs["vmax"] = np.max(self.grid)
+
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            4, 5, wspace=0.8, hspace=0.1, left=0.0, bottom=0.1, top=0.85, right=0.9
+            4, 5, wspace=0.8, hspace=0.1, left=0.01, bottom=0.1, top=0.85, right=0.95
         )
         fig.suptitle(specs["suptitle"])
 
@@ -531,79 +546,208 @@ class RasterMap:
         plt.subplot(gs[:3, :3])
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         im = plt.imshow(
-            self.grid,
-            cmap=specs["cmap"]
-
+            self.grid, cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
         )
         fig.colorbar(im, shrink=0.5)
-        plt.axis('off')
+        plt.axis("off")
 
         # plot Hist
         plt.subplot(gs[:2, 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
-        plt.hist(
+        vct_result = plt.hist(
             x=self.grid.flatten(),
             bins=specs["nbins"],
             color=specs["color"],
-            #orientation="horizontal"
+            # orientation="horizontal"
         )
-        #plt.ylim(specs["ylim"])
+        n_mean = np.mean(self.grid.flatten())
+        if specs["hist_vmax"] is None:
+            specs["hist_vmax"] = 1.2 * np.max(vct_result[0])
+        plt.vlines(
+            x=n_mean,
+            ymin=0,
+            ymax=specs["hist_vmax"],
+            colors="tab:red",
+            linestyles="--",
+            # label="mean ({:.2f})".format(n_mean)
+        )
+
+        plt.ylim(0, specs["hist_vmax"])
+        plt.xlim(specs["vmin"], specs["vmax"])
         plt.ylabel(specs["b_ylabel"])
         plt.xlabel(specs["b_xlabel"])
+        plt.text(
+            x=n_mean + 2 * (specs["vmax"] - specs["vmin"]) / 100,
+            y=0.9 * specs["hist_vmax"],
+            s="{:.2f} (mean)".format(n_mean),
+        )
 
         # plot metadata
+        n_y = 0.25
         plt.text(
-            x=0.59,
-            y=0.35,
+            x=0.63,
+            y=n_y,
             s="c. {}".format(specs["c_title"]),
             fontsize=12,
-            transform=fig.transFigure
+            transform=fig.transFigure,
         )
-        n_y = 0.32
-        n_step = 0.04
+        n_y = n_y - 0.01
+        n_step = 0.03
         for k in self.asc_metadata:
             s_head = k
             s_value = self.asc_metadata[k]
             s_line = s_head + ": " + str(s_value)
             n_y = n_y - n_step
-            plt.text(
-                x=0.60,
-                y=n_y,
-                s=s_line,
-                fontsize=12,
-                transform=fig.transFigure
-            )
+            plt.text(x=0.65, y=n_y, s=s_line, fontsize=10, transform=fig.transFigure)
 
         # show or save
         if show:
             plt.show()
         else:
             if filename is None:
-                filename = self.name
+                filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
 
+# -----------------------------------------
+# Quanti raster data structures
+
+
+class ElevationMap(RasterMap):
+    """
+    Elevation (DEM) raster map dataset.
+    """
+
+    def __init__(self, name="DemMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="uint16")
+        self.cmap = "gist_earth"
+        self.varname = "Elevation"
+        self.varalias = "ELV"
+        self.description = "Height above sea level"
+        self.units = "m"
+
+
+class SlopeMap(RasterMap):
+    """
+    Slope raster map dataset.
+    """
+
+    def __init__(self, name="SlopeMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "OrRd"
+        self.varname = "Slope"
+        self.varalias = "SLP"
+        self.description = "Slope of terrain"
+        self.units = "deg."
+
+
+# -----------------------------------------
+# Quali Raster data structures
+
+class QualiRasterMap(RasterMap):
+    """
+    Basic qualitative raster map dataset.
+
+    Attributes dataframe must at least have:
+    * :class:`Id` field
+    * :class:`Name` field
+    * :class:`Alias` field
+
+    """
+
+    def __init__(self, name="QualiMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="uint8")
+        self.cmap = "tab20b"
+        self.varname = "Unknown variable"
+        self.varalias = "Var"
+        self.description = "Unknown"
+        self.units = "category ID"
+        self.attributes = None
+        self.nodatavalue = 0
+
+    def load_asc_raster(self, file, nan=False):
+        super().load_asc_raster(file, nan)
+        # overwrite nodata
+        self.asc_metadata["NODATA_value"] = self.nodatavalue
+
+    def _dataframe_prepro(self, dataframe):
+        """
+        Utility function for dataframe preprossing
+        :param dataframe: incoming dataframe
+        :type dataframe: :class:`pandas.DataFrame`
+        :return: prepared dataframe
+        :rtype: :class:`pandas.DataFrame`
+        """
+        # fix headings
+        dataframe.columns = dataframe.columns.str.strip()
+        # strip string fields
+        for i in range(len(dataframe.columns)):
+            if str(dataframe.dtypes.iloc[i]) == "object":
+                dataframe[dataframe.columns[i]] = dataframe[dataframe.columns[i]].str.strip()
+        return dataframe
+
+    def load_attributes(self, file):
+        """
+        Load attributes dataframe from CSV txt file (separator must be ;)
+        :param file: path to file
+        :type file: str
+        """
+        # read raw file
+        df_aux = pd.read_csv(file, sep=";")
+        # set to self
+        self.attributes = self._dataframe_prepro(dataframe=df_aux)
+
+    def set_attributes(self, dataframe):
+        """
+        Set attributes dataframe from incoming pandas dataframe
+        :param dataframe: incoming pandas dataframe
+        :type dataframe: :class:`pandas.DataFrame`
+        """
+        self.attributes = self._dataframe_prepro(dataframe=dataframe.copy())
+
+
+
 if __name__ == "__main__":
-    sfile = "C:/data/twi.asc"
 
-    rst_map = RasterMap(dtype="float32", name="LULC")
-    np.random.seed(5)
-    #
-
-    rst_map.set_grid(grid=np.random.normal(100, 3, size=(100, 100)))
-    rst_map.set_metadata(
-        metadata={
-            "ncols": 366,
-            "nrows": 434,
-            "xllcorner": 559493.08,
-            "yllcorner": 6704832.2,
-            "cellsize": 30,
-            "NODATA_value": -1,
-        }
-    )
-    
-
-    #rst_map.load_asc_raster(file=sfile)
+    sfile = "C:/data/lulc.asc"
+    rst_lulc = QualiRasterMap(name="Andreas")
+    rst_lulc.varname = "LULC"
+    rst_lulc.load_asc_raster(file=sfile)
+    rst_lulc.plot_basic_view(show=True)
+    rst_lulc.load_attributes(file="C:/data/lulc.txt")
+    print(rst_lulc.attributes)
+    rst_lulc.set_attributes(dataframe=rst_lulc.attributes[["Id", "Name", "Alias"]])
+    print(rst_lulc.attributes)
+    print(rst_lulc.asc_metadata)
 
 
-    rst_map.plot_basic_view(show=True)
+    '''
+    sfile = "C:/data/slope.asc"
+    rst_slp = SlopeMap(name="Andreas")
+    rst_slp.load_asc_raster(file=sfile)
+    rst_slp.plot_basic_view(show=True)
+
+    sfile = "C:/data/dem.asc"
+    rst_dem = ElevationMap(name="Andreas")
+    rst_dem.load_asc_raster(file=sfile)
+    specs = {"vmin": None, "vmax": None, "hist_vmax": None}
+    rst_dem.plot_basic_view(show=True, specs=specs)
+    '''
+
+
+
