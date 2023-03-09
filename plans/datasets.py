@@ -300,9 +300,11 @@ class PrecipSeries(DailySeries):
 class StreamflowSeries(DailySeries):
     pass
 
+
 # -----------------------------------------
 # Raster data structures
 # todo __str__() method
+
 
 class RasterMap:
     """
@@ -654,6 +656,7 @@ class SlopeMap(RasterMap):
 # -----------------------------------------
 # Quali Raster data structures
 
+
 class QualiRasterMap(RasterMap):
     """
     Basic qualitative raster map dataset.
@@ -677,8 +680,13 @@ class QualiRasterMap(RasterMap):
         self.varalias = "Var"
         self.description = "Unknown"
         self.units = "category ID"
-        self.attributes = None
+        self.table = None
         self.nodatavalue = 0
+        self.idfield = "Id"
+        self.namefield = "Name"
+        self.aliasfield = "Name"
+        self.colorfield = "Color"
+        self.areafield = "Area"
 
     def load_asc_raster(self, file, nan=False):
         super().load_asc_raster(file, nan)
@@ -698,7 +706,9 @@ class QualiRasterMap(RasterMap):
         # strip string fields
         for i in range(len(dataframe.columns)):
             if str(dataframe.dtypes.iloc[i]) == "object":
-                dataframe[dataframe.columns[i]] = dataframe[dataframe.columns[i]].str.strip()
+                dataframe[dataframe.columns[i]] = dataframe[
+                    dataframe.columns[i]
+                ].str.strip()
         return dataframe
 
     def load_attributes(self, file):
@@ -710,7 +720,23 @@ class QualiRasterMap(RasterMap):
         # read raw file
         df_aux = pd.read_csv(file, sep=";")
         # set to self
-        self.attributes = self._dataframe_prepro(dataframe=df_aux)
+        self.table = self._dataframe_prepro(dataframe=df_aux)
+
+    def export_attributes(self, folder="C:/data", filename=None):
+        """
+        Export an CSV .txt  file.
+        :param folder: string of directory path
+        :type folder: str
+        :param filename: string of file without extension
+        :type filename: str
+        :return: full file name (path and extension) string
+        :rtype: str
+        """
+        if filename is None:
+            filename = self.name
+        flenm = folder + "/" + filename + ".txt"
+        self.table.to_csv(flenm, sep=";", index=False)
+        return flenm
 
     def set_attributes(self, dataframe):
         """
@@ -718,25 +744,87 @@ class QualiRasterMap(RasterMap):
         :param dataframe: incoming pandas dataframe
         :type dataframe: :class:`pandas.DataFrame`
         """
-        self.attributes = self._dataframe_prepro(dataframe=dataframe.copy())
+        self.table = self._dataframe_prepro(dataframe=dataframe.copy())
 
+    def set_random_colors(self):
+        """
+        Set random colors to attribute table
+        """
+        if self.table is None:
+            pass
+        else:
+            import matplotlib.colors as mcolors
+
+            # Choose a colormap from matplotlib
+            _cmap = plt.get_cmap(self.cmap)
+            # Generate a list of random numbers between 0 and 1
+            _lst_rand_vals = np.random.rand(len(self.table))
+            # Use the colormap to convert the random numbers to colors
+            self.table[self.colorfield] = [
+                mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals
+            ]
+
+    def get_areas(self):
+        """
+        Get areas in map of each category in table
+        """
+        if self.table is None or self.grid is None:
+            pass
+        else:
+            # get unit area
+            _n_unit_area = np.square(self.asc_metadata["cellsize"])
+            _lst_areas = []
+            # iterate categories
+            for i in range(len(self.table)):
+                _n_id = self.table[self.idfield].values[i]
+                _n_value = np.sum(1 * (self.grid == _n_id)) * _n_unit_area
+                _lst_areas.append(_n_value)
+            # set area fields
+            s_field = "{}_m2".format(self.areafield)
+            self.table[s_field] = _lst_areas
+            self.table["{}_ha".format(self.areafield)] = self.table[s_field] / (
+                100 * 100
+            )
+            self.table["{}_km2".format(self.areafield)] = self.table[s_field] / (
+                1000 * 1000
+            )
+            self.table["{}_%".format(self.areafield)] = (
+                100 * self.table[s_field] / self.table[s_field].sum()
+            )
+            self.table["{}_%".format(self.areafield)] = self.table[
+                "{}_%".format(self.areafield)
+            ].round(2)
+
+    def plot_basic_view(self, show=False, folder="C:/data", filename=None, dpi=96):
+        from matplotlib.colors import ListedColormap
+
+        specs = {
+            "vmin": self.table[self.idfield].min(),
+            "vmax": self.table[self.idfield].max(),
+            "cmap": ListedColormap(self.table[self.colorfield]),
+        }
+        super().plot_basic_view(show, folder, filename, specs, dpi)
 
 
 if __name__ == "__main__":
-
     sfile = "C:/data/lulc.asc"
     rst_lulc = QualiRasterMap(name="Andreas")
     rst_lulc.varname = "LULC"
     rst_lulc.load_asc_raster(file=sfile)
-    rst_lulc.plot_basic_view(show=True)
+
     rst_lulc.load_attributes(file="C:/data/lulc.txt")
-    print(rst_lulc.attributes)
-    rst_lulc.set_attributes(dataframe=rst_lulc.attributes[["Id", "Name", "Alias"]])
-    print(rst_lulc.attributes)
+    rst_lulc.set_attributes(dataframe=rst_lulc.table[["Id", "Name", "Alias"]])
+    rst_lulc.set_random_colors()
+
     print(rst_lulc.asc_metadata)
+    # rst_lulc.attributes["Color"].values[2] = "green"
+    # rst_lulc.attributes["Color"].values[4] = "orange"
 
+    rst_lulc.plot_basic_view(show=True)
+    rst_lulc.get_areas()
+    print(rst_lulc.table.to_string())
 
-    '''
+    """
     sfile = "C:/data/slope.asc"
     rst_slp = SlopeMap(name="Andreas")
     rst_slp.load_asc_raster(file=sfile)
@@ -747,7 +835,4 @@ if __name__ == "__main__":
     rst_dem.load_asc_raster(file=sfile)
     specs = {"vmin": None, "vmax": None, "hist_vmax": None}
     rst_dem.plot_basic_view(show=True, specs=specs)
-    '''
-
-
-
+    """
