@@ -170,6 +170,7 @@ class Univar:
         :param dpi: image resolution (default = 96)
         :type dpi: int
         """
+        import matplotlib.ticker as mtick
         plt.style.use("seaborn-v0_8")
 
         # get bins
@@ -184,9 +185,8 @@ class Univar:
             "title": "Histogram of {}".format(self.name),
             "width": 4 * 1.618,
             "height": 4,
-            "ylabel": "frequency",
             "xlabel": "value",
-            "ylim": (0, int(self.data.size / 4)),
+            "ylim": (0, 0.1),
             "xlim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
             "subtitle": None,
         }
@@ -205,11 +205,19 @@ class Univar:
             plt.title(specs["title"])
         else:
             plt.title("{} | {}".format(specs["title"], specs["subtitle"]))
-        plt.hist(self.data, bins=bins, color=specs["color"])
-        plt.ylabel(specs["ylabel"])
+        plt.hist(
+            self.data,
+            bins=bins,
+            weights=np.ones(len(self.data)) / len(self.data),
+            color=specs["color"])
         plt.xlabel(specs["xlabel"])
         plt.ylim(specs["ylim"])
         plt.xlim(specs["xlim"])
+
+        # Set the y-axis formatter as percentages
+        yticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol='%', is_latex=False)
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(yticks)
 
         # show or save
         if show:

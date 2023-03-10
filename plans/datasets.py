@@ -171,7 +171,8 @@ class DailySeries:
         :param dpi: image resolution (default = 96)
         :type dpi: int
         """
-
+        # todo fix histogram as %
+        import matplotlib.ticker as mtick
         from analyst import Univar
 
         plt.style.use("seaborn-v0_8")
@@ -189,7 +190,7 @@ class DailySeries:
             "width": 5 * 1.618,
             "height": 5,
             "ylabel": "units",
-            "ylim": (0, 1.2 * self.data[self.varfield].max()),
+            "ylim": (0, 0.25),
             "a_xlabel": "Date",
             "b_xlabel": "Frequency",
             "c_xlabel": "Probability",
@@ -257,10 +258,16 @@ class DailySeries:
             bins=specs["nbins"],
             orientation="horizontal",
             color=specs["color"],
+            weights=np.ones(len(self.data)) / len(self.data),
         )
         plt.ylim(specs["ylim"])
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["b_xlabel"])
+
+        # Set the x-axis formatter as percentages
+        xticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol="%", is_latex=False)
+        ax = plt.gca()
+        ax.xaxis.set_major_formatter(xticks)
 
         # plot CFC
         df_freq = uni.assess_frequency()
@@ -302,7 +309,7 @@ class StreamflowSeries(DailySeries):
 
 
 # -----------------------------------------
-# Raster data structures
+# Base raster data structures
 # todo __str__() method
 
 
@@ -370,9 +377,6 @@ class RasterMap:
                 self.asc_metadata[k] = metadata[k]
         # update nodata value
         self.nodatavalue = self.asc_metadata["NODATA_value"]
-
-    def update_asc_metadata(self):
-        self.asc_metadata["NODATA_value"] = self.nodatavalue
 
     def load_asc_raster(self, file, nan=False):
         """
@@ -533,6 +537,23 @@ class RasterMap:
         else:
             self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
 
+    def apply_aoi_mask(self, grid_aoi):
+        """
+        Apply AOI (area of interest) mask to raster map
+        :param grid_aoi:
+        map of AOI (masked array or pseudo-boolean).
+        Must have the same size of grid
+        :type grid_aoi: :class:`numpy.ndarray`
+        """
+        if self.nodatavalue is None:
+            pass
+        # ensure fill
+        grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
+        # replace
+        self.grid = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
+        # mask
+        self.mask_nodata()
+
     def get_data(self):
         """
         Get flat and cleared data
@@ -567,6 +588,7 @@ class RasterMap:
         :param dpi: image resolution
         :type dpi: int
         """
+        import matplotlib.ticker as mtick
         from analyst import Univar
 
         plt.style.use("seaborn-v0_8")
@@ -584,7 +606,7 @@ class RasterMap:
             "c_title": "Metadata",
             "width": 5 * 1.618,
             "height": 5,
-            "b_ylabel": "frequency",
+            "b_ylabel": "percentage",
             "b_xlabel": self.units,
             "nbins": uni.nbins_fd(),
             "vmin": None,
@@ -621,17 +643,21 @@ class RasterMap:
         plt.axis("off")
 
         # plot Hist
+
         plt.subplot(gs[:2, 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         vct_result = plt.hist(
             x=uni.data,
             bins=specs["nbins"],
             color=specs["color"],
+            weights=np.ones(len(uni.data)) / len(uni.data)
             # orientation="horizontal"
         )
-        n_mean = np.mean(uni.data)
+        # get upper limit if none
         if specs["hist_vmax"] is None:
             specs["hist_vmax"] = 1.2 * np.max(vct_result[0])
+        # plot mean line
+        n_mean = np.mean(uni.data)
         plt.vlines(
             x=n_mean,
             ymin=0,
@@ -640,16 +666,21 @@ class RasterMap:
             linestyles="--",
             # label="mean ({:.2f})".format(n_mean)
         )
-
-        plt.ylim(0, specs["hist_vmax"])
-        plt.xlim(specs["vmin"], specs["vmax"])
-        plt.ylabel(specs["b_ylabel"])
-        plt.xlabel(specs["b_xlabel"])
         plt.text(
             x=n_mean + 2 * (specs["vmax"] - specs["vmin"]) / 100,
             y=0.9 * specs["hist_vmax"],
             s="{:.2f} (mean)".format(n_mean),
         )
+
+        plt.ylim(0, specs["hist_vmax"])
+        plt.xlim(specs["vmin"], specs["vmax"])
+        # plt.ylabel(specs["b_ylabel"])
+        plt.xlabel(specs["b_xlabel"])
+
+        # Set the y-axis formatter as percentages
+        yticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol="%", is_latex=False)
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(yticks)
 
         # plot metadata
         n_y = 0.25
@@ -679,48 +710,6 @@ class RasterMap:
 
 
 # -----------------------------------------
-# Quanti raster data structures
-
-
-class ElevationMap(RasterMap):
-    """
-    Elevation (DEM) raster map dataset.
-    """
-
-    def __init__(self, name="DemMap"):
-        """
-        Deploy dataset
-        :param name: name of map
-        :type name: str
-        """
-        super().__init__(name=name, dtype="uint16")
-        self.cmap = "gist_earth"
-        self.varname = "Elevation"
-        self.varalias = "ELV"
-        self.description = "Height above sea level"
-        self.units = "m"
-
-
-class SlopeMap(RasterMap):
-    """
-    Slope raster map dataset.
-    """
-
-    def __init__(self, name="SlopeMap"):
-        """
-        Deploy dataset
-        :param name: name of map
-        :type name: str
-        """
-        super().__init__(name=name, dtype="float32")
-        self.cmap = "OrRd"
-        self.varname = "Slope"
-        self.varalias = "SLP"
-        self.description = "Slope of terrain"
-        self.units = "deg."
-
-
-# -----------------------------------------
 # Quali Raster data structures
 
 
@@ -735,14 +724,14 @@ class QualiRasterMap(RasterMap):
 
     """
 
-    def __init__(self, name="QualiMap"):
+    def __init__(self, name="QualiMap", dtype="uint8"):
         """
         Deploy dataset
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="uint8")
-        self.cmap = "tab20b"
+        super().__init__(name=name, dtype=dtype)
+        self.cmap = "tab20"
         self.varname = "Unknown variable"
         self.varalias = "Var"
         self.description = "Unknown"
@@ -876,12 +865,73 @@ class QualiRasterMap(RasterMap):
             self.table["{}_km2".format(self.areafield)] = self.table[s_field] / (
                 1000 * 1000
             )
+            self.table["{}_f".format(self.areafield)] = (
+                self.table[s_field] / self.table[s_field].sum()
+            )
             self.table["{}_%".format(self.areafield)] = (
                 100 * self.table[s_field] / self.table[s_field].sum()
             )
             self.table["{}_%".format(self.areafield)] = self.table[
                 "{}_%".format(self.areafield)
             ].round(2)
+
+    def get_zonal_stats(self, raster_sample, merge=False, skip_count=False):
+        """
+        get zonal stats from other raster map to sample
+        :param raster_sample: raster map to sample
+        :type raster_sample: :class:`datasets.RasterMap`
+        :param merge: set True to merge into the map table
+        :type merge: bool
+        :param skip_count: set True to skip count
+        :type skip_count: bool
+        :return: dataframe of zonal stats
+        :rtype: :class:`pandas.DataFrame`
+        """
+        from analyst import Univar
+
+        # deploy dataframe
+        df_aux = self.table[["Id", "Name", "Alias"]].copy()
+        # store copy of raster
+        grid_raster = raster_sample.grid
+        varname = raster_sample.varname
+        # collect statistics
+        lst_stats = []
+        for i in range(len(df_aux)):
+            n_id = df_aux["Id"].values[i]
+            # apply mask
+            grid_aoi = 1 * (self.grid == n_id)
+            raster_sample.apply_aoi_mask(grid_aoi=grid_aoi)
+            # get basic stats
+            raster_uni = Univar(data=raster_sample.get_data(), name=varname)
+            df_stats = raster_uni.assess_basic_stats()
+            lst_stats.append(df_stats.copy())
+            # restore
+            raster_sample.grid = grid_raster
+
+        # create empty fields
+        lst_stats_field = []
+        for k in df_stats["Stats"]:
+            s_field = "{}_{}".format(varname, k)
+            lst_stats_field.append(s_field)
+            df_aux[s_field] = 0.0
+
+        # fill values
+        for i in range(len(df_aux)):
+            df_aux.loc[i, lst_stats_field[0] : lst_stats_field[-1]] = lst_stats[i][
+                "Data"
+            ].values
+
+        # handle count
+        if skip_count:
+            df_aux = df_aux.drop(columns=["{}_count".format(varname)])
+            lst_stats_field.remove("{}_count".format(varname))
+
+        # handle merge
+        if merge:
+            for k in lst_stats_field:
+                self.table[k] = df_aux[k].values
+
+        return df_aux
 
     def plot_basic_view(
         self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
@@ -900,17 +950,20 @@ class QualiRasterMap(RasterMap):
         default_specs = {
             "color": "tab:grey",
             "cmap": ListedColormap(self.table[self.colorfield]),
-            "suptitle": "{} | {}".format(self.varname, self.name),
-            "a_title": "{} ({})".format(self.varname, self.units),
-            "b_title": "Prevalence",
+            "suptitle": "{} ({}) | {}".format(self.varname, self.varalias, self.name),
+            "a_title": "{} Map ({})".format(self.varalias, self.units),
+            "b_title": "{} Prevalence".format(self.varalias),
             "c_title": "Metadata",
             "width": 5 * 1.618,
             "height": 5,
-            "b_ylabel": "frequency",
+            "b_area": "ha",
             "b_xlabel": self.units,
             "vmin": self.table[self.idfield].min(),
             "vmax": self.table[self.idfield].max(),
             "hist_vmax": None,
+            "gs_rows": 7,
+            "gs_cols": 5,
+            "gs_b_rowlim": 4,
         }
         # handle input specs
         if specs is None:
@@ -923,7 +976,14 @@ class QualiRasterMap(RasterMap):
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            7, 5, wspace=0.8, hspace=0.05, left=0.01, bottom=0.1, top=0.85, right=0.95
+            specs["gs_rows"],
+            specs["gs_cols"],
+            wspace=0.8,
+            hspace=0.05,
+            left=0.01,
+            bottom=0.1,
+            top=0.85,
+            right=0.95,
         )
         fig.suptitle(specs["suptitle"])
 
@@ -957,24 +1017,24 @@ class QualiRasterMap(RasterMap):
         df_aux = self.table.sort_values(
             by="{}_m2".format(self.areafield), ascending=True
         )
-        plt.subplot(gs[:4, 3:])
+        plt.subplot(gs[: default_specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         plt.barh(
             df_aux[self.namefield],
-            df_aux["{}_ha".format(self.areafield)],
+            df_aux["{}_{}".format(self.areafield, specs["b_area"])],
             color=df_aux[self.colorfield],
         )
 
         # Add labels for each bar
-        _n_max = df_aux["{}_ha".format(self.areafield)].max()
+        _n_max = df_aux["{}_{}".format(self.areafield, specs["b_area"])].max()
         for i in range(len(df_aux)):
-            v = df_aux["{}_ha".format(self.areafield)].values[i]
+            v = df_aux["{}_{}".format(self.areafield, specs["b_area"])].values[i]
             p = df_aux["{}_%".format(self.areafield)].values[i]
             plt.text(
                 v + _n_max / 50, i - 0.3, "{:.1f} ({:.1f}%)".format(v, p), fontsize=9
             )
         plt.xlim(0, 1.5 * _n_max)
-        plt.xlabel("hectares")
+        plt.xlabel(specs["b_area"])
         plt.grid(axis="y")
         # ax = plt.gca()
         # ax.set_position([0.15, 0.15, 0.75, 0.75])
@@ -1006,78 +1066,154 @@ class QualiRasterMap(RasterMap):
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
 
-if __name__ == "__main__":
-    sfile = "C:/data/lulc.asc"
-    rst_lulc = QualiRasterMap(name="Andreas")
-    rst_lulc.varname = "LULC"
-    rst_lulc.load_asc_raster(file=sfile)
+# -----------------------------------------
+# Derived data structures
 
+
+class ElevationMap(RasterMap):
+    """
+    Elevation (DEM) raster map dataset.
+    """
+
+    def __init__(self, name="DemMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "gist_earth"
+        self.varname = "Elevation"
+        self.varalias = "ELV"
+        self.description = "Height above sea level"
+        self.units = "m"
+
+
+class SlopeMap(RasterMap):
+    """
+    Slope raster map dataset.
+    """
+
+    def __init__(self, name="SlopeMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "OrRd"
+        self.varname = "Slope"
+        self.varalias = "SLP"
+        self.description = "Slope of terrain"
+        self.units = "deg."
+
+
+class LULCMap(QualiRasterMap):
+    """
+    Land Use and Land Cover map dataset
+    """
+
+    def __init__(self, name="LULCMap"):
+        super().__init__(name, dtype="uint8")
+        self.cmap = "tab20b"
+        self.varname = "Land Use and Land Cover"
+        self.varalias = "LULC"
+        self.description = "Classes of Land Use and Land Cover"
+        self.units = "classes ID"
+
+
+class SoilsMap(QualiRasterMap):
+    """
+    Soils map dataset
+    """
+
+    def __init__(self, name="SoilsMap"):
+        super().__init__(name, dtype="uint8")
+        self.cmap = "tab20c"
+        self.varname = "Soil Types"
+        self.varalias = "Soils"
+        self.description = "Types of Soils and Substrate"
+        self.units = "types ID"
+
+
+class AOIMap(QualiRasterMap):
+    """
+    AOI map dataset
+    """
+
+    def __init__(self, name="AOIMap"):
+        super().__init__(name, dtype="uint8")
+        self.varname = "Area Of Interest"
+        self.varalias = "AOI"
+        self.description = "Boolean map an Area of Interest"
+        self.units = "classes ID"
+        self.table = pd.DataFrame(
+            {"Id": [1], "Name": [self.name], "Alias": ["-"], "Color": "tab:grey"}
+        )
+
+
+if __name__ == "__main__":
+    s_name = "Andreas"
+
+    # -------------------------------------------------------------
+    # [0] AOI map
+
+    # instantiate map
+    rst_aoi = AOIMap(name="Andreas")
+    # load file
+    rst_aoi.load_asc_raster(file="C:/data/basin.asc")
+    # view
+    # print(rst_aoi.table.to_string())
+    # rst_aoi.plot_basic_view(show=True)
+
+    # -------------------------------------------------------------
+    # [1] LULC map
+
+    # instantiate map
+    rst_lulc = LULCMap(name=s_name)
+    # load files
+    rst_lulc.load_asc_raster(file="C:/data/lulc.asc")
     rst_lulc.load_table(file="C:/data/lulc.txt")
     rst_lulc.set_table(dataframe=rst_lulc.table[["Id", "Name", "Alias", "Color"]])
-    # rst_lulc.set_random_colors()
-
-    print(rst_lulc.asc_metadata)
-    print(rst_lulc.grid.dtype)
-    # rst_lulc.attributes["Color"].values[2] = "green"
-    # rst_lulc.attributes["Color"].values[4] = "orange"
-
-    rst_lulc.plot_basic_view(show=True)
+    rst_lulc.apply_aoi_mask(grid_aoi=rst_aoi.grid)
     rst_lulc.get_areas()
+    # plot
+    # rst_lulc.plot_basic_view(show=True)
     print(rst_lulc.table.to_string())
 
-    sfile = "C:/data/slope.asc"
-    rst_slp = SlopeMap(name="Andreas")
-    rst_slp.load_asc_raster(file=sfile)
-    # rst_slp.plot_basic_view(show=True)
+    # -------------------------------------------------------------
+    # [2] Slope map
 
-    print(rst_slp.get_basic_stats())
+    # instantiate map
+    rst_slp = SlopeMap(name=s_name)
+    # load files
+    rst_slp.load_asc_raster(file="C:/data/slope.asc")
+    # apply aoi
+    rst_slp.apply_aoi_mask(grid_aoi=rst_aoi.grid)
+    # plot
+    # rst_slp.plot_basic_view(show=True,)
 
-    rst_slp.grid[10:50] = -1
-    rst_slp.set_grid(grid=rst_slp.grid)
-    # rst_slp.plot_basic_view(show=True)
-    print(rst_slp.get_basic_stats())
-
-    sfile = "C:/data/basin.asc"
-    rst_basin = QualiRasterMap(name="Andreas")
-    rst_basin.varname = "Basin"
-    rst_basin.load_asc_raster(file=sfile)
-    rst_basin.table = pd.DataFrame(
-        {"Id": [1], "Name": "Andreas", "Alias": "And", "Color": "blue"}
+    df_stats1 = rst_lulc.get_zonal_stats(
+        raster_sample=rst_slp, merge=False, skip_count=True
     )
-    # rst_basin.plot_basic_view(show=True)
+    print(df_stats1.to_string())
 
-    np.random.seed(4)
-    grd_quali = np.random.randint(1, 15, (50, 40))
-    df_table = pd.DataFrame(
-        {
-            "Id": np.unique(grd_quali),
-            "Name": ["Cat" + str(num) for num in np.unique(grd_quali)],
-        }
+    # -------------------------------------------------------------
+    # [3] Elevation map
+
+    # instantiate map
+    rst_dem = ElevationMap(name=s_name)
+    # load files
+    rst_dem.load_asc_raster(file="C:/data/dem.asc")
+    # apply aoi
+    rst_dem.apply_aoi_mask(grid_aoi=rst_aoi.grid)
+    # plot
+    rst_dem.plot_basic_view(show=True,)
+
+    df_stats2 = rst_lulc.get_zonal_stats(
+        raster_sample=rst_dem, merge=False, skip_count=True
     )
-    df_table["Alias"] = df_table["Name"]
+    print(df_stats2.sort_values(by="Elevation_mean").to_string())
 
-    rst_quali = QualiRasterMap(name="Random")
-    rst_quali.set_grid(grid=grd_quali)
-    rst_quali.set_asc_metadata(
-        metadata={
-            "cellsize": 10,
-        }
-    )
-    rst_quali.set_table(dataframe=df_table)
-    # rst_quali.set_random_colors()
-    print(rst_quali.table)
-    rst_quali.plot_basic_view(show=True)
-    print(rst_quali.table)
-
-    """
-    sfile = "C:/data/slope.asc"
-    rst_slp = SlopeMap(name="Andreas")
-    rst_slp.load_asc_raster(file=sfile)
-    rst_slp.plot_basic_view(show=True)
-
-    sfile = "C:/data/dem.asc"
-    rst_dem = ElevationMap(name="Andreas")
-    rst_dem.load_asc_raster(file=sfile)
-    specs = {"vmin": None, "vmax": None, "hist_vmax": None}
-    rst_dem.plot_basic_view(show=True, specs=specs)
-    """
+    plt.scatter(df_stats1["Slope_mean"], df_stats2["Elevation_mean"])
+    plt.show()
