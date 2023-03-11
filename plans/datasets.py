@@ -647,8 +647,8 @@ class Raster:
         filename: Union[str, None] = None,
         specs: Union[str, None] = None,
         dpi: int = 96,
-    ):
-        """Plot a basic pannel of raster map
+    ) -> None:
+        """Plot a basic pannel of raster map.
         :param show: boolean to show plot instead of saving
         :type show: bool
         :param folder: path to output folder
@@ -828,6 +828,8 @@ class Raster:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+
+        return None
 
     def foo_test(a: str, b: float):
         """Test
