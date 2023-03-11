@@ -23,7 +23,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from typing import Union
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -313,7 +314,7 @@ class StreamflowSeries(DailySeries):
 # todo __str__() method
 
 
-class RasterMap:
+class Raster:
     """
     The basic raster map dataset.
     """
@@ -568,20 +569,48 @@ class RasterMap:
         :return:
         :rtype:
         """
-        if self.nodatavalue is None:
-            pass
-        # ensure fill
-        grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
-        # replace
-        grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
-
-        if inplace:
-            self.grid = grd_mask
-            # mask
-            self.mask_nodata()
+        if self.nodatavalue is None or self.grid is None:
             return None
         else:
-            return grd_mask
+            # ensure fill
+            grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
+            # replace
+            grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
+
+            if inplace:
+                self.grid = grd_mask
+                # mask
+                self.mask_nodata()
+                return None
+            else:
+                return grd_mask
+
+    def cut_edges(
+        self, upper: Union[float, int], lower: Union[float, int], inplace: bool = False
+    ) -> Union[np.ndarray, None]:
+        """
+        Cutoff upper and lower values of grid
+        :param upper: upper value
+        :type upper: float or int
+        :param lower: lower value
+        :type lower: float or int
+        :param inplace: option to set the raster grid
+        :type inplace: bool
+        :return:
+        :rtype: None or np.ndarray
+        """
+        if self.grid is None:
+            return None
+        else:
+            new_grid = self.grid
+            new_grid[new_grid < lower] = lower
+            new_grid[new_grid > upper] = upper
+
+            if inplace:
+                self.set_grid(grid=new_grid)
+                return None
+            else:
+                return new_grid
 
     def get_data(self):
         """
@@ -645,6 +674,7 @@ class RasterMap:
             "a_title": "{} ({})".format(self.varname, self.units),
             "b_title": "Histogram",
             "c_title": "Metadata",
+            "d_title": "Statistics",
             "width": 5 * 1.618,
             "height": 5,
             "b_ylabel": "percentage",
@@ -723,23 +753,71 @@ class RasterMap:
         ax = plt.gca()
         ax.yaxis.set_major_formatter(yticks)
 
+        # ------------------------------------------------------------------
         # plot metadata
+
+        # get datasets
+        df_stats = self.get_basic_stats()
+        lst_meta = []
+        lst_value = []
+        for k in self.asc_metadata:
+            lst_value.append(self.asc_metadata[k])
+            lst_meta.append(k)
+        df_meta = pd.DataFrame({"Raster": lst_meta, "Value": lst_value})
+        # metadata
         n_y = 0.25
+        n_x = 0.08
         plt.text(
-            x=0.63,
+            x=n_x,
             y=n_y,
             s="c. {}".format(specs["c_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )
         n_y = n_y - 0.01
-        n_step = 0.03
-        for k in self.asc_metadata:
-            s_head = k
-            s_value = self.asc_metadata[k]
-            s_line = s_head + ": " + str(s_value)
+        n_step = 0.025
+        for i in range(len(df_meta)):
+            s_head = df_meta["Raster"].values[i]
+            if s_head == "cellsize":
+                s_value = self.cellsize
+            else:
+                s_value = df_meta["Value"].values[i]
+            s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
             n_y = n_y - n_step
-            plt.text(x=0.65, y=n_y, s=s_line, fontsize=10, transform=fig.transFigure)
+            plt.text(
+                x=n_x,
+                y=n_y,
+                s=s_line,
+                fontsize=9,
+                fontdict={"family": "monospace"},
+                transform=fig.transFigure,
+            )
+
+        # stats
+        n_y = 0.25
+        n_x = 0.62
+        plt.text(
+            x=n_x,
+            y=n_y,
+            s="d. {}".format(specs["d_title"]),
+            fontsize=12,
+            transform=fig.transFigure,
+        )
+        n_y = n_y - 0.01
+        n_step = 0.025
+        for i in range(len(df_stats)):
+            s_head = df_stats["Statistic"].values[i]
+            s_value = df_stats["Value"].values[i]
+            s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
+            n_y = n_y - n_step
+            plt.text(
+                x=n_x,
+                y=n_y,
+                s=s_line,
+                fontsize=9,
+                fontdict={"family": "monospace"},
+                transform=fig.transFigure,
+            )
 
         # show or save
         if show:
@@ -754,7 +832,7 @@ class RasterMap:
 # Quali Raster data structures
 
 
-class QualiRasterMap(RasterMap):
+class QualiRaster(Raster):
     """
     Basic qualitative raster map dataset.
 
@@ -955,7 +1033,7 @@ class QualiRasterMap(RasterMap):
 
         # create empty fields
         lst_stats_field = []
-        for k in df_stats["Stats"]:
+        for k in df_stats["Statistic"]:
             s_field = "{}_{}".format(varname, k)
             lst_stats_field.append(s_field)
             df_aux[s_field] = 0.0
@@ -963,7 +1041,7 @@ class QualiRasterMap(RasterMap):
         # fill values
         for i in range(len(df_aux)):
             df_aux.loc[i, lst_stats_field[0] : lst_stats_field[-1]] = lst_stats[i][
-                "Data"
+                "Value"
             ].values
 
         # handle count
@@ -1085,22 +1163,42 @@ class QualiRasterMap(RasterMap):
         plt.grid(axis="y")
 
         # plot metadata
+        lst_meta = []
+        lst_value = []
+        for k in self.asc_metadata:
+            lst_value.append(self.asc_metadata[k])
+            lst_meta.append(k)
+        df_meta = pd.DataFrame({"Raster": lst_meta, "Value": lst_value})
+        # metadata
         n_y = 0.25
+        n_x = 0.62
         plt.text(
-            x=0.63,
+            x=n_x,
             y=n_y,
             s="c. {}".format(specs["c_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )
         n_y = n_y - 0.01
-        n_step = 0.03
-        for k in self.asc_metadata:
-            s_head = k
-            s_value = self.asc_metadata[k]
-            s_line = s_head + ": " + str(s_value)
+        n_step = 0.025
+        for i in range(len(df_meta)):
+            s_head = df_meta["Raster"].values[i]
+            if s_head == "cellsize":
+                s_value = self.cellsize
+            else:
+                s_value = df_meta["Value"].values[i]
+            s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
             n_y = n_y - n_step
-            plt.text(x=0.65, y=n_y, s=s_line, fontsize=10, transform=fig.transFigure)
+            plt.text(
+                x=n_x,
+                y=n_y,
+                s=s_line,
+                fontsize=9,
+                fontdict={"family": "monospace"},
+                transform=fig.transFigure,
+            )
+
+        # stats
 
         # show or save
         if show:
@@ -1111,11 +1209,58 @@ class QualiRasterMap(RasterMap):
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
 
+class RasterCollection:
+    """
+    The raster collection base data structure
+
+    """
+
+    def __init__(self, name="myRasterCollection", dtype="float32"):
+        self.catalog = pd.DataFrame(
+            columns=[
+                "Name",
+                "Variable",
+                "VarAlias",
+                "Units",
+                "Date",
+                "cellsize",
+                "ncols",
+                "rows",
+                "xllcorner",
+                "yllcorner",
+                "NODATA_value",
+            ]
+        )
+        self.collection = None
+        self.dtype = dtype
+
+    def append_raster(self, raster):
+        # append to collection
+        self.collection[raster.name] = raster
+        # set
+        df_aux = pd.DataFrame(
+            {
+                "Name": [raster.name],
+                "Variable": [raster.varname],
+                "VarAlias": [raster.varalias],
+                "Units": [raster.units],
+                "Date": [raster.date],
+                "cellsize": [raster.cellsize],
+                "ncols": [raster.asc_metadata["ncols"]],
+                "rows": [raster.asc_metadata["nrows"]],
+                "xllcorner": [raster.asc_metadata["xllcorner"]],
+                "yllcorner": [raster.asc_metadata["yllcorner"]],
+                "NODATA_value": [raster.nodatavalue],
+            }
+        )
+        self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
+
+
 # -----------------------------------------
 # Derived data structures
 
 
-class ElevationMap(RasterMap):
+class Elevation(Raster):
     """
     Elevation (DEM) raster map dataset.
     """
@@ -1134,7 +1279,7 @@ class ElevationMap(RasterMap):
         self.units = "m"
 
 
-class SlopeMap(RasterMap):
+class Slope(Raster):
     """
     Slope raster map dataset.
     """
@@ -1153,7 +1298,7 @@ class SlopeMap(RasterMap):
         self.units = "deg."
 
 
-class TWIMap(RasterMap):
+class TWI(Raster):
     """
     TWI raster map dataset.
     """
@@ -1172,7 +1317,7 @@ class TWIMap(RasterMap):
         self.units = "index units"
 
 
-class HANDMap(RasterMap):
+class HAND(Raster):
     """
     HAND raster map dataset.
     """
@@ -1191,7 +1336,37 @@ class HANDMap(RasterMap):
         self.units = "m"
 
 
-class LULCMap(QualiRasterMap):
+class NDVI(Raster):
+    """
+    NDVI raster map dataset.
+    """
+
+    def __init__(self, name="NDVIMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "RdYlGn"
+        self.varname = "NDVI"
+        self.varalias = "NDVI"
+        self.description = "Normalized difference vegetation index"
+        self.units = "index units"
+
+    def plot_basic_view(
+        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+    ):
+        default_specs = {"vmin": -1, "vmax": 1}
+        if specs is None:
+            specs = default_specs
+        else:
+            for k in default_specs:
+                specs[k] = default_specs[k]
+        super().plot_basic_view(show, folder, filename, specs, dpi)
+
+
+class LULCMap(QualiRaster):
     """
     Land Use and Land Cover map dataset
     """
@@ -1205,7 +1380,7 @@ class LULCMap(QualiRasterMap):
         self.units = "classes ID"
 
 
-class SoilsMap(QualiRasterMap):
+class SoilsMap(QualiRaster):
     """
     Soils map dataset
     """
@@ -1219,7 +1394,7 @@ class SoilsMap(QualiRasterMap):
         self.units = "types ID"
 
 
-class AOIMap(QualiRasterMap):
+class AOIMap(QualiRaster):
     """
     AOI map dataset
     """
@@ -1238,8 +1413,11 @@ class AOIMap(QualiRasterMap):
 if __name__ == "__main__":
     b_aoi = False
     b_lulc = False
-    b_dem = True
-    b_slope = True
+    b_dem = False
+    b_slope = False
+    b_bench = False
+    b_ndvi = False
+    b_collection = True
 
     output_dir = "C:/data"
     input_dir = "C:/data/gravatai/plans"
@@ -1265,7 +1443,7 @@ if __name__ == "__main__":
         # instantiate map
         rst_lulc = LULCMap(name=s_name)
         # load files
-        rst_lulc.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
+        rst_lulc.load_asc_raster(file="{}/lulc/{}.asc".format(input_dir, s_filename))
         rst_lulc.load_table(file="{}/lulc.txt".format(input_dir))
 
         # -------------------------------------------------------------
@@ -1289,7 +1467,7 @@ if __name__ == "__main__":
         # [2] Slope map
         s_filename = "{}_hand".format(s_aux)
         # instantiate map
-        rst_slp = HANDMap(name=s_name)
+        rst_slp = HAND(name=s_name)
         # load files
         rst_slp.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
         # apply aoi
@@ -1302,10 +1480,29 @@ if __name__ == "__main__":
         # [3] Elevation map
         s_filename = "{}_demh".format(s_aux)
         # instantiate map
-        rst_dem = ElevationMap(name=s_name)
+        rst_dem = Elevation(name=s_name)
         # load files
         rst_dem.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
         # plot
         rst_dem.plot_basic_view(
             show=True,
         )
+
+    if b_ndvi:
+        s_filename = (
+            r"{}\ndvi\gravatai_LC08-C01-T1SR_221081_ndvi_2014-05-29.asc".format(
+                input_dir
+            )
+        )
+
+        rst_ndvi = NDVI(name=s_name)
+        rst_ndvi.load_asc_raster(file=s_filename)
+        rst_ndvi.cut_edges(upper=1, lower=-1)
+        rst_ndvi.plot_basic_view(show=True)
+
+    if b_collection:
+        # create collection
+        rcoll = RasterCollection()
+        print(rcoll.catalog)
+
+        #
