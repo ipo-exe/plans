@@ -641,10 +641,9 @@ class Raster:
         return self.cellsize
 
     def plot_basic_view(
-        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+        self, show: bool=False, folder: str ="C:/data", filename: Union[str, None] = None, specs: Union[str, None] = None, dpi: int =96
     ):
-        """
-        Plot basic view of raster map
+        """Plot a basic pannel of raster map
         :param show: boolean to show plot instead of saving
         :type show: bool
         :param folder: path to output folder
