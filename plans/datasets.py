@@ -847,7 +847,7 @@ class Raster:
         print("{}+{}".format(a, b))
         return "{}+{}".format(a, b)
 
-    def foo_test2(a=Union[str, None]) -> Union[str, None]:
+    def foo_test2(a: Union[str, None]) -> Union[str, None]:
         """Returns a list of :class:`bluepy.blte.Service` objects representing
         the services offered by the device. This will perform Bluetooth service
         discovery if this has not already been done; otherwise it will return a
@@ -855,7 +855,7 @@ class Raster:
 
         :param a: A  string service UUIDs to be discovered,
             defaults to None
-        :type uuids: str
+        :type a: str
         :return: string bla bla
         :rtype: str
         """
