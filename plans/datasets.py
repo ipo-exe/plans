@@ -320,9 +320,9 @@ class Raster:
     def __init__(self, name="myRasterMap", dtype="float32"):
         """Deploy basic raster map object.
 
-        :param name: map name
+        :param name: map name, defaults to myRasterMap
         :type name: str
-        :param dtype: data type of raster cells - options: byte, uint8, int16, int32, float32, etc
+        :param dtype: data type of raster cells - options: byte, uint8, int16, int32, float32, etc, defaults to float32
         :type dtype: str
         """
         # -------------------------------------
@@ -386,7 +386,7 @@ class Raster:
 
         :param file: string of file path with the '.asc' extension
         :type file: str
-        :param nan: boolean to convert nan values to np.nan
+        :param nan: boolean to convert nan values to np.nan, defaults to False
         :type nan: bool
         """
         f_file = open(file)
@@ -469,12 +469,12 @@ class Raster:
         # set attribute
         self.set_asc_metadata(metadata=meta_dct)
 
-    def export_asc_raster(self, folder, filename=None):
+    def export_asc_raster(self, folder="./output", filename=None):
         """Function for exporting an .ASC raster file.
 
-        :param folder: string of directory path
+        :param folder: string of directory path, , defaults to ``./output``
         :type folder: str
-        :param filename: string of file without extension
+        :param filename: string of file without extension, defaults to None
         :type filename: str
         :return: full file name (path and extension) string
         :rtype: str
@@ -555,14 +555,13 @@ class Raster:
     def apply_aoi_mask(self, grid_aoi, inplace=False):
         """Apply AOI (area of interest) mask to raster map.
 
-        :param grid_aoi:
-        map of AOI (masked array or pseudo-boolean).
+        :param grid_aoi: map of AOI (masked array or pseudo-boolean)
         Must have the same size of grid
         :type grid_aoi: :class:`numpy.ndarray`
-        :param inplace: set on the own grid if True
+        :param inplace: set on the own grid if True, defaults to False
         :type inplace: bool
-        :return:
-        :rtype:
+        :return: the processed grid if inplace=False
+        :rtype: :class:`numpy.ndarray` or None
         """
         if self.nodatavalue is None or self.grid is None:
             return None
@@ -580,19 +579,17 @@ class Raster:
             else:
                 return grd_mask
 
-    def cut_edges(
-        self, upper: Union[float, int], lower: Union[float, int], inplace: bool = False
-    ) -> Union[np.ndarray, None]:
+    def cut_edges(self, upper, lower, inplace=False):
         """Cutoff upper and lower values of grid.
 
         :param upper: upper value
         :type upper: float or int
         :param lower: lower value
         :type lower: float or int
-        :param inplace: option to set the raster grid
+        :param inplace: option to set the raster grid, defaults to False
         :type inplace: bool
-        :return:
-        :rtype: None or np.ndarray
+        :return: the processed grid if inplace=False
+        :rtype: :class:`numpy.ndarray` or None
         """
         if self.grid is None:
             return None
@@ -610,23 +607,31 @@ class Raster:
     def get_data(self):
         """Get flat and cleared data.
 
-        :return: 1d vector of data
-        :rtype: :class:`numpy.ndarray`
+        :return: 1d vector of cleared data
+        :rtype: :class:`numpy.ndarray` or None
         """
-        return self.grid.ravel()[~np.isnan(self.grid.ravel())]
+        if self.grid is None:
+            return None
+        else:
+            return self.grid.ravel()[~np.isnan(self.grid.ravel())]
 
     def get_basic_stats(self):
         """Get basic statistics from flat and clear data.
 
         :return: dataframe of basic statistics
-        :rtype: :class:`pandas.DataFrame`
+        :rtype: :class:`pandas.DataFrame` or None
         """
-        from analyst import Univar
-
-        return Univar(data=self.get_data()).assess_basic_stats()
+        if self.grid is None:
+            return None
+        else:
+            from analyst import Univar
+            return Univar(data=self.get_data()).assess_basic_stats()
 
     def guess_cellsize(self):
         """Guess the cellsize in meters if is degrees.
+
+        :return: grid cell size in meters
+        :rtype: :class:`pandas.DataFrame` or None
         """
         if self.asc_metadata["cellsize"] < 1:
             self.cellsize = self.asc_metadata["cellsize"] * 111 * 1000
@@ -636,23 +641,23 @@ class Raster:
 
     def plot_basic_view(
         self,
-        show: bool = False,
-        folder: str = "C:/data",
-        filename: Union[str, None] = None,
-        specs: Union[str, None] = None,
-        dpi: int = 96,
-    ) -> None:
+        show=False,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=96,
+    ):
         """Plot a basic pannel of raster map.
 
-        :param show: boolean to show plot instead of saving
+        :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path to output folder
+        :param folder: path to output folder, defaults to ``./output``
         :type folder: str
-        :param filename: name of file
+        :param filename: name of file, defaults to None
         :type filename: str
-        :param specs: specifications dictionary
+        :param specs: specifications dictionary, defaults to None
         :type specs: dict
-        :param dpi: image resolution
+        :param dpi: image resolution, defaults to 96
         :type dpi: int
         """
         import matplotlib.ticker as mtick
@@ -824,7 +829,6 @@ class Raster:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
 
-        return None
 
     def _docstring_tests(self, a: Union[str, None]) -> Union[str, None]:
         """Returns a list of :class:`bluepy.blte.Service` objects representing
@@ -885,24 +889,6 @@ class QualiRaster(Raster):
         super().set_asc_metadata(metadata)
         self._overwrite_nodata()
 
-    def mask_nodata(self):
-        """
-        Mask grid cells where data is NODATA
-        """
-        if self.nodatavalue is None:
-            pass
-        else:
-            self.grid = np.ma.masked_where(self.grid == self.nodatavalue, self.grid)
-
-    def insert_nodata(self):
-        """
-        Insert grid cells as NODATA where data is maked
-        """
-        if self.nodatavalue is None:
-            pass
-        else:
-            self.grid = np.ma.filled(self.grid, fill_value=self.nodatavalue)
-
     def _dataframe_prepro(self, dataframe):
         """
         Utility function for dataframe preprossing
@@ -932,10 +918,10 @@ class QualiRaster(Raster):
         # set to self
         self.table = self._dataframe_prepro(dataframe=df_aux)
 
-    def export_table(self, folder="C:/data", filename=None):
+    def export_table(self, folder="./output", filename=None):
         """
         Export an CSV .txt  file.
-        :param folder: string of directory path
+        :param folder: string of directory path, defaults to ``./output``
         :type folder: str
         :param filename: string of file without extension
         :type filename: str
@@ -1426,12 +1412,12 @@ class AOIMap(QualiRaster):
 
 if __name__ == "__main__":
     b_aoi = False
-    b_lulc = False
+    b_lulc = True
     b_dem = False
     b_slope = False
     b_bench = False
     b_ndvi = False
-    b_collection = True
+    b_collection = False
 
     output_dir = "C:/data"
     input_dir = "C:/data/gravatai/plans"
