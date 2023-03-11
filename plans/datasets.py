@@ -318,8 +318,8 @@ class Raster:
     """
 
     def __init__(self, name="myRasterMap", dtype="float32"):
-        """
-        Deploy basic raster map object
+        """Deploy basic raster map object.
+
         :param name: map name
         :type name: str
         :param dtype: data type of raster cells - options: byte, uint8, int16, int32, float32, etc
@@ -348,8 +348,8 @@ class Raster:
         self.date = "2020-01-01"
 
     def set_grid(self, grid):
-        """
-        Set data from incoming objects
+        """Set data from incoming objects.
+
         :param grid: data grid
         :type grid: :class:`numpy.ndarray`
         """
@@ -359,8 +359,7 @@ class Raster:
         self.mask_nodata()
 
     def set_asc_metadata(self, metadata):
-        """
-        Set metadata from incoming objects
+        """Set metadata from incoming objects
 
         Example of metadata for ASC raster:
         meta = {
@@ -370,7 +369,7 @@ class Raster:
             'yllcorner': 6704832.2,
             'cellsize': 30,
             'NODATA_value': -1
-        }
+        }.
 
         :param metadata: metadata dictionary
         :type metadata: dict
@@ -383,8 +382,8 @@ class Raster:
         self.guess_cellsize()
 
     def load_asc_raster(self, file, nan=False):
-        """
-        A function to load data and metadata from .ASC raster files
+        """A function to load data and metadata from .ASC raster files.
+
         :param file: string of file path with the '.asc' extension
         :type file: str
         :param nan: boolean to convert nan values to np.nan
@@ -436,8 +435,8 @@ class Raster:
         self.set_grid(grid=grd_data)
 
     def load_asc_metadata(self, file):
-        """
-        A function to load only metadata from .ASC raster files
+        """A function to load only metadata from .ASC raster files.
+
         :param file: string of file path with the '.asc' extension
         :type file: str
         """
@@ -471,8 +470,8 @@ class Raster:
         self.set_asc_metadata(metadata=meta_dct)
 
     def export_asc_raster(self, folder, filename=None):
-        """
-        Function for exporting an .ASC raster file.
+        """Function for exporting an .ASC raster file.
+
         :param folder: string of directory path
         :type folder: str
         :param filename: string of file without extension
@@ -528,8 +527,7 @@ class Raster:
             return flenm
 
     def mask_nodata(self):
-        """
-        Mask grid cells as NaN where data is NODATA
+        """Mask grid cells as NaN where data is NODATA.
         """
         if self.nodatavalue is None:
             pass
@@ -542,8 +540,7 @@ class Raster:
                 self.grid[self.grid == self.nodatavalue] = np.nan
 
     def insert_nodata(self):
-        """
-        Insert grid cells as NODATA where data is NaN
+        """Insert grid cells as NODATA where data is NaN.
         """
         if self.nodatavalue is None:
             pass
@@ -556,8 +553,8 @@ class Raster:
                 self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
 
     def apply_aoi_mask(self, grid_aoi, inplace=False):
-        """
-        Apply AOI (area of interest) mask to raster map
+        """Apply AOI (area of interest) mask to raster map.
+
         :param grid_aoi:
         map of AOI (masked array or pseudo-boolean).
         Must have the same size of grid
@@ -586,8 +583,8 @@ class Raster:
     def cut_edges(
         self, upper: Union[float, int], lower: Union[float, int], inplace: bool = False
     ) -> Union[np.ndarray, None]:
-        """
-        Cutoff upper and lower values of grid
+        """Cutoff upper and lower values of grid.
+
         :param upper: upper value
         :type upper: float or int
         :param lower: lower value
@@ -611,16 +608,16 @@ class Raster:
                 return new_grid
 
     def get_data(self):
-        """
-        Get flat and cleared data
+        """Get flat and cleared data.
+
         :return: 1d vector of data
         :rtype: :class:`numpy.ndarray`
         """
         return self.grid.ravel()[~np.isnan(self.grid.ravel())]
 
     def get_basic_stats(self):
-        """
-        Get basic statistics from flat and clear data
+        """Get basic statistics from flat and clear data.
+
         :return: dataframe of basic statistics
         :rtype: :class:`pandas.DataFrame`
         """
@@ -629,10 +626,7 @@ class Raster:
         return Univar(data=self.get_data()).assess_basic_stats()
 
     def guess_cellsize(self):
-        """
-        Guess the cellsize in meters if is degrees
-        :return:
-        :rtype:
+        """Guess the cellsize in meters if is degrees.
         """
         if self.asc_metadata["cellsize"] < 1:
             self.cellsize = self.asc_metadata["cellsize"] * 111 * 1000
@@ -832,44 +826,7 @@ class Raster:
 
         return None
 
-    def foo_test(a: str, b: float):
-        """Test
-
-        My function
-
-        .. note::
-            This is my note
-
-
-        Parameters
-        ----------
-        a : str
-            Et quam quidem sit distinctio aliquam deserunt occaecati voluptates. Laudantium nulla
-            ea officia. Voluptatum rerum expedita ipsam dolor quia.
-        b : float
-            Molestiae aliquid libero. Dolores voluptate eveniet. Voluptas expedita rem doloribus
-            possimus perferendis non molestiae.
-
-        """
-        print("{}+{}".format(a, b))
-        return "{}+{}".format(a, b)
-
-    def foo_test2(a: Union[str, None]) -> Union[str, None]:
-        """Returns a list of :class:`bluepy.blte.Service` objects representing
-        the services offered by the device. This will perform Bluetooth service
-        discovery if this has not already been done; otherwise it will return a
-        cached list of services immediately..
-
-        :param a: A  string service UUIDs to be discovered,
-            defaults to None
-        :type a: str
-        :return: string bla bla
-        :rtype: str
-        """
-        print("{}kkkk".format(a))
-        return "{}kkkk".format(a)
-
-    def foo_test3(self, a: Union[str, None]) -> Union[str, None]:
+    def _docstring_tests(self, a: Union[str, None]) -> Union[str, None]:
         """Returns a list of :class:`bluepy.blte.Service` objects representing
         the services offered by the device. This will perform Bluetooth service
         discovery if this has not already been done; otherwise it will return a
