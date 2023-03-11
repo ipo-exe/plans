@@ -52,8 +52,6 @@ class DailySeries:
         * Longitude -- latitude of dataset :class:`float`
         * CRS -- standard name of Coordinate Reference System :class:`str`
 
-        :param data: DataFrame of time series. Must include the variable and date fields.
-        :type data: :class:`pandas.DataFrame`
         :param metadata: Metadata of time series.
         :type metadata: dict
         :param varfield: name of variable field
@@ -161,7 +159,7 @@ class DailySeries:
     ):
         """
         Plot series basic view
-
+        :type show: option to display plot. Default False
         :type show: bool
         :param folder: output folder
         :type folder: str
@@ -826,6 +824,43 @@ class Raster:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+
+    def foo_test(a: str, b: float):
+        """Test
+
+        My function
+
+        .. note::
+            This is my note
+
+
+        Parameters
+        ----------
+        a : str
+            Et quam quidem sit distinctio aliquam deserunt occaecati voluptates. Laudantium nulla
+            ea officia. Voluptatum rerum expedita ipsam dolor quia.
+        b : float
+            Molestiae aliquid libero. Dolores voluptate eveniet. Voluptas expedita rem doloribus
+            possimus perferendis non molestiae.
+
+        """
+        print("{}+{}".format(a, b))
+        return "{}+{}".format(a, b)
+
+    def foo_test2(a=Union[str, None]) -> Union[str, None]:
+        """Returns a list of :class:`bluepy.blte.Service` objects representing
+        the services offered by the device. This will perform Bluetooth service
+        discovery if this has not already been done; otherwise it will return a
+        cached list of services immediately..
+
+        :param a: A  string service UUIDs to be discovered,
+            defaults to None
+        :type uuids: str
+        :return: string bla bla
+        :rtype: str
+        """
+        print("{}kkkk".format(a))
+        return "{}kkkk".format(a)
 
 
 # -----------------------------------------
