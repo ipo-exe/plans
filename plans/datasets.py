@@ -862,6 +862,21 @@ class Raster:
         print("{}kkkk".format(a))
         return "{}kkkk".format(a)
 
+    def foo_test3(self, a: Union[str, None]) -> Union[str, None]:
+        """Returns a list of :class:`bluepy.blte.Service` objects representing
+        the services offered by the device. This will perform Bluetooth service
+        discovery if this has not already been done; otherwise it will return a
+        cached list of services immediately..
+
+        :param a: A  string service UUIDs to be discovered,
+            defaults to None
+        :type a: str
+        :return: string bla bla
+        :rtype: str
+        """
+        print("{}kkkk".format(a))
+        return "{}kkkk".format(a)
+
 
 # -----------------------------------------
 # Quali Raster data structures
