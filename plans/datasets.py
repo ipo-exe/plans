@@ -334,10 +334,11 @@ class RasterMap:
             "nrows": None,
             "xllcorner": 0.0,
             "yllcorner": 0.0,
-            "cellsize": 1.0,
+            "cellsize": 30.0,
             "NODATA_value": -1,
         }
         self.nodatavalue = self.asc_metadata["NODATA_value"]
+        self.cellsize = self.guess_cellsize()
         self.name = name
         self.dtype = dtype
         self.cmap = "jet"
@@ -345,6 +346,7 @@ class RasterMap:
         self.varalias = "Var"
         self.description = "Unknown"
         self.units = "units"
+        self.date = "2020-01-01"
 
     def set_grid(self, grid):
         """
@@ -352,7 +354,9 @@ class RasterMap:
         :param grid: data grid
         :type grid: :class:`numpy.ndarray`
         """
+        # overwrite incoming dtype
         self.grid = grid.astype(self.dtype)
+        # mask nodata values
         self.mask_nodata()
 
     def set_asc_metadata(self, metadata):
@@ -377,6 +381,7 @@ class RasterMap:
                 self.asc_metadata[k] = metadata[k]
         # update nodata value
         self.nodatavalue = self.asc_metadata["NODATA_value"]
+        self.guess_cellsize()
 
     def load_asc_raster(self, file, nan=False):
         """
@@ -494,9 +499,11 @@ class RasterMap:
                     meta_lbls[i], self.asc_metadata[meta_lbls[i]]
                 )
                 exp_lst.append(line)
-            #
+
+            # ----------------------------------
             # data constructor loop:
-            self.insert_nodata()
+            self.insert_nodata()  # insert nodatavalue
+
             def_array = np.array(self.grid, dtype=self.dtype)
             for i in range(len(def_array)):
                 # replace np.nan to no data values
@@ -515,6 +522,10 @@ class RasterMap:
             fle = open(flenm, "w+")
             fle.writelines(exp_lst)
             fle.close()
+
+            # mask again
+            self.mask_nodata()
+
             return flenm
 
     def mask_nodata(self):
@@ -524,35 +535,53 @@ class RasterMap:
         if self.nodatavalue is None:
             pass
         else:
-            self.grid[self.grid == self.nodatavalue] = np.nan
+            if self.grid.dtype.kind in ["i", "u"]:
+                # for integer grid
+                self.grid = np.ma.masked_where(self.grid == self.nodatavalue, self.grid)
+            else:
+                # for floating point grid:
+                self.grid[self.grid == self.nodatavalue] = np.nan
 
     def insert_nodata(self):
         """
         Insert grid cells as NODATA where data is NaN
-        :return:
-        :rtype:
         """
         if self.nodatavalue is None:
             pass
         else:
-            self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
+            if self.grid.dtype.kind in ["i", "u"]:
+                # for integer grid
+                self.grid = np.ma.filled(self.grid, fill_value=self.nodatavalue)
+            else:
+                # for floating point grid:
+                self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
 
-    def apply_aoi_mask(self, grid_aoi):
+    def apply_aoi_mask(self, grid_aoi, inplace=False):
         """
         Apply AOI (area of interest) mask to raster map
         :param grid_aoi:
         map of AOI (masked array or pseudo-boolean).
         Must have the same size of grid
         :type grid_aoi: :class:`numpy.ndarray`
+        :param inplace: set on the own grid if True
+        :type inplace: bool
+        :return:
+        :rtype:
         """
         if self.nodatavalue is None:
             pass
         # ensure fill
         grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
         # replace
-        self.grid = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
-        # mask
-        self.mask_nodata()
+        grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
+
+        if inplace:
+            self.grid = grd_mask
+            # mask
+            self.mask_nodata()
+            return None
+        else:
+            return grd_mask
 
     def get_data(self):
         """
@@ -571,6 +600,18 @@ class RasterMap:
         from analyst import Univar
 
         return Univar(data=self.get_data()).assess_basic_stats()
+
+    def guess_cellsize(self):
+        """
+        Guess the cellsize in meters if is degrees
+        :return:
+        :rtype:
+        """
+        if self.asc_metadata["cellsize"] < 1:
+            self.cellsize = self.asc_metadata["cellsize"] * 111 * 1000
+        else:
+            self.cellsize = self.asc_metadata["cellsize"]
+        return self.cellsize
 
     def plot_basic_view(
         self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
@@ -841,7 +882,7 @@ class QualiRasterMap(RasterMap):
                 mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals
             ]
 
-    def get_areas(self):
+    def get_areas(self, merge=False):
         """
         Get areas in map of each category in table
         """
@@ -849,31 +890,35 @@ class QualiRasterMap(RasterMap):
             pass
         else:
             # get unit area
-            _n_unit_area = np.square(self.asc_metadata["cellsize"])
+            _n_unit_area = np.square(self.cellsize)
+            df_aux = self.table[["Id", "Name", "Alias"]].copy()
             _lst_areas = []
             # iterate categories
-            for i in range(len(self.table)):
-                _n_id = self.table[self.idfield].values[i]
+            for i in range(len(df_aux)):
+                _n_id = df_aux[self.idfield].values[i]
                 _n_value = np.sum(1 * (self.grid == _n_id)) * _n_unit_area
                 _lst_areas.append(_n_value)
             # set area fields
             s_field = "{}_m2".format(self.areafield)
-            self.table[s_field] = _lst_areas
-            self.table["{}_ha".format(self.areafield)] = self.table[s_field] / (
-                100 * 100
+            df_aux[s_field] = _lst_areas
+            df_aux["{}_ha".format(self.areafield)] = df_aux[s_field] / (100 * 100)
+            df_aux["{}_km2".format(self.areafield)] = df_aux[s_field] / (1000 * 1000)
+            df_aux["{}_f".format(self.areafield)] = (
+                df_aux[s_field] / df_aux[s_field].sum()
             )
-            self.table["{}_km2".format(self.areafield)] = self.table[s_field] / (
-                1000 * 1000
+            df_aux["{}_%".format(self.areafield)] = (
+                100 * df_aux[s_field] / df_aux[s_field].sum()
             )
-            self.table["{}_f".format(self.areafield)] = (
-                self.table[s_field] / self.table[s_field].sum()
-            )
-            self.table["{}_%".format(self.areafield)] = (
-                100 * self.table[s_field] / self.table[s_field].sum()
-            )
-            self.table["{}_%".format(self.areafield)] = self.table[
+            df_aux["{}_%".format(self.areafield)] = df_aux[
                 "{}_%".format(self.areafield)
             ].round(2)
+
+            # handle merge
+            if merge:
+                for k in lst_area_fields:
+                    self.table[k] = df_aux[k].values
+
+            return df_aux
 
     def get_zonal_stats(self, raster_sample, merge=False, skip_count=False):
         """
@@ -956,8 +1001,8 @@ class QualiRasterMap(RasterMap):
             "c_title": "Metadata",
             "width": 5 * 1.618,
             "height": 5,
-            "b_area": "ha",
-            "b_xlabel": self.units,
+            "b_area": "km2",
+            "b_xlabel": "Area",
             "vmin": self.table[self.idfield].min(),
             "vmax": self.table[self.idfield].max(),
             "hist_vmax": None,
@@ -1005,18 +1050,20 @@ class QualiRasterMap(RasterMap):
             )
         plt.legend(
             frameon=True,
+            fontsize=9,
+            markerscale=0.8,
             handles=legend_elements,
-            bbox_to_anchor=(0.5, 0.25),
+            bbox_to_anchor=(0.5, 0.3),
             bbox_transform=fig.transFigure,
             ncol=3,
         )
 
         # plot hbar
         # ensure areas are computed
-        self.get_areas()
-        df_aux = self.table.sort_values(
-            by="{}_m2".format(self.areafield), ascending=True
+        df_aux = pd.merge(
+            self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
         )
+        df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         plt.subplot(gs[: default_specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         plt.barh(
@@ -1034,10 +1081,8 @@ class QualiRasterMap(RasterMap):
                 v + _n_max / 50, i - 0.3, "{:.1f} ({:.1f}%)".format(v, p), fontsize=9
             )
         plt.xlim(0, 1.5 * _n_max)
-        plt.xlabel(specs["b_area"])
+        plt.xlabel("{} (km$^2$)".format(specs["b_xlabel"]))
         plt.grid(axis="y")
-        # ax = plt.gca()
-        # ax.set_position([0.15, 0.15, 0.75, 0.75])
 
         # plot metadata
         n_y = 0.25
@@ -1082,7 +1127,7 @@ class ElevationMap(RasterMap):
         :type name: str
         """
         super().__init__(name=name, dtype="float32")
-        self.cmap = "gist_earth"
+        self.cmap = "BrBG_r"
         self.varname = "Elevation"
         self.varalias = "ELV"
         self.description = "Height above sea level"
@@ -1106,6 +1151,44 @@ class SlopeMap(RasterMap):
         self.varalias = "SLP"
         self.description = "Slope of terrain"
         self.units = "deg."
+
+
+class TWIMap(RasterMap):
+    """
+    TWI raster map dataset.
+    """
+
+    def __init__(self, name="TWIMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "YlGnBu"
+        self.varname = "TWI"
+        self.varalias = "TWI"
+        self.description = "Topographical Wetness Index"
+        self.units = "index units"
+
+
+class HANDMap(RasterMap):
+    """
+    HAND raster map dataset.
+    """
+
+    def __init__(self, name="HANDMap"):
+        """
+        Deploy dataset
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "YlGnBu_r"
+        self.varname = "HAND"
+        self.varalias = "HAND"
+        self.description = "Height Above the Nearest Drainage"
+        self.units = "m"
 
 
 class LULCMap(QualiRasterMap):
@@ -1153,67 +1236,76 @@ class AOIMap(QualiRasterMap):
 
 
 if __name__ == "__main__":
-    s_name = "Andreas"
+    b_aoi = False
+    b_lulc = False
+    b_dem = True
+    b_slope = True
 
-    # -------------------------------------------------------------
-    # [0] AOI map
+    output_dir = "C:/data"
+    input_dir = "C:/data/gravatai/plans"
 
-    # instantiate map
-    rst_aoi = AOIMap(name="Andreas")
-    # load file
-    rst_aoi.load_asc_raster(file="C:/data/basin.asc")
-    # view
-    # print(rst_aoi.table.to_string())
-    # rst_aoi.plot_basic_view(show=True)
+    s_name = "Gravatai"
+    s_aux = "gravatai"
+    if b_aoi:
+        # -------------------------------------------------------------
+        # [0] AOI map
+        s_filename = "{}_basin_flu87398800".format(s_aux)
+        # instantiate map
+        rst_aoi = AOIMap(name="Andreas")
+        # load file
+        rst_aoi.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
+        # view
+        print(rst_aoi.table.to_string())
+        rst_aoi.plot_basic_view(show=True)
 
-    # -------------------------------------------------------------
-    # [1] LULC map
+    if b_lulc:
+        # -------------------------------------------------------------
+        # [1] LULC map
+        s_filename = "{}_lulc_2020".format(s_aux)
+        # instantiate map
+        rst_lulc = LULCMap(name=s_name)
+        # load files
+        rst_lulc.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
+        rst_lulc.load_table(file="{}/lulc.txt".format(input_dir))
 
-    # instantiate map
-    rst_lulc = LULCMap(name=s_name)
-    # load files
-    rst_lulc.load_asc_raster(file="C:/data/lulc.asc")
-    rst_lulc.load_table(file="C:/data/lulc.txt")
-    rst_lulc.set_table(dataframe=rst_lulc.table[["Id", "Name", "Alias", "Color"]])
-    rst_lulc.apply_aoi_mask(grid_aoi=rst_aoi.grid)
-    rst_lulc.get_areas()
-    # plot
-    # rst_lulc.plot_basic_view(show=True)
-    print(rst_lulc.table.to_string())
+        # -------------------------------------------------------------
+        # [0] AOI map
+        s_filename = "{}_basin_flu87398800".format(s_aux)
+        # instantiate map
+        rst_aoi = AOIMap(name=s_name)
+        # load file
+        rst_aoi.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
 
-    # -------------------------------------------------------------
-    # [2] Slope map
+        # apply aoi inplace
+        rst_lulc.apply_aoi_mask(grid_aoi=rst_aoi.grid, inplace=True)
 
-    # instantiate map
-    rst_slp = SlopeMap(name=s_name)
-    # load files
-    rst_slp.load_asc_raster(file="C:/data/slope.asc")
-    # apply aoi
-    rst_slp.apply_aoi_mask(grid_aoi=rst_aoi.grid)
-    # plot
-    # rst_slp.plot_basic_view(show=True,)
+        # rst_lulc.get_areas()
+        # plot
+        rst_lulc.plot_basic_view(show=True)
+        # print(rst_lulc.table.to_string())
 
-    df_stats1 = rst_lulc.get_zonal_stats(
-        raster_sample=rst_slp, merge=False, skip_count=True
-    )
-    print(df_stats1.to_string())
+    if b_slope:
+        # -------------------------------------------------------------
+        # [2] Slope map
+        s_filename = "{}_hand".format(s_aux)
+        # instantiate map
+        rst_slp = HANDMap(name=s_name)
+        # load files
+        rst_slp.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
+        # apply aoi
+        # rst_slp.apply_aoi_mask(grid_aoi=rst_aoi.grid)
+        # plot
+        rst_slp.plot_basic_view(show=True, specs={"vmin": 0, "vmax": 5})
 
-    # -------------------------------------------------------------
-    # [3] Elevation map
-
-    # instantiate map
-    rst_dem = ElevationMap(name=s_name)
-    # load files
-    rst_dem.load_asc_raster(file="C:/data/dem.asc")
-    # apply aoi
-    rst_dem.apply_aoi_mask(grid_aoi=rst_aoi.grid)
-    # plot
-    rst_dem.plot_basic_view(show=True,)
-
-    df_stats2 = rst_lulc.get_zonal_stats(
-        raster_sample=rst_dem, merge=False, skip_count=True
-    )
-    print(df_stats2.sort_values(by="Elevation_mean").to_string())
-
-    plt.scatter(df_stats1["Slope_mean"], df_stats2["Elevation_mean"])
-    plt.show()
+    if b_dem:
+        # -------------------------------------------------------------
+        # [3] Elevation map
+        s_filename = "{}_demh".format(s_aux)
+        # instantiate map
+        rst_dem = ElevationMap(name=s_name)
+        # load files
+        rst_dem.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
+        # plot
+        rst_dem.plot_basic_view(
+            show=True,
+        )
