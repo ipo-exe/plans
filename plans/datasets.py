@@ -649,6 +649,7 @@ class Raster:
         dpi: int = 96,
     ) -> None:
         """Plot a basic pannel of raster map.
+
         :param show: boolean to show plot instead of saving
         :type show: bool
         :param folder: path to output folder
