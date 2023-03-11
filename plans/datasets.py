@@ -890,8 +890,8 @@ class QualiRaster(Raster):
         self._overwrite_nodata()
 
     def _dataframe_prepro(self, dataframe):
-        """
-        Utility function for dataframe preprossing
+        """Utility function for dataframe preprossing.
+
         :param dataframe: incoming dataframe
         :type dataframe: :class:`pandas.DataFrame`
         :return: prepared dataframe
@@ -908,8 +908,8 @@ class QualiRaster(Raster):
         return dataframe
 
     def load_table(self, file):
-        """
-        Load attributes dataframe from CSV txt file (separator must be ;)
+        """Load attributes dataframe from CSV ``.txt`` file (separator must be ;).
+
         :param file: path to file
         :type file: str
         """
@@ -919,8 +919,8 @@ class QualiRaster(Raster):
         self.table = self._dataframe_prepro(dataframe=df_aux)
 
     def export_table(self, folder="./output", filename=None):
-        """
-        Export an CSV .txt  file.
+        """Export an CSV ``.txt``  file.
+
         :param folder: string of directory path, defaults to ``./output``
         :type folder: str
         :param filename: string of file without extension
@@ -935,16 +935,15 @@ class QualiRaster(Raster):
         return flenm
 
     def set_table(self, dataframe):
-        """
-        Set attributes dataframe from incoming pandas dataframe
+        """Set attributes dataframe from incoming :class:`pandas.DataFrame`.
+
         :param dataframe: incoming pandas dataframe
         :type dataframe: :class:`pandas.DataFrame`
         """
         self.table = self._dataframe_prepro(dataframe=dataframe.copy())
 
     def set_random_colors(self):
-        """
-        Set random colors to attribute table
+        """Set random colors to attribute table.
         """
         if self.table is None:
             pass
@@ -961,8 +960,12 @@ class QualiRaster(Raster):
             ]
 
     def get_areas(self, merge=False):
-        """
-        Get areas in map of each category in table
+        """Get areas in map of each category in table.
+
+        :param merge: option to merge data with raster table
+        :type merge: bool, defaults to False
+        :return: areas dataframe
+        :rtype: :class:`pandas.DataFrame`
         """
         if self.table is None or self.grid is None:
             pass
@@ -999,13 +1002,13 @@ class QualiRaster(Raster):
             return df_aux
 
     def get_zonal_stats(self, raster_sample, merge=False, skip_count=False):
-        """
-        get zonal stats from other raster map to sample
+        """Get zonal stats from other raster map to sample.
+
         :param raster_sample: raster map to sample
         :type raster_sample: :class:`datasets.RasterMap`
-        :param merge: set True to merge into the map table
+        :param merge: option to merge data with raster table, defaults to False
         :type merge: bool
-        :param skip_count: set True to skip count
+        :param skip_count: set True to skip count, defaults to False
         :type skip_count: bool
         :return: dataframe of zonal stats
         :rtype: :class:`pandas.DataFrame`
@@ -1057,8 +1060,21 @@ class QualiRaster(Raster):
         return df_aux
 
     def plot_basic_view(
-        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+        self, show=False, folder="./output", filename=None, specs=None, dpi=96
     ):
+        """Plot a basic pannel of qualitative raster map.
+
+        :param show: option to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        """
         from matplotlib.colors import ListedColormap
         from matplotlib.patches import Patch
 
@@ -1266,8 +1282,8 @@ class Elevation(Raster):
     """
 
     def __init__(self, name="DemMap"):
-        """
-        Deploy dataset
+        """Deploy dataset.
+
         :param name: name of map
         :type name: str
         """
@@ -1285,8 +1301,8 @@ class Slope(Raster):
     """
 
     def __init__(self, name="SlopeMap"):
-        """
-        Deploy dataset
+        """Deploy dataset.
+
         :param name: name of map
         :type name: str
         """
@@ -1304,8 +1320,8 @@ class TWI(Raster):
     """
 
     def __init__(self, name="TWIMap"):
-        """
-        Deploy dataset
+        """Deploy dataset.
+
         :param name: name of map
         :type name: str
         """
@@ -1323,8 +1339,8 @@ class HAND(Raster):
     """
 
     def __init__(self, name="HANDMap"):
-        """
-        Deploy dataset
+        """Deploy dataset.
+
         :param name: name of map
         :type name: str
         """
@@ -1342,8 +1358,8 @@ class NDVI(Raster):
     """
 
     def __init__(self, name="NDVIMap"):
-        """
-        Deploy dataset
+        """Deploy dataset.
+
         :param name: name of map
         :type name: str
         """
@@ -1355,7 +1371,7 @@ class NDVI(Raster):
         self.units = "index units"
 
     def plot_basic_view(
-        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+        self, show=False, folder="./output", filename=None, specs=None, dpi=96
     ):
         default_specs = {"vmin": -1, "vmax": 1}
         if specs is None:
