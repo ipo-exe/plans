@@ -12,6 +12,12 @@ To use Lumache, first install it using pip:
 
    (.venv) $ pip install lumache
 
+
+Python code
+.. code-block:: python
+
+   print("hello world")
+
 Creating recipes
 ----------------
 
