@@ -1,5 +1,27 @@
 API Reference
 ===============
 
-.. automodule:: plans.datasets
-   :members:
+API Preamble
+
+.. note::
+
+    This module uses the Python logging module to log diagnostic and errors
+    in an output independent way.
+
+Modules
+--------
+
+.. autosummary::
+   :toctree: generated
+
+   plans
+
+.. autosummary::
+   :toctree: generated
+
+   plans.datasets
+
+.. autosummary::
+   :toctree: generated
+
+   plans.analyst
