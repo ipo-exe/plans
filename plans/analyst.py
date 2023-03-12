@@ -377,11 +377,11 @@ class Univar:
     def assess_basic_stats(self):
         df_aux = pd.DataFrame(
             {
-                "Data": self.data
+                "Value": self.data
             }
         )
         df_stats = df_aux.describe()
-        df_result = df_stats.reset_index().rename(columns={"index": "Stats"})
+        df_result = df_stats.reset_index().rename(columns={"index": "Statistic"})
         return df_result
 
 
