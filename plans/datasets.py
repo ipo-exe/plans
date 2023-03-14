@@ -1644,6 +1644,10 @@ class RasterSeries(RasterCollection):
         del rst_aux
 
     def get_series_stats(self):
+        """Get the raster series statistics
+        :return: dataframe of raster series statistics
+        :rtype: :class:`pandas.DataFrame`
+        """
         df_stats = self.get_collection_stats()
         df_series = pd.merge(
             self.catalog[["Name", "Date"]], df_stats, how="left", on="Name"
@@ -1782,11 +1786,29 @@ class QualiSeries(RasterSeries):
         del rst_aux
 
     def get_series_areas(self):
-        for k in self.catalog["Name"]:
-            print(k)
-            df_areas = self.collection[k].get_areas()
-            print(df_areas.to_string())
-            print()
+        for i in range(len(self.catalog)):
+
+
+            s_raster_name = self.catalog["Name"].values[i]
+            s_raster_date = self.catalog["Date"].values[i]
+            df_areas = self.collection[s_raster_name].get_areas()
+            df_areas["Name_raster"] = s_raster_name
+            df_areas["Date"] = s_raster_date
+            if i == 0:
+                df_areas_full = df_areas.copy()
+            else:
+                df_areas_full = pd.concat([df_areas_full, df_areas])
+        df_areas_full['Name'] = df_areas_full['Name'].astype('category')
+        df_areas_full['Date'] = pd.to_datetime(df_areas_full['Date'])
+
+        print(df_areas_full.query("Name == 'Forest'").to_string())
+
+        for k in df_areas_full["Name"].unique():
+            df_lcl = df_areas_full.query("Name == '{}'".format(k)).copy()
+            plt.plot(df_lcl["Date"], df_lcl["Area_%"])
+        plt.show()
+
+
 
     def plot_views(self, show=False, folder="./output", specs=None, dpi=96):
         """Plot all basic pannel of raster maps in collection.
@@ -1996,6 +2018,6 @@ if __name__ == "__main__":
             )
         print(rcoll.catalog.to_string())
 
-        # rcoll.get_series_areas()
-        specs = {"b_xmax": 300}
-        rcoll.plot_views(show=False, folder="C:/bin", specs=specs)
+        rcoll.get_series_areas()
+        #specs = {"b_xmax": 300}
+        #rcoll.plot_views(show=False, folder="C:/bin", specs=specs)
