@@ -23,12 +23,34 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Union
 import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+
+
+# -----------------------------------------
+# Utility functions
+def dataframe_prepro(dataframe):
+    """Utility function for dataframe preprossing.
+
+    :param dataframe: incoming dataframe
+    :type dataframe: :class:`pandas.DataFrame`
+    :return: prepared dataframe
+    :rtype: :class:`pandas.DataFrame`
+    """
+    # fix headings
+    dataframe.columns = dataframe.columns.str.strip()
+    # strip string fields
+    for i in range(len(dataframe.columns)):
+        # if data type is string
+        if str(dataframe.dtypes.iloc[i]) == "object":
+            # strip all data
+            dataframe[dataframe.columns[i]] = dataframe[
+                dataframe.columns[i]
+            ].str.strip()
+    return dataframe
 
 
 # -----------------------------------------
@@ -41,78 +63,74 @@ class DailySeries:
 
     """
 
-    def __init__(self, metadata, varfield, datefield="Date"):
-        """
-        Deploy the daily time series object
+    def __init__(
+        self,
+        name,
+        varname,
+    ):
+        """Deploy daily series base dataset
 
-         Keys in metadata must include:
-        * Name -- name of dataset :class:`str`
-        * Variable -- name of variable :class:`str`
-        * Latitude -- latitude of dataset :class:`float`
-        * Longitude -- latitude of dataset :class:`float`
-        * CRS -- standard name of Coordinate Reference System :class:`str`
-
-        :param metadata: Metadata of time series.
-        :type metadata: dict
-        :param varfield: name of variable field
-        :type varfield: str
-        :param datefield: name of date field (default: Date)
-        :type datefield: str
+        :param name: name of series
+        :type name: str
+        :param varname: name of variable
+        :type varname: str
         """
         # -------------------------------------
         # set basic attributes
         self.data = None  # start with no data
-        self.metadata = metadata
-        self.varfield = varfield
-        self.datefield = datefield
-        self.name = self.metadata["Name"]
+        self.name = name
+        self.varname = varname
+        self.datefield = "Date"
+        self.file = None
 
-    def __str__(self):
-        s_aux = "\n{}\n{}\n".format(self.metadata, self.data)
-        return s_aux
+    def set_data(self, dataframe, varfield, datefield="Date"):
+        """Set the data from incoming class:`pandas.DataFrame`.
 
-    def set_data(self, dataframe):
-        """
-        Set the data from incoming pandas DataFrame.
-        Note: must include varfield and datefield
-        :param dataframe: incoming pandas DataFrame
+        :param dataframe: incoming :class:`pandas.DataFrame` object
         :type dataframe: :class:`pandas.DataFrame`
+        :param varfield: name of variable field in the incoming :class:`pandas.DataFrame`
+        :type varfield: str
+        :param datefield: name of date field in the incoming :class:`pandas.DataFrame`
+        :type datefield: str
         """
         # slice only interest fields
-        self.data = dataframe[[self.datefield, self.varfield]]
+        df_aux = dataframe[[datefield, varfield]].copy()
+        self.data = df_aux.rename(
+            columns={datefield: self.datefield, varfield: self.varname}
+        )
         # ensure datetime format
         self.data[self.datefield] = pd.to_datetime(self.data[self.datefield])
+        self.data = self.data.sort_values(by=self.datefield).reset_index(drop=True)
 
-    def load_data(self, file):
+    def load_data(self, file, varfield, datefield="Date"):
+        """Load data from ``csv`` file.
+
+        :param file: path to ``csv`` file
+        :type file:
+        :param varfield:
+        :type varfield:
+        :param datefield:
+        :type datefield:
+        :return:
+        :rtype:
         """
-        Load data from CSV file.
 
-        CSV file must:
-        * be a txt file
-        * use ; as field separator
-        * include datefields and varfields
-
-        :param file: path to CSV file
-        :type file: str
-        """
         self.file = file
         # -------------------------------------
         # import data
         df_aux = pd.read_csv(self.file, sep=";", parse_dates=[self.datefield])
-        # slice only varfield and datefield from dataframe
-        self.data = df_aux[[self.datefield, self.varfield]]
+        # set data
+        self.set_data(dataframe=df_aux, varfield=varfield, datefield=datefield)
 
     def export_data(self, folder):
         """
-        Export dataset to CSV file
+        Export dataset to ``csv`` file
         :param folder: path to output directory
         :type folder: str
         :return: file path
         :rtype: str
         """
-        s_filepath = "{}/{}_{}.txt".format(
-            folder, self.metadata["Variable"], self.metadata["Name"]
-        )
+        s_filepath = "{}/{}_{}.txt".format(folder, self.varname, self.name)
         self.data.to_csv(s_filepath, sep=";", index=False)
         return s_filepath
 
@@ -131,7 +149,7 @@ class DailySeries:
         :rtype: :class:`pandas.DataFrame`
         """
         df_aux = self.data.set_index(self.datefield)
-        df_aux = df_aux.resample(period).sum()[self.varfield]
+        df_aux = df_aux.resample(period).sum()[self.varname]
         df_aux = df_aux.reset_index()
         return df_aux
 
@@ -150,7 +168,7 @@ class DailySeries:
         :rtype: :class:`pandas.DataFrame`
         """
         df_aux = self.data.set_index(self.datefield)
-        df_aux = df_aux.resample(period).mean()[self.varfield]
+        df_aux = df_aux.resample(period).mean()[self.varname]
         df_aux = df_aux.reset_index()
         return df_aux
 
@@ -177,7 +195,7 @@ class DailySeries:
         plt.style.use("seaborn-v0_8")
 
         # get univar object
-        uni = Univar(data=self.data[self.varfield].values)
+        uni = Univar(data=self.data[self.varname].values)
 
         # get specs
         default_specs = {
@@ -214,7 +232,7 @@ class DailySeries:
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            4, 5, wspace=0.5, hspace=0.9, left=0.05, bottom=0.1, top=0.9, right=0.95
+            4, 5, wspace=0.5, hspace=0.9, left=0.075, bottom=0.1, top=0.9, right=0.95
         )
         fig.suptitle(specs["suptitle"])
 
@@ -223,7 +241,7 @@ class DailySeries:
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         plt.plot(
             self.data[self.datefield],
-            self.data[self.varfield],
+            self.data[self.varname],
             linestyle=specs["series linestyle"],
             marker=specs["series marker"],
             label="Data Series",
@@ -235,7 +253,7 @@ class DailySeries:
         else:
             plt.plot(
                 self.data[self.datefield],
-                self.data[self.varfield]
+                self.data[self.varname]
                 .rolling(specs["mavg period"], min_periods=2)
                 .mean(),
                 label=specs["a_mavg_label"],
@@ -247,20 +265,20 @@ class DailySeries:
         )
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["a_xlabel"])
-        plt.legend(frameon=True, loc=(0.0, -0.3), ncol=1)
+        plt.legend(frameon=True, loc=(0.0, -0.35), ncol=1)
 
         # plot Hist
         plt.subplot(gs[0:3, 3:4])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         plt.hist(
-            x=self.data[self.varfield],
+            x=self.data[self.varname],
             bins=specs["nbins"],
             orientation="horizontal",
             color=specs["color"],
             weights=np.ones(len(self.data)) / len(self.data),
         )
         plt.ylim(specs["ylim"])
-        plt.ylabel(specs["ylabel"])
+        # plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["b_xlabel"])
 
         # Set the x-axis formatter as percentages
@@ -272,11 +290,15 @@ class DailySeries:
         df_freq = uni.assess_frequency()
         plt.subplot(gs[0:3, 4:5])
         plt.title("c. {}".format(specs["c_title"]), loc="left")
-        plt.plot(df_freq["Exceedance"], df_freq["Values"])
+        plt.plot(df_freq["Exceedance"] / 100, df_freq["Values"])
         plt.ylim(specs["ylim"])
-        plt.ylabel(specs["ylabel"])
+        # plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["c_xlabel"])
-        plt.xlim(0, 100)
+        plt.xlim(0, 1)
+        # Set the x-axis formatter as percentages
+        xticks = mtick.PercentFormatter(xmax=1, decimals=0, symbol="%", is_latex=False)
+        ax = plt.gca()
+        ax.xaxis.set_major_formatter(xticks)
 
         # show or save
         if show:
@@ -285,6 +307,7 @@ class DailySeries:
             if filename is None:
                 filename = self.name
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+        plt.close(fig)
 
 
 class PrecipSeries(DailySeries):
@@ -345,7 +368,7 @@ class Raster:
         self.varalias = "Var"
         self.description = "Unknown"
         self.units = "units"
-        self.date = "2020-01-01"
+        self.date = None  # "2020-01-01"
 
     def set_grid(self, grid):
         """Set data from incoming objects.
@@ -361,15 +384,18 @@ class Raster:
     def set_asc_metadata(self, metadata):
         """Set metadata from incoming objects
 
-        Example of metadata for ASC raster:
-        meta = {
-            'ncols': 366,
-            'nrows': 434,
-            'xllcorner': 559493.08,
-            'yllcorner': 6704832.2,
-            'cellsize': 30,
-            'NODATA_value': -1
-        }.
+        Example of metadata for ``.asc`` file raster:
+
+        .. code-block:: python
+
+            meta = {
+                'ncols': 366,
+                'nrows': 434,
+                'xllcorner': 559493.08,
+                'yllcorner': 6704832.2,
+                'cellsize': 30,
+                'NODATA_value': -1
+            }.
 
         :param metadata: metadata dictionary
         :type metadata: dict
@@ -382,9 +408,9 @@ class Raster:
         self.guess_cellsize()
 
     def load_asc_raster(self, file, nan=False):
-        """A function to load data and metadata from .ASC raster files.
+        """A function to load data and metadata from ``.asc`` raster files.
 
-        :param file: string of file path with the '.asc' extension
+        :param file: string of file path with the ``.asc`` extension
         :type file: str
         :param nan: boolean to convert nan values to np.nan, defaults to False
         :type nan: bool
@@ -435,9 +461,9 @@ class Raster:
         self.set_grid(grid=grd_data)
 
     def load_asc_metadata(self, file):
-        """A function to load only metadata from .ASC raster files.
+        """A function to load only metadata from ``.asc`` raster files.
 
-        :param file: string of file path with the '.asc' extension
+        :param file: string of file path with the ``.asc`` extension
         :type file: str
         """
 
@@ -470,7 +496,7 @@ class Raster:
         self.set_asc_metadata(metadata=meta_dct)
 
     def export_asc_raster(self, folder="./output", filename=None):
-        """Function for exporting an .ASC raster file.
+        """Function for exporting an ``.asc`` raster file.
 
         :param folder: string of directory path, , defaults to ``./output``
         :type folder: str
@@ -527,8 +553,7 @@ class Raster:
             return flenm
 
     def mask_nodata(self):
-        """Mask grid cells as NaN where data is NODATA.
-        """
+        """Mask grid cells as NaN where data is NODATA."""
         if self.nodatavalue is None:
             pass
         else:
@@ -540,8 +565,7 @@ class Raster:
                 self.grid[self.grid == self.nodatavalue] = np.nan
 
     def insert_nodata(self):
-        """Insert grid cells as NODATA where data is NaN.
-        """
+        """Insert grid cells as NODATA where data is NaN."""
         if self.nodatavalue is None:
             pass
         else:
@@ -615,7 +639,7 @@ class Raster:
         else:
             return self.grid.ravel()[~np.isnan(self.grid.ravel())]
 
-    def get_basic_stats(self):
+    def get_raster_stats(self):
         """Get basic statistics from flat and clear data.
 
         :return: dataframe of basic statistics
@@ -625,6 +649,7 @@ class Raster:
             return None
         else:
             from analyst import Univar
+
             return Univar(data=self.get_data()).assess_basic_stats()
 
     def guess_cellsize(self):
@@ -673,7 +698,7 @@ class Raster:
             "color": "tab:grey",
             "cmap": self.cmap,
             "suptitle": "{} | {}".format(self.varname, self.name),
-            "a_title": "{} ({})".format(self.varname, self.units),
+            "a_title": "{} ({})".format(self.varalias, self.units),
             "b_title": "Histogram",
             "c_title": "Metadata",
             "d_title": "Statistics",
@@ -716,7 +741,6 @@ class Raster:
         plt.axis("off")
 
         # plot Hist
-
         plt.subplot(gs[:2, 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         vct_result = plt.hist(
@@ -735,7 +759,7 @@ class Raster:
             x=n_mean,
             ymin=0,
             ymax=specs["hist_vmax"],
-            colors="tab:red",
+            colors="tab:orange",
             linestyles="--",
             # label="mean ({:.2f})".format(n_mean)
         )
@@ -759,7 +783,7 @@ class Raster:
         # plot metadata
 
         # get datasets
-        df_stats = self.get_basic_stats()
+        df_stats = self.get_raster_stats()
         lst_meta = []
         lst_value = []
         for k in self.asc_metadata:
@@ -828,22 +852,160 @@ class Raster:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+        plt.close(fig)
 
 
-    def _docstring_tests(self, a: Union[str, None]) -> Union[str, None]:
-        """Returns a list of :class:`bluepy.blte.Service` objects representing
-        the services offered by the device. This will perform Bluetooth service
-        discovery if this has not already been done; otherwise it will return a
-        cached list of services immediately..
+# -----------------------------------------
+# Derived Raster data structures
 
-        :param a: A  string service UUIDs to be discovered,
-            defaults to None
-        :type a: str
-        :return: string bla bla
-        :rtype: str
+
+class Elevation(Raster):
+    """
+    Elevation (DEM) raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
         """
-        print("{}kkkk".format(a))
-        return "{}kkkk".format(a)
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "BrBG_r"
+        self.varname = "Elevation"
+        self.varalias = "ELV"
+        self.description = "Height above sea level"
+        self.units = "m"
+
+
+class Slope(Raster):
+    """
+    Slope raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "OrRd"
+        self.varname = "Slope"
+        self.varalias = "SLP"
+        self.description = "Slope of terrain"
+        self.units = "deg."
+
+
+class TWI(Raster):
+    """
+    TWI raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "YlGnBu"
+        self.varname = "TWI"
+        self.varalias = "TWI"
+        self.description = "Topographical Wetness Index"
+        self.units = "index units"
+
+
+class HAND(Raster):
+    """
+    HAND raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "YlGnBu_r"
+        self.varname = "HAND"
+        self.varalias = "HAND"
+        self.description = "Height Above the Nearest Drainage"
+        self.units = "m"
+
+
+class NDVI(Raster):
+    """
+    NDVI raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "RdYlGn"
+        self.varname = "NDVI"
+        self.varalias = "NDVI"
+        self.description = "Normalized difference vegetation index"
+        self.units = "index units"
+
+    def set_grid(self, grid):
+        super(NDVI, self).set_grid(grid)
+        self.cut_edges(upper=1, lower=-1)
+
+    def plot_basic_view(
+        self, show=False, folder="./output", filename=None, specs=None, dpi=96
+    ):
+        default_specs = {"vmin": -1, "vmax": 1}
+        if specs is None:
+            specs = default_specs
+        else:
+            for k in default_specs:
+                specs[k] = default_specs[k]
+        super().plot_basic_view(show, folder, filename, specs, dpi)
+
+
+class ET24h(Raster):
+    """
+    ET 24h raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        import matplotlib as mpl
+        from matplotlib.colors import ListedColormap
+
+        super().__init__(name=name, dtype="float32")
+        self.varname = "Daily Evapotranspiration"
+        self.varalias = "ET24h"
+        self.description = "Daily Evapotranspiration"
+        self.units = "mm"
+        # set custom cmap
+        jet_big = mpl.colormaps["jet_r"]
+        self.cmap = ListedColormap(jet_big(np.linspace(0.3, 0.75, 256)))
+
+    def set_grid(self, grid):
+        super().set_grid(grid)
+        self.cut_edges(upper=100, lower=0)
+
+    def plot_basic_view(
+        self, show=False, folder="./output", filename=None, specs=None, dpi=96
+    ):
+        default_specs = {"vmin": 0, "vmax": 10}
+        if specs is None:
+            specs = default_specs
+        else:
+            for k in default_specs:
+                specs[k] = default_specs[k]
+        super().plot_basic_view(show, folder, filename, specs, dpi)
 
 
 # -----------------------------------------
@@ -889,26 +1051,8 @@ class QualiRaster(Raster):
         super().set_asc_metadata(metadata)
         self._overwrite_nodata()
 
-    def _dataframe_prepro(self, dataframe):
-        """Utility function for dataframe preprossing.
-
-        :param dataframe: incoming dataframe
-        :type dataframe: :class:`pandas.DataFrame`
-        :return: prepared dataframe
-        :rtype: :class:`pandas.DataFrame`
-        """
-        # fix headings
-        dataframe.columns = dataframe.columns.str.strip()
-        # strip string fields
-        for i in range(len(dataframe.columns)):
-            if str(dataframe.dtypes.iloc[i]) == "object":
-                dataframe[dataframe.columns[i]] = dataframe[
-                    dataframe.columns[i]
-                ].str.strip()
-        return dataframe
-
     def load_table(self, file):
-        """Load attributes dataframe from CSV ``.txt`` file (separator must be ;).
+        """Load attributes dataframe from ``csv`` ``.txt`` file (separator must be ;).
 
         :param file: path to file
         :type file: str
@@ -916,10 +1060,10 @@ class QualiRaster(Raster):
         # read raw file
         df_aux = pd.read_csv(file, sep=";")
         # set to self
-        self.table = self._dataframe_prepro(dataframe=df_aux)
+        self.set_table(dataframe=df_aux)
 
     def export_table(self, folder="./output", filename=None):
-        """Export an CSV ``.txt``  file.
+        """Export an ``csv`` ``.txt``  file.
 
         :param folder: string of directory path, defaults to ``./output``
         :type folder: str
@@ -940,11 +1084,10 @@ class QualiRaster(Raster):
         :param dataframe: incoming pandas dataframe
         :type dataframe: :class:`pandas.DataFrame`
         """
-        self.table = self._dataframe_prepro(dataframe=dataframe.copy())
+        self.table = dataframe_prepro(dataframe=dataframe.copy())
 
     def set_random_colors(self):
-        """Set random colors to attribute table.
-        """
+        """Set random colors to attribute table."""
         if self.table is None:
             pass
         else:
@@ -1097,9 +1240,9 @@ class QualiRaster(Raster):
             "height": 5,
             "b_area": "km2",
             "b_xlabel": "Area",
+            "b_xmax": None,
             "vmin": self.table[self.idfield].min(),
             "vmax": self.table[self.idfield].max(),
-            "hist_vmax": None,
             "gs_rows": 7,
             "gs_cols": 5,
             "gs_b_rowlim": 4,
@@ -1167,14 +1310,20 @@ class QualiRaster(Raster):
         )
 
         # Add labels for each bar
-        _n_max = df_aux["{}_{}".format(self.areafield, specs["b_area"])].max()
+        if specs["b_xmax"] is None:
+            specs["b_xmax"] = df_aux[
+                "{}_{}".format(self.areafield, specs["b_area"])
+            ].max()
         for i in range(len(df_aux)):
             v = df_aux["{}_{}".format(self.areafield, specs["b_area"])].values[i]
             p = df_aux["{}_%".format(self.areafield)].values[i]
             plt.text(
-                v + _n_max / 50, i - 0.3, "{:.1f} ({:.1f}%)".format(v, p), fontsize=9
+                v + specs["b_xmax"] / 50,
+                i - 0.3,
+                "{:.1f} ({:.1f}%)".format(v, p),
+                fontsize=9,
             )
-        plt.xlim(0, 1.5 * _n_max)
+        plt.xlim(0, 1.5 * specs["b_xmax"])
         plt.xlabel("{} (km$^2$)".format(specs["b_xlabel"]))
         plt.grid(axis="y")
 
@@ -1214,8 +1363,6 @@ class QualiRaster(Raster):
                 transform=fig.transFigure,
             )
 
-        # stats
-
         # show or save
         if show:
             plt.show()
@@ -1223,15 +1370,81 @@ class QualiRaster(Raster):
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+        plt.close(fig)
+
+
+class LULC(QualiRaster):
+    """
+    Land Use and Land Cover map dataset
+    """
+
+    def __init__(self, name, date):
+        """Initialize :class:`LULC` map
+
+        :param name: name of map
+        :type name: str
+        :param date: date of map in ``yyyy-mm-dd``
+        :type date: str
+        """
+        super().__init__(name, dtype="uint8")
+        self.cmap = "tab20b"
+        self.varname = "Land Use and Land Cover"
+        self.varalias = "LULC"
+        self.description = "Classes of Land Use and Land Cover"
+        self.units = "classes ID"
+        self.date = date
+
+
+class Soils(QualiRaster):
+    """
+    Soils map dataset
+    """
+
+    def __init__(self, name="SoilsMap"):
+        super().__init__(name, dtype="uint8")
+        self.cmap = "tab20c"
+        self.varname = "Soil Types"
+        self.varalias = "Soils"
+        self.description = "Types of Soils and Substrate"
+        self.units = "types ID"
+
+
+class AOI(QualiRaster):
+    """
+    AOI map dataset
+    """
+
+    def __init__(self, name="AOIMap"):
+        super().__init__(name, dtype="uint8")
+        self.varname = "Area Of Interest"
+        self.varalias = "AOI"
+        self.description = "Boolean map an Area of Interest"
+        self.units = "classes ID"
+        self.table = pd.DataFrame(
+            {"Id": [1], "Name": [self.name], "Alias": ["-"], "Color": "tab:grey"}
+        )
+
+
+# -----------------------------------------
+# Raster Collection data structures
 
 
 class RasterCollection:
     """
-    The raster collection base data structure
+    The raster collection base dataset.
+
+    This data strucute is designed for holding and comparing similar :class:`Raster` objects.
 
     """
 
     def __init__(self, name="myRasterCollection", dtype="float32"):
+        """Deploy the raster collection data structure.
+
+        :param name: name of raster collection
+        :type name: str
+        :param dtype: data type of raster cells, defaults to float32
+        :type dtype: str
+        """
         self.catalog = pd.DataFrame(
             columns=[
                 "Name",
@@ -1247,10 +1460,18 @@ class RasterCollection:
                 "NODATA_value",
             ]
         )
-        self.collection = None
+        self.catalog["Date"] = pd.to_datetime(self.catalog["Date"])
+        self.collection = dict()
         self.dtype = dtype
+        self.name = name
 
     def append_raster(self, raster):
+        """Append a :class:`Raster` object to collection.
+        Pre-existing objects with the same :class:`Raster.name` attribute are replaced
+
+        :param raster: incoming :class:`Raster` to append
+        :type raster: :class:`Raster`
+        """
         # append to collection
         self.collection[raster.name] = raster
         # set
@@ -1270,182 +1491,385 @@ class RasterCollection:
             }
         )
         self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
+        self.catalog = self.catalog.drop_duplicates(subset="Name", keep="last")
 
+    def remove_raster(self, name):
+        """Remove a :class:`Raster` object from collection.
 
-# -----------------------------------------
-# Derived data structures
-
-
-class Elevation(Raster):
-    """
-    Elevation (DEM) raster map dataset.
-    """
-
-    def __init__(self, name="DemMap"):
-        """Deploy dataset.
-
-        :param name: name of map
+        :param name: :class:`Raster.name` name attribute to remove
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
-        self.cmap = "BrBG_r"
-        self.varname = "Elevation"
-        self.varalias = "ELV"
-        self.description = "Height above sea level"
-        self.units = "m"
+        # delete raster object
+        del self.collection[name]
+        # delete from catalog
+        self.catalog = self.catalog.drop(
+            self.catalog[self.catalog["Name"] == name].index
+        ).reset_index(drop=True)
 
-
-class Slope(Raster):
-    """
-    Slope raster map dataset.
-    """
-
-    def __init__(self, name="SlopeMap"):
-        """Deploy dataset.
-
-        :param name: name of map
-        :type name: str
-        """
-        super().__init__(name=name, dtype="float32")
-        self.cmap = "OrRd"
-        self.varname = "Slope"
-        self.varalias = "SLP"
-        self.description = "Slope of terrain"
-        self.units = "deg."
-
-
-class TWI(Raster):
-    """
-    TWI raster map dataset.
-    """
-
-    def __init__(self, name="TWIMap"):
-        """Deploy dataset.
-
-        :param name: name of map
-        :type name: str
-        """
-        super().__init__(name=name, dtype="float32")
-        self.cmap = "YlGnBu"
-        self.varname = "TWI"
-        self.varalias = "TWI"
-        self.description = "Topographical Wetness Index"
-        self.units = "index units"
-
-
-class HAND(Raster):
-    """
-    HAND raster map dataset.
-    """
-
-    def __init__(self, name="HANDMap"):
-        """Deploy dataset.
-
-        :param name: name of map
-        :type name: str
-        """
-        super().__init__(name=name, dtype="float32")
-        self.cmap = "YlGnBu_r"
-        self.varname = "HAND"
-        self.varalias = "HAND"
-        self.description = "Height Above the Nearest Drainage"
-        self.units = "m"
-
-
-class NDVI(Raster):
-    """
-    NDVI raster map dataset.
-    """
-
-    def __init__(self, name="NDVIMap"):
-        """Deploy dataset.
-
-        :param name: name of map
-        :type name: str
-        """
-        super().__init__(name=name, dtype="float32")
-        self.cmap = "RdYlGn"
-        self.varname = "NDVI"
-        self.varalias = "NDVI"
-        self.description = "Normalized difference vegetation index"
-        self.units = "index units"
-
-    def plot_basic_view(
-        self, show=False, folder="./output", filename=None, specs=None, dpi=96
+    def load_asc_raster(
+        self, name, file, varname=None, varalias=None, units=None, date=None
     ):
-        default_specs = {"vmin": -1, "vmax": 1}
+        """Load a :class:`Raster` object from a ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param file: path to ``.asc`` raster file
+        :type file: str
+        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :type varname: str
+        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :type varalias: str
+        :param units: :class:`Raster.units` units attribute, defaults to None
+        :type units: str
+        :param date: :class:`Raster.date` date attribute, defaults to None
+        :type date: str
+        """
+        # create raster
+        rst_aux = Raster(name=name, dtype=self.dtype)
+        # set attributes
+        rst_aux.varname = varname
+        rst_aux.varalias = varalias
+        rst_aux.units = units
+        rst_aux.date = date
+        # read file
+        rst_aux.load_asc_raster(file=file)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
+
+    def get_collection_stats(self):
+        """Get basic statistics from collection.
+
+        :return: statistics data
+        :rtype: :class:`pandas.DataFrame`
+        """
+        # deploy dataframe
+        df_aux = self.catalog[["Name"]].copy()
+        lst_stats = []
+        for i in range(len(self.catalog)):
+            s_name = self.catalog["Name"].values[i]
+            df_stats = self.collection[s_name].get_raster_stats()
+            lst_stats.append(df_stats.copy())
+        # deploy fields
+        for k in df_stats["Statistic"]:
+            df_aux[k] = 0.0
+
+        # fill values
+        for i in range(len(df_aux)):
+            df_aux.loc[i, "count":"max"] = lst_stats[i]["Value"].values
+        df_aux["count"] = df_aux["count"].astype(dtype="uint16")
+        return df_aux
+
+    def plot_views(self, show=False, folder="./output", specs=None, dpi=96):
+        """Plot all basic pannel of raster maps in collection.
+
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        """
+
+        # get stats
+        df_stas = self.get_collection_stats()
+        n_vmin = df_stas["min"].max()
+        n_max = df_stas["max"].max()
+
+        # handle specs
+        default_specs = {"vmin": n_vmin, "vmax": n_max, "hist_vmax": 0.05}
         if specs is None:
             specs = default_specs
         else:
+            # overwrite incoming specs
             for k in default_specs:
                 specs[k] = default_specs[k]
-        super().plot_basic_view(show, folder, filename, specs, dpi)
+
+        # plot loop
+        for k in self.collection:
+            rst_lcl = self.collection[k]
+            s_name = rst_lcl.name
+            rst_lcl.plot_basic_view(
+                show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
+            )
 
 
-class LULCMap(QualiRaster):
-    """
-    Land Use and Land Cover map dataset
-    """
-
-    def __init__(self, name="LULCMap"):
-        super().__init__(name, dtype="uint8")
-        self.cmap = "tab20b"
-        self.varname = "Land Use and Land Cover"
-        self.varalias = "LULC"
-        self.description = "Classes of Land Use and Land Cover"
-        self.units = "classes ID"
-
-
-class SoilsMap(QualiRaster):
-    """
-    Soils map dataset
+class RasterSeries(RasterCollection):
+    """A :class:`RasterCollection` where date matters and all maps in collections are
+    assumed to be the same variable and ocuppy the same spatial extent.
     """
 
-    def __init__(self, name="SoilsMap"):
-        super().__init__(name, dtype="uint8")
-        self.cmap = "tab20c"
-        self.varname = "Soil Types"
-        self.varalias = "Soils"
-        self.description = "Types of Soils and Substrate"
-        self.units = "types ID"
+    def __init__(self, name, varname, varalias, units, dtype="float32"):
+        """Deploy RasterSeries
 
+        :param name: :class:`RasterSeries.name` name attribute
+        :type name: str
+        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :type varname: str
+        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :type varalias: str
+        :param units: :class:`Raster.units` units attribute, defaults to None
+        :type units: str
+        """
+        super().__init__(name=name, dtype=dtype)
+        self.varname = varname
+        self.varalias = varalias
+        self.units = units
 
-class AOIMap(QualiRaster):
-    """
-    AOI map dataset
-    """
+    def load_asc_raster(self, name, date, file):
+        """Load a :class:`Raster` object from a ``.asc`` raster file.
 
-    def __init__(self, name="AOIMap"):
-        super().__init__(name, dtype="uint8")
-        self.varname = "Area Of Interest"
-        self.varalias = "AOI"
-        self.description = "Boolean map an Area of Interest"
-        self.units = "classes ID"
-        self.table = pd.DataFrame(
-            {"Id": [1], "Name": [self.name], "Alias": ["-"], "Color": "tab:grey"}
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param date: :class:`Raster.date` date attribute, defaults to None
+        :type date: str
+        :param file: path to ``.asc`` raster file
+        :type file: str
+        """
+        # create raster
+        rst_aux = Raster(name=name, dtype=self.dtype)
+        # set attributes
+        rst_aux.varname = self.varname
+        rst_aux.varalias = self.varalias
+        rst_aux.units = self.units
+        rst_aux.date = date
+        # read file
+        rst_aux.load_asc_raster(file=file)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
+
+    def get_series_stats(self):
+        df_stats = self.get_collection_stats()
+        df_series = pd.merge(
+            self.catalog[["Name", "Date"]], df_stats, how="left", on="Name"
         )
+        return df_series
+
+    def plot_series_stats(self, statistic="mean", specs=None, show=False):
+        df_series = self.get_series_stats()
+        ts = DailySeries(
+            name=self.name, varname="{}_{}".format(self.varname, statistic)
+        )
+        ts.set_data(dataframe=df_series, varfield=statistic, datefield="Date")
+        default_specs = {
+            "suptitle": "{} | {} {} series".format(self.name, self.varname, statistic),
+            "ylabel": self.units,
+        }
+        if specs is None:
+            specs = default_specs
+        else:
+            # overwrite incoming specs
+            for k in default_specs:
+                specs[k] = default_specs[k]
+        ts.plot_basic_view(show=show, specs=specs)
+
+
+class NDVISeries(RasterSeries):
+    def __init__(self, name):
+        # instantiate raster sample
+        rst_aux = NDVI(name="dummy")
+        super().__init__(
+            name=name,
+            varname=rst_aux.varname,
+            varalias=rst_aux.varalias,
+            units=rst_aux.units,
+            dtype=rst_aux.dtype,
+        )
+        # remove
+        del rst_aux
+
+    def load_asc_raster(self, name, date, file):
+        """Load a :class:`NDVI` object from ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param date: :class:`Raster.date` date attribute
+        :type date: str
+        :param file: path to ``.asc`` raster file
+        :type file: str
+        """
+        # create raster
+        rst_aux = NDVI(name=name)
+        # set attributes
+        rst_aux.date = date
+        # read file
+        rst_aux.load_asc_raster(file=file)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
+
+
+class ETSeries(RasterSeries):
+    def __init__(self, name):
+        # instantiate raster sample
+        rst_aux = ET24h(name="dummy")
+        super().__init__(
+            name=name,
+            varname=rst_aux.varname,
+            varalias=rst_aux.varalias,
+            units=rst_aux.units,
+            dtype=rst_aux.dtype,
+        )
+        # remove
+        del rst_aux
+
+    def load_asc_raster(self, name, date, file):
+        """Load a :class:`ET24h` object from ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param date: :class:`Raster.date` date attribute
+        :type date: str
+        :param file: path to ``.asc`` raster file
+        :type file: str
+        """
+        # create raster
+        rst_aux = ET24h(name=name)
+        # set attributes
+        rst_aux.date = date
+        # read file
+        rst_aux.load_asc_raster(file=file)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
+
+
+class QualiSeries(RasterSeries):
+    def __init__(self, name, varname, varalias, dtype="uint8"):
+        """Deploy Qualitative Raster Series
+
+        :param name: :class:`RasterSeries.name` name attribute
+        :type name: str
+        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :type varname: str
+        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :type varalias: str
+        """
+        super().__init__(
+            name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
+        )
+
+    def load_asc_raster(self, name, date, file, file_table):
+        """Load a :class:`QualiRaster` object from ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param date: :class:`Raster.date` date attribute
+        :type date: str
+        :param file: path to ``.asc`` raster file
+        :type file: str
+        :param file: path to ``.txt`` csv attribute table file
+        :type file: str
+        """
+        # create raster
+        rst_aux = QualiRaster(name=name)
+        # set attributes
+        rst_aux.date = date
+        # read file
+        rst_aux.load_asc_raster(file=file)
+        # set table
+        rst_aux.load_table(file=file_table)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
+
+    def get_series_areas(self):
+        for k in self.catalog["Name"]:
+            print(k)
+            df_areas = self.collection[k].get_areas()
+            print(df_areas.to_string())
+            print()
+
+    def plot_views(self, show=False, folder="./output", specs=None, dpi=96):
+        """Plot all basic pannel of raster maps in collection.
+
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        """
+
+        # plot loop
+        for k in self.collection:
+            rst_lcl = self.collection[k]
+            s_name = rst_lcl.name
+            rst_lcl.plot_basic_view(
+                show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
+            )
+
+
+class LULCSeries(QualiSeries):
+    def __init__(self, name):
+        # instantiate raster sample
+        rst_aux = LULC(name="dummy", date="2020-01-01")
+        super().__init__(
+            name=name,
+            varname=rst_aux.varname,
+            varalias=rst_aux.varalias,
+            dtype=rst_aux.dtype,
+        )
+        # remove
+        del rst_aux
+
+    def load_asc_raster(self, name, date, file, file_table):
+        """Load a :class:`LULCRaster` object from ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param date: :class:`Raster.date` date attribute
+        :type date: str
+        :param file: path to ``.asc`` raster file
+        :type file: str
+        :param file: path to ``.txt`` csv attribute table file
+        :type file: str
+        """
+        # create raster
+        rst_aux = LULC(name=name, date=date)
+        # read file
+        rst_aux.load_asc_raster(file=file)
+        # set table
+        rst_aux.load_table(file=file_table)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
 
 
 if __name__ == "__main__":
     b_aoi = False
-    b_lulc = True
+    b_lulc = False
     b_dem = False
     b_slope = False
     b_bench = False
     b_ndvi = False
-    b_collection = False
+    b_et = False
+    b_ndvi_collection = False
+    b_lulc_collection = True
 
     output_dir = "C:/data"
     input_dir = "C:/data/gravatai/plans"
 
     s_name = "Gravatai"
     s_aux = "gravatai"
+
     if b_aoi:
         # -------------------------------------------------------------
         # [0] AOI map
         s_filename = "{}_basin_flu87398800".format(s_aux)
         # instantiate map
-        rst_aoi = AOIMap(name="Andreas")
+        rst_aoi = AOI(name="Andreas")
         # load file
         rst_aoi.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
         # view
@@ -1457,21 +1881,24 @@ if __name__ == "__main__":
         # [1] LULC map
         s_filename = "{}_lulc_2020".format(s_aux)
         # instantiate map
-        rst_lulc = LULCMap(name=s_name)
+        rst_lulc = LULC(name=s_name, date="2020-01-01")
         # load files
         rst_lulc.load_asc_raster(file="{}/lulc/{}.asc".format(input_dir, s_filename))
         rst_lulc.load_table(file="{}/lulc.txt".format(input_dir))
-
+        print(rst_lulc.table)
+        """
         # -------------------------------------------------------------
         # [0] AOI map
         s_filename = "{}_basin_flu87398800".format(s_aux)
         # instantiate map
-        rst_aoi = AOIMap(name=s_name)
+        rst_aoi = AOI(name=s_name)
         # load file
         rst_aoi.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
 
         # apply aoi inplace
         rst_lulc.apply_aoi_mask(grid_aoi=rst_aoi.grid, inplace=True)
+        
+        """
 
         # rst_lulc.get_areas()
         # plot
@@ -1504,21 +1931,71 @@ if __name__ == "__main__":
             show=True,
         )
 
+    if b_et:
+        s_filename = (
+            r"{}\ndvi\gravatai_LC08-C01-T1SR_221081_ndvi_2014-05-29.asc".format(
+                input_dir
+            )
+        )
+        rst_ndvi = ET24h(name=s_name)
+        rst_ndvi.load_asc_raster(file=s_filename)
+        rst_ndvi.plot_basic_view(show=True)
+
     if b_ndvi:
         s_filename = (
             r"{}\ndvi\gravatai_LC08-C01-T1SR_221081_ndvi_2014-05-29.asc".format(
                 input_dir
             )
         )
-
         rst_ndvi = NDVI(name=s_name)
         rst_ndvi.load_asc_raster(file=s_filename)
-        rst_ndvi.cut_edges(upper=1, lower=-1)
         rst_ndvi.plot_basic_view(show=True)
 
-    if b_collection:
-        # create collection
-        rcoll = RasterCollection()
-        print(rcoll.catalog)
+    if b_ndvi_collection:
+        s_dir = "C:/data/gravatai/plans/ndvi"
+        lst_files_all = os.listdir(s_dir)
+        # Filter the list to include only files with the specified extension
+        lst_files = [file for file in lst_files_all if file.endswith(".asc")]
+        print(len(lst_files))
 
-        #
+        # create collection
+        rcoll = NDVISeries(name=s_name)
+        for i in range(len(lst_files)):
+            s_date = lst_files[i].split(".")[0].split("ndvi_")[1]
+            rcoll.load_asc_raster(
+                name="{} NDVI {}".format(s_name, s_date),
+                date=s_date,
+                file="{}/{}".format(s_dir, lst_files[i]),
+            )
+        print(rcoll.catalog.to_string())
+        _specs = {
+            "ylim": (-1, 1),
+            "series linestyle": "",
+            "mavg period": 3,
+            "nbins": 12,
+        }
+        rcoll.plot_series_stats(statistic="mean", specs=_specs)
+        rcoll.plot_views(show=True, folder="C:/bin")
+
+    if b_lulc_collection:
+        s_dir = "C:/data/gravatai/plans/lulc"
+        lst_files_all = os.listdir(s_dir)
+        # Filter the list to include only files with the specified extension
+        lst_files = [file for file in lst_files_all if file.endswith(".asc")]
+
+        # create collection
+        rcoll = LULCSeries(name=s_name)
+        for i in range(len(lst_files)):
+            s_year = lst_files[i].split(".")[0].split("lulc_")[1]
+            s_date = "{}-01-01".format(s_year)
+            rcoll.load_asc_raster(
+                name="{} LULC {}".format(s_name, s_date),
+                date=s_date,
+                file="{}/{}".format(s_dir, lst_files[i]),
+                file_table="{}/lulc.txt".format(input_dir),
+            )
+        print(rcoll.catalog.to_string())
+
+        # rcoll.get_series_areas()
+        specs = {"b_xmax": 300}
+        rcoll.plot_views(show=False, folder="C:/bin", specs=specs)
