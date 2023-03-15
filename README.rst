@@ -6,7 +6,6 @@ PLANS - Planning Nature-based Solutions
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-
 A cool image
 
 .. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/fig.png
