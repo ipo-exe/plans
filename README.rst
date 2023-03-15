@@ -2,9 +2,20 @@
 
 |license| |toplang| |docs|
 
-|logo|
+.. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
+    :alt: License
 
+.. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
+    :alt: Top Language
 
+.. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
+    :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
+    :width: 200 px
+    :align: center
+    :alt: Logo
 
 
 ``plans`` - Planning Nature-based Solutions
@@ -14,7 +25,10 @@ The ``plans`` model is a computer tool designed to help watershed restoration pr
 
 Example of model outputs:
 
-|example|
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/cat.gif
+    :width: 200 px
+    :align: center
+    :alt: Example of use
 
 For scientific and technical information of the ``plans`` project as a whole, see the following literature:
 
@@ -129,22 +143,3 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer eu egestas ipsu
 
 .. image definitions
 
-.. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
-    :alt: License
-
-.. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
-    :alt: Top Language
-
-.. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
-    :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
-
-.. |logo| image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
-    :width: 200 px
-    :align: center
-    :alt: Logo
-
-.. |example| image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/cat.gif
-    :width: 200 px
-    :align: center
-    :alt: Example of use
