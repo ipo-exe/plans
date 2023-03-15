@@ -22,7 +22,7 @@ Input files must be formatted in by standard way, otherwise the tool is not goin
 Tables
 ============================================
 
-A **table** is a frame of data defined by rows and columns. It must follow this general rules:
+A **table** in ``plans`` is a frame of data defined by rows and columns. It must follow this general rules:
 
 - the file must be a plain text file with ``.txt`` extension
 - semi-column ``;`` must be the separator of columns
@@ -59,7 +59,7 @@ For example, in the following table ``Id`` is an integer-number field, ``NDVI_me
 Time series
 ============================================
 
-A **time series** is a special kind of table file which must have a ``Date`` field. The ``Date`` field is a text field that stores dates in the format ``yyyy-mm-dd`` (year, month, day). The other fields generally are real number fields that stores the state of *variables* like precipitation ``P`` and temperature ``T``.
+A **time series** in ``plans`` is a special kind of table file which must have a ``Date`` field. The ``Date`` field is a text field that stores dates in the format ``yyyy-mm-dd`` (year, month, day). The other fields generally are real number fields that stores the state of *variables* like precipitation ``P`` and temperature ``T``.
 
 Time series files tends to have a large number of rows. The first 10 rows of a time series file looks like this:
 
@@ -79,7 +79,7 @@ Time series files tends to have a large number of rows. The first 10 rows of a t
 Daily time series
 --------------------------------------------
 
-A **daily time series** is a special time series file that must meet some extra requirements:
+A **daily time series** in ``plans`` is a special time series file that must meet some extra requirements:
 
 - no *date gaps* are allowed. All days from the start to end must be in the sequence of rows
 - no *data voids* are allowed. All information must be filled in the variable field.
@@ -105,7 +105,7 @@ A **daily time series** is a special time series file that must meet some extra 
 Raster maps
 ============================================
 
-A **raster map** is a matrix of cells storing numbers (integer or real values) and encoded in way that it can be georreferenced in a given Coordinate Reference System (CRS). It must follow this general rules:
+A **raster map** in ``plans`` is a matrix of cells storing numbers (integer or real values) and encoded in way that it can be georreferenced in a given Coordinate Reference System (CRS). It must follow this general rules:
 
 - the file must be a plain text file with ``.asc`` extension
 - the first 6 lines must encode a **heading**, specifying the following metadata:
@@ -143,26 +143,66 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
 
 .. note::
 
-    Most GIS desktop applications have special tools for converting ``.tif`` raster files to the ``.asc`` format used in ``plans``. Hence, you only  have to worry about setting up the data type (integer or real) and the nodata value in the moment of exporting your ``.tif`` raster files.
+    Most GIS desktop applications have special tools for converting ``.tif`` raster files to the ``.asc`` format used in ``plans``. Hence, you only  have to worry about setting up the data type (integer or real) and the no-data value in the moment of exporting your ``.tif`` raster files.
 
-    While in QGIS 3, you may adapt the following python code for converting ``.tif`` raster files to the ``.asc`` format:
+    While in ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif`` raster files to the ``.asc`` format:
 
-   .. code-block:: python
+    .. code-block:: python
         # this code is for QGIS python console
         import processing
 
-        # call gdal:translate tool
+        input_file = 'path/to/input.tif'
+        output_file = 'path/to/output.asc'
+        '''
+        In gdal data types are encoded in the following way:
+        1: 8-bit unsigned integer (byte)
+        2: 16-bit signed integer
+        3: 16-bit unsigned integer
+        4: 32-bit signed integer
+        5: 32-bit unsigned integer
+        6: 32-bit floating-point (real value)
+        '''
+        # Call gdal:translate
         processing.run("gdal:translate", {
-            'INPUT':"./path/to/input_file.tif", # set input tif raster
+            'INPUT':"path/to/input_file.tif", # set input tif raster
             'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:4326'), # set CRS EPSG
             'NODATA':-1, # set no-data value
-            'COPY_SUBDATASETS':False,
-            'OPTIONS':'',
-            'EXTRA':'',
-            'DATA_TYPE':6, # set data type (1: byte, 2:
-            'OUTPUT':"./path/to/output_file.asc", # set input tif raster
+            'DATA_TYPE':6, # 32-bit floating-point
+            'FORMAT':"AAIGrid",
+            'OUTPUT':"path/to/output_file.asc", # set input tif raster
         })
 
+    Alternatively, you may use ``rasterio`` python library in other environments (such as in ``colab`` notebooks):
+
+    .. code-block:: python
+        # this code assumes rasterio is already installed
+        import rasterio
+
+        input_file = 'path/to/input.tif'
+        output_file = 'path/to/output.asc'
+
+        # Read the input TIF file using rasterio
+        with rasterio.open(input_file) as src:
+            meta = src.meta.copy()  # Get metadata
+
+            # Update the metadata to change the format to ASC
+            '''
+            Rasterio encoded data types as in numpy (some examples):
+            uint8: 8-bit unsigned integer (byte)
+            int32: 32-bit signed integer
+            float32: 32-bit floating-point (real value)
+            '''
+            data_type = 'float32'
+            meta.update({'driver': 'AAIGrid', 'dtype': data_type})
+
+            # Open the output ASC file using rasterio
+            with rasterio.open(output_file, 'w', **meta) as dst:
+                # Copy the input data to the output file
+                data = src.read(1) # read only the first band
+                dst.write(data.astype(data_type)) # ensure data type
+
+
+Ok
 
 
 Glossary
