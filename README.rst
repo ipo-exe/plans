@@ -50,7 +50,7 @@ To run the ``plans`` tool in a virtual or local machine you must load the latest
 - matplotlib.
 - pandas.
 
-The source code of the tool lives in the ``./plans-version/plans`` diretory, so it actually works as a Python package. If you are in the ``./plans-version`` level, you can use Python to import the tool and start writing scripts with the modules:
+The source code of the tool lives in the ``./plans-version/plans`` directory, so it actually works as a Python package. If you are in the ``./plans-version`` level, you can use Python to import the tool and start writing scripts with the modules:
 
 .. code-block:: python
 
