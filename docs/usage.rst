@@ -9,13 +9,13 @@ Usage
 ############################################
 
 
-Quick overview
-**************
+Quick Overview
+********************************************
 
 .. _installation:
 
 Installation
-============
+============================================
 
 To run the ``plans`` tool in a virtual or local machine you must load the latest version of this repository in your system. Also, you must install Python_ and a few and well-known dependencies:
 
@@ -34,13 +34,13 @@ This also allows you to easily integrate the tool with other useful Python libra
 
 
 Input datasets
-==============
+============================================
 
 Inputs (and also outputs) datasets must be simple plain text files such as ``.txt`` for *csv* tables and ``.asc`` for *raster* maps. Therefore, you may use some third-party applications like `Notepad ++`_ and QGIS_ for pre-processing your data to fit your data to the standards of ``plans``.
 
 
 Typical workflow
-================
+============================================
 
 Typically, to run plans you will go into the following steps (with some iteration):
 

@@ -13,9 +13,9 @@ This is Input and Output reference documentation of ``plans`` tool.
 .. toctree::
    iofiles
 
-------------
+--------------------------------------------
 
-File formats
+File formatting
 ********************************************
 
 Files used in ``plans`` are of three kinds:
@@ -93,7 +93,7 @@ A **daily time series** in ``plans`` is a special time series file that must mee
 
 .. warning::
 
-    In daily time series gaps and voids must be *filled* in the pre-processing phase of dataset preparation with interpolation os statistical techniques.
+    In daily time series gaps and voids must be *filled* in the pre-processing phase with interpolation and statistical techniques.
 
     For instance, the following daily time series is *not* suited for ``plans`` because it has a date gap (missing Jan/3 and Jan/4 dates) and a data void for ``P`` in Jan/8:
 
@@ -158,11 +158,13 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
 
     .. code-block:: python
 
-        # this code is for QGIS python console
+        # This code is for QGIS python console
         import processing
 
+        # Set file names
         input_file = 'path/to/input.tif'
         output_file = 'path/to/output.asc'
+
         '''
         In gdal data types are encoded in the following way:
         1: 8-bit unsigned integer (byte)
@@ -172,62 +174,86 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
         5: 32-bit unsigned integer
         6: 32-bit floating-point (real value)
         '''
+
         # Call gdal:translate
         processing.run("gdal:translate", {
-           'INPUT':"path/to/input_file.tif", # set input tif raster
-           'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:4326'), # set CRS EPSG
-           'NODATA':-1, # set no-data value
-           'DATA_TYPE':6, # 32-bit floating-point
+           'INPUT':input_file,  # set input tif raster
+           'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:4326'),  # set CRS EPSG
+           'NODATA':-1,  # set no-data value
+           'DATA_TYPE':6,  # 32-bit floating-point
            'FORMAT':"AAIGrid",
-           'OUTPUT':"path/to/output_file.asc", # set input tif raster
+           'OUTPUT':output_file,  # set input tif raster
         })
 
     Alternatively, you may use ``rasterio`` python library in other environments, such as in ``colab`` cloud notebooks:
 
     .. code-block:: python
 
-        # this code assumes rasterio is already installed via pip install
+        # This code assumes rasterio is already installed via pip install
         import rasterio
 
+        # Set file names
         input_file = 'path/to/input.tif'
         output_file = 'path/to/output.asc'
 
         # Read the input TIF file using rasterio
         with rasterio.open(input_file) as src:
             meta = src.meta.copy()  # Get metadata
-            # Update the metadata to change the format to ASC
             '''
             Rasterio encoded data types as in numpy (some examples):
             uint8: 8-bit unsigned integer (byte)
             int32: 32-bit signed integer
             float32: 32-bit floating-point (real value)
             '''
+            # Update the metadata to change the format to ASC
             data_type = 'float32'
             meta.update({'driver': 'AAIGrid', 'dtype': data_type})
-
             # Open the output ASC file using rasterio
             with rasterio.open(output_file, 'w', **meta) as dst:
                 # Copy the input data to the output file
                 data = src.read(1) # read only the first band
                 dst.write(data.astype(data_type)) # ensure data type
 
-Glossary
-********************************************
+--------------------------------------------
 
 Conventions
-============================================
+********************************************
+
 Text.
 
+--------------------------------------------
 
-Input files
-============================================
+Input files reference
+********************************************
+
 Text.
 
-
-Output files
+Input files summary
 ============================================
+
 Text.
 
+Input files catalog
+============================================
+
+Text.
+
+--------------------------------------------
+
+Output files reference
+********************************************
+
+Text.
+
+Output files summary
+============================================
+
+Text.
+
+Output files catalog
+============================================
+
+Text.
 
 .. DANGER::
    Beware killer rabbits!
