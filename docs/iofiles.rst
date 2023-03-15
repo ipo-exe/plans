@@ -143,13 +143,39 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
 
 .. note::
 
-    Most GIS desktop applications have special tools for converting ``.tif`` raster files to the ``.asc`` format used in ``plans``. Hence, you only  have to worry about setting up the data type (integer or real) and the no-data value in the moment of exporting your ``.tif`` raster files.
+    Most GIS desktop applications have special tools for converting commonly distributed ``.tif`` raster files to the ``.asc`` format used in ``plans``.
+
+    Hence, you actually only  have to worry about setting up the *data type* (integer or real) and the *no-data value* in the moment of exporting your ``.tif`` raster files to ``.asc`` format.
+
+    While in ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif`` raster files to the ``.asc`` format:
 
     .. code-block:: python
 
-        import plans
+        # this code is for QGIS python console
+        import processing
 
-    While in ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif`` raster files to the ``.asc`` format:
+        input_file = 'path/to/input.tif'
+        output_file = 'path/to/output.asc'
+        '''
+        In gdal data types are encoded in the following way:
+        1: 8-bit unsigned integer (byte)
+        2: 16-bit signed integer
+        3: 16-bit unsigned integer
+        4: 32-bit signed integer
+        5: 32-bit unsigned integer
+        6: 32-bit floating-point (real value)
+        '''
+        # Call gdal:translate
+        processing.run("gdal:translate", {
+           'INPUT':"path/to/input_file.tif", # set input tif raster
+           'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:4326'), # set CRS EPSG
+           'NODATA':-1, # set no-data value
+           'DATA_TYPE':6, # 32-bit floating-point
+           'FORMAT':"AAIGrid",
+           'OUTPUT':"path/to/output_file.asc", # set input tif raster
+        })
+
+
 
 OK
 
