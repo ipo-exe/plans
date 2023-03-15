@@ -2,7 +2,7 @@ PLANS - Planning Nature-based Solutions
 ===============================================
 
 
-.. image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
+.. image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
