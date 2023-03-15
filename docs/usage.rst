@@ -1,46 +1,55 @@
 Usage
-=====
+#####
+
+
+Quick overview
+**************
 
 .. _installation:
 
 Installation
-------------
+============
 
-To use Lumache, first install it using pip:
+To run the ``plans`` tool in a virtual or local machine you must load the latest version of this repository in your system. Also, you must install Python_ and a few and well-known dependencies:
 
-.. code-block:: console
+- numpy.
+- scipy.
+- matplotlib.
+- pandas.
 
-   (.venv) $ pip install lumache
-
-
-Python code
+The source code of the tool lives in the ``./plans-version/plans`` directory, so it actually works as a Python package. If you are in the ``./plans-version`` level, you can use Python to import the tool and start writing scripts with the modules:
 
 .. code-block:: python
 
-    print("hello world")
+    import plans
+
+This also allows you to easily integrate the tool with other useful Python libraries for pre and post processing needs.
 
 
-Creating recipes
-----------------
+Input datasets
+==============
 
-To retrieve a list of random ingredients,
-you can use the ``lumache.get_random_ingredients()`` function:
+Inputs (and also outputs) datasets must be simple plain text files such as ``.txt`` for *csv* tables and ``.asc`` for *raster* maps. Therefore, you may use some third-party applications like `Notepad ++`_ and QGIS_ for pre-processing your data to fit your data to the standards of ``plans``.
 
-.. autofunction:: lumache.get_random_ingredients
 
-The ``kind`` parameter should be either ``"meat"``, ``"fish"``,
-or ``"veggies"``. Otherwise, :py:func:`lumache.get_random_ingredients`
-will raise an exception.
+Typical workflow
+================
 
-.. autoexception:: lumache.InvalidKindError
+Typically, to run plans you will go into the following steps (with some iteration):
 
-For example:
+1. Gather observed and scenario datasets for your Area Of Interest (``AOI``).
+2. Pre-process the data so it fits into the standards of the tool.
+3. Use the tool to create a Project for your AOI
+4. Load the datasets to the Project.
+5. Use the tool to assess the datasets.
+6. Use the tool to calibrate the simulation models.
+7. Use the tool to simulate scenarios.
+8. Integrate with extra tools and application for more visualization and data analysis.
 
->>> import lumache
->>> lumache.get_random_ingredients()
-['shells', 'gorgonzola', 'parsley']
+.. reference definitions
 
-Referencing things in other pages
----------------------------------
+.. _Notepad ++ : https://notepad-plus-plus.org/
 
-Lorem ipsum dolor sit amet :ref:`some disadvantages <my target>`:, consectetur adipiscing elit. Integer eu egestas ipsum. Curabitur aliquam, nulla eget ornare commodo, nisl lectus auctor felis, quis facilisis libero justo ac nisl. As illustrated in :numref:`myfig` and more.
+.. _QGIS: https://www.qgis.org/en/site/
+
+.. _Python: https://www.python.org/
