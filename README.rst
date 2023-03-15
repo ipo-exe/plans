@@ -30,76 +30,54 @@ Example of model outputs:
     :align: center
     :alt: Example of use
 
-For scientific and technical information of the ``plans`` project as a whole, see the following literature:
+For scientific and technical information about the ``plans`` project as a whole, see the following literature:
 
 *Possantti, I., Marques G. A modelling framework for nature-based solutions expansion planning considering the benefits to downstream urban water users. Environmental Modelling & Software. Volume 152, 105381, ISSN 1364-8152.* https://doi.org/10.1016/j.envsoft.2022.105381.
 
 *Possantti, I., Barbedo, R., Kronbauer, M., Collischonn, W., Marques, G. A comprehensive strategy for modeling watershed restoration priority areas under epistemic uncertainty: A case study in the Atlantic Forest, Brazil. Journal of Hydrology. Volume 617, Part B, 2023, 129003, ISSN 0022-1694.* https://doi.org/10.1016/j.jhydrol.2022.129003.
 
 
-Tool overview
-*************
+Quick overview
+**************
 
-The ``plans`` tool is 100% Python and uses few and well-known dependencies:
+Installation
+-------------
+
+To run the ``plans`` tool in a virtual or local machine you must load the latest version of this repository in your system. Also, you must install Python_ and a few and well-known dependencies:
 
 - numpy.
 - scipy.
 - matplotlib.
 - pandas.
 
-Inputs and outputs datasets are simple plain text files such as ``.txt`` for csv tables and ``.asc`` for raster maps. Therefore, you may use some third-party applications like ``QGIS`` for pre-processing and post-processing.
+The source code of the tool lives in the ``./plans-version/plans`` diretory, so it actually works as a Python package. If you are in the ``./plans-version`` level, you can use Python to import the tool and start writing scripts with the modules:
+
+.. code-block:: python
+
+    import plans
+
+
+Input datasets
+--------------
+
+Inputs (and also outputs) datasets must be simple plain text files such as ``.txt`` for *csv* tables and ``.asc`` for *raster* maps. Therefore, you may use some third-party applications like Notepad++_ and QGIS_ for pre-processing your data to fit your data to the standards of ``plans``.
+
+However, ``plans`` allows you to easily integrate the tool with other useful Python libraries for pre and post processing needs.
+
+
+
+
+Typical workflow
+----------------
+
+
+
 
 Documentation website
 *********************
 
 If you want more information on how to use the ``plans`` tool, please now move to the `Documentation Website`_ on Read the Docs. Do not navigate documentation pages on Github since some features (like tables and warnings) may not render properly.
 
-
-.. list-table:: Table Title
-   :widths: 25 25 50
-   :header-rows: 1
-
-   * - Heading row 1, column 1
-     - Heading row 1, column 2
-     - Heading row 1, column 3
-   * - Row 1, column 1
-     -
-     - Row 1, column 3
-   * - Row 2, column 1
-     - Row 2, column 2
-     - Row 2, column 3
-
-Example Project usage
----------------------
-
-This project has a standard Sphinx layout which is built by Read the Docs almost the same way that you would build it locally (on your own laptop!).
-
-You can build and view this documentation project locally - we recommend that you activate `a local Python virtual environment first <https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#creating-a-virtual-environment>`_:
-
-.. code-block:: console
-
-    # Install required Python dependencies (Sphinx etc.)
-    pip install -r docs/requirements.txt
-
-    # Enter the Sphinx project
-    cd docs/
-    
-    # Run the raw sphinx-build command
-    sphinx-build -M html . _build/
-
-
-You can also build the documentation locally with ``make``:
-
-.. code-block:: console
-
-    # Enter the Sphinx project
-    cd docs/
-    
-    # Build with make
-    make html
-    
-    # Open with your preferred browser, pointing it to the documentation index page
-    firefox _build/html/index.html
 
 
 .. reference definitions
@@ -111,6 +89,12 @@ You can also build the documentation locally with ``make``:
 .. _infiltration: https://en.wikipedia.org/wiki/Infiltration_(hydrology)
 
 .. _Nature-based solutions for Water: https://www.undp.org/publications/nature-based-solutions-water
+
+.. _Notepad++ : https://notepad-plus-plus.org/
+
+.. _QGIS: https://www.qgis.org/en/site/
+
+.. _Python: https://www.python.org/
 
 .. image definitions
 
