@@ -6,8 +6,8 @@
     :alt: Logo
 
 
-Welcome to ``plans`` documentation!
-===================================
+Welcome to ``plans`` documentation page!
+############################################
 
 .. warning::
 
