@@ -35,11 +35,26 @@ For example, in the following table ``Id`` is an integer field, ``NDVI_mean`` is
 .. code-block::
 
    Id;     Name; Alias; NDVI_mean;   Color
-    1;    Water;     W;      -0.9;    blue
-    2;   Forest;     W;      0.87;   green
-    3;    Crops;     W;      0.42; magenta
-    4;  Pasture;     W;      0.76;  orange
-    5;    Urban;     W;      0.24;    grey
+    1;    Water;   Wtr;      -0.9;    blue
+    2;   Forest;   Fst;      0.87;   green
+    3;    Crops;   Crp;      0.42; magenta
+    4;  Pasture;   Pst;      0.76;  orange
+    5;    Urban;   Urb;      0.24;    grey
+
+
+.. note::
+
+   ``plans`` is not sensitive to spaces in table files. It can be either beautifully aligned like the above example or compacted like the following:
+
+   .. code-block::
+
+        Id;Name;Alias;NDVI_mean;Color
+        1;Water;Wtr;-0.9;blue
+        2;Forest;Fst;0.87;green
+        3;Crops;Crp;0.42;magenta
+        4;Pasture;Pst;0.76;orange
+        5;Urban;Urb;0.24;grey
+
 
 
 Time series
