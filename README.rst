@@ -1,5 +1,7 @@
-PLANS - Planning Nature-based Solutions
-===============================================
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
+    :width: 200 px
+    :align: center
+    :alt: an image
 
 |license| |docs|
 
@@ -10,11 +12,9 @@ PLANS - Planning Nature-based Solutions
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-A cool image
 
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/fig.png
-    :width: 200 px
-    :alt: an image
+PLANS - Planning Nature-based Solutions
+===============================================
 
 .. DANGER::
    Beware killer rabbits!
