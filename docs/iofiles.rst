@@ -7,7 +7,7 @@ This is Input and Output reference documentation of ``plans`` tool.
    iofiles
 
 
-File standards
+File formats
 ********************************************
 
 Text.
@@ -18,7 +18,7 @@ Tables
 Text.
 
 
-Time Series
+Time series
 ============================================
 
 Text.

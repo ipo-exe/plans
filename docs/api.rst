@@ -1,5 +1,5 @@
 API Reference
-===============
+############################################
 
 API Preamble
 
@@ -9,7 +9,7 @@ API Preamble
     in an output independent way.
 
 Modules
---------
+********************************************
 
 .. autosummary::
    :toctree: generated
