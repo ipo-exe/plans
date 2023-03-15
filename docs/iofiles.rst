@@ -145,6 +145,13 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
 
     Most GIS desktop applications have special tools for converting ``.tif`` raster files to the ``.asc`` format used in ``plans``. Hence, you only  have to worry about setting up the data type (integer or real) and the no-data value in the moment of exporting your ``.tif`` raster files.
 
+    .. code-block:: python
+        # this code is for QGIS python console
+        import processing
+
+        input_file = 'path/to/input.tif'
+        output_file = 'path/to/output.asc'
+
     While in ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif`` raster files to the ``.asc`` format:
 
     .. code-block:: python
