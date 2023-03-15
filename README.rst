@@ -20,23 +20,41 @@
     :alt: an image
 
 
-PLANS - Planning Nature-based Solutions
-===============================================
+``plans`` - Planning Nature-based Solutions
+###########################################
 
-.. DANGER::
-   Beware killer rabbits!
-   
-.. This README.rst should work on Github and is also included in the Sphinx documentation project in docs/ -
-therefore, README.rst uses absolute links for most things so it renders properly on GitHub
+The ``plans`` model is a computer tool designed to help watershed restoration projects. It is uses simulation models for mapping *hydrological processes* such as `surface runoff`_ and infiltration_ for a given area of interest. Those simulation maps then can be used by water resource managers for effectively planning the expansion of `Nature-based Solutions for Water`_ (*e.g.*, reforestation and soil-conservation agriculture).
 
-This example shows a basic Sphinx project with Read the Docs. You're encouraged to view it to get inspiration and copy & paste from the files in the source code. If you are using Read the Docs for the first time, have a look at the official `Read the Docs Tutorial <https://docs.readthedocs.io/en/stable/tutorial/index.html>`__.
+Example of model outputs:
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/cat.gif
+    :width: 200 px
+    :align: center
+    :alt: an image
 
-.. This table is not displayed live in github
-.. csv-table:: Doctable
-    :file: /docs/table.csv
-    :widths: 33, 33, 33
-    :header-rows: 0
-    
+For scientific and technical information of the ``plans`` project as a whole, see the following literature:
+
+*Possantti, I., Marques G. A modelling framework for nature-based solutions expansion planning considering the benefits to downstream urban water users. Environmental Modelling & Software. Volume 152, 105381, ISSN 1364-8152.* https://doi.org/10.1016/j.envsoft.2022.105381.
+
+*Possantti, I., Barbedo, R., Kronbauer, M., Collischonn, W., Marques, G. A comprehensive strategy for modeling watershed restoration priority areas under epistemic uncertainty: A case study in the Atlantic Forest, Brazil. Journal of Hydrology. Volume 617, Part B, 2023, 129003, ISSN 0022-1694.* https://doi.org/10.1016/j.jhydrol.2022.129003.
+
+
+Tool overview
+*************
+
+The ``plans`` tool is 100% Python and uses few and well-known dependencies:
+
+- numpy.
+- pandas.
+- matplotlib.
+- scipy.
+
+
+Documentation website
+*********************
+
+If you want more information on how to use the ``plans`` tool, please now move to the `Documentation Website`_ on Read the Docs. Do not navigate documentation pages on Github since some features (like tables and warnings) may not render properly.
+
+
 .. list-table:: Table Title
    :widths: 25 25 50
    :header-rows: 1
@@ -113,3 +131,13 @@ Cross-Refs
 
 .. _my target:
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer eu egestas ipsum. Curabitur aliquam, nulla eget ornare commodo, nisl lectus auctor felis, quis facilisis libero justo ac nisl. Maecenas efficitur arcu sem, vitae vehicula purus posuere vitae. Donec at justo justo. Phasellus eros nisl, malesuada quis convallis eu, gravida vel magna. Mauris varius nunc vel dui fringilla pellentesque. Phasellus eget laoreet ligula. Mauris sed aliquam dui, ac lacinia nisi. 
+
+.. reference definitions
+
+.. _Documentation Website: https://plans-docs.readthedocs.io/en/latest/?badge=latest
+
+.. _surface runoff: https://en.wikipedia.org/wiki/Surface_runoff
+
+.. _infiltration: https://en.wikipedia.org/wiki/Infiltration_(hydrology)
+
+.. _Nature-based solutions for Water: https://www.undp.org/publications/nature-based-solutions-water
