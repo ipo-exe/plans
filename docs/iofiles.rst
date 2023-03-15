@@ -84,19 +84,23 @@ A **daily time series** is a special time series file that must meet some extra 
 - no *date gaps* are allowed. All days from the start to end must be in the sequence of rows
 - no *data voids* are allowed. All information must be filled in the variable field.
 
-Gaps and voids must be filled in the pre-processing phase of dataset preparation with interpolation os statistical techniques. For instance, the following daily time series is not suited for running in ``plans`` because it has a date gap (missing Jan/3 and Jan/4 dates) and a data void for P in Jan/8:
+.. warning::
 
-.. code-block::
-    :emphasize-lines: 3,4,7
+    In daily time series files gaps and voids must be filled in the pre-processing phase of dataset preparation with interpolation os statistical techniques.
 
-         Date;    P;    T
-    2020-01-01;  0.0; 20.1
-    2020-01-02;  5.1; 24.3
-    2020-01-05;  0.0; 21.5
-    2020-01-06;  0.0; 23.6
-    2020-01-07;  8.6; 20.6
-    2020-01-08;     ; 28.3
-    2020-01-09;  0.0; 27.1
+    For instance, the following daily time series is not suited for ``plans`` because it has a date gap (missing Jan/3 and Jan/4 dates) and a data void for ``P`` in Jan/8:
+
+    .. code-block::
+        :emphasize-lines: 3,4,7
+
+             Date;    P;    T
+        2020-01-01;  0.0; 20.1
+        2020-01-02;  5.1; 24.3
+        2020-01-05;  0.0; 21.5
+        2020-01-06;  0.0; 23.6
+        2020-01-07;  8.6; 20.6
+        2020-01-08;     ; 28.3
+        2020-01-09;  0.0; 27.1
 
 
 Raster maps
