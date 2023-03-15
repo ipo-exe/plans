@@ -2,22 +2,9 @@
 
 |license| |toplang| |docs|
 
-.. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
-    :alt: License
+|logo|
 
-.. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
-    :alt: Top Language
 
-.. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
-    :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
-
-.. Logo
-
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
-    :width: 200 px
-    :align: center
-    :alt: an image
 
 
 ``plans`` - Planning Nature-based Solutions
@@ -26,10 +13,8 @@
 The ``plans`` model is a computer tool designed to help watershed restoration projects. It is uses simulation models for mapping *hydrological processes* such as `surface runoff`_ and infiltration_ for a given area of interest. Those simulation maps then can be used by water resource managers for effectively planning the expansion of `Nature-based Solutions for Water`_ (*e.g.*, reforestation and soil-conservation agriculture).
 
 Example of model outputs:
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/cat.gif
-    :width: 200 px
-    :align: center
-    :alt: an image
+
+|example|
 
 For scientific and technical information of the ``plans`` project as a whole, see the following literature:
 
@@ -141,3 +126,25 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer eu egestas ipsu
 .. _infiltration: https://en.wikipedia.org/wiki/Infiltration_(hydrology)
 
 .. _Nature-based solutions for Water: https://www.undp.org/publications/nature-based-solutions-water
+
+.. image definitions
+
+.. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
+    :alt: License
+
+.. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
+    :alt: Top Language
+
+.. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
+    :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+.. |logo| image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
+    :width: 200 px
+    :align: center
+    :alt: Logo
+
+.. |example| image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/cat.gif
+    :width: 200 px
+    :align: center
+    :alt: Example of use
