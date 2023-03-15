@@ -1,13 +1,14 @@
 PLANS - Planning Nature-based Solutions
 ===============================================
 
-.. image:: https://img.shields.io/github/license/ipo-exe/plans
+|docs| |licence|
+
+.. |licence| image:: https://img.shields.io/github/license/ipo-exe/plans
    :alt: license
 
-.. image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
+.. |docs| image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
-
 
 
 
