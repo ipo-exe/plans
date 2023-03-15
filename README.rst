@@ -1,8 +1,12 @@
 PLANS - Planning Nature-based Solutions
 ===============================================
 
+|license| |docs|
 
-.. image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
+.. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
+    :alt: License
+
+.. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
