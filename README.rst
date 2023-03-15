@@ -1,7 +1,4 @@
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
-    :width: 200 px
-    :align: center
-    :alt: an image
+.. badges
 
 |license| |toplang| |docs|
 
@@ -16,6 +13,12 @@
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
+.. Logo
+
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
+    :width: 200 px
+    :align: center
+    :alt: an image
 
 
 PLANS - Planning Nature-based Solutions
