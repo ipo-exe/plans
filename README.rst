@@ -4,10 +4,11 @@ PLANS - Planning Nature-based Solutions
 .. image:: https://img.shields.io/github/license/ipo-exe/plans
    :alt: license
 
-
 .. image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+
+
 
 
 A cool image
@@ -30,7 +31,8 @@ A Figure
 .. DANGER::
    Beware killer rabbits!
    
-.. This README.rst should work on Github and is also included in the Sphinx documentation project in docs/ - therefore, README.rst uses absolute links for most things so it renders properly on GitHub
+.. This README.rst should work on Github and is also included in the Sphinx documentation project in docs/ -
+therefore, README.rst uses absolute links for most things so it renders properly on GitHub
 
 This example shows a basic Sphinx project with Read the Docs. You're encouraged to view it to get inspiration and copy & paste from the files in the source code. If you are using Read the Docs for the first time, have a look at the official `Read the Docs Tutorial <https://docs.readthedocs.io/en/stable/tutorial/index.html>`__.
 
