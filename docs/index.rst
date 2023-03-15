@@ -19,6 +19,7 @@ Contents
 .. toctree::
 
    Home <self>
+   about
    usage
    iofiles
    api
