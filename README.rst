@@ -21,6 +21,8 @@
 ``plans`` - Planning Nature-based Solutions
 ###########################################
 
+    Hey, check out this page in the `Documentation Website`_ on Read the Docs.
+
 The ``plans`` model is a computer tool designed to help watershed restoration projects. It is uses simulation models for mapping *hydrological processes* such as `surface runoff`_ and infiltration_ for a given area of interest. Those simulation maps then can be used by water resource managers for effectively planning the expansion of `Nature-based Solutions for Water`_ (*e.g.*, reforestation and soil-conservation agriculture).
 
 Example of model outputs:
@@ -41,7 +43,7 @@ Quick overview
 **************
 
 Installation
--------------
+============
 
 To run the ``plans`` tool in a virtual or local machine you must load the latest version of this repository in your system. Also, you must install Python_ and a few and well-known dependencies:
 
@@ -59,13 +61,13 @@ The source code of the tool lives in the ``./plans-version/plans`` directory, so
 This also allows you to easily integrate the tool with other useful Python libraries for pre and post processing needs.
 
 Input datasets
---------------
+==============
 
 Inputs (and also outputs) datasets must be simple plain text files such as ``.txt`` for *csv* tables and ``.asc`` for *raster* maps. Therefore, you may use some third-party applications like Notepad++_ and QGIS_ for pre-processing your data to fit your data to the standards of ``plans``.
 
 
 Typical workflow
-----------------
+================
 
 Typically, to run plans you will go into the following steps (with some iteration):
 
