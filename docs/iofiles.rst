@@ -59,7 +59,7 @@ For example, in the following table ``Id`` is an integer-number field, ``NDVI_me
 Time series
 ============================================
 
-A time series is a special kind of table file which must have a ``Date`` field. The ``Date`` field is a text field that stores dates in the format ``yyyy-mm-dd`` (year, month, day). The other fields generally are real number fields that stores the state of *variables* like precipitation ``P`` and temperature ``T``.
+A **time series** is a special kind of table file which must have a ``Date`` field. The ``Date`` field is a text field that stores dates in the format ``yyyy-mm-dd`` (year, month, day). The other fields generally are real number fields that stores the state of *variables* like precipitation ``P`` and temperature ``T``.
 
 Time series files tends to have a large number of rows. The first 10 rows of a time series file looks like this:
 
@@ -76,6 +76,8 @@ Time series files tends to have a large number of rows. The first 10 rows of a t
    2020-01-08;  4.7; 28.3
    2020-01-09;  0.0; 27.1
 
+Daily time series
+--------------------------------------------
 
 A **daily time series** is a special time series file that must meet some extra requirements:
 
@@ -88,13 +90,13 @@ Gaps and voids must be filled in the pre-processing phase of dataset preparation
     :emphasize-lines: 3,4,7
 
          Date;    P;    T
-   2020-01-01;  0.0; 20.1
-   2020-01-02;  5.1; 24.3
-   2020-01-05;  0.0; 21.5
-   2020-01-06;  0.0; 23.6
-   2020-01-07;  8.6; 20.6
-   2020-01-08;     ; 28.3
-   2020-01-09;  0.0; 27.1
+    2020-01-01;  0.0; 20.1
+    2020-01-02;  5.1; 24.3
+    2020-01-05;  0.0; 21.5
+    2020-01-06;  0.0; 23.6
+    2020-01-07;  8.6; 20.6
+    2020-01-08;     ; 28.3
+    2020-01-09;  0.0; 27.1
 
 
 Raster maps
