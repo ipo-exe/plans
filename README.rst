@@ -17,6 +17,7 @@
     :align: center
     :alt: Logo
 
+------------
 
 ``plans`` - Planning Nature-based Solutions
 ##################################################

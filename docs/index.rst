@@ -5,6 +5,7 @@
     :align: center
     :alt: Logo
 
+------------
 
 Welcome to ``plans`` documentation page!
 ############################################
@@ -14,7 +15,7 @@ Welcome to ``plans`` documentation page!
    This project is under active development.
 
 Contents
---------
+********************************************
 
 .. toctree::
 
