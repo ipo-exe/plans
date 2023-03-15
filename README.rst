@@ -3,7 +3,7 @@
     :align: center
     :alt: an image
 
-|license| |toplang| |codesize| |docs|
+|license| |toplang| |docs|
 
 .. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
     :alt: License
@@ -11,8 +11,6 @@
 .. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
     :alt: Top Language
 
-.. |codesize| image:: hhttps://img.shields.io/github/languages/code-size/ipo-exe/plans
-    :alt: Code Size
 
 .. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
