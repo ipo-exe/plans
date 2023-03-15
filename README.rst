@@ -42,10 +42,10 @@ Tool overview
 
 The ``plans`` tool is 100% Python and uses few and well-known dependencies:
 
-- :class:`numpy`.
-- :class:`scipy`.
-- :class:`matplotlib`.
-- :class:`pandas`.
+- numpy.
+- scipy.
+- matplotlib.
+- pandas.
 
 Inputs and outputs datasets are simple plain text files such as ``.txt`` for csv tables and ``.asc`` for raster maps. Therefore, you may use some third-party applications like ``QGIS`` for pre-processing and post-processing.
 
