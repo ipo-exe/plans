@@ -146,67 +146,69 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
     Most GIS desktop applications have special tools for converting ``.tif`` raster files to the ``.asc`` format used in ``plans``. Hence, you only  have to worry about setting up the data type (integer or real) and the no-data value in the moment of exporting your ``.tif`` raster files.
 
     .. code-block:: python
-        # this code is for QGIS python console
-        import processing
+       # this code is for QGIS python console
+       import processing
 
-        input_file = 'path/to/input.tif'
-        output_file = 'path/to/output.asc'
+       input_file = 'path/to/input.tif'
+       output_file = 'path/to/output.asc'
 
     While in ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif`` raster files to the ``.asc`` format:
 
-    .. code-block:: python
-        # this code is for QGIS python console
-        import processing
+OK
 
-        input_file = 'path/to/input.tif'
-        output_file = 'path/to/output.asc'
+.. code-block:: python
+    # this code is for QGIS python console
+    import processing
+
+    input_file = 'path/to/input.tif'
+    output_file = 'path/to/output.asc'
+    '''
+    In gdal data types are encoded in the following way:
+    1: 8-bit unsigned integer (byte)
+    2: 16-bit signed integer
+    3: 16-bit unsigned integer
+    4: 32-bit signed integer
+    5: 32-bit unsigned integer
+    6: 32-bit floating-point (real value)
+    '''
+    # Call gdal:translate
+    processing.run("gdal:translate", {
+        'INPUT':"path/to/input_file.tif", # set input tif raster
+        'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:4326'), # set CRS EPSG
+        'NODATA':-1, # set no-data value
+        'DATA_TYPE':6, # 32-bit floating-point
+        'FORMAT':"AAIGrid",
+        'OUTPUT':"path/to/output_file.asc", # set input tif raster
+    })
+
+Alternatively, you may use ``rasterio`` python library in other environments (such as in ``colab`` notebooks):
+
+.. code-block:: python
+    # this code assumes rasterio is already installed
+    import rasterio
+
+    input_file = 'path/to/input.tif'
+    output_file = 'path/to/output.asc'
+
+    # Read the input TIF file using rasterio
+    with rasterio.open(input_file) as src:
+        meta = src.meta.copy()  # Get metadata
+
+        # Update the metadata to change the format to ASC
         '''
-        In gdal data types are encoded in the following way:
-        1: 8-bit unsigned integer (byte)
-        2: 16-bit signed integer
-        3: 16-bit unsigned integer
-        4: 32-bit signed integer
-        5: 32-bit unsigned integer
-        6: 32-bit floating-point (real value)
+        Rasterio encoded data types as in numpy (some examples):
+        uint8: 8-bit unsigned integer (byte)
+        int32: 32-bit signed integer
+        float32: 32-bit floating-point (real value)
         '''
-        # Call gdal:translate
-        processing.run("gdal:translate", {
-            'INPUT':"path/to/input_file.tif", # set input tif raster
-            'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:4326'), # set CRS EPSG
-            'NODATA':-1, # set no-data value
-            'DATA_TYPE':6, # 32-bit floating-point
-            'FORMAT':"AAIGrid",
-            'OUTPUT':"path/to/output_file.asc", # set input tif raster
-        })
+        data_type = 'float32'
+        meta.update({'driver': 'AAIGrid', 'dtype': data_type})
 
-    Alternatively, you may use ``rasterio`` python library in other environments (such as in ``colab`` notebooks):
-
-    .. code-block:: python
-        # this code assumes rasterio is already installed
-        import rasterio
-
-        input_file = 'path/to/input.tif'
-        output_file = 'path/to/output.asc'
-
-        # Read the input TIF file using rasterio
-        with rasterio.open(input_file) as src:
-            meta = src.meta.copy()  # Get metadata
-
-            # Update the metadata to change the format to ASC
-            '''
-            Rasterio encoded data types as in numpy (some examples):
-            uint8: 8-bit unsigned integer (byte)
-            int32: 32-bit signed integer
-            float32: 32-bit floating-point (real value)
-            '''
-            data_type = 'float32'
-            meta.update({'driver': 'AAIGrid', 'dtype': data_type})
-
-            # Open the output ASC file using rasterio
-            with rasterio.open(output_file, 'w', **meta) as dst:
-                # Copy the input data to the output file
-                data = src.read(1) # read only the first band
-                dst.write(data.astype(data_type)) # ensure data type
+        # Open the output ASC file using rasterio
+        with rasterio.open(output_file, 'w', **meta) as dst:
+            # Copy the input data to the output file
+            data = src.read(1) # read only the first band
+            dst.write(data.astype(data_type)) # ensure data type
 
 
 Ok
