@@ -8,7 +8,6 @@
 .. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
     :alt: Top Language
 
-
 .. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
