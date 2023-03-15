@@ -1,10 +1,8 @@
 PLANS - Planning Nature-based Solutions
 ===============================================
 
-|docs|
 
-
-.. |docs| image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
+.. image:: https://readthedocs.org/projects/example-sphinx-basic/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
