@@ -1,6 +1,9 @@
 import pandas as pd
 
 df = pd.read_csv("../plans/iofiles.csv", sep=",")
+
+# INPUT CATALOG
+
 df_input = df.query("io == 'input'")
 print(df_input.to_string())
 
