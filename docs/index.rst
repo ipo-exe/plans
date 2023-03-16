@@ -16,6 +16,8 @@ Contents
 ********************************************
 
 .. toctree::
+   :maxdepth: 3
+
    Home <self>
    about
    usage
