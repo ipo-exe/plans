@@ -26,6 +26,18 @@ Files used in ``plans`` are of three kinds:
 
 Input files must be formatted in by standard way, otherwise the tool is not going to work. The standards are meant to be simple and user-friendly for any human and Operating System. All kinds of files can be opened and edited by hand in Notepad applications. They are described below.
 
+.. admonition:: Note Title
+
+   This is a note with a custom class using the admonition directive.
+
+OK
+
+.. note:: Note Title
+
+   This is a note with a title.
+
+
+
 Tables
 ============================================
 
