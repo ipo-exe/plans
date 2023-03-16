@@ -49,9 +49,9 @@ For example, in the following table ``Id`` is an integer-number field, ``NDVI_me
     5;    Urban;   Urb;      0.24;    grey
 
 
-.. note::
+.. note:: No need for column alignment
 
-   ``plans`` is *not* sensitive to *spaces* in table files. Hence, files can be either beautifully aligned like the above example or compacted like the following:
+   ``plans`` is *not* sensitive to *spaces* in table files. Hence, columns in table files can be either beautifully aligned like the above example or compacted like the following:
 
    .. code-block::
 
@@ -91,7 +91,7 @@ A **daily time series** in ``plans`` is a special time series file that must mee
 - no *date gaps* are allowed. All days from the start to end must be in the sequence of rows
 - no *data voids* are allowed. All information must be filled in the variable field.
 
-.. warning::
+.. warning:: Gaps and voids are not allowed in daily time series
 
     In daily time series gaps and voids must be *filled* in the pre-processing phase with interpolation and statistical techniques.
 
@@ -148,7 +148,7 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
      290 297 310 328 343 359 379 399 417 427 ...
      ...
 
-.. note::
+.. note:: Convert .tif files Using GIS and python
 
     Most GIS desktop applications have tools for converting the commonly distributed ``.tif`` raster files to the ``.asc`` format used in ``plans``.
 
