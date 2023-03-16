@@ -236,7 +236,7 @@ Text.
 Input files catalog
 ============================================
 
-.. include:: about.rst
+.. include:: input_catalog.rst
 
 --------------------------------------------
 
