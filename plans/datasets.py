@@ -33,7 +33,7 @@ import matplotlib as mpl
 # -----------------------------------------
 # Utility functions
 def dataframe_prepro(dataframe):
-    """Utility function for dataframe preprossing.
+    """Utility function for dataframe pre-processing.
 
     :param dataframe: incoming dataframe
     :type dataframe: :class:`pandas.DataFrame`
