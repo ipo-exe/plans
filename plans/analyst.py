@@ -385,6 +385,116 @@ class Univar:
         return df_result
 
 
+class Bayes:
+    """
+    The Bayes Theorem Analyst Object
+    """
+
+    def __init__(self, df_hypotheses, name="myBayes", nomenclature=None):
+        """
+        Deploy the Bayes Analyst
+        :param df_hypotheses: dataframe listing all model hypotheses. Must contain a field Name (of parameter), Min and Max.
+        :type df_hypotheses: :class:pandas.DataFrame
+        :param name: name of analyst
+        :type name: str
+        :param nomenclature: dictionary for rename nomenclature
+        :type nomenclature: dict
+        """
+        self.hypotheses = df_hypotheses
+        self.name = name
+        self.gridsize = 100
+
+        # set labels
+        self.shyp = "H"
+        self.sevid = "E"
+        self.sprior = "P(H)"
+        self.slike = "P(E | H)"
+        self.spost = "P(H | E)"
+        self.saux = self.sprior + self.slike
+        if nomenclature is not None:
+            self._reset_nomenclature(dct_names=nomenclature)
+
+        # set omega
+        self.omega = list()
+        # create step 0
+        self._insert_new_step()
+
+    def __str__(self):
+        s1 = self.hypotheses.to_string()
+        return s1
+
+    def _reset_nomenclature(self, dct_names):
+        """
+        Reset nomenclature
+        :param dct_names: dictionary to rename nomenclatures
+        :type dct_names: dict
+        :return: None
+        :rtype: None
+        """
+        for k in dct_names:
+            self.sevid = self.sevid.replace(k, dct_names[k])
+            self.shyp = self.shyp.replace(k, dct_names[k])
+            self.sprior = self.sprior.replace(k, dct_names[k])
+            self.slike = self.slike.replace(k, dct_names[k])
+            self.spost = self.spost.replace(k, dct_names[k])
+            self.saux = self.sprior + self.slike
+
+    def _insert_new_step(self):
+        self.omega.append(dict())
+        for h in self.hypotheses["Name"].values:
+            n_min = self.hypotheses.loc[self.hypotheses["Name"] == h, "Min"].values[0]
+            n_max = self.hypotheses.loc[self.hypotheses["Name"] == h, "Max"].values[0]
+            self.omega[len(self.omega) - 1][h] = pd.DataFrame(
+                {
+                    self.shyp: np.linspace(n_min, n_max, self.gridsize),
+                    self.sprior: np.ones(self.gridsize) / self.gridsize,
+                    self.slike: np.zeros(self.gridsize),
+                    self.saux: np.zeros(self.gridsize),
+                    self.spost: np.zeros(self.gridsize),
+                }
+            )
+
+    def _accumulate(self, n_step):
+        lst_labels1 = [self.sprior, self.slike, self.spost]
+        for h in self.hypotheses["Name"].values:
+            for i in range(len(lst_labels1)):
+                s_field0 = lst_labels1[i]
+                s_field1 = "{}_acc".format(lst_labels1[i])
+                self.omega[n_step][h][s_field1] = 0.0
+                for j in range(len(self.omega[n_step][h])):
+                    if j == 0:
+                        self.omega[n_step][h][s_field1].values[j] = self.omega[n_step][h][s_field0].values[j]
+                    else:
+                        self.omega[n_step][h][s_field1].values[j] = self.omega[n_step][h][s_field1].values[j - 1] \
+                                                                    + self.omega[n_step][h][s_field0].values[j]
+
+    def conditionalize(self, dct_evidence, s_varfield="E", s_weightfield="W"):
+        # instantiate new step
+        n_step = len(self.omega)
+        #print(n_step)
+        self._insert_new_step()
+        #print(self.omega[n_step])
+        for h in self.hypotheses["Name"].values:
+            print(h)
+            # get likelihood
+            hist, edges = np.histogram(
+                a=dct_evidence[h][s_varfield],
+                bins=self.omega[n_step][h][self.shyp],
+                weights=dct_evidence[h][s_weightfield]
+            )
+            hist = hist / np.sum(hist)
+            hist = list(hist)
+            hist.append(0)
+            self.omega[n_step][h][self.slike] = hist
+
+            # get posterior with Bayes Theorem
+            self.omega[n_step][h][self.saux] = self.omega[n_step][h][self.sprior] * self.omega[n_step][h][self.slike]
+            # normalize
+            self.omega[n_step][h][self.spost] = self.omega[n_step][h][self.saux] / self.omega[n_step][h][self.saux].sum()
+
+            # get accumulated values
+            self._accumulate(n_step)
+
 if __name__ == "__main__":
 
     np.random.seed(6175)
@@ -398,3 +508,38 @@ if __name__ == "__main__":
 
     df = uni.assess_basic_stats()
     print(df)
+
+    df_hyp = pd.DataFrame(
+        {
+            "Name": ["c_0", "c_1", "c_2"],
+            "Min": [0, 0, 0],
+            "Max": [1.5, 10, 90]
+        }
+    )
+    dct_names = {"P": "L", "E": "y", "H": "M"}
+    bayes = Bayes(df_hypotheses=df_hyp, nomenclature=dct_names)
+
+    dct_ev = {
+        "c_0" : pd.DataFrame(
+            {
+                "E": np.random.normal(1, 0.1, 10000),
+                "W": np.random.random(10000)
+            }
+        ),
+        "c_1": pd.DataFrame(
+            {
+                "E": np.random.normal(4, 1, 10000),
+                "W": np.random.random(10000)
+            }
+        ),
+        "c_2": pd.DataFrame(
+            {
+                "E": np.random.normal(76, 8, 10000),
+                "W": np.random.random(10000)
+            }
+        ),
+    }
+    bayes.conditionalize(dct_evidence=dct_ev)
+    print(bayes.omega[1]["c_0"].to_string())
+    print(bayes.omega[1]["c_1"].to_string())
+    print(bayes.omega[1]["c_2"].to_string())
