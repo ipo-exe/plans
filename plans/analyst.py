@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
 def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
@@ -390,7 +391,7 @@ class Bayes:
     The Bayes Theorem Analyst Object
     """
 
-    def __init__(self, df_hypotheses, name="myBayes", nomenclature=None):
+    def __init__(self, df_hypotheses, name="myBayes", nomenclature=None, gridsize=100):
         """
         Deploy the Bayes Analyst
         :param df_hypotheses: dataframe listing all model hypotheses. Must contain a field Name (of parameter), Min and Max.
@@ -401,8 +402,15 @@ class Bayes:
         :type nomenclature: dict
         """
         self.hypotheses = df_hypotheses
+        # list of hypotheses by step
+        self.bands = list()
+        self.bands.append(self.hypotheses.copy())
+        # other parameters
         self.name = name
-        self.gridsize = 100
+        self.gridsize = gridsize
+
+        # zero
+        self.zero = 0.00005
 
         # set labels
         self.shyp = "H"
@@ -416,6 +424,7 @@ class Bayes:
 
         # set omega
         self.omega = list()
+        self.steps = list()
         # create step 0
         self._insert_new_step()
 
@@ -440,11 +449,14 @@ class Bayes:
             self.saux = self.sprior + self.slike
 
     def _insert_new_step(self):
-        self.omega.append(dict())
+        self.steps.append(dict())
+        self.steps[len(self.steps) - 1]["Omega"] = dict()
+        self.steps[len(self.steps) - 1]["Evidence"] = dict()
+        self.steps[len(self.steps) - 1]["Bands"] = dict()
         for h in self.hypotheses["Name"].values:
             n_min = self.hypotheses.loc[self.hypotheses["Name"] == h, "Min"].values[0]
             n_max = self.hypotheses.loc[self.hypotheses["Name"] == h, "Max"].values[0]
-            self.omega[len(self.omega) - 1][h] = pd.DataFrame(
+            self.steps[len(self.steps) - 1]["Omega"][h] = pd.DataFrame(
                 {
                     self.shyp: np.linspace(n_min, n_max, self.gridsize),
                     self.sprior: np.ones(self.gridsize) / self.gridsize,
@@ -460,43 +472,207 @@ class Bayes:
             for i in range(len(lst_labels1)):
                 s_field0 = lst_labels1[i]
                 s_field1 = "{}_acc".format(lst_labels1[i])
-                self.omega[n_step][h][s_field1] = 0.0
-                for j in range(len(self.omega[n_step][h])):
+                self.steps[n_step]["Omega"][h][s_field1] = 0.0
+                for j in range(len(self.steps[n_step]["Omega"][h])):
                     if j == 0:
-                        self.omega[n_step][h][s_field1].values[j] = self.omega[n_step][h][s_field0].values[j]
+                        self.steps[n_step]["Omega"][h][s_field1].values[j] = self.steps[n_step]["Omega"][h][s_field0].values[j]
                     else:
-                        self.omega[n_step][h][s_field1].values[j] = self.omega[n_step][h][s_field1].values[j - 1] \
-                                                                    + self.omega[n_step][h][s_field0].values[j]
+                        self.steps[n_step]["Omega"][h][s_field1].values[j] = self.steps[n_step]["Omega"][h][s_field1].values[j - 1] \
+                                                                    + self.steps[n_step]["Omega"][h][s_field0].values[j]
 
     def conditionalize(self, dct_evidence, s_varfield="E", s_weightfield="W"):
         # instantiate new step
-        n_step = len(self.omega)
+        n_step = len(self.steps)
         #print(n_step)
         self._insert_new_step()
+
         #print(self.omega[n_step])
+        self.steps[n_step]["Evidence"] = dct_evidence
+
         for h in self.hypotheses["Name"].values:
-            print(h)
+            # get prior from last step
+            if n_step > 1:
+                self.steps[n_step]["Omega"][h][self.sprior] = self.steps[n_step - 1]["Omega"][h][self.spost].values
             # get likelihood
             hist, edges = np.histogram(
                 a=dct_evidence[h][s_varfield],
-                bins=self.omega[n_step][h][self.shyp],
+                bins=self.steps[n_step]["Omega"][h][self.shyp],
                 weights=dct_evidence[h][s_weightfield]
             )
             hist = hist / np.sum(hist)
             hist = list(hist)
             hist.append(0)
-            self.omega[n_step][h][self.slike] = hist
+            self.steps[n_step]["Omega"][h][self.slike] = hist
 
             # get posterior with Bayes Theorem
-            self.omega[n_step][h][self.saux] = self.omega[n_step][h][self.sprior] * self.omega[n_step][h][self.slike]
+            self.steps[n_step]["Omega"][h][self.saux] = \
+                (self.steps[n_step]["Omega"][h][self.sprior] * self.steps[n_step]["Omega"][h][self.slike]) + \
+                (self.zero * (self.steps[n_step]["Omega"][h][self.slike].values > 0))
             # normalize
-            self.omega[n_step][h][self.spost] = self.omega[n_step][h][self.saux] / self.omega[n_step][h][self.saux].sum()
+            self.steps[n_step]["Omega"][h][self.spost] = self.steps[n_step]["Omega"][h][self.saux] / self.steps[n_step]["Omega"][h][self.saux].sum()
 
             # get accumulated values
             self._accumulate(n_step)
 
-if __name__ == "__main__":
+            self.steps[n_step]["Bands"][h] = dict()
 
+            # get percentiles of accumulated
+            lst_aux = [self.sprior, self.slike, self.spost]
+            for s in lst_aux:
+                self.steps[n_step]["Bands"][h][s] = dict()
+                # 90% band
+                s_query = "`{}` > 0.05 and `{}` <= 0.95".format(s + "_acc", s + "_acc")
+                df_aux = self.steps[n_step]["Omega"][h].query(s_query)
+                self.steps[n_step]["Bands"][h][s]["p05"] = df_aux[self.shyp].min()
+                self.steps[n_step]["Bands"][h][s]["p95"] = df_aux[self.shyp].max()
+                # 50% band
+                s_query = "`{}` > 0.25 and `{}` <= 0.75".format(s + "_acc", s + "_acc")
+                df_aux = self.steps[n_step]["Omega"][h].query(s_query)
+                self.steps[n_step]["Bands"][h][s]["p25"] = df_aux[self.shyp].min()
+                self.steps[n_step]["Bands"][h][s]["p75"] = df_aux[self.shyp].max()
+
+    def plot_step(
+            self,
+            n_step,
+            folder="C:/data",
+            filename="bayes",
+            specs=None,
+            dpi=300,
+            show=False
+    ):
+        plt.style.use("seaborn-v0_8")
+
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "title": "Conditionalization",
+            "width": 10,
+            "height": 5,
+            "xlabel": "value",
+            "ylim": (0, 1),
+            "xlim": (0, 1),
+            "subtitle": None,
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # hunt some parameters
+        lst_pmax = list()
+        for h in self.hypotheses["Name"].values:# get objects
+            _df = self.steps[n_step]["Omega"][h]
+            # get max p
+            lst_pmax.append(np.max([_df[self.sprior].max(), _df[self.slike].max(), _df[self.spost].max()]))
+        n_pmax = 1.5 * np.max(lst_pmax)
+
+        # main loop
+        for h in self.hypotheses["Name"].values:
+            specs["subtitle"] = "${}$".format(h)
+            # get objects
+            _df = self.steps[n_step]["Omega"][h]
+            _bands = self.steps[n_step]["Bands"][h]
+
+            # get width
+            _wid = 0.7 * (_df[self.shyp].values[1] - _df[self.shyp].values[0])
+
+            # get min max
+            n_min = self.hypotheses.loc[self.hypotheses["Name"] == h, "Min"].values[0]
+            n_max = self.hypotheses.loc[self.hypotheses["Name"] == h, "Max"].values[0]
+            # start plot
+
+            fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+
+            if specs["subtitle"] is None:
+                plt.suptitle(specs["title"])
+            else:
+                plt.suptitle("{} | {}".format(specs["title"], specs["subtitle"]))
+            # grid
+            gs = mpl.gridspec.GridSpec(
+                2, 3, wspace=0.4, hspace=0.5, left=0.1, bottom=0.1, top=0.85, right=0.95
+            )  # nrows, ncols
+
+            # grid loop
+            lst_aux = [self.sprior, self.slike, self.spost]
+            for i in range(len(lst_aux)):
+                # Histogram
+                ax = fig.add_subplot(gs[0, i])
+                plt.title(lst_aux[i])
+                plt.bar(
+                    _df[self.shyp],
+                    _df[lst_aux[i]],
+                    width=_wid,
+                    color=specs["color"],
+                    align="edge"
+                )
+                plt.ylim(0, n_pmax)
+                plt.xlim(n_min, n_max)
+                plt.ylabel("$p({})$".format(h))
+                plt.xlabel("${}$".format(h))
+                #plt.gca().set_aspect(1 / (1.5))
+
+                if i == 1:
+                    # Accumulated
+                    ax = fig.add_subplot(gs[1, i])
+                    # plt.title(lst_aux[i])
+                    plt.scatter(
+                        self.steps[n_step]["Evidence"][h]["E"],
+                        self.steps[n_step]["Evidence"][h]["W"],
+                        marker=".",
+                        c="k",
+                        alpha=0.5,
+                        linewidths=0.0,
+                        edgecolors=None
+                    )
+                    plt.xlim(n_min, n_max)
+                    plt.ylabel("$W({})$".format(h))
+                    plt.xlabel("${}$".format(h))
+                    # plt.gca().set_aspect(1 / (1.5))
+                else:
+                    # Accumulated
+                    ax = fig.add_subplot(gs[1, i])
+                    # plt.title(lst_aux[i])
+                    plt.plot(
+                        _df[self.shyp],
+                        _df["{}_acc".format(lst_aux[i])],
+                        color="tab:blue",
+                        zorder=3,
+                    )
+                    plt.fill_betweenx(
+                        [-1, 2],
+                        x1=self.steps[n_step]["Bands"][h][lst_aux[i]]["p25"],
+                        x2=self.steps[n_step]["Bands"][h][lst_aux[i]]["p75"],
+                        color="tab:grey",
+                        alpha=0.5,
+                        zorder=2
+                    )
+                    plt.fill_betweenx(
+                        [-1, 2],
+                        x1=self.steps[n_step]["Bands"][h][lst_aux[i]]["p05"],
+                        x2=self.steps[n_step]["Bands"][h][lst_aux[i]]["p95"],
+                        color="tab:grey",
+                        alpha=0.3,
+                        zorder=1
+                    )
+                    plt.ylim(-0.05, 1.05)
+                    plt.xlim(n_min, n_max)
+                    plt.ylabel("$P({})$".format(h))
+                    plt.xlabel("${}$".format(h))
+                    # plt.gca().set_aspect(1 / (1.5))
+
+            # show or save
+            if show:
+                plt.show()
+            else:
+                plt.savefig("{}/{}_{}_step{}.png".format(folder, filename, h, n_step), dpi=dpi)
+
+
+
+if __name__ == "__main__":
+    '''
     np.random.seed(6175)
     vct = np.random.normal(100, 10, 50)
     vct_random = np.random.randint(10, 100, 1000)
@@ -508,6 +684,7 @@ if __name__ == "__main__":
 
     df = uni.assess_basic_stats()
     print(df)
+    '''
 
     df_hyp = pd.DataFrame(
         {
@@ -517,29 +694,81 @@ if __name__ == "__main__":
         }
     )
     dct_names = {"P": "L", "E": "y", "H": "M"}
-    bayes = Bayes(df_hypotheses=df_hyp, nomenclature=dct_names)
-
-    dct_ev = {
+    bayes = Bayes(
+        df_hypotheses=df_hyp,
+        nomenclature=dct_names,
+        gridsize=50
+    )
+    print(bayes)
+    # step 1
+    dct_ev_step1 = {
         "c_0" : pd.DataFrame(
             {
-                "E": np.random.normal(1, 0.1, 10000),
-                "W": np.random.random(10000)
+                "E": np.random.normal(1, 0.1, 1000),
+                "W": 10 * np.random.random(1000)
             }
         ),
         "c_1": pd.DataFrame(
             {
-                "E": np.random.normal(4, 1, 10000),
-                "W": np.random.random(10000)
+                "E": np.random.normal(4, 1, 1000),
+                "W": 10 * np.random.random(1000)
             }
         ),
         "c_2": pd.DataFrame(
             {
-                "E": np.random.normal(76, 8, 10000),
-                "W": np.random.random(10000)
+                "E": np.random.normal(76, 8, 1000),
+                "W": 10 * np.random.random(1000)
             }
         ),
     }
-    bayes.conditionalize(dct_evidence=dct_ev)
-    print(bayes.omega[1]["c_0"].to_string())
-    print(bayes.omega[1]["c_1"].to_string())
-    print(bayes.omega[1]["c_2"].to_string())
+    bayes.conditionalize(dct_evidence=dct_ev_step1)
+
+    # step 2
+    dct_ev_step2 = {
+        "c_0": pd.DataFrame(
+            {
+                "E": np.random.normal(0.4, 0.5, 1000),
+                "W": 10 * np.random.random(1000)
+            }
+        ),
+        "c_1": pd.DataFrame(
+            {
+                "E": np.random.normal(4.4, 0.7, 1000),
+                "W": 10 * np.random.random(1000)
+            }
+        ),
+        "c_2": pd.DataFrame(
+            {
+                "E": np.random.normal(68, 5, 1000),
+                "W": 10 * np.random.random(1000)
+            }
+        ),
+    }
+    bayes.conditionalize(dct_evidence=dct_ev_step2)
+
+    # step 2
+    dct_ev_step2 = {
+        "c_0": pd.DataFrame(
+            {
+                "E": np.random.normal(0.5, 0.5, 1000),
+                "W": 10 * np.random.random(1000)
+            }
+        ),
+        "c_1": pd.DataFrame(
+            {
+                "E": np.random.normal(4.4, 1.4, 1000),
+                "W": 10 * np.random.random(1000)
+            }
+        ),
+        "c_2": pd.DataFrame(
+            {
+                "E": np.random.normal(50, 10, 1000),
+                "W": 10 * np.random.random(1000)
+            }
+        ),
+    }
+    bayes.conditionalize(dct_evidence=dct_ev_step2)
+
+    bayes.plot_step(n_step=1, show=False, folder="C:/Bin", filename="conditional")
+    bayes.plot_step(n_step=2, show=False, folder="C:/Bin", filename="conditional")
+    bayes.plot_step(n_step=3, show=False, folder="C:/Bin", filename="conditional")
