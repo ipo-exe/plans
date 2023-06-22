@@ -732,8 +732,9 @@ class Bayes:
                 plt.savefig(
                     "{}/{}_{}_step{}.png".format(folder, filename, h, n_step), dpi=dpi
                 )
-            # return
-            return None
+
+        # return
+        return None
 
 
 if __name__ == "__main__":
