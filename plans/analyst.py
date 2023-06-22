@@ -410,7 +410,7 @@ class Bayes:
         self.gridsize = gridsize
 
         # zero
-        self.zero = 0.00005
+        self.zero = 1/gridsize
 
         # set labels
         self.shyp = "H"
@@ -533,17 +533,16 @@ class Bayes:
             hist = list(hist)
             hist.append(0)
             self.steps[n_step]["Omega"][h][self.slike] = hist
+            # insert baseline and normalize
+            v_like = self.steps[n_step]["Omega"][h][self.slike].values
+            v_like = v_like + self.zero
+            self.steps[n_step]["Omega"][h][self.slike] = v_like / np.sum(v_like)
 
             # get posterior with Bayes Theorem
-            self.steps[n_step]["Omega"][h][self.saux] = (
-                self.steps[n_step]["Omega"][h][self.sprior]
-                * self.steps[n_step]["Omega"][h][self.slike]
-            ) + (self.zero * (self.steps[n_step]["Omega"][h][self.slike].values > 0))
-            # normalize
-            self.steps[n_step]["Omega"][h][self.spost] = (
-                self.steps[n_step]["Omega"][h][self.saux]
-                / self.steps[n_step]["Omega"][h][self.saux].sum()
-            )
+            v_prior = self.steps[n_step]["Omega"][h][self.sprior].values
+            v_like = self.steps[n_step]["Omega"][h][self.slike].values
+            v_posterior = (v_prior * v_like) / np.sum(v_prior * v_like)
+            self.steps[n_step]["Omega"][h][self.spost] = v_posterior
 
             # get accumulated values
             self._accumulate(n_step)
@@ -753,7 +752,7 @@ if __name__ == "__main__":
     """
 
     df_hyp = pd.DataFrame(
-        {"Name": ["c_0", "c_1", "c_2"], "Min": [0, 0, 0], "Max": [1.5, 10, 90]}
+        {"Name": ["c_0"], "Min": [0], "Max": [10]}
     )
     dct_names = {"P": "L", "E": "y", "H": "M"}
     bayes = Bayes(df_hypotheses=df_hyp, nomenclature=dct_names, gridsize=50)
@@ -761,13 +760,7 @@ if __name__ == "__main__":
     # step 1
     dct_ev_step1 = {
         "c_0": pd.DataFrame(
-            {"E": np.random.normal(1, 0.1, 1000), "W": 10 * np.random.random(1000)}
-        ),
-        "c_1": pd.DataFrame(
-            {"E": np.random.normal(4, 1, 1000), "W": 10 * np.random.random(1000)}
-        ),
-        "c_2": pd.DataFrame(
-            {"E": np.random.normal(76, 8, 1000), "W": 10 * np.random.random(1000)}
+            {"E": np.random.normal(3, 0.8, 1000), "W": 10 * np.random.random(1000)}
         ),
     }
     bayes.conditionalize(dct_evidence=dct_ev_step1)
@@ -775,13 +768,7 @@ if __name__ == "__main__":
     # step 2
     dct_ev_step2 = {
         "c_0": pd.DataFrame(
-            {"E": np.random.normal(0.4, 0.5, 1000), "W": 10 * np.random.random(1000)}
-        ),
-        "c_1": pd.DataFrame(
-            {"E": np.random.normal(4.4, 0.7, 1000), "W": 10 * np.random.random(1000)}
-        ),
-        "c_2": pd.DataFrame(
-            {"E": np.random.normal(68, 5, 1000), "W": 10 * np.random.random(1000)}
+            {"E": np.random.normal(5, 0.8, 1000), "W": 10 * np.random.random(1000)}
         ),
     }
     bayes.conditionalize(dct_evidence=dct_ev_step2)
@@ -789,17 +776,11 @@ if __name__ == "__main__":
     # step 2
     dct_ev_step2 = {
         "c_0": pd.DataFrame(
-            {"E": np.random.normal(0.5, 0.5, 1000), "W": 10 * np.random.random(1000)}
-        ),
-        "c_1": pd.DataFrame(
-            {"E": np.random.normal(4.4, 1.4, 1000), "W": 10 * np.random.random(1000)}
-        ),
-        "c_2": pd.DataFrame(
-            {"E": np.random.normal(50, 10, 1000), "W": 10 * np.random.random(1000)}
+            {"E": np.random.normal(7, 1.4, 1000), "W": 10 * np.random.random(1000)}
         ),
     }
     bayes.conditionalize(dct_evidence=dct_ev_step2)
 
-    bayes.plot_step(n_step=1, show=False, folder="C:/Bin", filename="conditional")
-    bayes.plot_step(n_step=2, show=False, folder="C:/Bin", filename="conditional")
-    bayes.plot_step(n_step=3, show=False, folder="C:/Bin", filename="conditional")
+    bayes.plot_step(n_step=1, show=True, folder="C:/Bin", filename="conditional")
+    bayes.plot_step(n_step=2, show=True, folder="C:/Bin", filename="conditional")
+    bayes.plot_step(n_step=3, show=True, folder="C:/Bin", filename="conditional")
