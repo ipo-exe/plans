@@ -172,6 +172,7 @@ class Univar:
         :type dpi: int
         """
         import matplotlib.ticker as mtick
+
         plt.style.use("seaborn-v0_8")
 
         # get bins
@@ -210,13 +211,14 @@ class Univar:
             self.data,
             bins=bins,
             weights=np.ones(len(self.data)) / len(self.data),
-            color=specs["color"])
+            color=specs["color"],
+        )
         plt.xlabel(specs["xlabel"])
         plt.ylim(specs["ylim"])
         plt.xlim(specs["xlim"])
 
         # Set the y-axis formatter as percentages
-        yticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol='%', is_latex=False)
+        yticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol="%", is_latex=False)
         ax = plt.gca()
         ax.yaxis.set_major_formatter(yticks)
 
@@ -376,11 +378,7 @@ class Univar:
         return df_result
 
     def assess_basic_stats(self):
-        df_aux = pd.DataFrame(
-            {
-                "Value": self.data
-            }
-        )
+        df_aux = pd.DataFrame({"Value": self.data})
         df_stats = df_aux.describe()
         df_result = df_stats.reset_index().rename(columns={"index": "Statistic"})
         return df_result
@@ -400,6 +398,8 @@ class Bayes:
         :type name: str
         :param nomenclature: dictionary for rename nomenclature
         :type nomenclature: dict
+        :param gridsize: grid resolution in histrograms (bins)
+        :type gridsize: int
         """
         self.hypotheses = df_hypotheses
         # list of hypotheses by step
@@ -423,7 +423,6 @@ class Bayes:
             self._reset_nomenclature(dct_names=nomenclature)
 
         # set omega
-        self.omega = list()
         self.steps = list()
         # create step 0
         self._insert_new_step()
@@ -449,6 +448,11 @@ class Bayes:
             self.saux = self.sprior + self.slike
 
     def _insert_new_step(self):
+        """
+        convenience void function for inserting new step objects
+        :return: None
+        :rtype:
+        """
         self.steps.append(dict())
         self.steps[len(self.steps) - 1]["Omega"] = dict()
         self.steps[len(self.steps) - 1]["Evidence"] = dict()
@@ -465,8 +469,16 @@ class Bayes:
                     self.spost: np.zeros(self.gridsize),
                 }
             )
+        return None
 
     def _accumulate(self, n_step):
+        """
+        convenience void function for accumulate probability
+        :param n_step: step number to accumulate
+        :type n_step: int
+        :return: None
+        :rtype: none
+        """
         lst_labels1 = [self.sprior, self.slike, self.spost]
         for h in self.hypotheses["Name"].values:
             for i in range(len(lst_labels1)):
@@ -475,29 +487,47 @@ class Bayes:
                 self.steps[n_step]["Omega"][h][s_field1] = 0.0
                 for j in range(len(self.steps[n_step]["Omega"][h])):
                     if j == 0:
-                        self.steps[n_step]["Omega"][h][s_field1].values[j] = self.steps[n_step]["Omega"][h][s_field0].values[j]
+                        self.steps[n_step]["Omega"][h][s_field1].values[j] = self.steps[
+                            n_step
+                        ]["Omega"][h][s_field0].values[j]
                     else:
-                        self.steps[n_step]["Omega"][h][s_field1].values[j] = self.steps[n_step]["Omega"][h][s_field1].values[j - 1] \
-                                                                    + self.steps[n_step]["Omega"][h][s_field0].values[j]
+                        self.steps[n_step]["Omega"][h][s_field1].values[j] = (
+                            self.steps[n_step]["Omega"][h][s_field1].values[j - 1]
+                            + self.steps[n_step]["Omega"][h][s_field0].values[j]
+                        )
+        return None
 
     def conditionalize(self, dct_evidence, s_varfield="E", s_weightfield="W"):
+        """
+        Conditionalize procedure of the Bayes Theorem
+        :param dct_evidence: object of evidence dataframes
+        :type dct_evidence: dict
+        :param s_varfield: name of variable field in evidence dataframes
+        :type s_varfield: str
+        :param s_weightfield: name of weights field in evidence dataframes
+        :type s_weightfield: str
+        :return: None
+        :rtype: none
+        """
         # instantiate new step
         n_step = len(self.steps)
-        #print(n_step)
         self._insert_new_step()
 
-        #print(self.omega[n_step])
+        # set evidence dict for step
         self.steps[n_step]["Evidence"] = dct_evidence
 
+        # main loop
         for h in self.hypotheses["Name"].values:
             # get prior from last step
             if n_step > 1:
-                self.steps[n_step]["Omega"][h][self.sprior] = self.steps[n_step - 1]["Omega"][h][self.spost].values
+                self.steps[n_step]["Omega"][h][self.sprior] = self.steps[n_step - 1][
+                    "Omega"
+                ][h][self.spost].values
             # get likelihood
             hist, edges = np.histogram(
                 a=dct_evidence[h][s_varfield],
                 bins=self.steps[n_step]["Omega"][h][self.shyp],
-                weights=dct_evidence[h][s_weightfield]
+                weights=dct_evidence[h][s_weightfield],
             )
             hist = hist / np.sum(hist)
             hist = list(hist)
@@ -505,11 +535,15 @@ class Bayes:
             self.steps[n_step]["Omega"][h][self.slike] = hist
 
             # get posterior with Bayes Theorem
-            self.steps[n_step]["Omega"][h][self.saux] = \
-                (self.steps[n_step]["Omega"][h][self.sprior] * self.steps[n_step]["Omega"][h][self.slike]) + \
-                (self.zero * (self.steps[n_step]["Omega"][h][self.slike].values > 0))
+            self.steps[n_step]["Omega"][h][self.saux] = (
+                self.steps[n_step]["Omega"][h][self.sprior]
+                * self.steps[n_step]["Omega"][h][self.slike]
+            ) + (self.zero * (self.steps[n_step]["Omega"][h][self.slike].values > 0))
             # normalize
-            self.steps[n_step]["Omega"][h][self.spost] = self.steps[n_step]["Omega"][h][self.saux] / self.steps[n_step]["Omega"][h][self.saux].sum()
+            self.steps[n_step]["Omega"][h][self.spost] = (
+                self.steps[n_step]["Omega"][h][self.saux]
+                / self.steps[n_step]["Omega"][h][self.saux].sum()
+            )
 
             # get accumulated values
             self._accumulate(n_step)
@@ -531,15 +565,35 @@ class Bayes:
                 self.steps[n_step]["Bands"][h][s]["p25"] = df_aux[self.shyp].min()
                 self.steps[n_step]["Bands"][h][s]["p75"] = df_aux[self.shyp].max()
 
+        # return
+        return None
+
     def plot_step(
-            self,
-            n_step,
-            folder="C:/data",
-            filename="bayes",
-            specs=None,
-            dpi=300,
-            show=False
+        self,
+        n_step,
+        folder="C:/data",
+        filename="bayes",
+        specs=None,
+        dpi=300,
+        show=False,
     ):
+        """
+        Void function for plot pannel of conditionalization step
+        :param n_step: step number
+        :type n_step: int
+        :param folder: export folder
+        :type folder: str
+        :param filename: file name
+        :type filename: str
+        :param specs: plot specs object
+        :type specs: dict
+        :param dpi: plot resolution
+        :type dpi: int
+        :param show: control to show plot instead of saving
+        :type show: bool
+        :return: None
+        :rtype: None
+        """
         plt.style.use("seaborn-v0_8")
 
         # get specs
@@ -563,10 +617,18 @@ class Bayes:
 
         # hunt some parameters
         lst_pmax = list()
-        for h in self.hypotheses["Name"].values:# get objects
+        for h in self.hypotheses["Name"].values:  # get objects
             _df = self.steps[n_step]["Omega"][h]
             # get max p
-            lst_pmax.append(np.max([_df[self.sprior].max(), _df[self.slike].max(), _df[self.spost].max()]))
+            lst_pmax.append(
+                np.max(
+                    [
+                        _df[self.sprior].max(),
+                        _df[self.slike].max(),
+                        _df[self.spost].max(),
+                    ]
+                )
+            )
         n_pmax = 1.5 * np.max(lst_pmax)
 
         # main loop
@@ -606,13 +668,13 @@ class Bayes:
                     _df[lst_aux[i]],
                     width=_wid,
                     color=specs["color"],
-                    align="edge"
+                    align="edge",
                 )
                 plt.ylim(0, n_pmax)
                 plt.xlim(n_min, n_max)
                 plt.ylabel("$p({})$".format(h))
                 plt.xlabel("${}$".format(h))
-                #plt.gca().set_aspect(1 / (1.5))
+                # plt.gca().set_aspect(1 / (1.5))
 
                 if i == 1:
                     # Accumulated
@@ -625,7 +687,7 @@ class Bayes:
                         c="k",
                         alpha=0.5,
                         linewidths=0.0,
-                        edgecolors=None
+                        edgecolors=None,
                     )
                     plt.xlim(n_min, n_max)
                     plt.ylabel("$W({})$".format(h))
@@ -647,7 +709,7 @@ class Bayes:
                         x2=self.steps[n_step]["Bands"][h][lst_aux[i]]["p75"],
                         color="tab:grey",
                         alpha=0.5,
-                        zorder=2
+                        zorder=2,
                     )
                     plt.fill_betweenx(
                         [-1, 2],
@@ -655,7 +717,7 @@ class Bayes:
                         x2=self.steps[n_step]["Bands"][h][lst_aux[i]]["p95"],
                         color="tab:grey",
                         alpha=0.3,
-                        zorder=1
+                        zorder=1,
                     )
                     plt.ylim(-0.05, 1.05)
                     plt.xlim(n_min, n_max)
@@ -667,12 +729,15 @@ class Bayes:
             if show:
                 plt.show()
             else:
-                plt.savefig("{}/{}_{}_step{}.png".format(folder, filename, h, n_step), dpi=dpi)
-
+                plt.savefig(
+                    "{}/{}_{}_step{}.png".format(folder, filename, h, n_step), dpi=dpi
+                )
+            # return
+            return None
 
 
 if __name__ == "__main__":
-    '''
+    """
     np.random.seed(6175)
     vct = np.random.normal(100, 10, 50)
     vct_random = np.random.randint(10, 100, 1000)
@@ -684,41 +749,24 @@ if __name__ == "__main__":
 
     df = uni.assess_basic_stats()
     print(df)
-    '''
+    """
 
     df_hyp = pd.DataFrame(
-        {
-            "Name": ["c_0", "c_1", "c_2"],
-            "Min": [0, 0, 0],
-            "Max": [1.5, 10, 90]
-        }
+        {"Name": ["c_0", "c_1", "c_2"], "Min": [0, 0, 0], "Max": [1.5, 10, 90]}
     )
     dct_names = {"P": "L", "E": "y", "H": "M"}
-    bayes = Bayes(
-        df_hypotheses=df_hyp,
-        nomenclature=dct_names,
-        gridsize=50
-    )
+    bayes = Bayes(df_hypotheses=df_hyp, nomenclature=dct_names, gridsize=50)
     print(bayes)
     # step 1
     dct_ev_step1 = {
-        "c_0" : pd.DataFrame(
-            {
-                "E": np.random.normal(1, 0.1, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+        "c_0": pd.DataFrame(
+            {"E": np.random.normal(1, 0.1, 1000), "W": 10 * np.random.random(1000)}
         ),
         "c_1": pd.DataFrame(
-            {
-                "E": np.random.normal(4, 1, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(4, 1, 1000), "W": 10 * np.random.random(1000)}
         ),
         "c_2": pd.DataFrame(
-            {
-                "E": np.random.normal(76, 8, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(76, 8, 1000), "W": 10 * np.random.random(1000)}
         ),
     }
     bayes.conditionalize(dct_evidence=dct_ev_step1)
@@ -726,22 +774,13 @@ if __name__ == "__main__":
     # step 2
     dct_ev_step2 = {
         "c_0": pd.DataFrame(
-            {
-                "E": np.random.normal(0.4, 0.5, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(0.4, 0.5, 1000), "W": 10 * np.random.random(1000)}
         ),
         "c_1": pd.DataFrame(
-            {
-                "E": np.random.normal(4.4, 0.7, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(4.4, 0.7, 1000), "W": 10 * np.random.random(1000)}
         ),
         "c_2": pd.DataFrame(
-            {
-                "E": np.random.normal(68, 5, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(68, 5, 1000), "W": 10 * np.random.random(1000)}
         ),
     }
     bayes.conditionalize(dct_evidence=dct_ev_step2)
@@ -749,22 +788,13 @@ if __name__ == "__main__":
     # step 2
     dct_ev_step2 = {
         "c_0": pd.DataFrame(
-            {
-                "E": np.random.normal(0.5, 0.5, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(0.5, 0.5, 1000), "W": 10 * np.random.random(1000)}
         ),
         "c_1": pd.DataFrame(
-            {
-                "E": np.random.normal(4.4, 1.4, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(4.4, 1.4, 1000), "W": 10 * np.random.random(1000)}
         ),
         "c_2": pd.DataFrame(
-            {
-                "E": np.random.normal(50, 10, 1000),
-                "W": 10 * np.random.random(1000)
-            }
+            {"E": np.random.normal(50, 10, 1000), "W": 10 * np.random.random(1000)}
         ),
     }
     bayes.conditionalize(dct_evidence=dct_ev_step2)
