@@ -330,7 +330,7 @@ class Univar:
         # scatter plot
         ax = fig.add_subplot(gs[0, 0])
         plt.title(specs["title"])
-        plt.scatter(_df["T-Quantiles"], _df["Data"])
+        plt.scatter(_df["T-Quantiles"], _df["Data"], marker=".", color="tab:grey")
         plt.ylim(specs["ylim"])
         plt.xlim(specs["xlim"])
         plt.xlabel("Normal Theoretical Quantiles")
