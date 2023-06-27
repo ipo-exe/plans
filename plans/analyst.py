@@ -30,31 +30,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
-def normal_curve(mu=0, sigma=5, vmin=-20, vmax=20, ngrid=100):
-    """
-    Return the normal curve
-    :param mu: mean
-    :type mu: float
-    :param sigma: standard deviation
-    :type sigma: float
-    :param vmin: minimal value
-    :type vmin: float
-    :param vmax: maximal value
-    :type vmax: float
-    :param ngrid: number of data points
-    :type ngrid: int
-    :return: array of the computed normal curve
-    :rtype: :class:`numpy.ndarray`
-    """
-    # Generate x values
-    x = np.linspace(vmin, vmax, ngrid)
-
-    # Calculate y values using Gaussian formula
-    y = 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
-
-    return {"x": x, "y": y}
-
-
 class Univar:
     """
     The Univariate Analyst Object
@@ -151,7 +126,7 @@ class Univar:
         folder="C:/data",
         filename="histogram",
         specs=None,
-        dpi=96,
+        dpi=300,
     ):
         """
         Plot histogram of data
@@ -171,7 +146,6 @@ class Univar:
         :param dpi: image resolution (default = 96)
         :type dpi: int
         """
-        import matplotlib.ticker as mtick
 
         plt.style.use("seaborn-v0_8")
 
@@ -188,7 +162,7 @@ class Univar:
             "width": 4 * 1.618,
             "height": 4,
             "xlabel": "value",
-            "ylim": (0, 0.1),
+            "ylim": (0, 0.5),
             "xlim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
             "subtitle": None,
         }
@@ -199,6 +173,7 @@ class Univar:
             for k in specs:
                 default_specs[k] = specs[k]
         specs = default_specs
+
         # start plot
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         ax = plt.gca()
@@ -217,16 +192,156 @@ class Univar:
         plt.ylim(specs["ylim"])
         plt.xlim(specs["xlim"])
 
-        # Set the y-axis formatter as percentages
-        yticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol="%", is_latex=False)
-        ax = plt.gca()
-        ax.yaxis.set_major_formatter(yticks)
+        # show or save
+        if show:
+            plt.show()
+        else:
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+
+    def plot_basic_view(self, show=False, folder="C:/data", filename="view", specs=None,dpi=300):
+        """
+        Plot basic view of data
+
+        :param show: Boolean to show instead of saving
+        :type show: bool
+        :param folder: output folder
+        :type folder: str
+        :param filename: image file name
+        :type filename: str
+        :param specs: specification dictionary
+        :type specs: dct
+        :param dpi: image resolution (default = 300)
+        :type dpi: int
+        :return: None
+        :rtype: None
+        """
+        plt.style.use("seaborn-v0_8")
+
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "title": "View of {}".format(self.name),
+            "width": 4 * 1.618,
+            "height": 4,
+            "xlabel": "value",
+            "ylim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
+            "subtitle_1": "Scatter",
+            "subtitle_2": "Hist",
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+        # start plot
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        plt.suptitle(specs["title"])
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            1, 3, wspace=0.4, hspace=0.5, left=0.1, bottom=0.25, top=0.85, right=0.95
+        )  # nrows, ncols
+        # scatter plot
+        ax = fig.add_subplot(gs[0, :2])
+        plt.scatter(np.arange(len(self.data)), self.data, marker=".", color="tab:grey")
+        plt.title(specs["subtitle_1"])
+        plt.ylim(specs["ylim"])
+        plt.xlabel("n")
+        # hist
+        ax = fig.add_subplot(gs[0, 2])
+        plt.hist(
+            self.data,
+            bins=self.nbins_fd(),
+            color="tab:grey",
+            alpha=1,
+            orientation='horizontal',
+            weights=np.ones(len(self.data)) / len(self.data),
+        )
+        plt.title(specs["subtitle_2"])
+        plt.ylim(specs["ylim"])
+        plt.xlabel("p")
+        # show or save
+        if show:
+            plt.show()
+        else:
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+
+    def plot_qqplot(
+            self,
+            show=True,
+            folder="C:/data",
+            filename="qqplot",
+            specs=None,
+            dpi=300
+    ):
+        """
+        Plot Q-Q Plot on Normal distribution
+
+        :param show: Boolean to show instead of saving
+        :type show: bool
+        :param folder: output folder
+        :type folder: str
+        :param filename: image file name
+        :type filename: str
+        :param specs: specification dictionary
+        :type specs: dct
+        :param dpi: image resolution (default = 300)
+        :type dpi: int
+        :return: None
+        :rtype: None
+        """
+        from scipy.stats import norm
+        plt.style.use("seaborn-v0_8")
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "title": "Q-Q Plot of {}".format(self.name),
+            "width": 4 * 1.618,
+            "height": 4,
+            "xlabel": "value",
+            "ylim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
+            "xlim": (-3, 3),
+            "subtitle": None,
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # process quantiles
+        _df = pd.DataFrame(
+            {
+                "Data": np.sort(self.data),
+                "E-Quantiles": (np.arange(1, len(self.data) + 1) - 0.5) / len(self.data)
+            }
+        )
+        # get theoretical
+        _df["T-Quantiles"] = norm.ppf(_df["E-Quantiles"])
+        # plot
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            1, 1, wspace=0.4, hspace=0.5, left=0.1, bottom=0.15, top=0.9, right=0.95
+        )  # nrows, ncols
+        # scatter plot
+        ax = fig.add_subplot(gs[0, 0])
+        plt.title(specs["title"])
+        plt.scatter(_df["T-Quantiles"], _df["Data"])
+        plt.ylim(specs["ylim"])
+        plt.xlim(specs["xlim"])
+        plt.xlabel("Normal Theoretical Quantiles")
+        plt.ylabel("Data Empirical Quantiles")
+        plt.gca().set_aspect((specs["xlim"][1] - specs["xlim"][0])/(specs["ylim"][1] - specs["ylim"][0]))
 
         # show or save
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
     def _distribution_test(self, test_name, stat, p, clevel=0.05, distr="normal"):
         """
@@ -737,50 +852,27 @@ class Bayes:
 
 
 if __name__ == "__main__":
-    """
-    np.random.seed(6175)
-    vct = np.random.normal(100, 10, 50)
-    vct_random = np.random.randint(10, 100, 1000)
 
-    vct_norm = normal_curve(mu=100, sigma=10, vmin=50, vmax=150, ngrid=1000)
+    np.random.seed(8)
 
-    uni = Univar(data=vct, name="Random")
+    n_sample = 50
 
+    vct_norm = np.random.normal(100, 10, n_sample)
+    vct_uniform = np.random.randint(50, 150, n_sample)
+
+    uni = Univar(data=vct_norm, name="Random")
+    specs = {
+        "xlim": (0, 200),
+        "ylim": (0, 0.3)
+    }
+    #uni.plot_basic_view(show=True)
+    #uni.plot_hist(rule="fd", show=True, specs=specs)
+
+    uni.plot_qqplot()
 
     df = uni.assess_basic_stats()
     print(df)
-    """
 
-    df_hyp = pd.DataFrame(
-        {"Name": ["c_0"], "Min": [0], "Max": [10]}
-    )
-    dct_names = {"P": "L", "E": "y", "H": "M"}
-    bayes = Bayes(df_hypotheses=df_hyp, nomenclature=dct_names, gridsize=50)
-    print(bayes)
-    # step 1
-    dct_ev_step1 = {
-        "c_0": pd.DataFrame(
-            {"E": np.random.normal(3, 0.8, 1000), "W": 10 * np.random.random(1000)}
-        ),
-    }
-    bayes.conditionalize(dct_evidence=dct_ev_step1)
+    df_test = uni.assess_normality()
+    print(df_test.round(3).to_string())
 
-    # step 2
-    dct_ev_step2 = {
-        "c_0": pd.DataFrame(
-            {"E": np.random.normal(5, 0.8, 1000), "W": 10 * np.random.random(1000)}
-        ),
-    }
-    bayes.conditionalize(dct_evidence=dct_ev_step2)
-
-    # step 2
-    dct_ev_step2 = {
-        "c_0": pd.DataFrame(
-            {"E": np.random.normal(7, 1.4, 1000), "W": 10 * np.random.random(1000)}
-        ),
-    }
-    bayes.conditionalize(dct_evidence=dct_ev_step2)
-
-    bayes.plot_step(n_step=1, show=True, folder="C:/Bin", filename="conditional")
-    bayes.plot_step(n_step=2, show=True, folder="C:/Bin", filename="conditional")
-    bayes.plot_step(n_step=3, show=True, folder="C:/Bin", filename="conditional")
