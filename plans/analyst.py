@@ -118,6 +118,37 @@ class Univar:
         df_hist = pd.DataFrame({"Upper value": vct_bins[1:], "Count": vct_hist})
         return df_hist
 
+    def qqplot(self):
+        """
+        Calculate the QQ-plot of data agains normal distribution
+        :return: dataframe of QQ plot
+        :rtype: :class:`pandas.DataFrame`
+        """
+        from scipy.stats import norm
+
+        # process quantiles
+        _df = pd.DataFrame(
+            {
+                "Data": np.sort(self.data),
+                "E-Quantiles": (np.arange(1, len(self.data) + 1) - 0.5)
+                / len(self.data),
+            }
+        )
+        # get theoretical
+        _df["T-Quantiles"] = norm.ppf(_df["E-Quantiles"])
+        return _df
+
+    def trace_variance(self):
+        """
+        Trace the mean variance from data
+        :return: vector of accumulated variance
+        :rtype: :class:`numpy.ndarray`
+        """
+        vct_variance_mean = np.zeros(len(self.data))
+        for i in range(2, len(self.data)):
+            vct_variance_mean[i] = np.var(self.data[:i])
+        return vct_variance_mean
+
     def plot_hist(
         self,
         bins=100,
@@ -288,7 +319,6 @@ class Univar:
         :return: None
         :rtype: None
         """
-        from scipy.stats import norm
 
         plt.style.use("seaborn-v0_8")
         # get specs
@@ -311,15 +341,8 @@ class Univar:
         specs = default_specs
 
         # process quantiles
-        _df = pd.DataFrame(
-            {
-                "Data": np.sort(self.data),
-                "E-Quantiles": (np.arange(1, len(self.data) + 1) - 0.5)
-                / len(self.data),
-            }
-        )
-        # get theoretical
-        _df["T-Quantiles"] = norm.ppf(_df["E-Quantiles"])
+        _df = self.qqplot()
+
         # plot
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         # grid
@@ -507,12 +530,15 @@ class Bivar:
 
     """
 
-    def __init__(self, df_data, x_name="x_obs", y_name="y_obs", name="myvars"):
+    def __init__(self, df_data, x_name="x", y_name="y", name="myvars"):
         self.xname = x_name
         self.yname = y_name
         self.name = name
         # set sorted data and reset index
         self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
+        # linear model
+        self.linear_data = None
+        self.linear = None
 
     def __str__(self):
         return self.data.to_string()
@@ -531,7 +557,7 @@ class Bivar:
         :type filename: str
         :param specs: specification dictionary
         :type specs: dict
-        :param dpi: image resolution (default = 96)
+        :param dpi: image resolution (default = 300)
         :type dpi: int
         :return: None
         :rtype: None
@@ -610,9 +636,185 @@ class Bivar:
         else:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
+    def plot_model(
+        self,
+        df_model,
+        show=False,
+        folder="C:/data",
+        filename="view",
+        specs=None,
+        dpi=300,
+    ):
+        """
+        Plot pannel for model analysis
+
+        :param df_model: model dataframe
+        :type df_model: :class:`pandas.DataFrame`
+        :param show: Boolean to show instead of saving
+        :type show: bool
+        :param folder: output folder
+        :type folder: str
+        :param filename: image file name
+        :type filename: str
+        :param specs: specification dictionary
+        :type specs: dict
+        :param dpi: image resolution (default = 300)
+        :type dpi: int
+        :return: None
+        :rtype: None
+        """
+        plt.style.use("seaborn-v0_8")
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "color_scatter": "tab:blue",
+            "color_model": "black",
+            "color_variance": "darkred",
+            "title": "View of {}".format(self.name),
+            "width": 8,
+            "height": 8,
+            "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
+            "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
+            "elim": [-1.5 * df_model["e"].max(), 1.5 * df_model["e"].max()],
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # -------------- start plot
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        plt.suptitle(specs["title"])
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            4, 4, wspace=0.3, hspace=0.4, left=0.12, bottom=0.1, top=0.90, right=0.95
+        )  # nrows, ncols
+
+        # ----------------- main plot -----------------
+        ax = fig.add_subplot(gs[:2, :2])
+
+        plt.scatter(
+            self.data[self.xname],
+            self.data[self.yname],
+            marker=".",
+            color=specs["color_scatter"],
+            alpha=0.7,
+            zorder=1,
+        )
+        plt.plot(
+            df_model[self.xname],
+            df_model["{}_fit".format(self.yname)],
+            color=specs["color_model"],
+            zorder=2,
+        )
+        plt.xlabel(self.xname)
+        plt.ylabel(self.yname)
+        plt.xlim(specs["xlim"])
+        plt.ylim(specs["ylim"])
+
+        # ----------------- error -----------------
+        e_uni = Univar(data=df_model["e"].values)
+
+        ax = fig.add_subplot(gs[2, :2])
+        plt.scatter(
+            df_model[self.xname],
+            df_model["e"].values,
+            marker=".",
+            alpha=0.75,
+            color=specs["color"],
+        )
+        plt.xlabel(self.xname)
+        plt.ylabel("$\epsilon$")
+        plt.xlim(specs["xlim"])
+        plt.ylim(specs["elim"])
+
+        # ----------------- error hist -----------------
+        ax = fig.add_subplot(gs[2, 2])
+        plt.hist(
+            e_uni.data,
+            bins=e_uni.nbins_fd(),
+            color=specs["color"],
+            alpha=1,
+            orientation="horizontal",
+            weights=np.ones(len(self.data)) / len(self.data),
+        )
+        plt.ylim(specs["elim"])
+        plt.xlabel("p($\epsilon$)")
+
+        # ----------------- qq plot error -----------------
+        df_qq = e_uni.qqplot()
+        ax = fig.add_subplot(gs[2, 3])
+        plt.scatter(
+            x=df_qq["T-Quantiles"],
+            y=df_qq["Data"],
+            marker=".",
+            alpha=0.75,
+            color=specs["color"],
+        )
+        plt.ylim(specs["elim"])
+        plt.xlabel("normal quantiles")
+
+        # ----------------- variance tracing -----------------
+        ax = fig.add_subplot(gs[3, :2])
+        vct_var = e_uni.trace_variance()
+        plt.plot(
+            df_model[self.xname],
+            vct_var,
+            color=specs["color_variance"],
+        )
+        plt.xlabel(self.xname)
+        plt.ylabel("$\epsilon$")
+        plt.xlim(specs["xlim"])
+        plt.ylim([0, 1.5 * np.max(vct_var)])
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+
     def correlation(self):
         corr_df = self.data.corr().loc[self.xname, self.yname]
         return corr_df
+
+    def fit_linear(self, p0=None):
+        from scipy.optimize import curve_fit
+
+        def linear(x, c0, c1):
+            """
+            Linear
+            f(x) = c0 + c1 * x
+            """
+            return c0 + (x * c1)
+
+        # fit model
+        if p0 is None:
+            popt, pcov = curve_fit(
+                f=linear, xdata=self.data[self.xname], ydata=self.data[self.yname]
+            )
+        else:
+            popt, pcov = curve_fit(
+                f=linear,
+                xdata=self.data[self.xname],
+                ydata=self.data[self.yname],
+                p0=p0,
+            )
+        pstd = np.sqrt(np.diag(pcov))
+        self.linear = pd.DataFrame(
+            {"Parameter": ["c0", "c1"], "Fit_Mean": popt, "Fit_Std": pstd}
+        )
+        # set linear model
+        self.linear_data = self.data.copy()
+        self.linear_data["{}_fit".format(self.yname)] = linear(
+            self.data[self.xname], *popt
+        )
+        self.linear_data["e"] = (
+            self.linear_data["{}_fit".format(self.yname)] - self.linear_data[self.yname]
+        )
+
 
 class Bayes:
     """
@@ -967,16 +1169,21 @@ class Bayes:
 
 
 if __name__ == "__main__":
-    n_sample = 500
+    n_sample = 1000
     x = np.random.normal(100, 10, n_sample)
     y = (0.5 * x) + np.random.normal(0, 3, n_sample)
-    df = pd.DataFrame({"x_obs": x, "y_obs": y})
+    df = pd.DataFrame({"x": x, "y": y})
     biv = Bivar(df_data=df)
 
     r = biv.correlation()
     print(r)
+    biv.fit_linear()
+    print(biv.linear.to_string())
 
-    biv.plot_basic_view(show=True, specs={"xlim": [50, 150], "ylim": [25, 75]})
+    biv.plot_model(
+        biv.linear_data, show=True, specs={"xlim": [50, 150], "ylim": [25, 75]}
+    )
+    # biv.plot_basic_view(show=True, specs={"xlim": [50, 150], "ylim": [25, 75]})
 
     """
     v = np.random.rand(100)
