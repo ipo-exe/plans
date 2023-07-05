@@ -198,7 +198,9 @@ class Univar:
         else:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
-    def plot_basic_view(self, show=False, folder="C:/data", filename="view", specs=None,dpi=300):
+    def plot_basic_view(
+        self, show=False, folder="C:/data", filename="view", specs=None, dpi=300
+    ):
         """
         Plot basic view of data
 
@@ -255,7 +257,7 @@ class Univar:
             bins=self.nbins_fd(),
             color="tab:grey",
             alpha=1,
-            orientation='horizontal',
+            orientation="horizontal",
             weights=np.ones(len(self.data)) / len(self.data),
         )
         plt.title(specs["subtitle_2"])
@@ -268,12 +270,7 @@ class Univar:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
     def plot_qqplot(
-            self,
-            show=True,
-            folder="C:/data",
-            filename="qqplot",
-            specs=None,
-            dpi=300
+        self, show=True, folder="C:/data", filename="qqplot", specs=None, dpi=300
     ):
         """
         Plot Q-Q Plot on Normal distribution
@@ -292,6 +289,7 @@ class Univar:
         :rtype: None
         """
         from scipy.stats import norm
+
         plt.style.use("seaborn-v0_8")
         # get specs
         default_specs = {
@@ -316,7 +314,8 @@ class Univar:
         _df = pd.DataFrame(
             {
                 "Data": np.sort(self.data),
-                "E-Quantiles": (np.arange(1, len(self.data) + 1) - 0.5) / len(self.data)
+                "E-Quantiles": (np.arange(1, len(self.data) + 1) - 0.5)
+                / len(self.data),
             }
         )
         # get theoretical
@@ -335,7 +334,10 @@ class Univar:
         plt.xlim(specs["xlim"])
         plt.xlabel("Normal Theoretical Quantiles")
         plt.ylabel("Data Empirical Quantiles")
-        plt.gca().set_aspect((specs["xlim"][1] - specs["xlim"][0])/(specs["ylim"][1] - specs["ylim"][0]))
+        plt.gca().set_aspect(
+            (specs["xlim"][1] - specs["xlim"][0])
+            / (specs["ylim"][1] - specs["ylim"][0])
+        )
 
         # show or save
         if show:
@@ -499,6 +501,119 @@ class Univar:
         return df_result
 
 
+class Bivar:
+    """
+    The Bivariate analyst object
+
+    """
+
+    def __init__(self, df_data, x_name="x_obs", y_name="y_obs", name="myvars"):
+        self.xname = x_name
+        self.yname = y_name
+        self.name = name
+        # set sorted data and reset index
+        self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
+
+    def __str__(self):
+        return self.data.to_string()
+
+    def plot_basic_view(
+        self, show=False, folder="C:/data", filename="view", specs=None, dpi=300
+    ):
+        """
+        Plot basic view of Bivar object
+
+        :param show: Boolean to show instead of saving
+        :type show: bool
+        :param folder: output folder
+        :type folder: str
+        :param filename: image file name
+        :type filename: str
+        :param specs: specification dictionary
+        :type specs: dict
+        :param dpi: image resolution (default = 96)
+        :type dpi: int
+        :return: None
+        :rtype: None
+        """
+        plt.style.use("seaborn-v0_8")
+
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "color_scatter": "tab:blue",
+            "title": "View of {}".format(self.name),
+            "width": 6,
+            "height": 6,
+            "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
+            "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # start plot
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        plt.suptitle(specs["title"])
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            3, 3, wspace=0.3, hspace=0.3, left=0.12, bottom=0.1, top=0.90, right=0.95
+        )  # nrows, ncols
+
+        # scatter plot
+        ax = fig.add_subplot(gs[1:, :2])
+        plt.scatter(
+            self.data[self.xname],
+            self.data[self.yname],
+            marker=".",
+            color=specs["color_scatter"],
+        )
+        plt.xlabel(self.xname)
+        plt.ylabel(self.yname)
+        plt.xlim(specs["xlim"])
+        plt.ylim(specs["ylim"])
+
+        # x hist
+        ax_histx = fig.add_subplot(gs[0, :2], sharex=ax)
+        plt.ylabel("p({})".format(self.xname))
+        xuni = Univar(data=self.data[self.xname].values)
+        plt.hist(
+            self.data[self.xname],
+            bins=xuni.nbins_fd(),
+            color=specs["color"],
+            alpha=1,
+            weights=np.ones(len(self.data)) / len(self.data),
+        )
+        plt.xlim(specs["xlim"])
+
+        # y hist
+        ay_histy = fig.add_subplot(gs[1:, 2], sharey=ax)
+        plt.xlabel("p({})".format(self.yname))
+        yuni = Univar(data=self.data[self.yname].values)
+        plt.hist(
+            yuni.data,
+            bins=yuni.nbins_fd(),
+            color=specs["color"],
+            alpha=1,
+            orientation="horizontal",
+            weights=np.ones(len(self.data)) / len(self.data),
+        )
+        plt.ylim(specs["ylim"])
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+
+    def correlation(self):
+        corr_df = self.data.corr().loc[self.xname, self.yname]
+        return corr_df
+
 class Bayes:
     """
     The Bayes Theorem Analyst Object
@@ -525,7 +640,7 @@ class Bayes:
         self.gridsize = gridsize
 
         # zero
-        self.zero = 1/gridsize
+        self.zero = 1 / gridsize
 
         # set labels
         self.shyp = "H"
@@ -852,27 +967,26 @@ class Bayes:
 
 
 if __name__ == "__main__":
+    n_sample = 500
+    x = np.random.normal(100, 10, n_sample)
+    y = (0.5 * x) + np.random.normal(0, 3, n_sample)
+    df = pd.DataFrame({"x_obs": x, "y_obs": y})
+    biv = Bivar(df_data=df)
 
-    np.random.seed(8)
+    r = biv.correlation()
+    print(r)
 
-    n_sample = 50
+    biv.plot_basic_view(show=True, specs={"xlim": [50, 150], "ylim": [25, 75]})
 
-    vct_norm = np.random.normal(100, 10, n_sample)
-    vct_uniform = np.random.randint(50, 150, n_sample)
-
-    uni = Univar(data=vct_norm, name="Random")
-    specs = {
-        "xlim": (0, 200),
-        "ylim": (0, 0.3)
-    }
-    #uni.plot_basic_view(show=True)
-    #uni.plot_hist(rule="fd", show=True, specs=specs)
-
-    uni.plot_qqplot()
-
-    df = uni.assess_basic_stats()
-    print(df)
-
-    df_test = uni.assess_normality()
-    print(df_test.round(3).to_string())
-
+    """
+    v = np.random.rand(100)
+    x = np.linspace(5, 10, 100)
+    fig = plt.figure(figsize=(5, 5))
+    plt.style.use("seaborn-v0_8")
+    plt.plot(x, v)
+    plt.xlim(5, 10)
+    plt.ylim(0, 1)
+    ratio = 0.333
+    ax = plt.gca()
+    ax.set_aspect(1.0 / ax.get_data_ratio() * ratio)
+    plt.show()"""
