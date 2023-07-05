@@ -29,6 +29,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
+# --------- Functions -----------
+def linear(x, c0, c1):
+    """
+    Linear
+    f(x) = c0 + c1 * x
+    """
+    return c0 + (x * c1)
+
+# --------- Objects -----------
 
 class Univar:
     """
@@ -537,8 +546,7 @@ class Bivar:
         # set sorted data and reset index
         self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
         # linear model
-        self.linear_data = None
-        self.linear = None
+        self.linear_fit()
 
     def __str__(self):
         return self.data.to_string()
@@ -777,20 +785,26 @@ class Bivar:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
     def correlation(self):
+        """
+        Compute the R correlation coefficient of the object
+        :return: R correlation coefficient
+        :rtype: float
+        """
         corr_df = self.data.corr().loc[self.xname, self.yname]
         return corr_df
 
-    def fit_linear(self, p0=None):
+    def linear_fit(self, p0=None):
+        """
+        Fit a linear model f(x) = c0 + c1 * x
+
+        :param p0: list of initial values to search. Default: None
+        :type p0: list
+        :return:
+        :rtype:
+        """
         from scipy.optimize import curve_fit
 
-        def linear(x, c0, c1):
-            """
-            Linear
-            f(x) = c0 + c1 * x
-            """
-            return c0 + (x * c1)
-
-        # fit model
+        # fit model options
         if p0 is None:
             popt, pcov = curve_fit(
                 f=linear, xdata=self.data[self.xname], ydata=self.data[self.yname]
@@ -1169,6 +1183,7 @@ class Bayes:
 
 
 if __name__ == "__main__":
+
     n_sample = 1000
     x = np.random.normal(100, 10, n_sample)
     y = (0.5 * x) + np.random.normal(0, 3, n_sample)
@@ -1177,7 +1192,7 @@ if __name__ == "__main__":
 
     r = biv.correlation()
     print(r)
-    biv.fit_linear()
+    biv.linear_fit()
     print(biv.linear.to_string())
 
     biv.plot_model(
