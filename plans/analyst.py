@@ -545,7 +545,9 @@ class Bivar:
         self.name = name
         # set sorted data and reset index
         self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
-        # linear model
+        # fit linear model
+        self.linear = None
+        self.linear_data = None
         self.linear_fit()
 
     def __str__(self):
@@ -828,6 +830,161 @@ class Bivar:
         self.linear_data["e"] = (
             self.linear_data["{}_fit".format(self.yname)] - self.linear_data[self.yname]
         )
+
+    def prediction_bands(
+            self,
+            lst_bounds=None,
+            n_sim=100,
+            n_grid=100,
+            n_seed=None,
+            p0=None
+    ):
+        """
+        Run Monte Carlo Simulation to get prediciton bands
+        :param lst_bounds: list of prediction bounds [min, max], if None, 3x the date range is used
+        :type lst_bounds: list
+        :param n_sim: number of simulation runs
+        :type n_sim: int
+        :param n_grid: number of prediction intervals
+        :type n_grid: int
+        :param n_seed: number of random seed for reproducibility. Default = None
+        :type n_seed: int
+        :param p0: list of initial values to search. Default: None
+        :type p0: list
+        :return: object with result dataframes
+        :rtype: dict
+        """
+        from scipy.optimize import curve_fit
+
+        # handle None bounds
+        if lst_bounds is None:
+            _min = self.data[self.xname].min()
+            _max = self.data[self.xname].max()
+            # extrapolation zone 2x the interpolation zone
+            lst_bounds = [_min, _max + (2 * _min)]
+        # handle None seed
+        if n_seed is None:
+            from datetime import datetime
+            _seed = int(datetime.now().timestamp())
+            n_seed = np.random.seed(_seed)
+
+        # --- set dataframes
+        # scale of simulations
+        n_scale = int(np.log10(n_sim)) + 1
+
+        # simulation labels
+        lst_mcsim = ["MC{}".format(str(i).zfill(n_scale)) for i in range(n_sim + 1)]
+        s_refsim = lst_mcsim[0]
+
+        # parameter labels
+        _lst_params = list(self.linear["Parameter"].values)
+        _labels = ["Mean", "Std"]
+        lst_params = list()
+        for i in range(len(_labels)):
+            _label = _labels[i]
+            for j in range(len(_lst_params)):
+                _param = _lst_params[j]
+                lst_params.append("{}_{}".format(_param, _label))
+
+        # models dataframe
+        _cols = lst_params.copy()
+        _cols.insert(0, "Model")
+        _data = np.zeros(shape=(n_sim + 1, len(_cols)))
+        df_models = pd.DataFrame(data=_data, columns=_cols)
+        df_models["Model"] = lst_mcsim
+
+        # prediction dataframe
+        _cols = ["{}_{}".format(self.yname, s) for s in lst_mcsim]
+        _cols.insert(0, self.xname)
+        _data = np.zeros(shape=(n_grid, len(_cols)))
+        df_preds = pd.DataFrame(data=_data, columns=_cols)
+        _min = np.min(lst_bounds)
+        _max = np.max(lst_bounds)
+        df_preds[self.xname] = np.linspace(_min, _max, n_grid)
+
+        # bands dataframe
+        _cols = ["Min", "Max", "Mean", "p01", "p05", "p25", "p50", "p75", "p95", "p99"]
+        _cols.insert(0, self.xname)
+        _data = np.zeros(shape=(n_grid, len(_cols)))
+        df_bands = pd.DataFrame(data=_data, columns=_cols)
+        df_bands[self.xname] = df_preds[self.xname].values
+
+        # set reference simulation parameters
+        _lst = ["Mean", "Std"]
+        for s in _lst:
+            for i in range(len(self.linear)):
+                _s_par = self.linear["Parameter"].values[i]
+                _s_key = "{}_{}".format(_s_par, s)
+                _value = self.linear["Fit_{}".format(s)].values[i]
+                df_models[_s_key].values[0] = _value
+
+        # set reference simulation prediction
+        _x = df_preds[self.xname].values
+        _params = self.linear["Fit_Mean"].values
+        df_preds["y_{}".format(s_refsim)] = linear(_x, *_params)
+
+        # get standard deviation from fit data
+        n_std_e = self.linear_data["e"].std()
+        vct_yfit = self.linear_data["{}_fit".format(self.yname)].values
+
+        # simulation loop:
+        for n in range(1, n_sim + 1):
+            _sim = lst_mcsim[n]
+
+            # get new error
+            vct_e = np.random.normal(0.0, n_std_e, len(self.linear_data))
+            # get new y obs
+            vct_yobs = vct_yfit + vct_e
+
+            # fit new model
+            if p0 is None:
+                popt, pcov = curve_fit(
+                    f=linear,
+                    xdata=self.linear_data[self.xname],
+                    ydata=vct_yobs
+                )
+            else:
+                popt, pcov = curve_fit(
+                    f=linear,
+                    xdata=self.linear_data[self.xname],
+                    ydata=vct_yobs,
+                    p0=p0,
+                )
+            pstd = np.sqrt(np.diag(pcov))
+
+            # store model values
+            _dct = {"Mean": popt, "Std": pstd}
+            for s in _dct:
+                for i in range(len(self.linear)):
+                    _s_par = self.linear["Parameter"].values[i]
+                    _s_key = "{}_{}".format(_s_par, s)
+                    _value = _dct[s][i]
+                    df_models[_s_key].values[n] = _value
+
+            # store prediction values
+            _x = df_preds[self.xname].values
+            df_preds["y_{}".format(_sim)] = linear(_x, *popt)
+
+        # get bands
+        for i in range(len(df_preds)):
+            _values = df_preds.values[i, 1:]
+            df_bands["Min"].values[i] = np.min(_values)
+            df_bands["Max"].values[i] = np.max(_values)
+            df_bands["Mean"].values[i] = np.mean(_values)
+            df_bands["p01"].values[i] = np.quantile(_values, 0.01)
+            df_bands["p05"].values[i] = np.quantile(_values, 0.05)
+            df_bands["p25"].values[i] = np.quantile(_values, 0.25)
+            df_bands["p50"].values[i] = np.quantile(_values, 0.5)
+            df_bands["p75"].values[i] = np.quantile(_values, 0.75)
+            df_bands["p95"].values[i] = np.quantile(_values, 0.95)
+            df_bands["p99"].values[i] = np.quantile(_values, 0.99)
+
+        # return object
+        return {
+            "Models": df_models,
+            "Predictions": df_preds,
+            "Bands": df_bands
+        }
 
 
 class Bayes:
@@ -1184,31 +1341,13 @@ class Bayes:
 
 if __name__ == "__main__":
 
-    n_sample = 1000
+    n_sample = 100
     x = np.random.normal(100, 10, n_sample)
     y = (0.5 * x) + np.random.normal(0, 3, n_sample)
+
     df = pd.DataFrame({"x": x, "y": y})
     biv = Bivar(df_data=df)
 
-    r = biv.correlation()
-    print(r)
-    biv.linear_fit()
+    biv.prediction_bands(n_sim=15, n_grid=20, lst_bounds=[0, 300])
     print(biv.linear.to_string())
 
-    biv.plot_model(
-        biv.linear_data, show=True, specs={"xlim": [50, 150], "ylim": [25, 75]}
-    )
-    # biv.plot_basic_view(show=True, specs={"xlim": [50, 150], "ylim": [25, 75]})
-
-    """
-    v = np.random.rand(100)
-    x = np.linspace(5, 10, 100)
-    fig = plt.figure(figsize=(5, 5))
-    plt.style.use("seaborn-v0_8")
-    plt.plot(x, v)
-    plt.xlim(5, 10)
-    plt.ylim(0, 1)
-    ratio = 0.333
-    ax = plt.gca()
-    ax.set_aspect(1.0 / ax.get_data_ratio() * ratio)
-    plt.show()"""
