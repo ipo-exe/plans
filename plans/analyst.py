@@ -375,7 +375,6 @@ class Univar:
 
         # process quantiles
         _df = self.qqplot()
-        print(_df)
         # plot
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         # grid
