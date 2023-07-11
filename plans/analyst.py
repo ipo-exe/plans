@@ -375,7 +375,7 @@ class Univar:
 
         # process quantiles
         _df = self.qqplot()
-
+        print(_df)
         # plot
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         # grid
@@ -386,13 +386,13 @@ class Univar:
         ax = fig.add_subplot(gs[0, 0])
         plt.title(specs["title"])
         plt.scatter(_df["T-Quantiles"], _df["Data"], marker=".", color="tab:grey")
-        plt.ylim(specs["ylim"])
+        plt.ylim([_df["Data"].min(), _df["Data"].max()])
         plt.xlim(specs["xlim"])
         plt.xlabel("Normal Theoretical Quantiles")
         plt.ylabel("Data Empirical Quantiles")
         plt.gca().set_aspect(
             (specs["xlim"][1] - specs["xlim"][0])
-            / (specs["ylim"][1] - specs["ylim"][0])
+            / (_df["Data"].max() - _df["Data"].min())
         )
 
         # show or save
@@ -401,7 +401,7 @@ class Univar:
         else:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
-    def _distribution_test(self, test_name, stat, p, clevel=0.05, distr="normal"):
+    def _distribution_test(self, test_name, stat, p, clevel=0.95, distr="normal"):
         """
         Util function
         :param test_name: name of test
@@ -422,17 +422,17 @@ class Univar:
             "Test": test_name,
             "Statistic": stat,
             "p-value": p,
-            "Confidence": 1 - clevel,
+            "Confidence": clevel,
         }
 
-        if p > clevel:
+        if p > (1 - clevel):
             dct_out["Is {}".format(distr)] = True
         else:
             dct_out["Is {}".format(distr)] = False
 
         return dct_out
 
-    def test_normal_ks(self):
+    def test_normal_ks(self, clevel=0.95):
         """
         Test for normality using the Kolmogorov-Smirnov test
 
@@ -453,10 +453,11 @@ class Univar:
             test_name="Kolmogorov-Smirnov",
             stat=result.statistic,
             p=result.pvalue,
+            clevel=clevel,
             distr="normal",
         )
 
-    def test_shapiro_wilk(self):
+    def test_shapiro_wilk(self, clevel=0.95):
         """
         Test for normality using the Shapiro-Wilk test.
 
@@ -469,10 +470,14 @@ class Univar:
         stat, p = shapiro(self.data)
 
         return self._distribution_test(
-            test_name="Shapiro-Wilk", stat=stat, p=p, distr="normal"
+            test_name="Shapiro-Wilk",
+            stat=stat,
+            p=p,
+            clevel=clevel,
+            distr="normal"
         )
 
-    def test_dagostino_pearson(self):
+    def test_dagostino_pearson(self, clevel=0.95):
         """
         Test for normality using the D'Agostino-Pearson test.
 
@@ -485,10 +490,14 @@ class Univar:
         stat, p = normaltest(self.data)
 
         return self._distribution_test(
-            test_name="D'Agostino-Pearson", stat=stat, p=p, distr="normal"
+            test_name="D'Agostino-Pearson",
+            stat=stat,
+            p=p,
+            clevel=clevel,
+            distr="normal"
         )
 
-    def assess_normality(self):
+    def assess_normality(self, clevel=0.95):
         """
         Assessment on normality using standard tests
         :return: dataframe of assessment results
@@ -496,9 +505,9 @@ class Univar:
         """
         # run tests
         lst_tests = []
-        lst_tests.append(self.test_normal_ks())
-        lst_tests.append(self.test_shapiro_wilk())
-        lst_tests.append(self.test_dagostino_pearson())
+        lst_tests.append(self.test_normal_ks(clevel=clevel))
+        lst_tests.append(self.test_shapiro_wilk(clevel=clevel))
+        lst_tests.append(self.test_dagostino_pearson(clevel=clevel))
         # create dataframe
         lst_names = []
         lst_stats = []
@@ -889,7 +898,12 @@ class Bivar:
             self.data[self.xname], *popt
         )
         self.power_data["e"] = (
-                self.power_data["{}_fit".format(self.yname)] - self.power_data[self.yname]
+                self.power_data["{}_fit".format(self.yname)]
+                - self.power_data[self.yname]
+        )
+        self.power_data["e_log"] = (
+                np.log(self.power_data["{}_fit".format(self.yname)].values)
+                - np.log(self.power_data[self.yname].values)
         )
 
 
@@ -1403,34 +1417,46 @@ class Bayes:
 
 if __name__ == "__main__":
 
-    n_sample = 500
-    x = np.abs(np.random.normal(10, 3, n_sample))
+    n_sample = 1000
+    x = np.abs(np.random.normal(20, 5, n_sample))
     e_add = np.random.normal(0, 0.5, n_sample)
-    e_mul = np.random.normal(1, 0.2, n_sample)
+    e_mul = np.random.normal(1, 0.3, n_sample)
     y_lin = (1.3 * x) + e_add
-    y_pow = 0.1 * np.power(x + 5, 1.8)
-    y_powa = y_pow + e_add
-    y_powm = y_pow * e_mul
+    y_pow = 0.3 * np.power(x + 1, 2)
+    y_powa = np.abs(y_pow + e_add)
+    y_powm = np.abs(y_pow * e_mul)
 
     df_lina = pd.DataFrame({"x": x, "y": y_lin})
     df_powa = pd.DataFrame({"x": x, "y": y_powa})
     df_powm = pd.DataFrame({"x": x, "y": y_powm})
-    '''
-    plt.scatter(df_powa["x"], df_powa["y"])
-    plt.xlim(0, 40)
-    plt.ylim(0, 40)
-    plt.gca().set_aspect("equal")
-    plt.show()
-    '''
+
 
     biv = Bivar(df_data=df_powm)
-    specs = {"ylim": [0, 40], "xlim": [0, 40]}
+    specs = {"ylim": [0, 500], "xlim": [0, 40]}
     biv.linear_fit(p0=[0, 1])
-    biv.power_fit(p0=None)
+
+
+
+    biv.power_fit(p0=[1, 1, 1])
+    print(biv.power)
     biv.plot_model(biv.power_data, show=True, specs=specs)
+
     euni = Univar(data=biv.power_data["e"].values)
-    df_norm = euni.assess_normality()
-    print(df_norm.to_string())
+    specs = {"ylim": [-np.max(euni.data), np.max(euni.data)]}
+    euni.plot_basic_view(show=True, specs=specs)
+    df_norm = euni.assess_normality(clevel=0.9)
+    print(df_norm.round(5).to_string())
+    euni.plot_qqplot(show=True)
+
+    vct_e = biv.power_data["y"].values - biv.power_data["y_fit"].values
+
+    euni = Univar(data=biv.power_data["e_log"].values)
+    specs = {"ylim": [-np.max(euni.data), np.max(euni.data)]}
+    euni.plot_basic_view(show=True, specs=specs)
+    df_norm = euni.assess_normality(clevel=0.9)
+    print(df_norm.round(5).to_string())
+    euni.plot_qqplot(show=True)
+
 
     #biv.prediction_bands(n_sim=15, n_grid=20, lst_bounds=[0, 300])
     #print(biv.linear.to_string())
