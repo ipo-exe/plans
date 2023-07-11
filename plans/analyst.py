@@ -32,10 +32,34 @@ import matplotlib as mpl
 # --------- Functions -----------
 def linear(x, c0, c1):
     """
-    Linear
-    f(x) = c0 + c1 * x
+    Linear function f(x) = c0 + c1 * x
+    :param x: function input
+    :type x: float | :class:`numpy.ndarray`
+    :param c0: translational parameter
+    :type c0: float
+    :param c1: scaling parameter
+    :type c1: float
+    :return: function output
+    :rtype: float | :class:`numpy.ndarray`
     """
     return c0 + (x * c1)
+
+
+def power(x, c0, c1, c2):
+    """
+    Power function f(x) =  c2 * ((x + c0)^c1)
+    :param x: function input
+    :type x: float | :class:`numpy.ndarray`
+    :param c0: translational parameter
+    :type c0: float
+    :param c1: exponent parameter
+    :type c1: float
+    :param c2: scaling parameter
+    :type c2: float
+    :return: function output
+    :rtype: float | :class:`numpy.ndarray`
+    """
+    return c2 * (np.power((x + c0), c1))
 
 # --------- Objects -----------
 
@@ -540,15 +564,23 @@ class Bivar:
     """
 
     def __init__(self, df_data, x_name="x", y_name="y", name="myvars"):
+
+        # set input attributes
         self.xname = x_name
         self.yname = y_name
         self.name = name
+
         # set sorted data and reset index
         self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
-        # fit linear model
+
+        # linear model attributes
         self.linear = None
         self.linear_data = None
-        self.linear_fit()
+
+        # power model attributes
+        self.power = None
+        self.power_data = None
+
 
     def __str__(self):
         return self.data.to_string()
@@ -700,7 +732,7 @@ class Bivar:
         plt.suptitle(specs["title"])
         # grid
         gs = mpl.gridspec.GridSpec(
-            4, 4, wspace=0.3, hspace=0.4, left=0.12, bottom=0.1, top=0.90, right=0.95
+            4, 4, wspace=0.3, hspace=0.45, left=0.12, bottom=0.1, top=0.90, right=0.95
         )  # nrows, ncols
 
         # ----------------- main plot -----------------
@@ -776,7 +808,7 @@ class Bivar:
             color=specs["color_variance"],
         )
         plt.xlabel(self.xname)
-        plt.ylabel("$\epsilon$")
+        plt.ylabel("$\sigma^2$")
         plt.xlim(specs["xlim"])
         plt.ylim([0, 1.5 * np.max(vct_var)])
 
@@ -820,7 +852,7 @@ class Bivar:
             )
         pstd = np.sqrt(np.diag(pcov))
         self.linear = pd.DataFrame(
-            {"Parameter": ["c0", "c1"], "Fit_Mean": popt, "Fit_Std": pstd}
+            {"Parameter": ["c_0", "c_1"], "Fit_Mean": popt, "Fit_Std": pstd}
         )
         # set linear model
         self.linear_data = self.data.copy()
@@ -830,6 +862,36 @@ class Bivar:
         self.linear_data["e"] = (
             self.linear_data["{}_fit".format(self.yname)] - self.linear_data[self.yname]
         )
+
+
+    def power_fit(self, p0=None):
+        from scipy.optimize import curve_fit
+
+        # fit model options
+        if p0 is None:
+            popt, pcov = curve_fit(
+                f=power, xdata=self.data[self.xname], ydata=self.data[self.yname]
+            )
+        else:
+            popt, pcov = curve_fit(
+                f=power,
+                xdata=self.data[self.xname],
+                ydata=self.data[self.yname],
+                p0=p0,
+            )
+        pstd = np.sqrt(np.diag(pcov))
+        self.power = pd.DataFrame(
+            {"Parameter": ["c_0", "c_1", "c_2"], "Fit_Mean": popt, "Fit_Std": pstd}
+        )
+        # set power model
+        self.power_data = self.data.copy()
+        self.power_data["{}_fit".format(self.yname)] = power(
+            self.data[self.xname], *popt
+        )
+        self.power_data["e"] = (
+                self.power_data["{}_fit".format(self.yname)] - self.power_data[self.yname]
+        )
+
 
     def prediction_bands(
             self,
@@ -1341,13 +1403,35 @@ class Bayes:
 
 if __name__ == "__main__":
 
-    n_sample = 100
-    x = np.random.normal(100, 10, n_sample)
-    y = (0.5 * x) + np.random.normal(0, 3, n_sample)
+    n_sample = 500
+    x = np.abs(np.random.normal(10, 3, n_sample))
+    e_add = np.random.normal(0, 0.5, n_sample)
+    e_mul = np.random.normal(1, 0.2, n_sample)
+    y_lin = (1.3 * x) + e_add
+    y_pow = 0.1 * np.power(x + 5, 1.8)
+    y_powa = y_pow + e_add
+    y_powm = y_pow * e_mul
 
-    df = pd.DataFrame({"x": x, "y": y})
-    biv = Bivar(df_data=df)
+    df_lina = pd.DataFrame({"x": x, "y": y_lin})
+    df_powa = pd.DataFrame({"x": x, "y": y_powa})
+    df_powm = pd.DataFrame({"x": x, "y": y_powm})
+    '''
+    plt.scatter(df_powa["x"], df_powa["y"])
+    plt.xlim(0, 40)
+    plt.ylim(0, 40)
+    plt.gca().set_aspect("equal")
+    plt.show()
+    '''
 
-    biv.prediction_bands(n_sim=15, n_grid=20, lst_bounds=[0, 300])
-    print(biv.linear.to_string())
+    biv = Bivar(df_data=df_powm)
+    specs = {"ylim": [0, 40], "xlim": [0, 40]}
+    biv.linear_fit(p0=[0, 1])
+    biv.power_fit(p0=None)
+    biv.plot_model(biv.power_data, show=True, specs=specs)
+    euni = Univar(data=biv.power_data["e"].values)
+    df_norm = euni.assess_normality()
+    print(df_norm.to_string())
+
+    #biv.prediction_bands(n_sim=15, n_grid=20, lst_bounds=[0, 300])
+    #print(biv.linear.to_string())
 
