@@ -1279,6 +1279,7 @@ class QualiRaster(Raster):
         # place legend
         legend_elements = []
         for i in range(len(self.table)):
+            print(self.table[self.colorfield].values[i])
             legend_elements.append(
                 Patch(
                     facecolor=self.table[self.colorfield].values[i],
@@ -1870,154 +1871,16 @@ class LULCSeries(QualiSeries):
 
 
 if __name__ == "__main__":
-    b_aoi = False
-    b_lulc = False
-    b_dem = False
-    b_slope = False
-    b_bench = False
-    b_ndvi = False
-    b_et = False
-    b_ndvi_collection = False
-    b_lulc_collection = True
 
-    output_dir = "C:/data"
-    input_dir = "C:/data/gravatai/plans"
+    s_folder = "C:/data"
+    lst_years = ["1985", "1986", "1987", "1988"]
 
-    s_name = "Gravatai"
-    s_aux = "gravatai"
+    s_table_file = "C:/data/mapbiomas_c7_table.txt"
 
-    if b_aoi:
-        # -------------------------------------------------------------
-        # [0] AOI map
-        s_filename = "{}_basin_flu87398800".format(s_aux)
-        # instantiate map
-        rst_aoi = AOI(name="Andreas")
-        # load file
-        rst_aoi.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
-        # view
-        print(rst_aoi.table.to_string())
-        rst_aoi.plot_basic_view(show=True)
+    s_file = "{}/map_mata_mapbiomas_{}.asc".format(s_folder, lst_years[0])
 
-    if b_lulc:
-        # -------------------------------------------------------------
-        # [1] LULC map
-        s_filename = "{}_lulc_2020".format(s_aux)
-        # instantiate map
-        rst_lulc = LULC(name=s_name, date="2020-01-01")
-        # load files
-        rst_lulc.load_asc_raster(file="{}/lulc/{}.asc".format(input_dir, s_filename))
-        rst_lulc.load_table(file="{}/lulc.txt".format(input_dir))
-        print(rst_lulc.table)
-        """
-        # -------------------------------------------------------------
-        # [0] AOI map
-        s_filename = "{}_basin_flu87398800".format(s_aux)
-        # instantiate map
-        rst_aoi = AOI(name=s_name)
-        # load file
-        rst_aoi.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
-
-        # apply aoi inplace
-        rst_lulc.apply_aoi_mask(grid_aoi=rst_aoi.grid, inplace=True)
-        
-        """
-
-        # rst_lulc.get_areas()
-        # plot
-        rst_lulc.plot_basic_view(show=True)
-        # print(rst_lulc.table.to_string())
-
-    if b_slope:
-        # -------------------------------------------------------------
-        # [2] Slope map
-        s_filename = "{}_hand".format(s_aux)
-        # instantiate map
-        rst_slp = HAND(name=s_name)
-        # load files
-        rst_slp.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
-        # apply aoi
-        # rst_slp.apply_aoi_mask(grid_aoi=rst_aoi.grid)
-        # plot
-        rst_slp.plot_basic_view(show=True, specs={"vmin": 0, "vmax": 5})
-
-    if b_dem:
-        # -------------------------------------------------------------
-        # [3] Elevation map
-        s_filename = "{}_demh".format(s_aux)
-        # instantiate map
-        rst_dem = Elevation(name=s_name)
-        # load files
-        rst_dem.load_asc_raster(file="{}/{}.asc".format(input_dir, s_filename))
-        # plot
-        rst_dem.plot_basic_view(
-            show=True,
-        )
-
-    if b_et:
-        s_filename = (
-            r"{}\ndvi\gravatai_LC08-C01-T1SR_221081_ndvi_2014-05-29.asc".format(
-                input_dir
-            )
-        )
-        rst_ndvi = ET24h(name=s_name)
-        rst_ndvi.load_asc_raster(file=s_filename)
-        rst_ndvi.plot_basic_view(show=True)
-
-    if b_ndvi:
-        s_filename = (
-            r"{}\ndvi\gravatai_LC08-C01-T1SR_221081_ndvi_2014-05-29.asc".format(
-                input_dir
-            )
-        )
-        rst_ndvi = NDVI(name=s_name)
-        rst_ndvi.load_asc_raster(file=s_filename)
-        rst_ndvi.plot_basic_view(show=True)
-
-    if b_ndvi_collection:
-        s_dir = "C:/data/gravatai/plans/ndvi"
-        lst_files_all = os.listdir(s_dir)
-        # Filter the list to include only files with the specified extension
-        lst_files = [file for file in lst_files_all if file.endswith(".asc")]
-        print(len(lst_files))
-
-        # create collection
-        rcoll = NDVISeries(name=s_name)
-        for i in range(len(lst_files)):
-            s_date = lst_files[i].split(".")[0].split("ndvi_")[1]
-            rcoll.load_asc_raster(
-                name="{} NDVI {}".format(s_name, s_date),
-                date=s_date,
-                file="{}/{}".format(s_dir, lst_files[i]),
-            )
-        print(rcoll.catalog.to_string())
-        _specs = {
-            "ylim": (-1, 1),
-            "series linestyle": "",
-            "mavg period": 3,
-            "nbins": 12,
-        }
-        rcoll.plot_series_stats(statistic="mean", specs=_specs)
-        rcoll.plot_views(show=True, folder="C:/bin")
-
-    if b_lulc_collection:
-        s_dir = "C:/data/gravatai/plans/lulc"
-        lst_files_all = os.listdir(s_dir)
-        # Filter the list to include only files with the specified extension
-        lst_files = [file for file in lst_files_all if file.endswith(".asc")]
-
-        # create collection
-        rcoll = LULCSeries(name=s_name)
-        for i in range(len(lst_files)):
-            s_year = lst_files[i].split(".")[0].split("lulc_")[1]
-            s_date = "{}-01-01".format(s_year)
-            rcoll.load_asc_raster(
-                name="{} LULC {}".format(s_name, s_date),
-                date=s_date,
-                file="{}/{}".format(s_dir, lst_files[i]),
-                file_table="{}/lulc.txt".format(input_dir),
-            )
-        print(rcoll.catalog.to_string())
-
-        rcoll.get_series_areas()
-        #specs = {"b_xmax": 300}
-        #rcoll.plot_views(show=False, folder="C:/bin", specs=specs)
+    my_lulc = LULC(name="lulc_1985", date="1985-01-01")
+    my_lulc.load_table(file=s_table_file)
+    my_lulc.load_asc_raster(file=s_file)
+    specs = {"cmpa": "Greys"}
+    my_lulc.plot_basic_view(show=True, specs=specs)
