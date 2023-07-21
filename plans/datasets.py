@@ -1831,6 +1831,7 @@ class QualiSeries(RasterSeries):
         del rst_aux
 
     def get_series_areas(self):
+
         for i in range(len(self.catalog)):
 
             s_raster_name = self.catalog["Name"].values[i]
