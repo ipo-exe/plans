@@ -637,7 +637,14 @@ class Raster:
         if self.grid is None:
             return None
         else:
-            return self.grid.ravel()[~np.isnan(self.grid.ravel())]
+            if self.grid.dtype.kind in ["i", "u"]:
+                # for integer grid
+                _grid = self.grid[~self.grid.mask]
+                return _grid
+            else:
+                # for floating point grid:
+                _grid = self.grid.ravel()[~np.isnan(self.grid.ravel())]
+                return _grid
 
     def get_raster_stats(self):
         """Get basic statistics from flat and clear data.
@@ -659,12 +666,12 @@ class Raster:
         :rtype: :class:`pandas.DataFrame` or None
         """
         if self.asc_metadata["cellsize"] < 1:
-            self.cellsize = self.asc_metadata["cellsize"] * 111 * 1000
+            self.cellsize = self.asc_metadata["cellsize"] * 111 * 1000  # by 1deg = 111km
         else:
             self.cellsize = self.asc_metadata["cellsize"]
         return self.cellsize
 
-    def plot_basic_view(
+    def view_raster(
         self,
         show=False,
         folder="./output",
@@ -692,6 +699,10 @@ class Raster:
 
         # get univar object
         uni = Univar(data=self.get_data())
+        if len(np.unique(uni.data)) <= 1:
+            nbins = 1
+        else:
+            nbins = uni.nbins_fd()
 
         # get specs
         default_specs = {
@@ -706,7 +717,7 @@ class Raster:
             "height": 5,
             "b_ylabel": "percentage",
             "b_xlabel": self.units,
-            "nbins": uni.nbins_fd(),
+            "nbins": nbins,
             "vmin": None,
             "vmax": None,
             "hist_vmax": None,
@@ -727,7 +738,7 @@ class Raster:
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            4, 5, wspace=0.8, hspace=0.1, left=0.01, bottom=0.1, top=0.85, right=0.95
+            4, 5, wspace=0.8, hspace=0.1, left=0.05, bottom=0.1, top=0.85, right=0.95
         )
         fig.suptitle(specs["suptitle"])
 
@@ -957,7 +968,7 @@ class NDVI(Raster):
         super(NDVI, self).set_grid(grid)
         self.cut_edges(upper=1, lower=-1)
 
-    def plot_basic_view(
+    def view_raster(
         self, show=False, folder="./output", filename=None, specs=None, dpi=96
     ):
         default_specs = {"vmin": -1, "vmax": 1}
@@ -966,7 +977,7 @@ class NDVI(Raster):
         else:
             for k in default_specs:
                 specs[k] = default_specs[k]
-        super().plot_basic_view(show, folder, filename, specs, dpi)
+        super().view_raster(show, folder, filename, specs, dpi)
 
 
 class ET24h(Raster):
@@ -996,7 +1007,7 @@ class ET24h(Raster):
         super().set_grid(grid)
         self.cut_edges(upper=100, lower=0)
 
-    def plot_basic_view(
+    def view_raster(
         self, show=False, folder="./output", filename=None, specs=None, dpi=96
     ):
         default_specs = {"vmin": 0, "vmax": 10}
@@ -1005,7 +1016,7 @@ class ET24h(Raster):
         else:
             for k in default_specs:
                 specs[k] = default_specs[k]
-        super().plot_basic_view(show, folder, filename, specs, dpi)
+        super().view_raster(show, folder, filename, specs, dpi)
 
 
 # -----------------------------------------
@@ -1038,7 +1049,7 @@ class QualiRaster(Raster):
         self.table = None
         self.idfield = "Id"
         self.namefield = "Name"
-        self.aliasfield = "Name"
+        self.aliasfield = "Alias"
         self.colorfield = "Color"
         self.areafield = "Area"
         self._overwrite_nodata()
@@ -1115,27 +1126,49 @@ class QualiRaster(Raster):
         else:
             # get unit area
             _n_unit_area = np.square(self.cellsize)
+            # get aux dataframe
             df_aux = self.table[["Id", "Name", "Alias"]].copy()
-            _lst_areas = []
+            _lst_count = []
             # iterate categories
             for i in range(len(df_aux)):
                 _n_id = df_aux[self.idfield].values[i]
-                _n_value = np.sum(1 * (self.grid == _n_id)) * _n_unit_area
-                _lst_areas.append(_n_value)
+                _n_count = np.sum(1 * (self.grid == _n_id))
+                _lst_count.append(_n_count)
             # set area fields
+            lst_area_fields = []
+            # Count
+            s_count_field = "Cell_count"
+            df_aux[s_count_field] = _lst_count
+            lst_area_fields.append(s_count_field)
+
+            # m2
             s_field = "{}_m2".format(self.areafield)
-            df_aux[s_field] = _lst_areas
-            df_aux["{}_ha".format(self.areafield)] = df_aux[s_field] / (100 * 100)
-            df_aux["{}_km2".format(self.areafield)] = df_aux[s_field] / (1000 * 1000)
-            df_aux["{}_f".format(self.areafield)] = (
-                df_aux[s_field] / df_aux[s_field].sum()
+            lst_area_fields.append(s_field)
+            df_aux[s_field] = df_aux[s_count_field].values * _n_unit_area
+
+            # ha
+            s_field = "{}_ha".format(self.areafield)
+            lst_area_fields.append(s_field)
+            df_aux[s_field] = df_aux[s_count_field].values * _n_unit_area / (100 * 100)
+
+            # km2
+            s_field = "{}_km2".format(self.areafield)
+            lst_area_fields.append(s_field)
+            df_aux[s_field] = df_aux[s_count_field].values * _n_unit_area / (1000 * 1000)
+
+            # fraction
+            s_field = "{}_f".format(self.areafield)
+            lst_area_fields.append(s_field)
+            df_aux[s_field] = (
+                df_aux[s_count_field] / df_aux[s_count_field].sum()
             )
-            df_aux["{}_%".format(self.areafield)] = (
-                100 * df_aux[s_field] / df_aux[s_field].sum()
+            # %
+            s_field = "{}_%".format(self.areafield)
+            lst_area_fields.append(s_field)
+            df_aux[s_field] = (
+                100 * df_aux[s_count_field] / df_aux[s_count_field].sum()
             )
-            df_aux["{}_%".format(self.areafield)] = df_aux[
-                "{}_%".format(self.areafield)
-            ].round(2)
+            df_aux[s_field] = df_aux[s_field].round(2)
 
             # handle merge
             if merge:
@@ -1169,7 +1202,7 @@ class QualiRaster(Raster):
             n_id = df_aux["Id"].values[i]
             # apply mask
             grid_aoi = 1 * (self.grid == n_id)
-            raster_sample.apply_aoi_mask(grid_aoi=grid_aoi)
+            raster_sample.apply_aoi_mask(grid_aoi=grid_aoi, inplace=True)
             # get basic stats
             raster_uni = Univar(data=raster_sample.get_data(), name=varname)
             df_stats = raster_uni.assess_basic_stats()
@@ -1202,7 +1235,7 @@ class QualiRaster(Raster):
 
         return df_aux
 
-    def plot_basic_view(
+    def view_qualiraster(
         self, show=False, folder="./output", filename=None, specs=None, dpi=96
     ):
         """Plot a basic pannel of qualitative raster map.
@@ -1237,7 +1270,7 @@ class QualiRaster(Raster):
             "b_title": "{} Prevalence".format(self.varalias),
             "c_title": "Metadata",
             "width": 5 * 1.618,
-            "height": 5,
+            "height": 7,
             "b_area": "km2",
             "b_xlabel": "Area",
             "b_xmax": None,
@@ -1255,6 +1288,7 @@ class QualiRaster(Raster):
                 default_specs[k] = specs[k]
         specs = default_specs
 
+        # -----------------------------------------------
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
@@ -1262,7 +1296,7 @@ class QualiRaster(Raster):
             specs["gs_cols"],
             wspace=0.8,
             hspace=0.05,
-            left=0.01,
+            left=0.05,
             bottom=0.1,
             top=0.85,
             right=0.95,
@@ -1279,11 +1313,15 @@ class QualiRaster(Raster):
         # place legend
         legend_elements = []
         for i in range(len(self.table)):
-            print(self.table[self.colorfield].values[i])
+            _color = self.table[self.colorfield].values[i]
+            _label = "{} ({})".format(
+                self.table[self.namefield].values[i],
+                self.table[self.aliasfield].values[i]
+            )
             legend_elements.append(
                 Patch(
-                    facecolor=self.table[self.colorfield].values[i],
-                    label=self.table[self.namefield].values[i],
+                    facecolor=_color,
+                    label=_label,
                 )
             )
         plt.legend(
@@ -1291,12 +1329,14 @@ class QualiRaster(Raster):
             fontsize=9,
             markerscale=0.8,
             handles=legend_elements,
-            bbox_to_anchor=(0.5, 0.3),
+            bbox_to_anchor=(0.5, 0.35),
             bbox_transform=fig.transFigure,
-            ncol=3,
+            ncol=2,
         )
 
-        # plot hbar
+        # -----------------------------------------------
+        # plot horizontal bar of areas
+
         # ensure areas are computed
         df_aux = pd.merge(
             self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
@@ -1305,7 +1345,7 @@ class QualiRaster(Raster):
         plt.subplot(gs[: default_specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         plt.barh(
-            df_aux[self.namefield],
+            df_aux[self.aliasfield],
             df_aux["{}_{}".format(self.areafield, specs["b_area"])],
             color=df_aux[self.colorfield],
         )
@@ -1328,6 +1368,7 @@ class QualiRaster(Raster):
         plt.xlabel("{} (km$^2$)".format(specs["b_xlabel"]))
         plt.grid(axis="y")
 
+        # -----------------------------------------------
         # plot metadata
         lst_meta = []
         lst_value = []
@@ -1422,7 +1463,7 @@ class AOI(QualiRaster):
         self.description = "Boolean map an Area of Interest"
         self.units = "classes ID"
         self.table = pd.DataFrame(
-            {"Id": [1], "Name": [self.name], "Alias": ["-"], "Color": "tab:grey"}
+            {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "tab:grey"}
         )
 
 
@@ -1593,7 +1634,7 @@ class RasterCollection:
         for k in self.collection:
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
-            rst_lcl.plot_basic_view(
+            rst_lcl.view_qualiraster(
                 show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
             )
 
@@ -1789,7 +1830,6 @@ class QualiSeries(RasterSeries):
     def get_series_areas(self):
         for i in range(len(self.catalog)):
 
-
             s_raster_name = self.catalog["Name"].values[i]
             s_raster_date = self.catalog["Date"].values[i]
             df_areas = self.collection[s_raster_name].get_areas()
@@ -1801,8 +1841,6 @@ class QualiSeries(RasterSeries):
                 df_areas_full = pd.concat([df_areas_full, df_areas])
         df_areas_full['Name'] = df_areas_full['Name'].astype('category')
         df_areas_full['Date'] = pd.to_datetime(df_areas_full['Date'])
-
-        print(df_areas_full.query("Name == 'Forest'").to_string())
 
         for k in df_areas_full["Name"].unique():
             df_lcl = df_areas_full.query("Name == '{}'".format(k)).copy()
@@ -1828,7 +1866,7 @@ class QualiSeries(RasterSeries):
         for k in self.collection:
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
-            rst_lcl.plot_basic_view(
+            rst_lcl.view_qualiraster(
                 show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
             )
 
@@ -1883,4 +1921,4 @@ if __name__ == "__main__":
     my_lulc.load_table(file=s_table_file)
     my_lulc.load_asc_raster(file=s_file)
     specs = {"cmpa": "Greys"}
-    my_lulc.plot_basic_view(show=True, specs=specs)
+    my_lulc.view_qualiraster(show=True, specs=specs)
