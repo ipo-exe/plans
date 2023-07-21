@@ -370,6 +370,9 @@ class Raster:
         self.units = "units"
         self.date = None  # "2020-01-01"
 
+    def __str__(self):
+        return "Hello world!"
+
     def set_grid(self, grid):
         """Set data from incoming objects.
 
@@ -1906,6 +1909,8 @@ class LULCSeries(QualiSeries):
         self.append_raster(raster=rst_aux)
         # delete aux
         del rst_aux
+
+
 
 
 if __name__ == "__main__":

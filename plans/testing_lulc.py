@@ -1,20 +1,19 @@
 import matplotlib.pyplot as plt
-
 import datasets as ds
 
 # load slope layer
 map_slope = ds.Slope(name="potiribu")
 map_slope.load_asc_raster(file="C:/gis/potiribu/plans/slope.asc")
-map_slope.view_raster(show=True)
+#map_slope.view_raster(show=True)
 
 # load AOI raster
 map_aoi = ds.AOI(name="potiribu_aoi")
 map_aoi.load_asc_raster(file="C:/gis/potiribu/plans/basin.asc")
-map_aoi.view_qualiraster(show=True)
+#map_aoi.view_qualiraster(show=True)
 
 # set AOI to slope layer
 map_slope.apply_aoi_mask(grid_aoi=map_aoi.grid, inplace=True)
-map_slope.view_raster(show=True)
+#map_slope.view_raster(show=True)
 
 # create LULC dataset
 map_lulc = ds.LULC(name="potiribu", date="2020-01-01")
