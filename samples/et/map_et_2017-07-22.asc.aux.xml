@@ -1,0 +1,16 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="AREA_OR_POINT">Area</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>ET_24h</Description>
+    <ColorInterp>Gray</ColorInterp>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">2.996376991272</MDI>
+      <MDI key="STATISTICS_MEAN">1.142983109628</MDI>
+      <MDI key="STATISTICS_MINIMUM">-1.1009451150894</MDI>
+      <MDI key="STATISTICS_STDDEV">0.57669247549602</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">98.26</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

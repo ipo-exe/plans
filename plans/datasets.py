@@ -1099,6 +1099,7 @@ class QualiRaster(Raster):
         :type dataframe: :class:`pandas.DataFrame`
         """
         self.table = dataframe_prepro(dataframe=dataframe.copy())
+        self.table = self.table.sort_values(by=self.idfield).reset_index(drop=True)
 
     def set_random_colors(self):
         """Set random colors to attribute table."""
@@ -1264,20 +1265,28 @@ class QualiRaster(Raster):
         else:
             self.set_random_colors()
 
+        # hack for non-continuous ids
+        _all_ids = np.arange(0, self.table[self.idfield].max() + 1)
+        _lst_colors = []
+        for i in range(0, len(_all_ids)):
+            _df = self.table.query('{} >= {}'.format(self.idfield, i)).copy()
+            _color = _df[self.colorfield].values[0]
+            _lst_colors.append(_color)
+
         # get specs
         default_specs = {
             "color": "tab:grey",
-            "cmap": ListedColormap(self.table[self.colorfield]),
+            "cmap": ListedColormap(_lst_colors),
             "suptitle": "{} ({}) | {}".format(self.varname, self.varalias, self.name),
             "a_title": "{} Map ({})".format(self.varalias, self.units),
             "b_title": "{} Prevalence".format(self.varalias),
             "c_title": "Metadata",
-            "width": 5 * 1.618,
+            "width": 8,
             "height": 7,
             "b_area": "km2",
             "b_xlabel": "Area",
             "b_xmax": None,
-            "vmin": self.table[self.idfield].min(),
+            "vmin": 0,
             "vmax": self.table[self.idfield].max(),
             "gs_rows": 7,
             "gs_cols": 5,
@@ -1332,7 +1341,7 @@ class QualiRaster(Raster):
             fontsize=9,
             markerscale=0.8,
             handles=legend_elements,
-            bbox_to_anchor=(0.5, 0.35),
+            bbox_to_anchor=(0.6, 0.3),
             bbox_transform=fig.transFigure,
             ncol=2,
         )

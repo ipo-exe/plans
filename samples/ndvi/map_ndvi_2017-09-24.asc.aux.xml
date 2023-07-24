@@ -1,0 +1,16 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="AREA_OR_POINT">Area</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>NDVI</Description>
+    <ColorInterp>Gray</ColorInterp>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">0.9375541806221</MDI>
+      <MDI key="STATISTICS_MEAN">0.63150582085552</MDI>
+      <MDI key="STATISTICS_MINIMUM">-0.11647254228592</MDI>
+      <MDI key="STATISTICS_STDDEV">0.16320802672034</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">100</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
