@@ -207,7 +207,7 @@ class DailySeries:
             "width": 5 * 1.618,
             "height": 5,
             "ylabel": "units",
-            "ylim": (0, 0.25),
+            "ylim": (np.min(uni.data), np.max(uni.data)),
             "a_xlabel": "Date",
             "b_xlabel": "Frequency",
             "c_xlabel": "Probability",
@@ -1240,7 +1240,7 @@ class QualiRaster(Raster):
         return df_aux
 
     def view_qualiraster(
-        self, show=False, folder="./output", filename=None, specs=None, dpi=96
+        self, show=False, folder="./output", filename=None, specs=None, dpi=200
     ):
         """Plot a basic pannel of qualitative raster map.
 
@@ -1423,7 +1423,7 @@ class QualiRaster(Raster):
         else:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
         plt.close(fig)
 
 
@@ -1488,6 +1488,7 @@ class RasterCollection:
     The raster collection base dataset.
 
     This data strucute is designed for holding and comparing similar :class:`Raster` objects.
+    Grid shape is expected to be the same.
 
     """
 
