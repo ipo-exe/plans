@@ -1647,7 +1647,7 @@ class RasterCollection:
         for k in self.collection:
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
-            rst_lcl.view_qualiraster(
+            rst_lcl.view_raster(
                 show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
             )
 
