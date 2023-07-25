@@ -366,9 +366,10 @@ class Raster:
         self.cmap = "jet"
         self.varname = "Unknown variable"
         self.varalias = "Var"
-        self.description = "Unknown"
+        self.description = None
         self.units = "units"
         self.date = None  # "2020-01-01"
+        self.prj = None
 
     def __str__(self):
         return "Hello world!"
@@ -497,6 +498,17 @@ class Raster:
                 meta_dct[meta_lbls[i]] = float(lcl_meta_str)
         # set attribute
         self.set_asc_metadata(metadata=meta_dct)
+
+    def load_prj_file(self, file):
+        """Function for loading ``.prj`` aux file to the prj attribute
+
+        :param file: string of file path with the ``.prj`` extension
+        :type file: str
+        :return: None
+        :rtype: None
+        """
+        with open(file) as f:
+            self.prj = f.readline().strip('\n')
 
     def export_asc_raster(self, folder="./output", filename=None):
         """Function for exporting an ``.asc`` raster file.
@@ -1513,6 +1525,7 @@ class RasterCollection:
                 "xllcorner",
                 "yllcorner",
                 "NODATA_value",
+                "Prj"
             ]
         )
         self.catalog["Date"] = pd.to_datetime(self.catalog["Date"])
@@ -1543,6 +1556,7 @@ class RasterCollection:
                 "xllcorner": [raster.asc_metadata["xllcorner"]],
                 "yllcorner": [raster.asc_metadata["yllcorner"]],
                 "NODATA_value": [raster.nodatavalue],
+                "Prj": [raster.prj]
             }
         )
         self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
@@ -1561,15 +1575,15 @@ class RasterCollection:
             self.catalog[self.catalog["Name"] == name].index
         ).reset_index(drop=True)
 
-    def load_asc_raster(
-        self, name, file, varname=None, varalias=None, units=None, date=None
+    def load_raster(
+        self, name, asc_file, prj_file=None, varname=None, varalias=None, units=None, date=None
     ):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
-        :param file: path to ``.asc`` raster file
-        :type file: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
         :param varname: :class:`Raster.varname` variable name attribute, defaults to None
         :type varname: str
         :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
@@ -1586,8 +1600,13 @@ class RasterCollection:
         rst_aux.varalias = varalias
         rst_aux.units = units
         rst_aux.date = date
-        # read file
-        rst_aux.load_asc_raster(file=file)
+        # load prj file
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
+        # read asc file
+        rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux
@@ -1674,15 +1693,15 @@ class RasterSeries(RasterCollection):
         self.varalias = varalias
         self.units = units
 
-    def load_asc_raster(self, name, date, file):
+    def load_raster(self, name, date, asc_file):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
         :param date: :class:`Raster.date` date attribute, defaults to None
         :type date: str
-        :param file: path to ``.asc`` raster file
-        :type file: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
         """
         # create raster
         rst_aux = Raster(name=name, dtype=self.dtype)
@@ -1692,7 +1711,7 @@ class RasterSeries(RasterCollection):
         rst_aux.units = self.units
         rst_aux.date = date
         # read file
-        rst_aux.load_asc_raster(file=file)
+        rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux
@@ -1742,22 +1761,22 @@ class NDVISeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load_asc_raster(self, name, date, file):
+    def load_raster(self, name, date, asc_file):
         """Load a :class:`NDVI` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
         :param date: :class:`Raster.date` date attribute
         :type date: str
-        :param file: path to ``.asc`` raster file
-        :type file: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
         """
         # create raster
         rst_aux = NDVI(name=name)
         # set attributes
         rst_aux.date = date
         # read file
-        rst_aux.load_asc_raster(file=file)
+        rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux
@@ -1778,22 +1797,22 @@ class ETSeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load_asc_raster(self, name, date, file):
+    def load_raster(self, name, date, asc_file):
         """Load a :class:`ET24h` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
         :param date: :class:`Raster.date` date attribute
         :type date: str
-        :param file: path to ``.asc`` raster file
-        :type file: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
         """
         # create raster
         rst_aux = ET24h(name=name)
         # set attributes
         rst_aux.date = date
         # read file
-        rst_aux.load_asc_raster(file=file)
+        rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux
@@ -1815,15 +1834,15 @@ class QualiSeries(RasterSeries):
             name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
         )
 
-    def load_asc_raster(self, name, date, file, file_table):
+    def load_raster(self, name, date, asc_file, file_table):
         """Load a :class:`QualiRaster` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
         :param date: :class:`Raster.date` date attribute
         :type date: str
-        :param file: path to ``.asc`` raster file
-        :type file: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
         :param file: path to ``.txt`` csv attribute table file
         :type file: str
         """
@@ -1832,7 +1851,7 @@ class QualiSeries(RasterSeries):
         # set attributes
         rst_aux.date = date
         # read file
-        rst_aux.load_asc_raster(file=file)
+        rst_aux.load_asc_raster(file=asc_file)
         # set table
         rst_aux.load_table(file=file_table)
         # append to collection
@@ -1898,22 +1917,22 @@ class LULCSeries(QualiSeries):
         # remove
         del rst_aux
 
-    def load_asc_raster(self, name, date, file, file_table):
+    def load_raster(self, name, date, asc_file, file_table):
         """Load a :class:`LULCRaster` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
         :param date: :class:`Raster.date` date attribute
         :type date: str
-        :param file: path to ``.asc`` raster file
-        :type file: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
         :param file: path to ``.txt`` csv attribute table file
         :type file: str
         """
         # create raster
         rst_aux = LULC(name=name, date=date)
         # read file
-        rst_aux.load_asc_raster(file=file)
+        rst_aux.load_asc_raster(file=asc_file)
         # set table
         rst_aux.load_table(file=file_table)
         # append to collection

@@ -5,6 +5,15 @@ import datasets as ds
 # load slope layer
 map_slope = ds.Slope(name="Sample")
 map_slope.load_asc_raster(file="../samples/map_slope.asc")
+map_slope.view_raster(show=True)
+
+map_slope.load_prj_file(file="../samples/map_slope.prj")
+print(map_slope.prj)
+
+'''
+# load slope layer
+map_slope = ds.Slope(name="Sample")
+map_slope.load_asc_raster(file="../samples/map_slope.asc")
 #map_slope.view_raster(show=True)
 
 # load AOI raster
@@ -69,8 +78,6 @@ print(series_lulc.catalog.to_string())
 print(series_lulc.get_series_stats().to_string())
 series_lulc.plot_series_stats(show=True)
 
-
-
 for raster in series_lulc.collection:
     print(raster)
     series_lulc.collection[raster].view_qualiraster(
@@ -79,3 +86,4 @@ for raster in series_lulc.collection:
         folder="C:/bin"
     )
 #maps_lulc.get_series_areas()
+'''
