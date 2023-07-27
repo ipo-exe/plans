@@ -209,7 +209,6 @@ class DailySeries:
         :param dpi: image resolution (default = 96)
         :type dpi: int
         """
-        # todo fix histogram as %
         import matplotlib.ticker as mtick
         from analyst import Univar
 
@@ -1093,7 +1092,7 @@ class NDVI(Raster):
     NDVI raster map dataset.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, date):
         """Deploy dataset.
 
         :param name: name of map
@@ -1105,6 +1104,7 @@ class NDVI(Raster):
         self.varalias = "NDVI"
         self.description = "Normalized difference vegetation index"
         self.units = "index units"
+        self.date = date
 
     def set_grid(self, grid):
         super(NDVI, self).set_grid(grid)
@@ -1129,7 +1129,7 @@ class ET24h(Raster):
     ET 24h raster map dataset.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, date):
         """Deploy dataset.
 
         :param name: name of map
@@ -1146,6 +1146,7 @@ class ET24h(Raster):
         # set custom cmap
         jet_big = mpl.colormaps["jet_r"]
         self.cmap = ListedColormap(jet_big(np.linspace(0.3, 0.75, 256)))
+        self.date = date
 
     def set_grid(self, grid):
         super().set_grid(grid)
