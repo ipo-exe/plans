@@ -52,6 +52,27 @@ def dataframe_prepro(dataframe):
             ].str.strip()
     return dataframe
 
+def get_random_colors(size=10, cmap="tab20"):
+    """Utility function to get a list of random colors
+
+    :param size: Size of list of colors
+    :type size: int
+    :param cmap: Name of matplotlib color map (cmap)
+    :type cmap: str
+    :return: list of random colors
+    :rtype: list
+    """
+    import matplotlib.colors as mcolors
+
+    # Choose a colormap from matplotlib
+    _cmap = plt.get_cmap(cmap)
+    # Generate a list of random numbers between 0 and 1
+    _lst_rand_vals = np.random.rand(size)
+    # Use the colormap to convert the random numbers to colors
+    _lst_colors = [
+        mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals
+    ]
+    return _lst_colors
 
 # -----------------------------------------
 # Series data structures
@@ -360,7 +381,7 @@ class Raster:
             "NODATA_value": -1,
         }
         self.nodatavalue = self.asc_metadata["NODATA_value"]
-        self.cellsize = self.guess_cellsize()
+        self.cellsize = self.asc_metadata["cellsize"]
         self.name = name
         self.dtype = dtype
         self.cmap = "jet"
@@ -407,9 +428,9 @@ class Raster:
         for k in self.asc_metadata:
             if k in metadata:
                 self.asc_metadata[k] = metadata[k]
-        # update nodata value
+        # update nodata value and cellsize
         self.nodatavalue = self.asc_metadata["NODATA_value"]
-        self.guess_cellsize()
+        self.cellsize = self.asc_metadata["cellsize"]
 
     def load_asc_raster(self, file, nan=False):
         """A function to load data and metadata from ``.asc`` raster files.
@@ -567,6 +588,29 @@ class Raster:
 
             return flenm
 
+
+    def export_prj_file(self, folder="./output", filename=None):
+        """Function for exporting an ``.prj`` file.
+
+        :param folder: string of directory path, , defaults to ``./output``
+        :type folder: str
+        :param filename: string of file without extension, defaults to None
+        :type filename: str
+        :return: full file name (path and extension) string
+        :rtype: str
+        """
+        if self.prj is None:
+            return None
+        else:
+            if filename is None:
+                filename = self.name
+
+            flenm = folder + "/" + filename + ".prj"
+            fle = open(flenm, "w+")
+            fle.writelines([self.prj])
+            fle.close()
+            return flenm
+
     def mask_nodata(self):
         """Mask grid cells as NaN where data is NODATA."""
         if self.nodatavalue is None:
@@ -590,6 +634,32 @@ class Raster:
             else:
                 # for floating point grid:
                 self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
+
+    def rebase_grid(self, base_raster, inplace=False, method="linear"):
+        from scipy.interpolate import griddata
+
+        # get data points
+        _df = self.get_grid_datapoints(drop_nan=True)
+
+        # get base grid data points
+        _dfi = base_raster.get_grid_datapoints(drop_nan=False)
+
+        # set data points
+        grd_points = np.array([_df["x"].values, _df["y"].values]).transpose()
+        grd_new_points = np.array([_dfi["x"].values, _dfi["y"].values]).transpose()
+
+        _dfi["zi"] = griddata(points=grd_points, values=_df["z"].values, xi=grd_new_points, method=method)
+
+
+        grd_zi = np.reshape(_dfi["zi"].values, newshape=base_raster.grid.shape)
+
+
+
+        if inplace:
+            self.grid = grd_zi
+            self.set_asc_metadata(metadata=base_raster.asc_metadata)
+        else:
+            return grd_zi
 
     def apply_aoi_mask(self, grid_aoi, inplace=False):
         """Apply AOI (area of interest) mask to raster map.
@@ -643,8 +713,66 @@ class Raster:
             else:
                 return new_grid
 
-    def get_data(self):
-        """Get flat and cleared data.
+    def get_bbox(self):
+        """Get the Bounding Box of map
+        :return: dictionary of xmin, xmax ymin and ymax
+        :rtype: dict
+        """
+        return {
+            "xmin": self.asc_metadata["xllcorner"],
+            "xmax": self.asc_metadata["xllcorner"] + (self.asc_metadata["ncols"] * self.cellsize),
+            "ymin": self.asc_metadata["yllcorner"],
+            "ymax": self.asc_metadata["yllcorner"] + (self.asc_metadata["nrows"] * self.cellsize)
+        }
+
+    def get_grid_datapoints(self, drop_nan=False):
+        """Get flat and cleared grid data points (x, y and z)
+
+        :return: dataframe of x, y and z fields
+        :rtype: :class:`pandas.DataFrame` or None
+        """
+        if self.grid is None:
+            return None
+        else:
+            # get coordinates
+            vct_i = np.zeros(self.grid.shape[0] * self.grid.shape[1])
+            vct_j = vct_i.copy()
+            vct_z = vct_i.copy()
+            _c = 0
+            for i in range(len(self.grid)):
+                for j in range(len(self.grid[i])):
+                    vct_i[_c] = i
+                    vct_j[_c] = j
+                    vct_z[_c] = self.grid[i][j]
+                    _c = _c + 1
+
+            # transform
+            n_height = self.grid.shape[0] * self.cellsize
+            vct_y = self.asc_metadata["yllcorner"] + (n_height - (vct_i * self.cellsize)) - (self.cellsize / 2)
+            vct_x = self.asc_metadata["xllcorner"] + (vct_j * self.cellsize) + (self.cellsize / 2)
+
+            # drop nan or masked values:
+            if drop_nan:
+                vct_j = vct_j[~np.isnan(vct_z)]
+                vct_i = vct_i[~np.isnan(vct_z)]
+                vct_x = vct_x[~np.isnan(vct_z)]
+                vct_y = vct_y[~np.isnan(vct_z)]
+                vct_z = vct_z[~np.isnan(vct_z)]
+            # built dataframe
+            _df = pd.DataFrame(
+                {
+                    "x": vct_x,
+                    "y": vct_y,
+                    "z": vct_z,
+                    "i": vct_i,
+                    "j": vct_j,
+                }
+            )
+
+            return _df
+
+    def get_grid_data(self):
+        """Get flat and cleared grid data.
 
         :return: 1d vector of cleared data
         :rtype: :class:`numpy.ndarray` or None
@@ -661,7 +789,7 @@ class Raster:
                 _grid = self.grid.ravel()[~np.isnan(self.grid.ravel())]
                 return _grid
 
-    def get_raster_stats(self):
+    def get_grid_stats(self):
         """Get basic statistics from flat and clear data.
 
         :return: dataframe of basic statistics
@@ -672,19 +800,7 @@ class Raster:
         else:
             from analyst import Univar
 
-            return Univar(data=self.get_data()).assess_basic_stats()
-
-    def guess_cellsize(self):
-        """Guess the cellsize in meters if is degrees.
-
-        :return: grid cell size in meters
-        :rtype: :class:`pandas.DataFrame` or None
-        """
-        if self.asc_metadata["cellsize"] < 1:
-            self.cellsize = self.asc_metadata["cellsize"] * 111 * 1000  # by 1deg = 111km
-        else:
-            self.cellsize = self.asc_metadata["cellsize"]
-        return self.cellsize
+            return Univar(data=self.get_grid_data()).assess_basic_stats()
 
     def view_raster(
         self,
@@ -713,7 +829,7 @@ class Raster:
         plt.style.use("seaborn-v0_8")
 
         # get univar object
-        uni = Univar(data=self.get_data())
+        uni = Univar(data=self.get_grid_data())
         if len(np.unique(uni.data)) <= 1:
             nbins = 1
         else:
@@ -809,7 +925,7 @@ class Raster:
         # plot metadata
 
         # get datasets
-        df_stats = self.get_raster_stats()
+        df_stats = self.get_grid_stats()
         lst_meta = []
         lst_value = []
         for k in self.asc_metadata:
@@ -877,7 +993,7 @@ class Raster:
         else:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
         plt.close(fig)
 
 
@@ -1077,6 +1193,9 @@ class QualiRaster(Raster):
         super().set_asc_metadata(metadata)
         self._overwrite_nodata()
 
+    def rebase_grid(self, base_raster, inplace=False):
+        grd = super().rebase_grid(base_raster, inplace, method="nearest")
+        return grd
     def load_table(self, file):
         """Load attributes dataframe from ``csv`` ``.txt`` file (separator must be ;).
 
@@ -1118,16 +1237,7 @@ class QualiRaster(Raster):
         if self.table is None:
             pass
         else:
-            import matplotlib.colors as mcolors
-
-            # Choose a colormap from matplotlib
-            _cmap = plt.get_cmap(self.cmap)
-            # Generate a list of random numbers between 0 and 1
-            _lst_rand_vals = np.random.rand(len(self.table))
-            # Use the colormap to convert the random numbers to colors
-            self.table[self.colorfield] = [
-                mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals
-            ]
+            self.table[self.colorfield] = get_random_colors(size=len(self.table), cmap=self.cmap)
 
     def get_areas(self, merge=False):
         """Get areas in map of each category in table.
@@ -1137,11 +1247,14 @@ class QualiRaster(Raster):
         :return: areas dataframe
         :rtype: :class:`pandas.DataFrame`
         """
-        if self.table is None or self.grid is None:
-            pass
+        if self.table is None or self.grid is None or self.prj is None:
+            return None
         else:
-            # get unit area
-            _n_unit_area = np.square(self.cellsize)
+            # get unit area in meters
+            _cell_size = self.cellsize
+            if self.prj[:6] == "GEOGCS":
+                _cell_size = self.cellsize * 111111 # convert degrees to meters
+            _n_unit_area = np.square(_cell_size)
             # get aux dataframe
             df_aux = self.table[["Id", "Name", "Alias"]].copy()
             _lst_count = []
@@ -1220,7 +1333,7 @@ class QualiRaster(Raster):
             grid_aoi = 1 * (self.grid == n_id)
             raster_sample.apply_aoi_mask(grid_aoi=grid_aoi, inplace=True)
             # get basic stats
-            raster_uni = Univar(data=raster_sample.get_data(), name=varname)
+            raster_uni = Univar(data=raster_sample.get_grid_data(), name=varname)
             df_stats = raster_uni.assess_basic_stats()
             lst_stats.append(df_stats.copy())
             # restore
@@ -1623,7 +1736,7 @@ class RasterCollection:
         lst_stats = []
         for i in range(len(self.catalog)):
             s_name = self.catalog["Name"].values[i]
-            df_stats = self.collection[s_name].get_raster_stats()
+            df_stats = self.collection[s_name].get_grid_stats()
             lst_stats.append(df_stats.copy())
         # deploy fields
         for k in df_stats["Statistic"]:
@@ -1670,6 +1783,99 @@ class RasterCollection:
                 show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
             )
 
+    def view_bboxes(self, colors=None, datapoints=False, show=False, folder="./output", filename=None, dpi=200):
+        """View Bounding Boxes of Raster collection
+
+        :param colors: list of colors for plotting. expected to be the same size of catalog
+        :type colors: list
+        :param datapoints: option to plot datapoints as well, defaults to False
+        :type datapoints: bool
+        :param show: option to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :return: None
+        :rtype: none
+        """
+        plt.style.use("seaborn-v0_8")
+        fig = plt.figure(figsize=(5, 5))
+        # get colors
+        lst_colors = colors
+        if colors is None:
+            lst_colors = get_random_colors(size=len(self.catalog))
+        # colect names and bboxes
+        lst_x_values = list()
+        lst_y_values = list()
+        dct_bboxes = dict()
+        dct_colors = dict()
+        _c = 0
+        for name in self.collection:
+            dct_colors[name] = lst_colors[_c]
+            lcl_bbox = self.collection[name].get_bbox()
+            dct_bboxes[name] = lcl_bbox
+            # append coordinates
+            lst_x_values.append(lcl_bbox["xmin"])
+            lst_x_values.append(lcl_bbox["xmax"])
+            lst_y_values.append(lcl_bbox["ymin"])
+            lst_y_values.append(lcl_bbox["ymax"])
+            _c = _c + 1
+        # get min and max
+        n_xmin = np.min(lst_x_values)
+        n_xmax = np.max(lst_x_values)
+        n_ymin = np.min(lst_y_values)
+        n_ymax = np.max(lst_y_values)
+        # get ranges
+        n_x_range = np.abs(n_xmax - n_xmin)
+        n_y_range = np.abs(n_ymax - n_ymin)
+
+        # plot loop
+        for name in dct_bboxes:
+            plt.scatter(
+                dct_bboxes[name]["xmin"],
+                dct_bboxes[name]["ymin"],
+                marker="^",
+                color=dct_colors[name]
+            )
+            if datapoints:
+                df_dpoints = self.collection[name].get_grid_datapoints(drop_nan=False)
+                plt.scatter(
+                    df_dpoints["x"],
+                    df_dpoints["y"],
+                    color=dct_colors[name],
+                    marker="."
+                )
+            _w = dct_bboxes[name]["xmax"] - dct_bboxes[name]["xmin"]
+            _h = dct_bboxes[name]["ymax"] - dct_bboxes[name]["ymin"]
+            rect = plt.Rectangle(
+                xy=(dct_bboxes[name]["xmin"],
+                    dct_bboxes[name]["ymin"]),
+                width=_w,
+                height=_h,
+                alpha=0.5,
+                label=name,
+                color=dct_colors[name]
+            )
+            plt.gca().add_patch(rect)
+        plt.ylim(n_ymin - (n_y_range/3), n_ymax + (n_y_range/3))
+        plt.xlim(n_xmin - (n_x_range/3), n_xmax + (n_x_range/3))
+        plt.gca().set_aspect("equal")
+        plt.legend()
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = "bboxes"
+            plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
+        plt.close(fig)
+
+
+
 
 class RasterSeries(RasterCollection):
     """A :class:`RasterCollection` where date matters and all maps in collections are
@@ -1693,7 +1899,7 @@ class RasterSeries(RasterCollection):
         self.varalias = varalias
         self.units = units
 
-    def load_raster(self, name, date, asc_file):
+    def load_raster(self, name, date, asc_file, prj_file=None):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -1714,6 +1920,11 @@ class RasterSeries(RasterCollection):
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
+        # load prj file
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
         # delete aux
         del rst_aux
 

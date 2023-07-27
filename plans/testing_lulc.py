@@ -1,89 +1,95 @@
-import glob
+import numpy as np
 import matplotlib.pyplot as plt
 import datasets as ds
 
-# load slope layer
-map_slope = ds.Slope(name="Sample")
-map_slope.load_asc_raster(file="../samples/map_slope.asc")
-map_slope.view_raster(show=True)
+full = False
+toy = True
 
-map_slope.load_prj_file(file="../samples/map_slope.prj")
-print(map_slope.prj)
+if full:
+    s_name = "Potiribu"
 
-'''
-# load slope layer
-map_slope = ds.Slope(name="Sample")
-map_slope.load_asc_raster(file="../samples/map_slope.asc")
-#map_slope.view_raster(show=True)
+    # instanciar
+    s_date = "1990-01-01"
+    map_lulc = ds.LULC(name="Potiribu LULC", date=s_date)
+    # carregar mapa
+    map_lulc.load_asc_raster(file="../samples/lulc/map_lulc_{}.asc".format(s_date))
+    # carregar dados de projecao
+    map_lulc.load_prj_file(file="../samples/lulc/map_lulc_{}.prj".format(s_date))
+    # carregar tabela de atributos
+    map_lulc.load_table(file="../samples/table_lulc.txt")
+    bbox_lulc = map_lulc.get_bbox()
+    # visualizar mapa qualitativo
+    ##map_lulc.view_qualiraster(show=True)
 
-# load AOI raster
-map_aoi = ds.AOI(name="Sample")
-map_aoi.load_asc_raster(file="../samples/map_aoi.asc")
-#map_aoi.view_qualiraster(show=True)
+    # instanciar
+    map_ndvi = ds.NDVI(name="Potiribu NDVI 2017-12-13")
+    # carregar mapa
+    map_ndvi.load_asc_raster(file="../samples/ndvi/map_ndvi_2017-12-13.asc")
+    # carregar dados de projecao
+    map_ndvi.load_prj_file(file="../samples/ndvi/map_ndvi_2017-12-13.prj")
+    bbox_ndvi = map_ndvi.get_bbox()
+    print(map_ndvi.grid.shape)
+    # visualizar mapa
+    ##map_ndvi.view_raster(show=True)
 
-# set AOI to slope layer
-map_slope.apply_aoi_mask(grid_aoi=map_aoi.grid, inplace=True)
-#map_slope.view_raster(show=True)
+
+    r_collection = ds.RasterCollection()
+    r_collection.append_raster(raster=map_lulc)
+    r_collection.append_raster(raster=map_ndvi)
+    print(r_collection.catalog.to_string())
+
+    r_collection.view_bboxes(show=True, datapoints=True, colors=["red", "blue"])
+
+if toy:
+    s_name = "Potiribu"
+
+    # instanciar
+    s_date = "1990-01-01"
+    map_lulc = ds.LULC(name="Potiribu LULC", date=s_date)
+    # carregar mapa
+    map_lulc.load_asc_raster(file="C:/output/lulc.asc")
+    # carregar dados de projecao
+    map_lulc.load_prj_file(file="../samples/lulc/map_lulc_{}.prj".format(s_date))
+    # carregar tabela de atributos
+    map_lulc.load_table(file="../samples/table_lulc.txt")
+    bbox_lulc = map_lulc.get_bbox()
+    # visualizar mapa qualitativo
+    #map_lulc.view_qualiraster(show=True)
+
+    # instanciar
+    map_dem = ds.Elevation(name="Potiribu DEM")
+    # carregar mapa
+    map_dem.load_asc_raster(file="C:/output/dem.asc")
+    # carregar dados de projecao
+    map_dem.load_prj_file(file="../samples/map_dem.prj")
+    bbox_ndvi = map_dem.get_bbox()
+    print(map_dem.grid.shape)
+    # visualizar mapa
+    #map_dem.view_raster(show=True)
 
 
-# create LULC dataset
-s_date = '1990-01-01'
-map_lulc = ds.LULC(name="Potiribu_{}".format(s_date), date=s_date)
-s_file_raster = "../samples/lulc/map_lulc_{}.asc".format(s_date)
-map_lulc.load_asc_raster(file=s_file_raster)
-s_file_table = "../samples/table_lulc.txt"
-map_lulc.load_table(file=s_file_table)
+    r_collection = ds.RasterCollection()
+    r_collection.append_raster(raster=map_lulc)
+    r_collection.append_raster(raster=map_dem)
+    print(r_collection.catalog.to_string())
 
-# apply AOI mask
-map_lulc.apply_aoi_mask(grid_aoi=map_aoi.grid, inplace=True)
+    r_collection.view_bboxes(show=True, datapoints=True, colors=["red", "blue"])
 
-# view LULC map
-map_lulc.view_qualiraster(show=True, filename="lulc_{}".format(s_date), folder="C:/bin")
+    df_pts = map_lulc.get_grid_datapoints(drop_nan=False)
+    print(df_pts.to_string())
+    grd = np.reshape(df_pts["z"].values, newshape=map_lulc.grid.shape)
+    plt.imshow(grd, cmap="jet")
+    plt.show()
 
-# compute LULC areas
-df_areas = map_lulc.get_areas()
-print(df_areas.to_string())
 
-# zonal stats from slope map
-df_stats = map_lulc.get_zonal_stats(
-    raster_sample=map_slope,
-    merge=True,
-    skip_count=True
-)
-print(df_stats.to_string())
+    grd = map_lulc.rebase_grid(base_raster=map_dem)
+    map_new_lulc = ds.LULC(name="Potiribu New LULC", date=s_date)
+    map_new_lulc.set_grid(grid=grd)
+    map_new_lulc.set_asc_metadata(metadata=map_dem.asc_metadata)
+    map_new_lulc.set_table(dataframe=map_lulc.table)
+    map_new_lulc.prj = map_dem.prj
+    #print(map_new_lulc.table)
+    map_new_lulc.view_qualiraster(show=True)
 
-print(map_lulc.table.to_string())
 
-# Series
-s_file_table = "../samples/table_lulc.txt"
-series_lulc = ds.LULCSeries(name="potiribu")
-lst_maps = glob.glob(r"..\samples\lulc\*.asc")
-print("loading")
-for f in lst_maps:
-    s_date = f.split("_")[-1].split(".")[0]
-    series_lulc.load_asc_raster(
-        name="Potiribu_{}".format(s_date),
-        date=s_date,
-        file=f,
-        file_table=s_file_table
-    )
-# apply AOI to
-for raster in series_lulc.collection:
-    series_lulc.collection[raster].apply_aoi_mask(
-        grid_aoi=map_aoi.grid,
-        inplace=True
-    )
 
-print(series_lulc.catalog.to_string())
-print(series_lulc.get_series_stats().to_string())
-series_lulc.plot_series_stats(show=True)
-
-for raster in series_lulc.collection:
-    print(raster)
-    series_lulc.collection[raster].view_qualiraster(
-        show=True,
-        filename=raster,
-        folder="C:/bin"
-    )
-#maps_lulc.get_series_areas()
-'''
