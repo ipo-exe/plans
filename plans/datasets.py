@@ -2067,9 +2067,7 @@ class NDVISeries(RasterSeries):
         :rtype: None
         """
         # create raster
-        rst_aux = NDVI(name=name)
-        # set attributes
-        rst_aux.date = date
+        rst_aux = NDVI(name=name, date=date)
         # read file
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
@@ -2110,9 +2108,7 @@ class ETSeries(RasterSeries):
         :rtype: None
         """
         # create raster
-        rst_aux = ET24h(name=name)
-        # set attributes
-        rst_aux.date = date
+        rst_aux = ET24h(name=name, date=date)
         # read file
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
