@@ -405,6 +405,7 @@ class Raster:
         self.grid = grid.astype(self.dtype)
         # mask nodata values
         self.mask_nodata()
+        return None
 
     def set_asc_metadata(self, metadata):
         """Set metadata from incoming objects
@@ -431,6 +432,7 @@ class Raster:
         # update nodata value and cellsize
         self.nodatavalue = self.asc_metadata["NODATA_value"]
         self.cellsize = self.asc_metadata["cellsize"]
+        return None
 
     def load_asc_raster(self, file, nan=False):
         """A function to load data and metadata from ``.asc`` raster files.
@@ -484,6 +486,7 @@ class Raster:
 
         self.set_asc_metadata(metadata=dct_meta)
         self.set_grid(grid=grd_data)
+        return None
 
     def load_asc_metadata(self, file):
         """A function to load only metadata from ``.asc`` raster files.
@@ -519,6 +522,7 @@ class Raster:
                 meta_dct[meta_lbls[i]] = float(lcl_meta_str)
         # set attribute
         self.set_asc_metadata(metadata=meta_dct)
+        return None
 
     def load_prj_file(self, file):
         """Function for loading ``.prj`` aux file to the prj attribute
@@ -530,6 +534,7 @@ class Raster:
         """
         with open(file) as f:
             self.prj = f.readline().strip('\n')
+        return None
 
     def export_asc_raster(self, folder="./output", filename=None):
         """Function for exporting an ``.asc`` raster file.
@@ -597,7 +602,7 @@ class Raster:
         :param filename: string of file without extension, defaults to None
         :type filename: str
         :return: full file name (path and extension) string
-        :rtype: str
+        :rtype: str or None
         """
         if self.prj is None:
             return None
@@ -622,6 +627,7 @@ class Raster:
             else:
                 # for floating point grid:
                 self.grid[self.grid == self.nodatavalue] = np.nan
+        return None
 
     def insert_nodata(self):
         """Insert grid cells as NODATA where data is NaN."""
@@ -634,30 +640,36 @@ class Raster:
             else:
                 # for floating point grid:
                 self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
+        return None
 
     def rebase_grid(self, base_raster, inplace=False, method="linear"):
+        """
+        Rebase grid of raster. This function creates a new grid based on a provided raster.
+        :param base_raster: reference raster for rebase
+        :type base_raster: :class:`datasets.Raster`
+        :param inplace: option for rebase the own grid if True, defaults to False
+        :type inplace: bool
+        :param method: interpolation method - linear, nearest and cubic
+        :type method: str
+        :return: rebased grid
+        :rtype: :class:`numpy.ndarray` or None
+        """
         from scipy.interpolate import griddata
-
         # get data points
         _df = self.get_grid_datapoints(drop_nan=True)
-
         # get base grid data points
         _dfi = base_raster.get_grid_datapoints(drop_nan=False)
-
         # set data points
         grd_points = np.array([_df["x"].values, _df["y"].values]).transpose()
         grd_new_points = np.array([_dfi["x"].values, _dfi["y"].values]).transpose()
-
         _dfi["zi"] = griddata(points=grd_points, values=_df["z"].values, xi=grd_new_points, method=method)
-
-
         grd_zi = np.reshape(_dfi["zi"].values, newshape=base_raster.grid.shape)
-
-
-
         if inplace:
-            self.grid = grd_zi
+            # set
+            self.set_grid(grid=grd_zi)
             self.set_asc_metadata(metadata=base_raster.asc_metadata)
+            self.prj = base_raster.prj
+            return None
         else:
             return grd_zi
 
@@ -665,7 +677,7 @@ class Raster:
         """Apply AOI (area of interest) mask to raster map.
 
         :param grid_aoi: map of AOI (masked array or pseudo-boolean)
-        Must have the same size of grid
+        Expected to have the same grid.
         :type grid_aoi: :class:`numpy.ndarray`
         :param inplace: set on the own grid if True, defaults to False
         :type inplace: bool
@@ -681,9 +693,7 @@ class Raster:
             grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
 
             if inplace:
-                self.grid = grd_mask
-                # mask
-                self.mask_nodata()
+                self.set_grid(grid=grd_mask)
                 return None
             else:
                 return grd_mask
@@ -995,6 +1005,7 @@ class Raster:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
         plt.close(fig)
+        return None
 
 
 # -----------------------------------------
@@ -1098,6 +1109,7 @@ class NDVI(Raster):
     def set_grid(self, grid):
         super(NDVI, self).set_grid(grid)
         self.cut_edges(upper=1, lower=-1)
+        return None
 
     def view_raster(
         self, show=False, folder="./output", filename=None, specs=None, dpi=96
@@ -1109,6 +1121,7 @@ class NDVI(Raster):
             for k in default_specs:
                 specs[k] = default_specs[k]
         super().view_raster(show, folder, filename, specs, dpi)
+        return None
 
 
 class ET24h(Raster):
@@ -1137,6 +1150,7 @@ class ET24h(Raster):
     def set_grid(self, grid):
         super().set_grid(grid)
         self.cut_edges(upper=100, lower=0)
+        return None
 
     def view_raster(
         self, show=False, folder="./output", filename=None, specs=None, dpi=96
@@ -1148,6 +1162,7 @@ class ET24h(Raster):
             for k in default_specs:
                 specs[k] = default_specs[k]
         super().view_raster(show, folder, filename, specs, dpi)
+        return None
 
 
 # -----------------------------------------
@@ -1188,14 +1203,17 @@ class QualiRaster(Raster):
     def _overwrite_nodata(self):
         self.nodatavalue = 0
         self.asc_metadata["NODATA_value"] = self.nodatavalue
+        return None
 
     def set_asc_metadata(self, metadata):
         super().set_asc_metadata(metadata)
         self._overwrite_nodata()
+        return None
 
     def rebase_grid(self, base_raster, inplace=False):
-        grd = super().rebase_grid(base_raster, inplace, method="nearest")
-        return grd
+        out = super().rebase_grid(base_raster, inplace, method="nearest")
+        return out
+
     def load_table(self, file):
         """Load attributes dataframe from ``csv`` ``.txt`` file (separator must be ;).
 
@@ -1206,6 +1224,7 @@ class QualiRaster(Raster):
         df_aux = pd.read_csv(file, sep=";")
         # set to self
         self.set_table(dataframe=df_aux)
+        return None
 
     def export_table(self, folder="./output", filename=None):
         """Export an ``csv`` ``.txt``  file.
@@ -1238,6 +1257,7 @@ class QualiRaster(Raster):
             pass
         else:
             self.table[self.colorfield] = get_random_colors(size=len(self.table), cmap=self.cmap)
+        return None
 
     def get_areas(self, merge=False):
         """Get areas in map of each category in table.
@@ -1310,7 +1330,7 @@ class QualiRaster(Raster):
         """Get zonal stats from other raster map to sample.
 
         :param raster_sample: raster map to sample
-        :type raster_sample: :class:`datasets.RasterMap`
+        :type raster_sample: :class:`datasets.Raster`
         :param merge: option to merge data with raster table, defaults to False
         :type merge: bool
         :param skip_count: set True to skip count, defaults to False
@@ -1529,9 +1549,10 @@ class QualiRaster(Raster):
             s_head = df_meta["Raster"].values[i]
             if s_head == "cellsize":
                 s_value = self.cellsize
+                s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
             else:
                 s_value = df_meta["Value"].values[i]
-            s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
+                s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
             n_y = n_y - n_step
             plt.text(
                 x=n_x,
@@ -1550,6 +1571,7 @@ class QualiRaster(Raster):
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
         plt.close(fig)
+        return None
 
 
 class LULC(QualiRaster):
@@ -1612,8 +1634,7 @@ class RasterCollection:
     """
     The raster collection base dataset.
 
-    This data strucute is designed for holding and comparing similar :class:`Raster` objects.
-    Grid shape is expected to be the same.
+    This data strucute is designed for holding and comparing :class:`Raster` objects.
 
     """
 
@@ -1674,6 +1695,7 @@ class RasterCollection:
         )
         self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
         self.catalog = self.catalog.drop_duplicates(subset="Name", keep="last")
+        return None
 
     def remove_raster(self, name):
         """Remove a :class:`Raster` object from collection.
@@ -1687,6 +1709,35 @@ class RasterCollection:
         self.catalog = self.catalog.drop(
             self.catalog[self.catalog["Name"] == name].index
         ).reset_index(drop=True)
+        return None
+
+    def update_catalog(self):
+        # create new catalog
+        df_new_catalog = pd.DataFrame(
+            columns=self.catalog.columns
+        )
+        df_new_catalog["Date"] = pd.to_datetime(df_new_catalog["Date"])
+        for name in self.collection:
+            # set
+            df_aux = pd.DataFrame(
+                {
+                    "Name": [self.collection[name].name],
+                    "Variable": [self.collection[name].varname],
+                    "VarAlias": [self.collection[name].varalias],
+                    "Units": [self.collection[name].units],
+                    "Date": [self.collection[name].date],
+                    "cellsize": [self.collection[name].cellsize],
+                    "ncols": [self.collection[name].asc_metadata["ncols"]],
+                    "rows": [self.collection[name].asc_metadata["nrows"]],
+                    "xllcorner": [self.collection[name].asc_metadata["xllcorner"]],
+                    "yllcorner": [self.collection[name].asc_metadata["yllcorner"]],
+                    "NODATA_value": [self.collection[name].nodatavalue],
+                    "Prj": [self.collection[name].prj]
+                }
+            )
+            df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
+        self.catalog = df_new_catalog
+        return None
 
     def load_raster(
         self, name, asc_file, prj_file=None, varname=None, varalias=None, units=None, date=None
@@ -1748,7 +1799,7 @@ class RasterCollection:
         df_aux["count"] = df_aux["count"].astype(dtype="uint16")
         return df_aux
 
-    def plot_views(self, show=False, folder="./output", specs=None, dpi=96):
+    def export_views(self, show=False, folder="./output", specs=None, dpi=96):
         """Plot all basic pannel of raster maps in collection.
 
         :param show: boolean to show plot instead of saving, defaults to False
@@ -1782,6 +1833,7 @@ class RasterCollection:
             rst_lcl.view_raster(
                 show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
             )
+        return None
 
     def view_bboxes(self, colors=None, datapoints=False, show=False, folder="./output", filename=None, dpi=200):
         """View Bounding Boxes of Raster collection
@@ -1873,13 +1925,12 @@ class RasterCollection:
                 filename = "bboxes"
             plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
         plt.close(fig)
-
-
+        return None
 
 
 class RasterSeries(RasterCollection):
     """A :class:`RasterCollection` where date matters and all maps in collections are
-    assumed to be the same variable and ocuppy the same spatial extent.
+    expected to be the same variable, same projection and same grid.
     """
 
     def __init__(self, name, varname, varalias, units, dtype="float32"):
@@ -1899,7 +1950,7 @@ class RasterSeries(RasterCollection):
         self.varalias = varalias
         self.units = units
 
-    def load_raster(self, name, date, asc_file, prj_file=None):
+    def load_raster(self, name, date, asc_file, prj_file):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -1908,6 +1959,10 @@ class RasterSeries(RasterCollection):
         :type date: str
         :param asc_file: path to ``.asc`` raster file
         :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
         """
         # create raster
         rst_aux = Raster(name=name, dtype=self.dtype)
@@ -1921,12 +1976,35 @@ class RasterSeries(RasterCollection):
         # append to collection
         self.append_raster(raster=rst_aux)
         # load prj file
-        if prj_file is None:
-            pass
-        else:
-            rst_aux.load_prj_file(file=prj_file)
+        rst_aux.load_prj_file(file=prj_file)
         # delete aux
         del rst_aux
+        return None
+
+    def apply_aoi_masks(self, grid_aoi):
+        """Batch method to apply AOI mask over all maps in collection
+
+        :param grid_aoi: aoi grid
+        :type grid_aoi: :class:`numpy.ndarray`
+        :return: None
+        :rtype: None
+        """
+        for name in self.collection:
+            self.collection[name].apply_aoi_mask(grid_aoi=grid_aoi, inplace=True)
+        return None
+
+    def rebase_grids(self, base_raster):
+        """Batch method for rebase all maps in collection
+
+        :param base_raster: base raster for rebasing
+        :type base_raster: :class:`datasets.Raster`
+        :return: None
+        :rtype: None
+        """
+        for name in self.collection:
+            self.collection[name].rebase_grid(base_raster=base_raster, inplace=True)
+        self.update_catalog()
+        return None
 
     def get_series_stats(self):
         """Get the raster series statistics
@@ -1956,6 +2034,7 @@ class RasterSeries(RasterCollection):
             for k in default_specs:
                 specs[k] = default_specs[k]
         ts.plot_basic_view(show=show, specs=specs)
+        return None
 
 
 class NDVISeries(RasterSeries):
@@ -1972,15 +2051,19 @@ class NDVISeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file):
-        """Load a :class:`NDVI` object from ``.asc`` raster file.
+    def load_raster(self, name, date, asc_file, prj_file):
+        """Load a :class:`NDVI` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute
+        :param date: :class:`Raster.date` date attribute, defaults to None
         :type date: str
         :param asc_file: path to ``.asc`` raster file
         :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
         """
         # create raster
         rst_aux = NDVI(name=name)
@@ -1990,8 +2073,11 @@ class NDVISeries(RasterSeries):
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
+        # load prj file
+        rst_aux.load_prj_file(file=prj_file)
         # delete aux
         del rst_aux
+        return None
 
 
 class ETSeries(RasterSeries):
@@ -2008,15 +2094,19 @@ class ETSeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file):
-        """Load a :class:`ET24h` object from ``.asc`` raster file.
+    def load_raster(self, name, date, asc_file, prj_file):
+        """Load a :class:`ET24h` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute
+        :param date: :class:`Raster.date` date attribute, defaults to None
         :type date: str
         :param asc_file: path to ``.asc`` raster file
         :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
         """
         # create raster
         rst_aux = ET24h(name=name)
@@ -2026,8 +2116,11 @@ class ETSeries(RasterSeries):
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append_raster(raster=rst_aux)
+        # load prj file
+        rst_aux.load_prj_file(file=prj_file)
         # delete aux
         del rst_aux
+        return None
 
 
 class QualiSeries(RasterSeries):
@@ -2045,7 +2138,7 @@ class QualiSeries(RasterSeries):
             name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
         )
 
-    def load_raster(self, name, date, asc_file, file_table):
+    def load_raster(self, name, date, asc_file, prj_file, table_file):
         """Load a :class:`QualiRaster` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -2054,8 +2147,10 @@ class QualiSeries(RasterSeries):
         :type date: str
         :param asc_file: path to ``.asc`` raster file
         :type asc_file: str
-        :param file: path to ``.txt`` csv attribute table file
-        :type file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :param table_file: path to ``.txt`` table file
+        :type table_file: str
         """
         # create raster
         rst_aux = QualiRaster(name=name)
@@ -2063,6 +2158,8 @@ class QualiSeries(RasterSeries):
         rst_aux.date = date
         # read file
         rst_aux.load_asc_raster(file=asc_file)
+        # load prj
+        rst_aux.load_prj_file(file=prj_file)
         # set table
         rst_aux.load_table(file=file_table)
         # append to collection
@@ -2092,8 +2189,7 @@ class QualiSeries(RasterSeries):
         plt.show()
 
 
-
-    def plot_views(self, show=False, folder="./output", specs=None, dpi=96):
+    def export_views(self, show=False, folder="./output", specs=None, dpi=96):
         """Plot all basic pannel of raster maps in collection.
 
         :param show: boolean to show plot instead of saving, defaults to False
@@ -2105,7 +2201,6 @@ class QualiSeries(RasterSeries):
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         """
-
         # plot loop
         for k in self.collection:
             rst_lcl = self.collection[k]
@@ -2113,7 +2208,6 @@ class QualiSeries(RasterSeries):
             rst_lcl.view_qualiraster(
                 show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
             )
-
 
 class LULCSeries(QualiSeries):
     def __init__(self, name):
@@ -2128,7 +2222,7 @@ class LULCSeries(QualiSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file, file_table):
+    def load_raster(self, name, date, asc_file, prj_file, table_file):
         """Load a :class:`LULCRaster` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -2137,15 +2231,19 @@ class LULCSeries(QualiSeries):
         :type date: str
         :param asc_file: path to ``.asc`` raster file
         :type asc_file: str
-        :param file: path to ``.txt`` csv attribute table file
-        :type file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :param table_file: path to ``.txt`` table file
+        :type table_file: str
         """
         # create raster
         rst_aux = LULC(name=name, date=date)
         # read file
         rst_aux.load_asc_raster(file=asc_file)
+        # load prj
+        rst_aux.load_prj_file(file=prj_file)
         # set table
-        rst_aux.load_table(file=file_table)
+        rst_aux.load_table(file=table_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux

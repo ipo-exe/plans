@@ -1,9 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import datasets as ds
+import glob
+import warnings
 
-full = False
-toy = True
+warnings.filterwarnings('ignore')
+
+full = True
+toy = False
 
 if full:
     s_name = "Potiribu"
@@ -19,7 +23,7 @@ if full:
     map_lulc.load_table(file="../samples/table_lulc.txt")
     bbox_lulc = map_lulc.get_bbox()
     # visualizar mapa qualitativo
-    ##map_lulc.view_qualiraster(show=True)
+    map_lulc.view_qualiraster(show=True)
 
     # instanciar
     map_ndvi = ds.NDVI(name="Potiribu NDVI 2017-12-13")
@@ -30,15 +34,50 @@ if full:
     bbox_ndvi = map_ndvi.get_bbox()
     print(map_ndvi.grid.shape)
     # visualizar mapa
-    ##map_ndvi.view_raster(show=True)
+    map_ndvi.view_raster(show=True)
 
 
+    # evaluate bboxes
     r_collection = ds.RasterCollection()
     r_collection.append_raster(raster=map_lulc)
     r_collection.append_raster(raster=map_ndvi)
     print(r_collection.catalog.to_string())
+    r_collection.view_bboxes(show=True, datapoints=False, colors=["red", "blue"])
 
-    r_collection.view_bboxes(show=True, datapoints=True, colors=["red", "blue"])
+    # rebase
+    map_lulc.rebase_grid(base_raster=map_ndvi, inplace=True)
+    map_lulc.view_qualiraster(show=True)
+
+    # lulc series
+    # instanciar
+    series_lulc = ds.LULCSeries(name=s_name)
+    # laço para carregar mapas
+    lst_maps = glob.glob(r"..\samples\lulc\*.asc")
+    lst_prjs = glob.glob(r"..\samples\lulc\*.prj")
+    print("loading...")
+    for i in range(len(lst_maps)):
+        lcl_asc_file = lst_maps[i]
+        lcl_prj_file = lst_prjs[i]
+        s_date = lcl_asc_file.split("_")[-1].split(".")[0]
+        # load lulc
+        series_lulc.load_raster(
+            name="Potiribu_{}".format(s_date),
+            date=s_date,
+            asc_file=lcl_asc_file,
+            prj_file=lcl_prj_file,
+            table_file="../samples/table_lulc.txt"
+        )
+    print(series_lulc.catalog.to_string())
+    print("rebase grids...")
+    series_lulc.rebase_grids(base_raster=map_ndvi)
+    print()
+    print(series_lulc.catalog.to_string())
+    print("exporting views")
+    series_lulc.export_views(
+        folder="C:/bin", dpi=120
+    )
+
+
 
 if toy:
     s_name = "Potiribu"
