@@ -2041,7 +2041,7 @@ class RasterSeries(RasterCollection):
 class NDVISeries(RasterSeries):
     def __init__(self, name):
         # instantiate raster sample
-        rst_aux = NDVI(name="dummy")
+        rst_aux = NDVI(name="dummy", date=None)
         super().__init__(
             name=name,
             varname=rst_aux.varname,
@@ -2082,7 +2082,7 @@ class NDVISeries(RasterSeries):
 class ETSeries(RasterSeries):
     def __init__(self, name):
         # instantiate raster sample
-        rst_aux = ET24h(name="dummy")
+        rst_aux = ET24h(name="dummy", date=None)
         super().__init__(
             name=name,
             varname=rst_aux.varname,
@@ -2209,7 +2209,7 @@ class QualiSeries(RasterSeries):
 class LULCSeries(QualiSeries):
     def __init__(self, name):
         # instantiate raster sample
-        rst_aux = LULC(name="dummy", date="2020-01-01")
+        rst_aux = LULC(name="dummy", date=None)
         super().__init__(
             name=name,
             varname=rst_aux.varname,
