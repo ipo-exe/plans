@@ -23,11 +23,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
-import os
+import os, glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 # -----------------------------------------
@@ -52,6 +55,7 @@ def dataframe_prepro(dataframe):
             ].str.strip()
     return dataframe
 
+
 def get_random_colors(size=10, cmap="tab20"):
     """Utility function to get a list of random colors
 
@@ -69,10 +73,9 @@ def get_random_colors(size=10, cmap="tab20"):
     # Generate a list of random numbers between 0 and 1
     _lst_rand_vals = np.random.rand(size)
     # Use the colormap to convert the random numbers to colors
-    _lst_colors = [
-        mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals
-    ]
+    _lst_colors = [mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals]
     return _lst_colors
+
 
 # -----------------------------------------
 # Series data structures
@@ -193,8 +196,14 @@ class DailySeries:
         df_aux = df_aux.reset_index()
         return df_aux
 
-    def plot_basic_view(
-        self, show=False, folder="C:/data", filename=None, specs=None, dpi=96
+    def view(
+        self,
+        show=False,
+        folder="C:/data",
+        filename=None,
+        specs=None,
+        dpi=300,
+        format="jpg",
     ):
         """
         Plot series basic view
@@ -208,6 +217,8 @@ class DailySeries:
         :type specs: dict
         :param dpi: image resolution (default = 96)
         :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
         """
         import matplotlib.ticker as mtick
         from analyst import Univar
@@ -280,9 +291,7 @@ class DailySeries:
                 color=specs["mavg color"],
             )
         plt.ylim(specs["ylim"])
-        plt.xlim(
-            self.data[self.datefield].values[0], self.data[self.datefield].values[-1]
-        )
+        plt.xlim(self.data[self.datefield].min(), self.data[self.datefield].max())
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["a_xlabel"])
         plt.legend(frameon=True, loc=(0.0, -0.35), ncol=1)
@@ -326,8 +335,9 @@ class DailySeries:
         else:
             if filename is None:
                 filename = self.name
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=96)
+            plt.savefig("{}/{}.{}".format(folder, filename, format), dpi=dpi)
         plt.close(fig)
+        return None
 
 
 class PrecipSeries(DailySeries):
@@ -532,7 +542,7 @@ class Raster:
         :rtype: None
         """
         with open(file) as f:
-            self.prj = f.readline().strip('\n')
+            self.prj = f.readline().strip("\n")
         return None
 
     def export_asc_raster(self, folder="./output", filename=None):
@@ -592,7 +602,6 @@ class Raster:
 
             return flenm
 
-
     def export_prj_file(self, folder="./output", filename=None):
         """Function for exporting an ``.prj`` file.
 
@@ -643,7 +652,8 @@ class Raster:
 
     def rebase_grid(self, base_raster, inplace=False, method="linear"):
         """
-        Rebase grid of raster. This function creates a new grid based on a provided raster.
+        Rebase grid of raster. This function creates a new grid based on a provided raster. Both rasters
+        are expected to be in the same coordinate system and having overlapping bounding boxes.
         :param base_raster: reference raster for rebase
         :type base_raster: :class:`datasets.Raster`
         :param inplace: option for rebase the own grid if True, defaults to False
@@ -654,6 +664,7 @@ class Raster:
         :rtype: :class:`numpy.ndarray` or None
         """
         from scipy.interpolate import griddata
+
         # get data points
         _df = self.get_grid_datapoints(drop_nan=True)
         # get base grid data points
@@ -661,7 +672,9 @@ class Raster:
         # set data points
         grd_points = np.array([_df["x"].values, _df["y"].values]).transpose()
         grd_new_points = np.array([_dfi["x"].values, _dfi["y"].values]).transpose()
-        _dfi["zi"] = griddata(points=grd_points, values=_df["z"].values, xi=grd_new_points, method=method)
+        _dfi["zi"] = griddata(
+            points=grd_points, values=_df["z"].values, xi=grd_new_points, method=method
+        )
         grd_zi = np.reshape(_dfi["zi"].values, newshape=base_raster.grid.shape)
         if inplace:
             # set
@@ -729,9 +742,11 @@ class Raster:
         """
         return {
             "xmin": self.asc_metadata["xllcorner"],
-            "xmax": self.asc_metadata["xllcorner"] + (self.asc_metadata["ncols"] * self.cellsize),
+            "xmax": self.asc_metadata["xllcorner"]
+            + (self.asc_metadata["ncols"] * self.cellsize),
             "ymin": self.asc_metadata["yllcorner"],
-            "ymax": self.asc_metadata["yllcorner"] + (self.asc_metadata["nrows"] * self.cellsize)
+            "ymax": self.asc_metadata["yllcorner"]
+            + (self.asc_metadata["nrows"] * self.cellsize),
         }
 
     def get_grid_datapoints(self, drop_nan=False):
@@ -757,8 +772,16 @@ class Raster:
 
             # transform
             n_height = self.grid.shape[0] * self.cellsize
-            vct_y = self.asc_metadata["yllcorner"] + (n_height - (vct_i * self.cellsize)) - (self.cellsize / 2)
-            vct_x = self.asc_metadata["xllcorner"] + (vct_j * self.cellsize) + (self.cellsize / 2)
+            vct_y = (
+                self.asc_metadata["yllcorner"]
+                + (n_height - (vct_i * self.cellsize))
+                - (self.cellsize / 2)
+            )
+            vct_x = (
+                self.asc_metadata["xllcorner"]
+                + (vct_j * self.cellsize)
+                + (self.cellsize / 2)
+            )
 
             # drop nan or masked values:
             if drop_nan:
@@ -811,13 +834,14 @@ class Raster:
 
             return Univar(data=self.get_grid_data()).assess_basic_stats()
 
-    def view_raster(
+    def view(
         self,
         show=False,
         folder="./output",
         filename=None,
         specs=None,
-        dpi=96,
+        dpi=300,
+        format="jpg",
     ):
         """Plot a basic pannel of raster map.
 
@@ -831,6 +855,8 @@ class Raster:
         :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
         """
         import matplotlib.ticker as mtick
         from analyst import Univar
@@ -957,9 +983,10 @@ class Raster:
             s_head = df_meta["Raster"].values[i]
             if s_head == "cellsize":
                 s_value = self.cellsize
+                s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
             else:
                 s_value = df_meta["Value"].values[i]
-            s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
+                s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
             n_y = n_y - n_step
             plt.text(
                 x=n_x,
@@ -1002,7 +1029,7 @@ class Raster:
         else:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
+            plt.savefig("{}/{}.{}".format(folder, filename, format), dpi=dpi)
         plt.close(fig)
         return None
 
@@ -1111,16 +1138,41 @@ class NDVI(Raster):
         self.cut_edges(upper=1, lower=-1)
         return None
 
-    def view_raster(
-        self, show=False, folder="./output", filename=None, specs=None, dpi=96
+    def view(
+        self,
+        show=False,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=300,
+        format="jpg",
     ):
+        """
+        View NDVI raster
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
+        """
+        # set specs
         default_specs = {"vmin": -1, "vmax": 1}
         if specs is None:
             specs = default_specs
         else:
             for k in default_specs:
                 specs[k] = default_specs[k]
-        super().view_raster(show, folder, filename, specs, dpi)
+        # call super
+        super().view(show, folder, filename, specs, dpi, format=format)
         return None
 
 
@@ -1153,16 +1205,39 @@ class ET24h(Raster):
         self.cut_edges(upper=100, lower=0)
         return None
 
-    def view_raster(
-        self, show=False, folder="./output", filename=None, specs=None, dpi=96
+    def view(
+        self,
+        show=False,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=300,
+        format="jpg",
     ):
+        """
+        View ET raster
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
+        """
         default_specs = {"vmin": 0, "vmax": 10}
         if specs is None:
             specs = default_specs
         else:
             for k in default_specs:
                 specs[k] = default_specs[k]
-        super().view_raster(show, folder, filename, specs, dpi)
+        super().view(show, folder, filename, specs, dpi, format=format)
         return None
 
 
@@ -1257,7 +1332,9 @@ class QualiRaster(Raster):
         if self.table is None:
             pass
         else:
-            self.table[self.colorfield] = get_random_colors(size=len(self.table), cmap=self.cmap)
+            self.table[self.colorfield] = get_random_colors(
+                size=len(self.table), cmap=self.cmap
+            )
         return None
 
     def get_areas(self, merge=False):
@@ -1274,7 +1351,7 @@ class QualiRaster(Raster):
             # get unit area in meters
             _cell_size = self.cellsize
             if self.prj[:6] == "GEOGCS":
-                _cell_size = self.cellsize * 111111 # convert degrees to meters
+                _cell_size = self.cellsize * 111111  # convert degrees to meters
             _n_unit_area = np.square(_cell_size)
             # get aux dataframe
             df_aux = self.table[["Id", "Name", "Alias"]].copy()
@@ -1304,20 +1381,18 @@ class QualiRaster(Raster):
             # km2
             s_field = "{}_km2".format(self.areafield)
             lst_area_fields.append(s_field)
-            df_aux[s_field] = df_aux[s_count_field].values * _n_unit_area / (1000 * 1000)
+            df_aux[s_field] = (
+                df_aux[s_count_field].values * _n_unit_area / (1000 * 1000)
+            )
 
             # fraction
             s_field = "{}_f".format(self.areafield)
             lst_area_fields.append(s_field)
-            df_aux[s_field] = (
-                df_aux[s_count_field] / df_aux[s_count_field].sum()
-            )
+            df_aux[s_field] = df_aux[s_count_field] / df_aux[s_count_field].sum()
             # %
             s_field = "{}_%".format(self.areafield)
             lst_area_fields.append(s_field)
-            df_aux[s_field] = (
-                100 * df_aux[s_count_field] / df_aux[s_count_field].sum()
-            )
+            df_aux[s_field] = 100 * df_aux[s_count_field] / df_aux[s_count_field].sum()
             df_aux[s_field] = df_aux[s_field].round(2)
 
             # handle merge
@@ -1385,8 +1460,14 @@ class QualiRaster(Raster):
 
         return df_aux
 
-    def view_qualiraster(
-        self, show=False, folder="./output", filename=None, specs=None, dpi=200
+    def view(
+        self,
+        show=False,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=300,
+        format="jpg",
     ):
         """Plot a basic pannel of qualitative raster map.
 
@@ -1400,6 +1481,10 @@ class QualiRaster(Raster):
         :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
         """
         from matplotlib.colors import ListedColormap
         from matplotlib.patches import Patch
@@ -1415,7 +1500,7 @@ class QualiRaster(Raster):
         _all_ids = np.arange(0, self.table[self.idfield].max() + 1)
         _lst_colors = []
         for i in range(0, len(_all_ids)):
-            _df = self.table.query('{} >= {}'.format(self.idfield, i)).copy()
+            _df = self.table.query("{} >= {}".format(self.idfield, i)).copy()
             _color = _df[self.colorfield].values[0]
             _lst_colors.append(_color)
 
@@ -1437,6 +1522,9 @@ class QualiRaster(Raster):
             "gs_rows": 7,
             "gs_cols": 5,
             "gs_b_rowlim": 4,
+            "legend_x": 0.6,
+            "legend_y": 0.3,
+            "legend_ncol": 2,
         }
         # handle input specs
         if specs is None:
@@ -1474,7 +1562,7 @@ class QualiRaster(Raster):
             _color = self.table[self.colorfield].values[i]
             _label = "{} ({})".format(
                 self.table[self.namefield].values[i],
-                self.table[self.aliasfield].values[i]
+                self.table[self.aliasfield].values[i],
             )
             legend_elements.append(
                 Patch(
@@ -1487,9 +1575,9 @@ class QualiRaster(Raster):
             fontsize=9,
             markerscale=0.8,
             handles=legend_elements,
-            bbox_to_anchor=(0.6, 0.3),
+            bbox_to_anchor=(specs["legend_x"], specs["legend_y"]),
             bbox_transform=fig.transFigure,
-            ncol=2,
+            ncol=specs["legend_ncol"],
         )
 
         # -----------------------------------------------
@@ -1570,7 +1658,7 @@ class QualiRaster(Raster):
         else:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
+            plt.savefig("{}/{}.{}".format(folder, filename, format), dpi=dpi)
         plt.close(fig)
         return None
 
@@ -1660,7 +1748,7 @@ class RasterCollection:
                 "xllcorner",
                 "yllcorner",
                 "NODATA_value",
-                "Prj"
+                "Prj",
             ]
         )
         self.catalog["Date"] = pd.to_datetime(self.catalog["Date"])
@@ -1691,11 +1779,11 @@ class RasterCollection:
                 "xllcorner": [raster.asc_metadata["xllcorner"]],
                 "yllcorner": [raster.asc_metadata["yllcorner"]],
                 "NODATA_value": [raster.nodatavalue],
-                "Prj": [raster.prj]
+                "Prj": [raster.prj],
             }
         )
         self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
-        self.catalog = self.catalog.drop_duplicates(subset="Name", keep="last")
+        self.update_catalog()
         return None
 
     def remove_raster(self, name):
@@ -1712,36 +1800,54 @@ class RasterCollection:
         ).reset_index(drop=True)
         return None
 
-    def update_catalog(self):
-        # create new catalog
-        df_new_catalog = pd.DataFrame(
-            columns=self.catalog.columns
-        )
-        df_new_catalog["Date"] = pd.to_datetime(df_new_catalog["Date"])
-        for name in self.collection:
-            # set
-            df_aux = pd.DataFrame(
-                {
-                    "Name": [self.collection[name].name],
-                    "Variable": [self.collection[name].varname],
-                    "VarAlias": [self.collection[name].varalias],
-                    "Units": [self.collection[name].units],
-                    "Date": [self.collection[name].date],
-                    "cellsize": [self.collection[name].cellsize],
-                    "ncols": [self.collection[name].asc_metadata["ncols"]],
-                    "rows": [self.collection[name].asc_metadata["nrows"]],
-                    "xllcorner": [self.collection[name].asc_metadata["xllcorner"]],
-                    "yllcorner": [self.collection[name].asc_metadata["yllcorner"]],
-                    "NODATA_value": [self.collection[name].nodatavalue],
-                    "Prj": [self.collection[name].prj]
-                }
-            )
-            df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
-        self.catalog = df_new_catalog
+    def update_catalog(self, details=False):
+        """
+        Update the collection catalog
+        :param details: option to update catalog details (looking into rasters)
+        :type details: bool
+        :return: None
+        :rtype: none
+        """
+        # update details
+        if details:
+            # create new catalog
+            df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
+            df_new_catalog["Date"] = pd.to_datetime(df_new_catalog["Date"])
+            for name in self.collection:
+                # set new information
+                df_aux = pd.DataFrame(
+                    {
+                        "Name": [self.collection[name].name],
+                        "Variable": [self.collection[name].varname],
+                        "VarAlias": [self.collection[name].varalias],
+                        "Units": [self.collection[name].units],
+                        "Date": [self.collection[name].date],
+                        "cellsize": [self.collection[name].cellsize],
+                        "ncols": [self.collection[name].asc_metadata["ncols"]],
+                        "rows": [self.collection[name].asc_metadata["nrows"]],
+                        "xllcorner": [self.collection[name].asc_metadata["xllcorner"]],
+                        "yllcorner": [self.collection[name].asc_metadata["yllcorner"]],
+                        "NODATA_value": [self.collection[name].nodatavalue],
+                        "Prj": [self.collection[name].prj],
+                    }
+                )
+                df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
+            self.catalog = df_new_catalog.copy()
+            del df_new_catalog
+        # basic updates
+        self.catalog = self.catalog.drop_duplicates(subset="Name", keep="last")
+        self.catalog = self.catalog.sort_values(by="Name").reset_index(drop=True)
         return None
 
     def load_raster(
-        self, name, asc_file, prj_file=None, varname=None, varalias=None, units=None, date=None
+        self,
+        name,
+        asc_file,
+        prj_file=None,
+        varname=None,
+        varalias=None,
+        units=None,
+        date=None,
     ):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
 
@@ -1800,7 +1906,9 @@ class RasterCollection:
         df_aux["count"] = df_aux["count"].astype(dtype="uint16")
         return df_aux
 
-    def export_views(self, show=False, folder="./output", specs=None, dpi=96):
+    def export_views(
+        self, show=False, folder="./output", specs=None, dpi=300, format="jpg"
+    ):
         """Plot all basic pannel of raster maps in collection.
 
         :param show: boolean to show plot instead of saving, defaults to False
@@ -1811,6 +1919,10 @@ class RasterCollection:
         :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
         """
 
         # get stats
@@ -1831,12 +1943,26 @@ class RasterCollection:
         for k in self.collection:
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
-            rst_lcl.view_raster(
-                show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
+            rst_lcl.view(
+                show=show,
+                specs=specs,
+                folder=folder,
+                filename=s_name,
+                dpi=dpi,
+                format=format,
             )
         return None
 
-    def view_bboxes(self, colors=None, datapoints=False, show=False, folder="./output", filename=None, dpi=200):
+    def view_bboxes(
+        self,
+        colors=None,
+        datapoints=False,
+        show=False,
+        folder="./output",
+        filename=None,
+        dpi=300,
+        format="jpg",
+    ):
         """View Bounding Boxes of Raster collection
 
         :param colors: list of colors for plotting. expected to be the same size of catalog
@@ -1851,6 +1977,8 @@ class RasterCollection:
         :type filename: str
         :param dpi: image resolution, defaults to 96
         :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
         :return: None
         :rtype: none
         """
@@ -1891,30 +2019,26 @@ class RasterCollection:
                 dct_bboxes[name]["xmin"],
                 dct_bboxes[name]["ymin"],
                 marker="^",
-                color=dct_colors[name]
+                color=dct_colors[name],
             )
             if datapoints:
                 df_dpoints = self.collection[name].get_grid_datapoints(drop_nan=False)
                 plt.scatter(
-                    df_dpoints["x"],
-                    df_dpoints["y"],
-                    color=dct_colors[name],
-                    marker="."
+                    df_dpoints["x"], df_dpoints["y"], color=dct_colors[name], marker="."
                 )
             _w = dct_bboxes[name]["xmax"] - dct_bboxes[name]["xmin"]
             _h = dct_bboxes[name]["ymax"] - dct_bboxes[name]["ymin"]
             rect = plt.Rectangle(
-                xy=(dct_bboxes[name]["xmin"],
-                    dct_bboxes[name]["ymin"]),
+                xy=(dct_bboxes[name]["xmin"], dct_bboxes[name]["ymin"]),
                 width=_w,
                 height=_h,
                 alpha=0.5,
                 label=name,
-                color=dct_colors[name]
+                color=dct_colors[name],
             )
             plt.gca().add_patch(rect)
-        plt.ylim(n_ymin - (n_y_range/3), n_ymax + (n_y_range/3))
-        plt.xlim(n_xmin - (n_x_range/3), n_xmax + (n_x_range/3))
+        plt.ylim(n_ymin - (n_y_range / 3), n_ymax + (n_y_range / 3))
+        plt.xlim(n_xmin - (n_x_range / 3), n_xmax + (n_x_range / 3))
         plt.gca().set_aspect("equal")
         plt.legend()
 
@@ -1924,7 +2048,7 @@ class RasterCollection:
         else:
             if filename is None:
                 filename = "bboxes"
-            plt.savefig("{}/{}.png".format(folder, filename), dpi=dpi)
+            plt.savefig("{}/{}.{}".format(folder, filename, format), dpi=dpi)
         plt.close(fig)
         return None
 
@@ -1950,6 +2074,41 @@ class RasterSeries(RasterCollection):
         self.varname = varname
         self.varalias = varalias
         self.units = units
+
+    def load_folder(self, folder, name_pattern="map_*", talk=False):
+        """
+        Load all rasters from a folder by following a name pattern.
+        Date is expected to be at the end of name before file extension.
+        :param folder: path to folder
+        :type folder: str
+        :param name_pattern: name pattern. example map_*
+        :type name_pattern: str
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: None
+        :rtype: None
+        """
+        #
+        lst_maps = glob.glob("{}/{}.asc".format(folder, name_pattern))
+        lst_prjs = glob.glob("{}/{}.prj".format(folder, name_pattern))
+        if talk:
+            print("loading folder...")
+        for i in range(len(lst_maps)):
+            asc_file = lst_maps[i]
+            prj_file = lst_prjs[i]
+            # get name
+            s_name = os.path.basename(asc_file).split(".")[0]
+            # get dates
+            s_date_map = asc_file.split("_")[-1].split(".")[0]
+            s_date_prj = prj_file.split("_")[-1].split(".")[0]
+            # load
+            self.load_raster(
+                name=s_name,
+                date=s_date_map,
+                asc_file=asc_file,
+                prj_file=prj_file,
+            )
+        return None
 
     def load_raster(self, name, date, asc_file, prj_file):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
@@ -1994,17 +2153,21 @@ class RasterSeries(RasterCollection):
             self.collection[name].apply_aoi_mask(grid_aoi=grid_aoi, inplace=True)
         return None
 
-    def rebase_grids(self, base_raster):
+    def rebase_grids(self, base_raster, talk=False):
         """Batch method for rebase all maps in collection
 
         :param base_raster: base raster for rebasing
         :type base_raster: :class:`datasets.Raster`
+        :param talk: option for print messages
+        :type talk: bool
         :return: None
         :rtype: None
         """
+        if talk:
+            print("rebase grids...")
         for name in self.collection:
             self.collection[name].rebase_grid(base_raster=base_raster, inplace=True)
-        self.update_catalog()
+        self.update_catalog(details=True)
         return None
 
     def get_series_stats(self):
@@ -2018,7 +2181,36 @@ class RasterSeries(RasterCollection):
         )
         return df_series
 
-    def plot_series_stats(self, statistic="mean", specs=None, show=False):
+    def view_series_stats(
+        self,
+        statistic="mean",
+        folder="./output",
+        filename=None,
+        specs=None,
+        show=False,
+        dpi=300,
+        format="jpg",
+    ):
+        """
+        View raster series statistics
+
+        :param statistic: statistc to view. Default mean
+        :type statistic: str
+        :param show: option to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
+        """
         df_series = self.get_series_stats()
         ts = DailySeries(
             name=self.name, varname="{}_{}".format(self.varname, statistic)
@@ -2034,7 +2226,14 @@ class RasterSeries(RasterCollection):
             # overwrite incoming specs
             for k in default_specs:
                 specs[k] = default_specs[k]
-        ts.plot_basic_view(show=show, specs=specs)
+        ts.view(
+            show=show,
+            folder=folder,
+            filename=filename,
+            specs=specs,
+            dpi=dpi,
+            format=format,
+        )
         return None
 
 
@@ -2134,6 +2333,38 @@ class QualiSeries(RasterSeries):
         super().__init__(
             name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
         )
+        self.table = None
+
+    def update_table(self):
+        """
+        Update series table (attributes)
+        :return: None
+        :rtype: None
+        """
+        if len(self.catalog) == 0:
+            pass
+        else:
+            for i in range(len(self.catalog)):
+                _name = self.catalog["Name"].values[i]
+                if i == 0:
+                    self.table = self.collection[_name].table.copy()
+                else:
+                    self.table = pd.concat(
+                        [self.table, self.collection[_name].table.copy()]
+                    )
+        self.table = self.table.drop_duplicates(subset="Id", keep="last")
+        return None
+
+    def append_raster(self, raster):
+        """Append a :class:`Raster` object to collection.
+        Pre-existing objects with the same :class:`Raster.name` attribute are replaced
+
+        :param raster: incoming :class:`Raster` to append
+        :type raster: :class:`Raster`
+        """
+        super().append_raster(raster=raster)
+        self.update_table()
+        return None
 
     def load_raster(self, name, date, asc_file, prj_file, table_file):
         """Load a :class:`QualiRaster` object from ``.asc`` raster file.
@@ -2164,30 +2395,162 @@ class QualiSeries(RasterSeries):
         # delete aux
         del rst_aux
 
+    def load_folder(self, folder, table_file, name_pattern="map_*", talk=False):
+        """
+        Load all rasters from a folder by following a name pattern.
+        Date is expected to be at the end of name before file extension.
+        :param folder: path to folder
+        :type folder: str
+        :param table_file: path to table file
+        :type table_file: str
+        :param name_pattern: name pattern. example map_*
+        :type name_pattern: str
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: None
+        :rtype: None
+        """
+        #
+        lst_maps = glob.glob("{}/{}.asc".format(folder, name_pattern))
+        lst_prjs = glob.glob("{}/{}.prj".format(folder, name_pattern))
+        if talk:
+            print("loading folder...")
+        for i in range(len(lst_maps)):
+            asc_file = lst_maps[i]
+            prj_file = lst_prjs[i]
+            # get name
+            s_name = os.path.basename(asc_file).split(".")[0]
+            # get dates
+            s_date_map = asc_file.split("_")[-1].split(".")[0]
+            s_date_prj = prj_file.split("_")[-1].split(".")[0]
+            # load
+            self.load_raster(
+                name=s_name,
+                date=s_date_map,
+                asc_file=asc_file,
+                prj_file=prj_file,
+                table_file=table_file,
+            )
+        return None
+
     def get_series_areas(self):
-
+        """
+        Get areas prevalance for all series
+        :return: dataframe of series areas
+        :rtype: :class:`pandas.DataFrame`
+        """
+        # compute areas for each raster
         for i in range(len(self.catalog)):
-
             s_raster_name = self.catalog["Name"].values[i]
             s_raster_date = self.catalog["Date"].values[i]
+            # compute
             df_areas = self.collection[s_raster_name].get_areas()
-            df_areas["Name_raster"] = s_raster_name
-            df_areas["Date"] = s_raster_date
+            # insert name and date fields
+            df_areas.insert(loc=0, column="Name_raster", value=s_raster_name)
+            df_areas.insert(loc=1, column="Date", value=s_raster_date)
+            # concat dataframes
             if i == 0:
                 df_areas_full = df_areas.copy()
             else:
                 df_areas_full = pd.concat([df_areas_full, df_areas])
-        df_areas_full['Name'] = df_areas_full['Name'].astype('category')
-        df_areas_full['Date'] = pd.to_datetime(df_areas_full['Date'])
+        df_areas_full["Name"] = df_areas_full["Name"].astype("category")
+        df_areas_full["Date"] = pd.to_datetime(df_areas_full["Date"])
+        return df_areas_full
 
-        for k in df_areas_full["Name"].unique():
-            df_lcl = df_areas_full.query("Name == '{}'".format(k)).copy()
-            plt.plot(df_lcl["Date"], df_lcl["Area_%"])
-        plt.show()
+    def view_series_areas(
+        self,
+        specs=None,
+        show=False,
+        folder="./output",
+        filename=None,
+        dpi=300,
+        format="jpg",
+    ):
+        """
+        View series areas
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param show: option to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
+        """
+        plt.style.use("seaborn-v0_8")
+        # get specs
+        default_specs = {
+            "suptitle": "{} | Area Series".format(self.name),
+            "width": 5 * 1.618,
+            "height": 5,
+            "ylabel": "Area prevalence (%)",
+            "ylim": (0, 100),
+            "legend_x": 0.85,
+            "legend_y": 0.33,
+            "legend_ncol": 3,
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
 
+        # compute areas
+        df_areas = self.get_series_areas()
 
-    def export_views(self, show=False, folder="./output", specs=None, dpi=96):
-        """Plot all basic pannel of raster maps in collection.
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        gs = mpl.gridspec.GridSpec(
+            3, 1, wspace=0.5, hspace=0.9, left=0.1, bottom=0.1, top=0.9, right=0.95
+        )
+        fig.suptitle(specs["suptitle"])
+
+        # start plotting
+        plt.subplot(gs[0:2, 0])
+        for i in range(len(self.table)):
+            # get attributes
+            _id = self.table["Id"].values[i]
+            _name = self.table["Name"].values[i]
+            _alias = self.table["Alias"].values[i]
+            _color = self.table["Color"].values[i]
+            # filter series
+            _df = df_areas.query("Id == {}".format(_id)).copy()
+            print(_df.head().to_string())
+            plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
+        plt.legend(
+            frameon=True,
+            fontsize=9,
+            markerscale=0.8,
+            bbox_to_anchor=(specs["legend_x"], specs["legend_y"]),
+            bbox_transform=fig.transFigure,
+            ncol=specs["legend_ncol"],
+        )
+        plt.xlim(df_areas["Date"].min(), df_areas["Date"].max())
+        plt.ylabel(specs["ylabel"])
+        plt.ylim(specs["ylim"])
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = "{}_{}".format(self.varalias, self.name)
+            plt.savefig("{}/{}.{}".format(folder, filename, format), dpi=dpi)
+        plt.close(fig)
+        return None
+
+    def export_views(
+        self, show=False, folder="./output", specs=None, dpi=300, format="jpg"
+    ):
+        """Plot all basic pannel of qualiraster maps in collection.
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
@@ -2197,14 +2560,25 @@ class QualiSeries(RasterSeries):
         :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
         """
         # plot loop
         for k in self.collection:
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
-            rst_lcl.view_qualiraster(
-                show=show, specs=specs, folder=folder, filename=s_name, dpi=dpi
+            rst_lcl.view(
+                show=show,
+                specs=specs,
+                folder=folder,
+                filename=s_name,
+                dpi=dpi,
+                format=format,
             )
+        return None
+
 
 class LULCSeries(QualiSeries):
     def __init__(self, name):
@@ -2232,6 +2606,8 @@ class LULCSeries(QualiSeries):
         :type prj_file: str
         :param table_file: path to ``.txt`` table file
         :type table_file: str
+        :return: None
+        :rtype: None
         """
         # create raster
         rst_aux = LULC(name=name, date=date)
@@ -2245,21 +2621,8 @@ class LULCSeries(QualiSeries):
         self.append_raster(raster=rst_aux)
         # delete aux
         del rst_aux
-
-
+        return None
 
 
 if __name__ == "__main__":
-
-    s_folder = "C:/data"
-    lst_years = ["1985", "1986", "1987", "1988"]
-
-    s_table_file = "C:/data/mapbiomas_c7_table.txt"
-
-    s_file = "{}/map_mata_mapbiomas_{}.asc".format(s_folder, lst_years[0])
-
-    my_lulc = LULC(name="lulc_1985", date="1985-01-01")
-    my_lulc.load_table(file=s_table_file)
-    my_lulc.load_asc_raster(file=s_file)
-    specs = {"cmpa": "Greys"}
-    my_lulc.view_qualiraster(show=True, specs=specs)
+    print("Hi!")
