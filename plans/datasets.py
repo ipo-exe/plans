@@ -1517,6 +1517,7 @@ class QualiRaster(Raster):
             "b_area": "km2",
             "b_xlabel": "Area",
             "b_xmax": None,
+            "bars_alias": True,
             "vmin": 0,
             "vmax": self.table[self.idfield].max(),
             "gs_rows": 7,
@@ -1590,8 +1591,12 @@ class QualiRaster(Raster):
         df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         plt.subplot(gs[: default_specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
+        if specs["bars_alias"]:
+            s_bar_labels = self.aliasfield
+        else:
+            s_bar_labels = self.namefield
         plt.barh(
-            df_aux[self.aliasfield],
+            df_aux[s_bar_labels],
             df_aux["{}_{}".format(self.areafield, specs["b_area"])],
             color=df_aux[self.colorfield],
         )
@@ -1683,6 +1688,39 @@ class LULC(QualiRaster):
         self.description = "Classes of Land Use and Land Cover"
         self.units = "classes ID"
         self.date = date
+
+
+class LULCChange(QualiRaster):
+    """
+    Land Use and Land Cover Change map dataset
+    """
+
+    def __init__(self, name, date_start, date_end, name_lulc):
+        """Initialize :class:`LULCChange` map
+
+            :param name: name of map
+            :type name: str
+            :param date_start: date of map in ``yyyy-mm-dd``
+            :type date: str
+            """
+        super().__init__(name, dtype="uint8")
+        self.cmap = "tab20b"
+        self.varname = "Land Use and Land Cover Change"
+        self.varalias = "LULCC"
+        self.description = "Change of Land Use and Land Cover"
+        self.units = "Change ID"
+        self.date_start = date_start
+        self.date_end = date_end
+        self.date = date_end
+        self.table = pd.DataFrame(
+            {
+                self.idfield: [1, 2, 3,],
+                self.namefield: ["Retraction", "Stable", "Expansion"],
+                self.aliasfield: ["Rtr", "Stb", "Exp"],
+                self.colorfield: ["tab:purple", "tab:orange", "tab:red"]
+            }
+        )
+
 
 
 class Soils(QualiRaster):
@@ -2052,6 +2090,57 @@ class RasterCollection:
         plt.close(fig)
         return None
 
+class QualiRasterCollection(RasterCollection):
+    """
+    The raster collection base dataset.
+
+    This data strucute is designed for holding and comparing :class:`QualiRaster` objects.
+    """
+    def __init__(self, name, varname, varalias, dtype="uint8"):
+        """Deploy Qualitative Raster Series
+
+        :param name: :class:`RasterSeries.name` name attribute
+        :type name: str
+        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :type varname: str
+        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :type varalias: str
+        """
+        super().__init__(
+            name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
+        )
+
+    def load_raster(self, name, asc_file, prj_file=None, table_file=None):
+        """Load a :class:`QualiRaster` object from ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :param table_file: path to ``.txt`` table file
+        :type table_file: str
+        """
+        # create raster
+        rst_aux = QualiRaster(name=name)
+        # read file
+        rst_aux.load_asc_raster(file=asc_file)
+        # load prj
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
+        # set table
+        if table_file is None:
+            pass
+        else:
+            rst_aux.load_table(file=table_file)
+        # append to collection
+        self.append_raster(raster=rst_aux)
+        # delete aux
+        del rst_aux
+        return None
 
 class RasterSeries(RasterCollection):
     """A :class:`RasterCollection` where date matters and all maps in collections are
@@ -2110,7 +2199,7 @@ class RasterSeries(RasterCollection):
             )
         return None
 
-    def load_raster(self, name, date, asc_file, prj_file):
+    def load_raster(self, name, date, asc_file, prj_file=None):
         """Load a :class:`Raster` object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -2136,7 +2225,10 @@ class RasterSeries(RasterCollection):
         # append to collection
         self.append_raster(raster=rst_aux)
         # load prj file
-        rst_aux.load_prj_file(file=prj_file)
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
         # delete aux
         del rst_aux
         return None
@@ -2319,7 +2411,10 @@ class ETSeries(RasterSeries):
         return None
 
 
-class QualiSeries(RasterSeries):
+class QualiRasterSeries(RasterSeries):
+    """A :class:`RasterSeries` where date matters and all maps in collections are
+    expected to be :class:`QualiRaster` with the same variable, same projection and same grid.
+    """
     def __init__(self, name, varname, varalias, dtype="uint8"):
         """Deploy Qualitative Raster Series
 
@@ -2366,7 +2461,7 @@ class QualiSeries(RasterSeries):
         self.update_table()
         return None
 
-    def load_raster(self, name, date, asc_file, prj_file, table_file):
+    def load_raster(self, name, date, asc_file, prj_file=None, table_file=None):
         """Load a :class:`QualiRaster` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -2387,9 +2482,15 @@ class QualiSeries(RasterSeries):
         # read file
         rst_aux.load_asc_raster(file=asc_file)
         # load prj
-        rst_aux.load_prj_file(file=prj_file)
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
         # set table
-        rst_aux.load_table(file=file_table)
+        if table_file is None:
+            pass
+        else:
+            rst_aux.load_table(file=table_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux
@@ -2523,7 +2624,6 @@ class QualiSeries(RasterSeries):
             _color = self.table["Color"].values[i]
             # filter series
             _df = df_areas.query("Id == {}".format(_id)).copy()
-            print(_df.head().to_string())
             plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
         plt.legend(
             frameon=True,
@@ -2580,7 +2680,7 @@ class QualiSeries(RasterSeries):
         return None
 
 
-class LULCSeries(QualiSeries):
+class LULCSeries(QualiRasterSeries):
     def __init__(self, name):
         # instantiate raster sample
         rst_aux = LULC(name="dummy", date=None)
@@ -2593,7 +2693,7 @@ class LULCSeries(QualiSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file, prj_file, table_file):
+    def load_raster(self, name, date, asc_file, prj_file=None, table_file=None):
         """Load a :class:`LULCRaster` object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
@@ -2614,14 +2714,171 @@ class LULCSeries(QualiSeries):
         # read file
         rst_aux.load_asc_raster(file=asc_file)
         # load prj
-        rst_aux.load_prj_file(file=prj_file)
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
         # set table
-        rst_aux.load_table(file=table_file)
+        if table_file is None:
+            pass
+        else:
+            rst_aux.load_table(file=table_file)
         # append to collection
         self.append_raster(raster=rst_aux)
         # delete aux
         del rst_aux
         return None
+
+    def get_lulcc(self, date_start, date_end, by_lulc_id):
+        """
+        Get the :class:`LULCChange` of a given time interval and LULC class Id
+        :param date_start: start date of time interval
+        :type date_start: str
+        :param date_end: end date of time interval
+        :type date_end: str
+        :param by_lulc_id: LULC class Id
+        :type by_lulc_id: int
+        :return: map of LULC Change
+        :rtype: :class:`LULCChange`
+        """
+        # set up
+        s_name_start = self.catalog.loc[self.catalog['Date'] == date_start]["Name"].values[0] #
+        s_name_end = self.catalog.loc[self.catalog['Date'] == date_end]["Name"].values[0]
+
+        # compute lulc change grid
+        grd_lulcc = (1 * (self.collection[s_name_end].grid == by_lulc_id)) - (1 * (self.collection[s_name_start].grid == by_lulc_id))
+        grd_all = (1 * (self.collection[s_name_end].grid == by_lulc_id)) + (1 * (self.collection[s_name_start].grid == by_lulc_id))
+        grd_all = 1 * (grd_all > 0)
+        grd_lulcc = (grd_lulcc + 2) * grd_all
+
+        # get names
+        s_name = self.name
+        s_name_lulc = self.table.loc[self.table["Id"] == by_lulc_id]["Name"].values[0]
+        # instantiate
+        map_lulc_change = LULCChange(
+            name="{}_{}_{}".format(s_name, s_name_lulc, date_end),
+            name_lulc=s_name_lulc,
+            date_start=date_start,
+            date_end=date_end
+        )
+        map_lulc_change.set_grid(grid=grd_lulcc)
+        map_lulc_change.set_asc_metadata(metadata=self.collection[s_name_start].asc_metadata)
+        map_lulc_change.prj = self.collection[s_name_start].prj
+
+        return map_lulc_change
+
+    def get_lulcc_series(self, by_lulc_id):
+        """
+        Get the :class:`QualiRasterSeries` of LULC Change for the entire LULC series for a given LULC Id
+        :param by_lulc_id: LULC class Id
+        :type by_lulc_id: int
+        :return: Series of LULC Change
+        :rtype: :class:`QualiRasterSeries`
+        """
+        series_lulcc = QualiRasterSeries(
+            name="{} - Change Series".format(self.name),
+            varname="Land Use and Land Cover Change",
+            varalias="LULCC"
+        )
+        # loop in catalog
+        for i in range(1, len(self.catalog)):
+            raster = self.get_lulcc(
+                date_start=self.catalog["Date"].values[i - 1],
+                date_end=self.catalog["Date"].values[i],
+                by_lulc_id=by_lulc_id
+            )
+            series_lulcc.append_raster(raster=raster)
+        return series_lulcc
+
+    def get_conversion_matrix(self, date_start, date_end, talk=False):
+        """
+        Compute the conversion matrix, expansion matrix and retraction matrix for a given interval
+        :param date_start: start date of time interval
+        :type date_start: str
+        :param date_end: end date of time interval
+        :type date_end: str
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: dict of outputs
+        :rtype: dict
+        """
+        # get dates
+        s_date_start = date_start
+        s_date_end = date_end
+        # get raster names
+        s_name_start = self.catalog.loc[self.catalog['Date'] == date_start]["Name"].values[0] #
+        s_name_end = self.catalog.loc[self.catalog['Date'] == date_end]["Name"].values[0]
+
+        # compute areas
+        df_areas_start = self.collection[s_name_start].get_areas()
+        df_areas_end = self.collection[s_name_end].get_areas()
+        # deploy variables
+        df_conv = self.table.copy()
+        df_conv["Date_start"] = s_date_start
+        df_conv["Date_end"] = s_date_end
+        df_conv["Area_f_start"] = df_areas_start["Area_f"].values
+        df_conv["Area_f_end"] = df_areas_end["Area_f"].values
+        df_conv["Area_km2_start"] = df_areas_start["Area_km2"].values
+        df_conv["Area_km2_end"] = df_areas_end["Area_km2"].values
+
+        lst_cols = list()
+        for i in range(len(df_conv)):
+            _alias = df_conv["Alias"].values[i]
+            s_field = "to_{}_f".format(_alias)
+            df_conv[s_field] = 0.0
+            lst_cols.append(s_field)
+
+        if talk:
+            print("processing...")
+
+        grd_conv = np.zeros(shape=(len(df_conv), len(df_conv)))
+        for i in range(len(df_conv)):
+            _id = df_conv["Id"].values[i]
+            #
+            # instantiate new LULC map
+            map_lulc = LULC(name="Conversion", date=s_date_end)
+            map_lulc.set_grid(grid=self.collection[s_name_end].grid)
+            map_lulc.set_asc_metadata(metadata=self.collection[s_name_start].asc_metadata)
+            map_lulc.set_table(dataframe=self.collection[s_name_start].table)
+            map_lulc.prj = self.collection[s_name_start].prj
+            #
+            # apply aoi
+            grd_aoi = 1 * (self.collection[s_name_start].grid == _id)
+            map_lulc.apply_aoi_mask(grid_aoi=grd_aoi, inplace=True)
+            #
+            # bypass all-masked aois
+            if np.sum(map_lulc.grid ) is np.ma.masked:
+                grd_conv[i] = np.zeros(len(df_conv))
+            else:
+                df_areas = map_lulc.get_areas()
+                grd_conv[i] = df_areas["{}_f".format(map_lulc.areafield)].values
+
+        # append to dataframe
+        grd_conv = grd_conv.transpose()
+        for i in range(len(df_conv)):
+            df_conv[lst_cols[i]] = grd_conv[i]
+
+        # get expansion matrix
+        grd_exp = np.zeros(shape=grd_conv.shape)
+        for i in range(len(grd_exp)):
+            grd_exp[i] = df_conv["Area_f_start"].values * df_conv[lst_cols[i]].values
+        np.fill_diagonal(grd_exp, 0)
+
+        # get retraction matrix
+        grd_rec = np.zeros(shape=grd_conv.shape)
+        for i in range(len(grd_rec)):
+            grd_rec[i] = df_conv["Area_f_start"].values[i] * grd_conv.transpose()[i]
+        np.fill_diagonal(grd_rec, 0)
+
+        return {
+            "Dataframe": df_conv,
+            "Conversion_Matrix": grd_conv,
+            "Conversion_index": np.prod(np.diagonal(grd_conv)),
+            "Expansion_Matrix": grd_exp,
+            "Retraction_Matrix": grd_rec,
+            "Date_start": date_start,
+            "Date_end": date_end
+        }
 
 
 if __name__ == "__main__":
