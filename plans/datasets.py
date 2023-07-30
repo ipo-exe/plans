@@ -384,10 +384,10 @@ class Raster:
         self.asc_metadata = {
             "ncols": None,
             "nrows": None,
-            "xllcorner": 0.0,
-            "yllcorner": 0.0,
-            "cellsize": 30.0,
-            "NODATA_value": -1,
+            "xllcorner": None,
+            "yllcorner": None,
+            "cellsize": None,
+            "NODATA_value": None,
         }
         self.nodatavalue = self.asc_metadata["NODATA_value"]
         self.cellsize = self.asc_metadata["cellsize"]
@@ -399,10 +399,15 @@ class Raster:
         self.description = None
         self.units = "units"
         self.date = None  # "2020-01-01"
+        self.source_data = None
         self.prj = None
 
     def __str__(self):
-        return "Hello world!"
+        dct_meta = self.get_raster_metadata()
+        lst_ = list()
+        for k in dct_meta:
+            lst_.append("{}: {}".format(k, dct_meta[k]))
+        return "\n".join(lst_)
 
     def set_grid(self, grid):
         """Set data from incoming objects.
@@ -734,6 +739,30 @@ class Raster:
                 return None
             else:
                 return new_grid
+
+    def get_raster_metadata(self):
+        """
+        Get all metadata from :class:`Raster` object
+        :return: metadata
+        :rtype: dict
+        """
+        return {
+                "Name": self.name,
+                "Variable": self.varname,
+                "VarAlias": self.varalias,
+                "Units": self.units,
+                "Date": self.date,
+                "Source": self.source_data,
+                "Date": self.date,
+                "Description": self.description,
+                "cellsize": self.cellsize,
+                "ncols": self.asc_metadata["ncols"],
+                "rows": self.asc_metadata["nrows"],
+                "xllcorner": self.asc_metadata["xllcorner"],
+                "yllcorner": self.asc_metadata["yllcorner"],
+                "NODATA_value": self.nodatavalue,
+                "Prj": self.prj,
+        }
 
     def get_bbox(self):
         """Get the Bounding Box of map
@@ -1779,7 +1808,9 @@ class RasterCollection:
                 "Variable",
                 "VarAlias",
                 "Units",
+                "Source",
                 "Date",
+                "Description",
                 "cellsize",
                 "ncols",
                 "rows",
@@ -1804,22 +1835,11 @@ class RasterCollection:
         # append to collection
         self.collection[raster.name] = raster
         # set
-        df_aux = pd.DataFrame(
-            {
-                "Name": [raster.name],
-                "Variable": [raster.varname],
-                "VarAlias": [raster.varalias],
-                "Units": [raster.units],
-                "Date": [raster.date],
-                "cellsize": [raster.cellsize],
-                "ncols": [raster.asc_metadata["ncols"]],
-                "rows": [raster.asc_metadata["nrows"]],
-                "xllcorner": [raster.asc_metadata["xllcorner"]],
-                "yllcorner": [raster.asc_metadata["yllcorner"]],
-                "NODATA_value": [raster.nodatavalue],
-                "Prj": [raster.prj],
-            }
-        )
+        dct_meta = raster.get_raster_metadata()
+        dct_meta_df = dict()
+        for k in dct_meta:
+            dct_meta_df[k] = [dct_meta[k]]
+        df_aux = pd.DataFrame(dct_meta_df)
         self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
         self.update_catalog()
         return None

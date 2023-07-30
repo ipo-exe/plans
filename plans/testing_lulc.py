@@ -7,8 +7,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 map_slope = ds.Slope(name="Slope")
+print(map_slope)
 map_slope.load_asc_raster(file="../samples/map_slope.asc")
 map_slope.view(show=True)
+
+
 
 '''
 series_lulc = ds.LULCSeries(name="Potiribu_LULC")
