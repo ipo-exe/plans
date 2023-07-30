@@ -448,6 +448,20 @@ class Raster:
         self.cellsize = self.asc_metadata["cellsize"]
         return None
 
+    def load(self, asc_file, prj_file):
+        """
+        Load data from files to raster
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
+        """
+        self.load_asc_raster(file=asc_file)
+        self.load_prj_file(file=prj_file)
+        return None
+
     def load_asc_raster(self, file, nan=False):
         """A function to load data and metadata from ``.asc`` raster files.
 
@@ -829,7 +843,6 @@ class Raster:
                     "j": vct_j,
                 }
             )
-
             return _df
 
     def get_grid_data(self):
@@ -1318,6 +1331,22 @@ class QualiRaster(Raster):
     def rebase_grid(self, base_raster, inplace=False):
         out = super().rebase_grid(base_raster, inplace, method="nearest")
         return out
+
+    def load(self, asc_file, prj_file, table_file):
+        """
+        Load data from files to raster
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :param table_file: path to ``.txt`` table file
+        :type table_file: str
+        :return: None
+        :rtype: None
+        """
+        super().load(asc_file=asc_file, prj_file=prj_file)
+        self.load_table(file=table_file)
+        return None
 
     def load_table(self, file):
         """Load attributes dataframe from ``csv`` ``.txt`` file (separator must be ;).
