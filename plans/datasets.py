@@ -1098,6 +1098,13 @@ class Elevation(Raster):
         self.description = "Height above sea level"
         self.units = "m"
 
+    def get_tpi(self, cell_radius):
+        print("ah shit")
+
+    def get_tpi_landforms(self, radius_micro, radius_macro):
+        print("ah shit")
+
+
 
 class Slope(Raster):
     """
@@ -1331,6 +1338,10 @@ class QualiRaster(Raster):
     def rebase_grid(self, base_raster, inplace=False):
         out = super().rebase_grid(base_raster, inplace, method="nearest")
         return out
+
+    def reclassify(self, dct_reclass, method="fast"):
+        # todo here
+        print("ah shit")
 
     def load(self, asc_file, prj_file, table_file):
         """
@@ -1809,6 +1820,19 @@ class AOI(QualiRaster):
         self.table = pd.DataFrame(
             {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "tab:grey"}
         )
+
+    def load(self, asc_file, prj_file):
+        """
+        Load data from files to raster
+        :param asc_file: path to ``.asc`` raster file
+        :type asc_file: str
+        :param prj_file: path to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
+        """
+        super().load(asc_file=asc_file, prj_file=prj_file)
+        return None
 
 
 # -----------------------------------------
