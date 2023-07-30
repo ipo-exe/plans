@@ -17,7 +17,7 @@ Quick Overview
 Installation
 ============================================
 
-To run the ``plans`` tool in a virtual or local machine you must load the latest version of this repository in your system. Also, you must install Python_ and a few and well-known dependencies:
+To run the ``plans`` tool in a virtual or local machine you must clone the latest version of this repository in your system. Also, you must install Python_ and a few and well-known dependencies:
 
 - numpy.
 - scipy.

@@ -198,7 +198,7 @@ class DailySeries:
 
     def view(
         self,
-        show=False,
+        show=True,
         folder="C:/data",
         filename=None,
         specs=None,
@@ -221,7 +221,7 @@ class DailySeries:
         :type format: str
         """
         import matplotlib.ticker as mtick
-        from analyst import Univar
+        from plans.analyst import Univar
 
         plt.style.use("seaborn-v0_8")
 
@@ -830,13 +830,13 @@ class Raster:
         if self.grid is None:
             return None
         else:
-            from analyst import Univar
+            from plans.analyst import Univar
 
             return Univar(data=self.get_grid_data()).assess_basic_stats()
 
     def view(
         self,
-        show=False,
+        show=True,
         folder="./output",
         filename=None,
         specs=None,
@@ -859,7 +859,7 @@ class Raster:
         :type format: str
         """
         import matplotlib.ticker as mtick
-        from analyst import Univar
+        from plans.analyst import Univar
 
         plt.style.use("seaborn-v0_8")
 
@@ -1140,7 +1140,7 @@ class NDVI(Raster):
 
     def view(
         self,
-        show=False,
+        show=True,
         folder="./output",
         filename=None,
         specs=None,
@@ -1207,7 +1207,7 @@ class ET24h(Raster):
 
     def view(
         self,
-        show=False,
+        show=True,
         folder="./output",
         filename=None,
         specs=None,
@@ -1414,7 +1414,7 @@ class QualiRaster(Raster):
         :return: dataframe of zonal stats
         :rtype: :class:`pandas.DataFrame`
         """
-        from analyst import Univar
+        from plans.analyst import Univar
 
         # deploy dataframe
         df_aux = self.table[["Id", "Name", "Alias"]].copy()
@@ -1462,7 +1462,7 @@ class QualiRaster(Raster):
 
     def view(
         self,
-        show=False,
+        show=True,
         folder="./output",
         filename=None,
         specs=None,
@@ -1995,7 +1995,7 @@ class RasterCollection:
         self,
         colors=None,
         datapoints=False,
-        show=False,
+        show=True,
         folder="./output",
         filename=None,
         dpi=300,
@@ -2279,7 +2279,7 @@ class RasterSeries(RasterCollection):
         folder="./output",
         filename=None,
         specs=None,
-        show=False,
+        show=True,
         dpi=300,
         format="jpg",
     ):
@@ -2561,7 +2561,7 @@ class QualiRasterSeries(RasterSeries):
     def view_series_areas(
         self,
         specs=None,
-        show=False,
+        show=True,
         folder="./output",
         filename=None,
         dpi=300,
@@ -2681,6 +2681,9 @@ class QualiRasterSeries(RasterSeries):
 
 
 class LULCSeries(QualiRasterSeries):
+    """
+    A :class:`QualiRasterSeries` for holding Land Use and Land Cover maps
+    """
     def __init__(self, name):
         # instantiate raster sample
         rst_aux = LULC(name="dummy", date=None)
