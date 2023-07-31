@@ -1833,13 +1833,12 @@ class AOI(QualiRaster):
         :return: None
         :rtype: None
         """
-        super().load(asc_file=asc_file, prj_file=prj_file)
+        self.load_asc_raster(file=asc_file)
+        self.load_prj_file(file=prj_file)
         return None
-
 
 # -----------------------------------------
 # Raster Collection data structures
-
 
 class RasterCollection:
     """
