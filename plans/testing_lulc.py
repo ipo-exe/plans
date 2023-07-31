@@ -1,16 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import datasets as ds
-import glob
+import glob, copy
 import warnings
 
 warnings.filterwarnings('ignore')
 
 map_slope = ds.Slope(name="Slope")
-print(map_slope)
 map_slope.load_asc_raster(file="../samples/map_slope.asc")
-map_slope.view(show=True)
+#map_slope.view(show=True)
+print(map_slope)
 
+map_slope_b = copy.copy(map_slope)
+map_slope_b.name = "New Map"
+
+print(map_slope)
+print(map_slope_b)
 
 
 '''

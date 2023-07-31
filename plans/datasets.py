@@ -405,8 +405,11 @@ class Raster:
     def __str__(self):
         dct_meta = self.get_raster_metadata()
         lst_ = list()
+        lst_.append("\n")
+        lst_.append("Object: {}".format(type(self)))
+        lst_.append("Metadata:")
         for k in dct_meta:
-            lst_.append("{}: {}".format(k, dct_meta[k]))
+            lst_.append("\t{}: {}".format(k, dct_meta[k]))
         return "\n".join(lst_)
 
     def set_grid(self, grid):
@@ -1103,7 +1106,6 @@ class Elevation(Raster):
 
     def get_tpi_landforms(self, radius_micro, radius_macro):
         print("ah shit")
-
 
 
 class Slope(Raster):
