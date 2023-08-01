@@ -1667,7 +1667,6 @@ class QualiRaster(Raster):
         df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         if filter:
             df_aux = df_aux.query("{}_m2 > 0".format(self.areafield))
-        print(df_aux.to_string())
 
         # -----------------------------------------------
         # Deploy figure
