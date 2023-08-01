@@ -6,17 +6,42 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-map_slope = ds.Slope(name="Slope")
-map_slope.load_asc_raster(file="../samples/map_slope.asc")
-#map_slope.view(show=True)
-print(map_slope)
 
-map_slope_b = copy.copy(map_slope)
-map_slope_b.name = "New Map"
+map_aoi = ds.AOI()
+map_aoi.load(
+    asc_file="../samples/map_aoi.asc",
+    prj_file="../samples/map_aoi.prj"
+)
 
-print(map_slope)
-print(map_slope_b)
+map_lito = ds.Litology(name="Lito")
+map_lito.load(
+    asc_file="../samples/map_lito.asc",
+    prj_file="../samples/map_lito.prj",
+    table_file="../samples/table_lito.txt"
+)
+map_lito.view()
+map_lito.apply_aoi_mask(grid_aoi=map_aoi.grid)
+map_lito.view()
+map_lito.release_aoi_mask()
+map_lito.view()
 
+map_hand = ds.HAND()
+map_hand.load(
+    asc_file="../samples/map_hand.asc",
+    prj_file="../samples/map_hand.prj"
+)
+#map_hand.view()
+
+map_soils = ds.Soils()
+map_soils.load(
+    asc_file="../samples/map_soils.asc",
+    prj_file="../samples/map_soils.prj",
+    table_file="../samples/table_soils.txt"
+)
+#map_soils.get_hydro_soils(map_lito=map_lito, map_hand=map_hand)
+map_soils.view()
+
+#map_soils.export(folder="C:/output", filename="map_soils")
 
 '''
 series_lulc = ds.LULCSeries(name="Potiribu_LULC")

@@ -380,7 +380,9 @@ class Raster:
         """
         # -------------------------------------
         # set basic attributes
-        self.grid = None  # start with no data
+        self.grid = None  # main grid
+        self.backup_grid = None
+        self.isaoi = False
         self.asc_metadata = {
             "ncols": None,
             "nrows": None,
@@ -567,10 +569,26 @@ class Raster:
             self.prj = f.readline().strip("\n")
         return None
 
-    def export_asc_raster(self, folder="./output", filename=None):
+    def export(self, folder, filename=None):
+        """
+        Export raster data
+        param folder: string of directory path,
+        :type folder: str
+        :param filename: string of file without extension, defaults to None
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        if filename is None:
+            filename = self.name
+        self.export_asc_raster(folder=folder, filename=filename)
+        self.export_prj_file(folder=folder, filename=filename)
+        return None
+
+    def export_asc_raster(self, folder, filename=None):
         """Function for exporting an ``.asc`` raster file.
 
-        :param folder: string of directory path, , defaults to ``./output``
+        :param folder: string of directory path,
         :type folder: str
         :param filename: string of file without extension, defaults to None
         :type filename: str
@@ -624,10 +642,10 @@ class Raster:
 
             return flenm
 
-    def export_prj_file(self, folder="./output", filename=None):
+    def export_prj_file(self, folder, filename=None):
         """Function for exporting an ``.prj`` file.
 
-        :param folder: string of directory path, , defaults to ``./output``
+        :param folder: string of directory path,
         :type folder: str
         :param filename: string of file without extension, defaults to None
         :type filename: str
@@ -711,26 +729,43 @@ class Raster:
         """Apply AOI (area of interest) mask to raster map.
 
         :param grid_aoi: map of AOI (masked array or pseudo-boolean)
-        Expected to have the same grid.
+        Expected to have the same grid shape.
         :type grid_aoi: :class:`numpy.ndarray`
-        :param inplace: set on the own grid if True, defaults to False
+        :param inplace: overwrite the main grid if True, defaults to False
         :type inplace: bool
-        :return: the processed grid if inplace=False
-        :rtype: :class:`numpy.ndarray` or None
+        :return: None
+        :rtype: None
         """
         if self.nodatavalue is None or self.grid is None:
-            return None
+            pass
         else:
-            # ensure fill
+            # ensure fill on masked values
             grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
             # replace
             grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
 
             if inplace:
-                self.set_grid(grid=grd_mask)
-                return None
+                pass
             else:
-                return grd_mask
+                # pass a copy to backup grid
+                self.backup_grid = self.grid.copy()
+            # set main grid
+            self.set_grid(grid=grd_mask)
+            self.isaoi = True
+        return None
+
+
+    def release_aoi_mask(self):
+        """
+        Release AOI mask from main grid. Backup grid is restored.
+        :return: None
+        :rtype: None
+        """
+        if self.isaoi:
+            self.set_grid(grid=self.backup_grid)
+            self.backup_grid = None
+            self.isaoi = False
+        return None
 
     def cut_edges(self, upper, lower, inplace=False):
         """Cutoff upper and lower values of grid.
@@ -1151,7 +1186,7 @@ class HAND(Raster):
     HAND raster map dataset.
     """
 
-    def __init__(self, name):
+    def __init__(self, name="HANDMap"):
         """Deploy dataset.
 
         :param name: name of map
@@ -1373,10 +1408,24 @@ class QualiRaster(Raster):
         self.set_table(dataframe=df_aux)
         return None
 
-    def export_table(self, folder="./output", filename=None):
-        """Export an ``csv`` ``.txt``  file.
+    def export(self, folder, filename=None):
+        """
+        Export raster data
+        param folder: string of directory path,
+        :type folder: str
+        :param filename: string of file without extension, defaults to None
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        super().export(folder=folder, filename=filename)
+        self.export_table(folder=folder, filename=filename)
+        return None
 
-        :param folder: string of directory path, defaults to ``./output``
+    def export_table(self, folder, filename=None):
+        """Export a CSV ``.txt``  file.
+
+        :param folder: string of directory path
         :type folder: str
         :param filename: string of file without extension
         :type filename: str
@@ -1584,7 +1633,7 @@ class QualiRaster(Raster):
             "b_title": "{} Prevalence".format(self.varalias),
             "c_title": "Metadata",
             "width": 8,
-            "height": 7,
+            "height": 5,
             "b_area": "km2",
             "b_xlabel": "Area",
             "b_xmax": None,
@@ -1594,9 +1643,9 @@ class QualiRaster(Raster):
             "gs_rows": 7,
             "gs_cols": 5,
             "gs_b_rowlim": 4,
-            "legend_x": 0.6,
+            "legend_x": 0.4,
             "legend_y": 0.3,
-            "legend_ncol": 2,
+            "legend_ncol": 1,
         }
         # handle input specs
         if specs is None:
@@ -1792,7 +1841,18 @@ class LULCChange(QualiRaster):
             }
         )
 
+class Litology(QualiRaster):
+    """
+    Litology map dataset
+    """
 
+    def __init__(self, name="LitoMap"):
+        super().__init__(name, dtype="uint8")
+        self.cmap = "tab20c"
+        self.varname = "Litological Domains"
+        self.varalias = "Lito"
+        self.description = "Litological outgcrop domains"
+        self.units = "types ID"
 
 class Soils(QualiRaster):
     """
@@ -1806,6 +1866,38 @@ class Soils(QualiRaster):
         self.varalias = "Soils"
         self.description = "Types of Soils and Substrate"
         self.units = "types ID"
+
+    def get_hydro_soils(self, map_lito, map_hand, hand_threshold=2):
+        # get table copy from lito
+        new_table = map_lito.table[["Id", "Alias", "Name", "Color"]].copy()
+        # process grid
+        grd_soils = map_lito.grid.copy()
+        grd_soils = grd_soils * (map_hand.grid > hand_threshold)
+        n_all_id = new_table["Id"].max() + 1
+        grd_alluvial = n_all_id * (map_hand.grid <= hand_threshold)
+        grd_soils = grd_soils + grd_alluvial
+        self.set_grid(grid=grd_soils)
+
+        # edit table
+        new_table["Name"] = "Residual " + new_table["Name"]
+        new_table["Alias"] = "R" + new_table["Alias"]
+        # new soil table
+        df_aux = pd.DataFrame(
+            {
+                "Id": [n_all_id],
+                "Alias": ["Alv"],
+                "Name": ["Alluvial"],
+                "Color": ["tan"]
+            }
+        )
+        # append
+        new_table = pd.concat([new_table, df_aux], ignore_index=True)
+        # set table
+        self.set_table(dataframe=new_table)
+        # set more attributes
+        self.prj = map_lito.prj
+        self.set_asc_metadata(metadata=map_lito.asc_metadata)
+
 
 
 class AOI(QualiRaster):

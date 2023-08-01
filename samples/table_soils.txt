@@ -1,0 +1,4 @@
+Id;Alias;Name;Color
+1;RBst;Residual Basalt;peru
+2;RSdS;Residual Sandstone;orange
+3;Alv;Alluvial;tan
