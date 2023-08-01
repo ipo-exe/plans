@@ -12,6 +12,7 @@ map_aoi.load(
     asc_file="../samples/map_aoi.asc",
     prj_file="../samples/map_aoi.prj"
 )
+map_aoi.view()
 
 map_lito = ds.Litology(name="Lito")
 map_lito.load(

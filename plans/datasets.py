@@ -1912,7 +1912,7 @@ class AOI(QualiRaster):
         self.description = "Boolean map an Area of Interest"
         self.units = "classes ID"
         self.table = pd.DataFrame(
-            {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "tab:grey"}
+            {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "silver"}
         )
 
     def load(self, asc_file, prj_file):
@@ -1927,6 +1927,58 @@ class AOI(QualiRaster):
         """
         self.load_asc_raster(file=asc_file)
         self.load_prj_file(file=prj_file)
+        return None
+
+    def view(
+            self,
+            show=True,
+            folder="./output",
+            filename=None,
+            specs=None,
+            dpi=300,
+            format="jpg",
+    ):
+        """Plot a basic pannel of raster map.
+
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        """
+        map_aoi_aux = QualiRaster(name=self.name)
+        df_aoi = pd.DataFrame(
+            {
+                "Id": [1, 2],
+                "Alias": ["AOI", "EZ"],
+                "Name": ["Area of Interest", "Exclusion Zone"],
+                "Color": ["magenta", "silver"]
+            }
+        )
+        # set up
+        map_aoi_aux.varname = self.varname
+        map_aoi_aux.varalias = self.varalias
+        map_aoi_aux.units = self.units
+        map_aoi_aux.set_table(dataframe=df_aoi)
+        map_aoi_aux.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi_aux.prj = self.prj
+        # process grid
+        self.insert_nodata()
+        grd_new = 2 * np.ones(shape=self.grid.shape, dtype="byte")
+        grd_new = grd_new - (1 * (self.grid == 1))
+        self.mask_nodata()
+        map_aoi_aux.set_grid(grid=grd_new)
+        map_aoi_aux.view(
+            show=show, folder=folder, filename=filename, specs=specs, dpi=dpi, format=format
+        )
+        del map_aoi_aux
         return None
 
 # -----------------------------------------
