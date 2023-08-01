@@ -2058,7 +2058,7 @@ class RasterCollection:
             df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
             df_new_catalog["Date"] = pd.to_datetime(df_new_catalog["Date"])
             for name in self.collection:
-                dct_meta = self.collection[name]
+                dct_meta = self.collection[name].get_raster_metadata()
                 lst_keys = dct_meta.keys()
                 _dct = dict()
                 for k in lst_keys:
