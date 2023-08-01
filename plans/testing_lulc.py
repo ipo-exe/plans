@@ -7,6 +7,21 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+map_lulc = ds.LULC(name="LULC", date="2020-01-01")
+map_lulc.load(
+    asc_file="C:/bin/lulc_2020-01-01.asc",
+    prj_file="C:/bin/lulc_2020-01-01.prj",
+    table_file="C:/bin/mapbiomas_c7_table.txt"
+)
+specs = {
+    "width": 9,
+    "height": 6,
+    "legend_ncol": 2,
+    "legend_x": 0.6
+}
+map_lulc.view(filter=True, specs=specs)
+
+
 map_aoi = ds.AOI()
 map_aoi.load(
     asc_file="../samples/map_aoi.asc",

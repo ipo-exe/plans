@@ -1588,6 +1588,7 @@ class QualiRaster(Raster):
         specs=None,
         dpi=300,
         format="jpg",
+        filter=False,
     ):
         """Plot a basic pannel of qualitative raster map.
 
@@ -1603,6 +1604,8 @@ class QualiRaster(Raster):
         :type dpi: int
         :param format: image format (ex: png or jpg). Default jpg
         :type format: str
+        :param filter: option for cutting off zero-area classes
+        :type filter: bool
         :return: None
         :rtype: None
         """
@@ -1656,6 +1659,17 @@ class QualiRaster(Raster):
         specs = default_specs
 
         # -----------------------------------------------
+        # ensure areas are computed
+        # ensure areas are computed
+        df_aux = pd.merge(
+            self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
+        )
+        df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
+        if filter:
+            df_aux = df_aux.query("{}_m2 > 0".format(self.areafield))
+        print(df_aux.to_string())
+
+        # -----------------------------------------------
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
@@ -1677,13 +1691,14 @@ class QualiRaster(Raster):
             self.grid, cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
         )
         plt.axis("off")
+
         # place legend
         legend_elements = []
-        for i in range(len(self.table)):
-            _color = self.table[self.colorfield].values[i]
+        for i in range(len(df_aux)):
+            _color = df_aux[self.colorfield].values[i]
             _label = "{} ({})".format(
-                self.table[self.namefield].values[i],
-                self.table[self.aliasfield].values[i],
+                df_aux[self.namefield].values[i],
+                df_aux[self.aliasfield].values[i],
             )
             legend_elements.append(
                 Patch(
@@ -1704,11 +1719,6 @@ class QualiRaster(Raster):
         # -----------------------------------------------
         # plot horizontal bar of areas
 
-        # ensure areas are computed
-        df_aux = pd.merge(
-            self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
-        )
-        df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         plt.subplot(gs[: default_specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         if specs["bars_alias"]:
