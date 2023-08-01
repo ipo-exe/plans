@@ -2141,12 +2141,12 @@ class RasterCollection:
         df_aux["count"] = df_aux["count"].astype(dtype="uint16")
         return df_aux
 
-    def export_views(
-        self, show=False, folder="./output", specs=None, dpi=300, format="jpg"
+    def get_views(
+        self, show=True, folder="./output", specs=None, dpi=300, format="jpg"
     ):
         """Plot all basic pannel of raster maps in collection.
 
-        :param show: boolean to show plot instead of saving, defaults to False
+        :param show: boolean to show plot instead of saving,
         :type show: bool
         :param folder: path to output folder, defaults to ``./output``
         :type folder: str
@@ -2159,20 +2159,6 @@ class RasterCollection:
         :return: None
         :rtype: None
         """
-
-        # get stats
-        df_stas = self.get_collection_stats()
-        n_vmin = df_stas["min"].max()
-        n_max = df_stas["max"].max()
-
-        # handle specs
-        default_specs = {"vmin": n_vmin, "vmax": n_max, "hist_vmax": 0.05}
-        if specs is None:
-            specs = default_specs
-        else:
-            # overwrite incoming specs
-            for k in default_specs:
-                specs[k] = default_specs[k]
 
         # plot loop
         for k in self.collection:
@@ -2469,6 +2455,53 @@ class RasterSeries(RasterCollection):
             self.catalog[["Name", "Date"]], df_stats, how="left", on="Name"
         )
         return df_series
+
+    def get_views(
+            self, show=True, folder="./output", specs=None, dpi=300, format="jpg"
+    ):
+        """Plot all basic pannel of raster maps in collection.
+
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param format: image format (ex: png or jpg). Default jpg
+        :type format: str
+        :return: None
+        :rtype: None
+        """
+
+        # get stats
+        df_stas = self.get_collection_stats()
+        n_vmin = df_stas["min"].max()
+        n_max = df_stas["max"].max()
+
+        # handle specs
+        default_specs = {"vmin": n_vmin, "vmax": n_max, "hist_vmax": 0.05}
+        if specs is None:
+            specs = default_specs
+        else:
+            # overwrite incoming specs
+            for k in default_specs:
+                specs[k] = default_specs[k]
+
+        # plot loop
+        for k in self.collection:
+            rst_lcl = self.collection[k]
+            s_name = rst_lcl.name
+            rst_lcl.view(
+                show=show,
+                specs=specs,
+                folder=folder,
+                filename=s_name,
+                dpi=dpi,
+                format=format,
+            )
+        return None
 
     def view_series_stats(
         self,
@@ -2844,8 +2877,8 @@ class QualiRasterSeries(RasterSeries):
         plt.close(fig)
         return None
 
-    def export_views(
-        self, show=False, folder="./output", specs=None, dpi=300, format="jpg"
+    def get_views(
+        self, show=True, folder="./output", specs=None, dpi=300, format="jpg"
     ):
         """Plot all basic pannel of qualiraster maps in collection.
 
