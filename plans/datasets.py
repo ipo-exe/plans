@@ -2000,23 +2000,11 @@ class RasterCollection:
         :param dtype: data type of raster cells, defaults to float32
         :type dtype: str
         """
+        raster_aux = Raster()
+        dct_meta = raster_aux.get_raster_metadata()
+
         self.catalog = pd.DataFrame(
-            columns=[
-                "Name",
-                "Variable",
-                "VarAlias",
-                "Units",
-                "Source",
-                "Date",
-                "Description",
-                "cellsize",
-                "ncols",
-                "rows",
-                "xllcorner",
-                "yllcorner",
-                "NODATA_value",
-                "Prj",
-            ]
+            columns=dct_meta.keys()
         )
         self.catalog["Date"] = pd.to_datetime(self.catalog["Date"])
         self.collection = dict()
@@ -2070,23 +2058,14 @@ class RasterCollection:
             df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
             df_new_catalog["Date"] = pd.to_datetime(df_new_catalog["Date"])
             for name in self.collection:
+                dct_meta = self.collection[name]
+                lst_keys = dct_meta.keys()
+                _dct = dict()
+                for k in lst_keys:
+                    _dct[k] = [dct_meta[k]]
                 # set new information
-                df_aux = pd.DataFrame(
-                    {
-                        "Name": [self.collection[name].name],
-                        "Variable": [self.collection[name].varname],
-                        "VarAlias": [self.collection[name].varalias],
-                        "Units": [self.collection[name].units],
-                        "Date": [self.collection[name].date],
-                        "cellsize": [self.collection[name].cellsize],
-                        "ncols": [self.collection[name].asc_metadata["ncols"]],
-                        "rows": [self.collection[name].asc_metadata["nrows"]],
-                        "xllcorner": [self.collection[name].asc_metadata["xllcorner"]],
-                        "yllcorner": [self.collection[name].asc_metadata["yllcorner"]],
-                        "NODATA_value": [self.collection[name].nodatavalue],
-                        "Prj": [self.collection[name].prj],
-                    }
-                )
+                df_aux = pd.DataFrame(_dct)
+                # append
                 df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
             self.catalog = df_new_catalog.copy()
             del df_new_catalog
