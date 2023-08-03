@@ -262,8 +262,8 @@ class Univar:
         else:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
-    def plot_basic_view(
-        self, show=False, folder="C:/data", filename="view", specs=None, dpi=300
+    def view(
+        self, show=True, folder="C:/data", filename="view", specs=None, dpi=300
     ):
         """
         Plot basic view of data
@@ -581,20 +581,88 @@ class Bivar:
         # set sorted data and reset index
         self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
 
-        # linear model attributes
-        self.linear = None
-        self.linear_data = None
+        # models setup
+        self.models = {
+            "Linear": {
+                "Function": linear,
+                "Formula": "f(x) = c0 + c1 * x",
+                "Setup": pd.DataFrame(
+                    {
+                        "Parameters": ["c_0", "c_1"],
+                        "Mean": [0, 1],
+                        "SD": [0.1, 0.1]
+                    }
+                ),
+                "Data": None,
+                "RMSE": None
+            },
+            "Power":{
+                "Function": power,
+                "Formula": "f(x) =  c2 * ((x + c0)^c1)",
+                "Setup": pd.DataFrame(
+                    {
+                        "Parameters": ["c_0", "c_1", "c_2"],
+                        "Mean": [0, 1, 1],
+                        "SD": [0.1, 0.1, 0.1]
+                    }
+                ),
+                "Data": None,
+                "RMSE": None
+            }
+        }
+        '''
+        # linear_model model attributes
+        self.linear_model = None
+        self.linear_model_data = None
 
-        # power model attributes
-        self.power = None
-        self.power_data = None
+        # power_model model attributes
+        self.power_model = None
+        self.power_model_data = None
+        '''
 
 
-    def __str__(self):
-        return self.data.to_string()
+    def fit(self, model_type="Linear"):
+        from scipy.optimize import curve_fit
+        popt, pcov = curve_fit(
+            f=self.models[model_type]["Function"],
+            xdata=self.data[self.xname],
+            ydata=self.data[self.yname],
+            p0=self.models[model_type]["Setup"]["Mean"].values,
+        )
+        pstd = np.sqrt(np.diag(pcov))
+        # update model
+        self.update_model(params_mean=popt, params_sd=pstd, model_type=model_type)
+        return None
 
-    def plot_basic_view(
-        self, show=False, folder="C:/data", filename="view", specs=None, dpi=300
+    def update_model(self, params_mean, params_sd=None, model_type="Linear"):
+        # Setup
+        self.models[model_type]["Setup"]["Mean"] = params_mean
+        if params_sd is None:
+            pass
+        else:
+            self.models[model_type]["Setup"]["SD"] = params_sd
+        # update data
+        self.updata_model_data(model_type=model_type)
+        # update model metrics
+        vct_e = self.models[model_type]["Data"]["e_Mean"].values
+        self.models[model_type]["RMSE"] = np.square(np.mean(np.square(vct_e)))
+        return None
+
+    def updata_model_data(self, model_type="Linear"):
+        popt = self.models[model_type]["Setup"]["Mean"].values
+        _df = self.data.copy()
+        s_ymodel = "{}_Mean".format(self.yname)
+        # compute model on data:
+        _df[s_ymodel] = self.models[model_type]["Function"](self.data[self.xname], *popt)
+        # compute error
+        _df["e_Mean".format(model_type)] = (_df[s_ymodel] - _df[self.yname])
+        # set attribute
+        self.models[model_type]["Data"] = _df.copy()
+        del _df
+        return None
+
+    def view(
+        self, show=True, folder="C:/data", filename="view", specs=None, fig_format="jpg", dpi=300
     ):
         """
         Plot basic view of Bivar object
@@ -609,6 +677,8 @@ class Bivar:
         :type specs: dict
         :param dpi: image resolution (default = 300)
         :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
         :return: None
         :rtype: None
         """
@@ -623,6 +693,8 @@ class Bivar:
             "height": 6,
             "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
             "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
+            "xlabel": self.xname,
+            "ylabel": self.yname
         }
         # handle input specs
         if specs is None:
@@ -648,8 +720,8 @@ class Bivar:
             marker=".",
             color=specs["color_scatter"],
         )
-        plt.xlabel(self.xname)
-        plt.ylabel(self.yname)
+        plt.xlabel(specs["xlabel"])
+        plt.ylabel(specs["ylabel"])
         plt.xlim(specs["xlim"])
         plt.ylim(specs["ylim"])
 
@@ -684,22 +756,23 @@ class Bivar:
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+            if filename is None:
+                filename = self.name
+            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
+        plt.close(fig)
 
-    def plot_model(
+    def view_model(
         self,
-        df_model,
-        show=False,
+        model_type="Power",
+        show=True,
         folder="C:/data",
-        filename="view",
+        filename=None,
         specs=None,
         dpi=300,
+        fig_format="jpg"
     ):
         """
         Plot pannel for model analysis
-
-        :param df_model: model dataframe
-        :type df_model: :class:`pandas.DataFrame`
         :param show: Boolean to show instead of saving
         :type show: bool
         :param folder: output folder
@@ -710,9 +783,15 @@ class Bivar:
         :type specs: dict
         :param dpi: image resolution (default = 300)
         :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
         :return: None
         :rtype: None
         """
+
+        # ensure data is update
+        self.updata_model_data(model_type=model_type)
+
         plt.style.use("seaborn-v0_8")
         # get specs
         default_specs = {
@@ -720,12 +799,15 @@ class Bivar:
             "color_scatter": "tab:blue",
             "color_model": "black",
             "color_variance": "darkred",
-            "title": "View of {}".format(self.name),
+            "title": "View of {} {} Model".format(self.name, model_type),
             "width": 8,
             "height": 8,
             "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
             "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
-            "elim": [-1.5 * df_model["e"].max(), 1.5 * df_model["e"].max()],
+            "elim": [
+                -1.5 * self.models[model_type]["Data"]["e_Mean"].max(),
+                1.5 * self.models[model_type]["Data"]["e_Mean"].max()
+            ],
         }
         # handle input specs
         if specs is None:
@@ -755,8 +837,8 @@ class Bivar:
             zorder=1,
         )
         plt.plot(
-            df_model[self.xname],
-            df_model["{}_fit".format(self.yname)],
+            self.models[model_type]["Data"][self.xname],
+            self.models[model_type]["Data"]["{}_Mean".format(self.yname)],
             color=specs["color_model"],
             zorder=2,
         )
@@ -766,12 +848,12 @@ class Bivar:
         plt.ylim(specs["ylim"])
 
         # ----------------- error -----------------
-        e_uni = Univar(data=df_model["e"].values)
+        e_uni = Univar(data=self.models[model_type]["Data"]["e_Mean"].values)
 
         ax = fig.add_subplot(gs[2, :2])
         plt.scatter(
-            df_model[self.xname],
-            df_model["e"].values,
+            self.models[model_type]["Data"][self.xname],
+            self.models[model_type]["Data"]["e_Mean"].values,
             marker=".",
             alpha=0.75,
             color=specs["color"],
@@ -811,7 +893,7 @@ class Bivar:
         ax = fig.add_subplot(gs[3, :2])
         vct_var = e_uni.trace_variance()
         plt.plot(
-            df_model[self.xname],
+            self.models[model_type]["Data"][self.xname],
             vct_var,
             color=specs["color_variance"],
         )
@@ -824,7 +906,11 @@ class Bivar:
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+            if filename is None:
+                filename = self.name
+            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
+        plt.close(fig)
+        return None
 
     def correlation(self):
         """
@@ -834,77 +920,6 @@ class Bivar:
         """
         corr_df = self.data.corr().loc[self.xname, self.yname]
         return corr_df
-
-    def linear_fit(self, p0=None):
-        """
-        Fit a linear model f(x) = c0 + c1 * x
-
-        :param p0: list of initial values to search. Default: None
-        :type p0: list
-        :return:
-        :rtype:
-        """
-        from scipy.optimize import curve_fit
-
-        # fit model options
-        if p0 is None:
-            popt, pcov = curve_fit(
-                f=linear, xdata=self.data[self.xname], ydata=self.data[self.yname]
-            )
-        else:
-            popt, pcov = curve_fit(
-                f=linear,
-                xdata=self.data[self.xname],
-                ydata=self.data[self.yname],
-                p0=p0,
-            )
-        pstd = np.sqrt(np.diag(pcov))
-        self.linear = pd.DataFrame(
-            {"Parameter": ["c_0", "c_1"], "Fit_Mean": popt, "Fit_Std": pstd}
-        )
-        # set linear model
-        self.linear_data = self.data.copy()
-        self.linear_data["{}_fit".format(self.yname)] = linear(
-            self.data[self.xname], *popt
-        )
-        self.linear_data["e"] = (
-            self.linear_data["{}_fit".format(self.yname)] - self.linear_data[self.yname]
-        )
-
-
-    def power_fit(self, p0=None):
-        from scipy.optimize import curve_fit
-
-        # fit model options
-        if p0 is None:
-            popt, pcov = curve_fit(
-                f=power, xdata=self.data[self.xname], ydata=self.data[self.yname]
-            )
-        else:
-            popt, pcov = curve_fit(
-                f=power,
-                xdata=self.data[self.xname],
-                ydata=self.data[self.yname],
-                p0=p0,
-            )
-        pstd = np.sqrt(np.diag(pcov))
-        self.power = pd.DataFrame(
-            {"Parameter": ["c_0", "c_1", "c_2"], "Fit_Mean": popt, "Fit_Std": pstd}
-        )
-        # set power model
-        self.power_data = self.data.copy()
-        self.power_data["{}_fit".format(self.yname)] = power(
-            self.data[self.xname], *popt
-        )
-        self.power_data["e"] = (
-                self.power_data["{}_fit".format(self.yname)]
-                - self.power_data[self.yname]
-        )
-        self.power_data["e_log"] = (
-                np.log(self.power_data["{}_fit".format(self.yname)].values)
-                - np.log(self.power_data[self.yname].values)
-        )
-
 
     def prediction_bands(
             self,
@@ -952,7 +967,7 @@ class Bivar:
         s_refsim = lst_mcsim[0]
 
         # parameter labels
-        _lst_params = list(self.linear["Parameter"].values)
+        _lst_params = list(self.linear_model["Parameter"].values)
         _labels = ["Mean", "Std"]
         lst_params = list()
         for i in range(len(_labels)):
@@ -987,27 +1002,27 @@ class Bivar:
         # set reference simulation parameters
         _lst = ["Mean", "Std"]
         for s in _lst:
-            for i in range(len(self.linear)):
-                _s_par = self.linear["Parameter"].values[i]
+            for i in range(len(self.linear_model)):
+                _s_par = self.linear_model["Parameter"].values[i]
                 _s_key = "{}_{}".format(_s_par, s)
-                _value = self.linear["Fit_{}".format(s)].values[i]
+                _value = self.linear_model["Fit_{}".format(s)].values[i]
                 df_models[_s_key].values[0] = _value
 
         # set reference simulation prediction
         _x = df_preds[self.xname].values
-        _params = self.linear["Fit_Mean"].values
+        _params = self.linear_model["Fit_Mean"].values
         df_preds["y_{}".format(s_refsim)] = linear(_x, *_params)
 
         # get standard deviation from fit data
-        n_std_e = self.linear_data["e"].std()
-        vct_yfit = self.linear_data["{}_fit".format(self.yname)].values
+        n_std_e = self.linear_model_data["e"].std()
+        vct_yfit = self.linear_model_data["{}_fit".format(self.yname)].values
 
         # simulation loop:
         for n in range(1, n_sim + 1):
             _sim = lst_mcsim[n]
 
             # get new error
-            vct_e = np.random.normal(0.0, n_std_e, len(self.linear_data))
+            vct_e = np.random.normal(0.0, n_std_e, len(self.linear_model_data))
             # get new y obs
             vct_yobs = vct_yfit + vct_e
 
@@ -1015,13 +1030,13 @@ class Bivar:
             if p0 is None:
                 popt, pcov = curve_fit(
                     f=linear,
-                    xdata=self.linear_data[self.xname],
+                    xdata=self.linear_model_data[self.xname],
                     ydata=vct_yobs
                 )
             else:
                 popt, pcov = curve_fit(
                     f=linear,
-                    xdata=self.linear_data[self.xname],
+                    xdata=self.linear_model_data[self.xname],
                     ydata=vct_yobs,
                     p0=p0,
                 )
@@ -1030,8 +1045,8 @@ class Bivar:
             # store model values
             _dct = {"Mean": popt, "Std": pstd}
             for s in _dct:
-                for i in range(len(self.linear)):
-                    _s_par = self.linear["Parameter"].values[i]
+                for i in range(len(self.linear_model)):
+                    _s_par = self.linear_model["Parameter"].values[i]
                     _s_key = "{}_{}".format(_s_par, s)
                     _value = _dct[s][i]
                     df_models[_s_key].values[n] = _value
@@ -1437,26 +1452,26 @@ if __name__ == "__main__":
 
 
     biv.power_fit(p0=[1, 1, 1])
-    print(biv.power)
-    biv.plot_model(biv.power_data, show=True, specs=specs)
+    print(biv.power_model)
+    biv.view_model(biv.power_model_data, show=True, specs=specs)
 
-    euni = Univar(data=biv.power_data["e"].values)
+    euni = Univar(data=biv.power_model_data["e"].values)
     specs = {"ylim": [-np.max(euni.data), np.max(euni.data)]}
-    euni.plot_basic_view(show=True, specs=specs)
+    euni.view(show=True, specs=specs)
     df_norm = euni.assess_normality(clevel=0.9)
     print(df_norm.round(5).to_string())
     euni.plot_qqplot(show=True)
 
-    vct_e = biv.power_data["y"].values - biv.power_data["y_fit"].values
+    vct_e = biv.power_model_data["y"].values - biv.power_model_data["y_fit"].values
 
-    euni = Univar(data=biv.power_data["e_log"].values)
+    euni = Univar(data=biv.power_model_data["e_log"].values)
     specs = {"ylim": [-np.max(euni.data), np.max(euni.data)]}
-    euni.plot_basic_view(show=True, specs=specs)
+    euni.view(show=True, specs=specs)
     df_norm = euni.assess_normality(clevel=0.9)
     print(df_norm.round(5).to_string())
     euni.plot_qqplot(show=True)
 
 
     #biv.prediction_bands(n_sim=15, n_grid=20, lst_bounds=[0, 300])
-    #print(biv.linear.to_string())
+    #print(biv.linear_model.to_string())
 

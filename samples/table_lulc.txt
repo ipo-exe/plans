@@ -1,15 +1,14 @@
-Id;Alias;Name;Color
-3;FrF;Forest Formation;#006400
-9;FP;Forest Plantation;#935132
-11;We;Wetland;#45c2a5
-12;Gr;Grassland;#b8af4f
-15;Ps;Pasture;#ffd966
-21;MU;Mosaic of Uses;#fff3bf
-22;NvA;Non-vegetated area;#ea9999
-24;Urb;Urban Area;#af2a2a
-25;ONvA;Other non Vegetated Areas;#ff99ff
-33;RLO;River Lake Ocean;#0000ff
-39;Sy;Soybean;#c59ff4
-41;OTCr;Other Temporary Crops;#e787f8
-48;OPCr;Other Perennial Crops;#cd49e4
-
+Id;Alias;Name;Color;Mapbiomas_Id
+3;FrF;Forest Formation;#006400;3
+9;FP;Forest Plantation;#935132;9
+11;We;Wetland;#45c2a5;11
+12;Gr;Grassland;#b8af4f;12
+15;Ps;Pasture;#ffd966;15
+21;MU;Mosaic of Uses;#fff3bf;21
+22;NvA;Non-vegetated area;#ea9999;22
+24;Urb;Urban Area;#af2a2a;24
+25;ONvA;Other non Vegetated Areas;#ff99ff;25
+33;RLO;River Lake Ocean;#0000ff;33
+39;Sy;Soybean;#c59ff4;39
+41;OTCr;Other Temporary Crops;#e787f8;41
+48;OPCr;Other Perennial Crops;#cd49e4;48

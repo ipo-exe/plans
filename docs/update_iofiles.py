@@ -9,7 +9,7 @@ print(df_input.to_string())
 
 lst_input = list()
 for i in range(len(df_input)):
-    s_format = df_input["format"].values[i]
+    s_format = df_input["fig_format"].values[i]
     lst_input.append("``{}``\n".format(df_input["file"].values[i]))
     lst_input.append("-" * 60)
     s_line = "\n[`{}`_] {}.\n\n".format(
