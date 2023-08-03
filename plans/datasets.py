@@ -357,9 +357,21 @@ class PrecipSeries(DailySeries):
 
 
 class RatingCurve:
+    """
+    This is the Rating Curve object
+    """
     def __init__(self, name, date_start, date_end):
+        """
+        Initiate Rating Curve
+        :param name: name of rating curve
+        :type name: str
+        :param date_start: start date for valid period
+        :type date_start: str
+        :param date_end: end date for valid period
+        :type date_end: str
+        """
         self.name = name
-        self.data_start = date_start
+        self.date_start = date_start
         self.date_end = date_end
         self.n = None
         self.hmax = None
@@ -375,6 +387,7 @@ class RatingCurve:
         self.field_date = "Date"
         self.units_h = "m"
         self.units_q = "m3/s"
+        self.source_data = None
         self.description = None
 
         # data attribute
@@ -383,6 +396,21 @@ class RatingCurve:
         self.a = 1
         self.b = 1
         self.h0 = 0
+        self.rmse = None
+        self.e_mean = None
+        self.e_sd = None
+        self.et_mean = None
+        self.er_sd = None
+
+    def __str__(self):
+        dct_meta = self.get_metadata()
+        lst_ = list()
+        lst_.append("\n")
+        lst_.append("Object: {}".format(type(self)))
+        lst_.append("Metadata:")
+        for k in dct_meta:
+            lst_.append("\t{}: {}".format(k, dct_meta[k]))
+        return "\n".join(lst_)
 
     def update_model_data(self, h0=None, a=None, b=None):
         """
@@ -401,9 +429,9 @@ class RatingCurve:
         if h0 is not None:
             self.h0 = h0
         if a is not None:
-            self.a = h0
+            self.a = a
         if b is not None:
-            self.b = h0
+            self.b = b
 
         if self.data is not None:
             from plans.analyst import Bivar
@@ -417,8 +445,8 @@ class RatingCurve:
             self.data_model[self.field_qt] = np.log(self.data_model[self.field_qobs])
 
             # get transformed Linear params
-            c0t = np.log(b)
-            c1t = a
+            c0t = np.log(self.a)
+            c1t = self.b
 
             # now compute the tranformed model
             s_qt_model = self.field_qt + "_Mean"
@@ -431,6 +459,12 @@ class RatingCurve:
             # compute the error
             self.data_model["e"] = self.data_model[self.field_qobs] - self.data_model[self.field_qobs + "_Mean"]
 
+            # update attributes
+            self.rmse = np.sqrt(np.mean(np.square(self.data_model["e"])))
+            self.e_mean = np.mean(self.data_model["e"])
+            self.e_sd = np.std(self.data_model["e"])
+            self.et_mean = np.mean(self.data_model["eT"])
+            self.et_sd = np.std(self.data_model["eT"])
         return None
 
     def get_metadata(self):
@@ -443,12 +477,20 @@ class RatingCurve:
             "Name": self.name,
             "Date_Start": self.date_start,
             "Date_End": self.date_end,
-            "Source": self.source_data,
             "N": self.n,
+            "h0": self.h0,
+            "a": self.a,
+            "b": self.b,
+            "RMSE": self.rmse,
+            "Error_Mean": self.e_mean,
+            "Error_SD": self.e_sd,
+            "ErrorT_Mean": self.et_mean,
+            "ErrorT_SD": self.et_sd,
             "H_max": self.hmax,
             "H_min": self.hmin,
             "H_units": self.units_h,
             "Q_units": self.units_q,
+            "Source": self.source_data,
             "Description": self.description,
         }
 
@@ -462,7 +504,7 @@ class RatingCurve:
         units_h="m",
     ):
         """
-
+        Load data from CSV file
         :param table_file: path to CSV file
         :type table_file: str
         :param hobs_field: name of observed Stage field
@@ -497,7 +539,14 @@ class RatingCurve:
         self.units_q = units_q
 
 
-    def fit(self, n_grid=3):
+    def fit(self, n_grid=7):
+        """
+        Fit Rating Curve method. Q = a * (H - h0)^b
+        :param n_grid: number of intervals for h0 iteration
+        :type n_grid: int
+        :return: None
+        :rtype: None
+        """
         from plans.analyst import Bivar
         # estimate h0
         _h0_max = self.data[self.field_hobs].min()
@@ -513,69 +562,56 @@ class RatingCurve:
             }
         )
         _df_fits.insert(0, "Model", "")
-        dct_data = dict()
         # search loop
         for i in range(len(_df_fits)):
-            s_model_id = "M{}".format(i)
-            _df_fits["Model"].values[i] = s_model_id
             # get h0
             n_h0 = _df_fits["h0"].values[i]
             # get transformed variables
+            self.update_model_data(h0=n_h0)
 
-            _df_data = self.data.copy()
-            s_field_ht = "{} - h0".format(self.field_hobs)
-            _df_data[s_field_ht] = _df_data[self.field_hobs] - n_h0
-            s_field_htt = "ln({})".format(s_field_ht)
-            _df_data[s_field_htt] = np.log(_df_data[s_field_ht])
-            s_field_qt = "ln({})".format(self.field_qobs)
-            _df_data[s_field_qt] = np.log(_df_data[self.field_qobs])
-
-            # set Bivar object
+            # set Bivar object for tranformed linear model
             biv = Bivar(
-                df_data=_df_data,
-                x_name=s_field_htt,
-                y_name=s_field_qt
+                df_data=self.data_model,
+                x_name=self.field_htt,
+                y_name=self.field_qt
             )
-            #biv.view()
-            # fit model
+            # fit linear model
             biv.fit(model_type="Linear")
+            ###biv.view()
             # retrieve re-transformed values
-            _df_fits["a"].values[i] = biv.models["Linear"]["Setup"]["Mean"].values[1]
-            _df_fits["b"].values[i] = np.exp(biv.models["Linear"]["Setup"]["Mean"].values[0])
+            _df_fits["a"].values[i] = np.exp(biv.models["Linear"]["Setup"]["Mean"].values[0])
+            _df_fits["b"].values[i] = biv.models["Linear"]["Setup"]["Mean"].values[1]
             _df_fits["RMSE"].values[i] = biv.models["Linear"]["RMSE"]
-            # store data
-            dct_data[s_model_id] = _df_data.copy()
 
         # sort by metric
         _df_fits = _df_fits.sort_values(by="RMSE").reset_index(drop=True)
-        print(_df_fits.to_string())
-        s_best_model_id = _df_fits["Model"].values[0]
 
-        biv = Bivar(
-            df_data=self.data,
-            x_name=self.field_hobs,
-            y_name=self.field_qobs,
-            name=self.name,
-        )
-        print(_df_fits["h0"].values[0])
-        print(_df_fits["a"].values[0])
-        print(_df_fits["b"].values[0])
-
-        # view model
-        biv.update_model(
-            params_mean=[
-                -_df_fits["h0"].values[0],
-                _df_fits["a"].values[0],
-                _df_fits["b"].values[0],
-            ],
-            model_type="Power"
-        )
-        biv.view_model(model_type="Power"
-
+        self.h0 = _df_fits["h0"].values[0]
+        self.a = _df_fits["a"].values[0]
+        self.b = _df_fits["b"].values[0]
+        self.update_model_data()
+        return None
 
     def view(
         self, show=True, folder="C:/data", filename=None, dpi=150, fig_format="jpg"
     ):
+        """View Rating Curve
+
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
+        :return: None
+        :rtype: None
+        """
         from plans.analyst import Bivar
 
         biv = Bivar(
@@ -602,19 +638,76 @@ class RatingCurve:
         return None
 
     def view_model(self, transform=False, show=True, folder="C:/data", filename=None, dpi=150, fig_format="jpg"):
-        print()
-
+        """
+        View model Rating Curve
+        :param transform: option for plotting transformed variables
+        :type transform: bool
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
+        :return: None
+        :rtype: None
+        """
         from plans.analyst import Bivar
-        # set up fields and model type
-        s_field_x = self.field_hobs
-        s_field_y = self.field_qobs
-        model_type = "Linear"
+        self.update_model_data()
+
+        s_xfield = self.field_hobs
+        s_yfield = self.field_qobs
+        model_type = "Power"
         if transform:
-            s_field_x = self.field_htt
-            s_field_y = self.field_qt
-            model_type = "Power"
+            s_xfield = self.field_htt
+            s_yfield = self.field_qt
+            model_type = "Linear"
 
+        # create Bivar object
+        biv = Bivar(
+            df_data=self.data_model,
+            x_name=s_xfield,
+            y_name=s_yfield,
+            name="{} Rating Curve".format(self.name),
+        )
 
+        specs = {
+            "xlabel": "{} ({})".format(s_xfield, self.units_h),
+            "ylabel": "{} ({})".format(s_yfield, self.units_q),
+            "xlim": (0, 1.1 * self.data_model[s_xfield].max()),
+            "ylim": (0, 1.1 * self.data_model[s_yfield].max()),
+        }
+
+        # set Power model parameters
+        params_model = [-self.h0, self.b, self.a]
+        if transform:
+            # get transformed Linear params
+            c0t = np.log(self.a)
+            c1t = self.b
+            params_model = [c0t, c1t]
+        biv.update_model(
+            params_mean=params_model, model_type=model_type
+        )
+
+        biv.view_model(
+            model_type=model_type,
+            show=show,
+            folder=folder,
+            filename=filename,
+            specs=specs,
+            dpi=dpi,
+            fig_format=fig_format,
+        )
+        del biv
+        return None
+
+class RatingCurveCollection:
+    # todo colletion here
 
 class Streamflow:
     """
@@ -632,6 +725,7 @@ class Streamflow:
         self.stage_series = None
         self.rating_curves = None
 
+    # todo implement StreamFlow
 
 # -----------------------------------------
 # Base raster data structures
