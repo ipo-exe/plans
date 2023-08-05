@@ -1,3 +1,0 @@
-Id;Alias;Name;Color;T
-1;Bst;Basalt;peru;10
-2;SdS;Sandstone;orange;100
