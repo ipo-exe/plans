@@ -2200,7 +2200,7 @@ class LULCChange(QualiRaster):
         """
         super().__init__(name, dtype="uint8")
         self.cmap = "tab20b"
-        self.varname = "Land Use and Land Cover Change"
+        self.varname = "LULC Change"
         self.varalias = "LULCC"
         self.description = "Change of Land Use and Land Cover"
         self.units = "Change ID"
@@ -3394,7 +3394,7 @@ class LULCSeries(QualiRasterSeries):
         s_name_lulc = self.table.loc[self.table["Id"] == by_lulc_id]["Name"].values[0]
         # instantiate
         map_lulc_change = LULCChange(
-            name="{}_{}_{}".format(s_name, s_name_lulc, date_end),
+            name="{} of {} from {} to {}".format(s_name, s_name_lulc, date_start, date_end),
             name_lulc=s_name_lulc,
             date_start=date_start,
             date_end=date_end,
