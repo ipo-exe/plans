@@ -63,7 +63,7 @@ class Project:
         """
         import requests
         # 1) download to main folder
-        print("Downloading...")
+        print("Downloading datasets from URL...")
         response = requests.get(zip_url)
         # just in case of any problem
         response.raise_for_status()
@@ -95,7 +95,7 @@ class Project:
         :rtype: None
         """
         import zipfile
-        print("Unzipping files...")
+        print("Unzipping dataset files...")
         with zipfile.ZipFile(zip_file, 'r') as zip_ref:
             zip_ref.extractall(self.path_ds)
         # 3) delete zip file
