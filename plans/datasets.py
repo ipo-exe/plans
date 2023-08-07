@@ -770,6 +770,8 @@ class Raster:
         self.date = None  # "2020-01-01"
         self.source_data = None
         self.prj = None
+        self.path_ascfile = None
+        self.path_prjfile = None
 
     def __str__(self):
         dct_meta = self.get_metadata()
@@ -842,6 +844,8 @@ class Raster:
         :param nan: boolean to convert nan values to np.nan, defaults to False
         :type nan: bool
         """
+        # get file
+        self.path_ascfile = file
         f_file = open(file)
         lst_file = f_file.readlines()
         f_file.close()
@@ -932,13 +936,14 @@ class Raster:
         :return: None
         :rtype: None
         """
+        self.path_prjfile = file
         with open(file) as f:
             self.prj = f.readline().strip("\n")
         return None
 
     def export(self, folder, filename=None):
         """
-        Export raster data
+        Export raster data to folder
         param folder: string of directory path_main,
         :type folder: str
         :param filename: string of file without extension, defaults to None
@@ -1726,6 +1731,7 @@ class QualiRaster(Raster):
         self.aliasfield = "Alias"
         self.colorfield = "Color"
         self.areafield = "Area"
+        self.path_tablefile = None
         self._overwrite_nodata()
 
     def _overwrite_nodata(self):
@@ -1768,6 +1774,7 @@ class QualiRaster(Raster):
         :param file: path_main to file
         :type file: str
         """
+        self.path_tablefile = file
         # read raw file
         df_aux = pd.read_csv(file, sep=";")
         # set to self
