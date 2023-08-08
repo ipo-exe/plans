@@ -378,6 +378,8 @@ class RatingCurve:
         self.hmin = None
         self.field_hobs = "Hobs"
         self.field_qobs = "Qobs"
+        self.field_h = "H"
+        self.field_q = "Q"
         self.name_h0 = "h0"
         self.name_a = "a"
         self.name_b = "b"
@@ -392,7 +394,7 @@ class RatingCurve:
 
         # data attribute
         self.data = None
-        self.data_model = None
+        ###self.data_model = None
         self.a = 1
         self.b = 1
         self.h0 = 0
@@ -412,7 +414,51 @@ class RatingCurve:
             lst_.append("\t{}: {}".format(k, dct_meta[k]))
         return "\n".join(lst_)
 
-    def update_model_data(self, h0=None, a=None, b=None):
+    def run(self, h):
+        """
+        Run the model Q = a * (H - h0)^b
+        :param h: vector of H
+        :type h: :class:`numpy.ndarray` or float
+        :return: computed Q
+        :rtype: :class:`numpy.ndarray` or float
+        """
+        return self.a * (np.power((h - self.h0), self.b))
+
+    def extrapolate(self, hmin=None, hmax=None, n_samples=100):
+        """
+        Extrapolate Rating Curve model. Data is expected to be loaded.
+        :param hmin: lower bound
+        :type hmin: float
+        :param hmax: upper bound
+        :type hmax: float
+        :param n_samples: number of evenly spaced samples between bounds
+        :type n_samples: int
+        :return: dataframe of extrapolated data
+        :rtype: :class:`pandas.DataFrame`
+        """
+        # handle bounds
+        if hmin is None:
+            if self.hmin is None:
+                hmin = 0
+            else:
+                hmin = self.hmin
+        if hmax is None:
+            if self.hmax is None:
+                hmax = 100
+            else:
+                hmax = self.hmax
+        # set h vector
+        vct_h = np.linspace(hmin, hmax, n_samples)
+        # run
+        vct_q = self.run(h=vct_h)
+        return pd.DataFrame(
+            {
+                self.field_h: vct_h,
+                self.field_q: vct_q
+            }
+        )
+
+    def update(self, h0=None, a=None, b=None):
         """
         Update rating curve model
         :param h0: h0 parameter
@@ -432,17 +478,25 @@ class RatingCurve:
             self.a = a
         if b is not None:
             self.b = b
-
-        if self.data is not None:
+        # data model setup
+        if self.data is None:
+            pass
+        else:
             from plans.analyst import Bivar
-            self.data_model = self.data.copy()
-            self.data_model = self.data_model.sort_values(by=self.field_hobs).reset_index(drop=True)
-            # first transform on H
-            self.data_model[self.field_ht] = self.data_model[self.field_hobs] - self.h0
-            # second transform on H
-            self.data_model[self.field_htt] = np.log(self.data_model[self.field_ht])
-            # transform on Q
-            self.data_model[self.field_qt] = np.log(self.data_model[self.field_qobs])
+            # sort values by H
+            self.data = self.data.sort_values(by=self.field_hobs).reset_index(drop=True)
+
+            # get model values (reverse transform)
+            self.data[self.field_qobs + "_Mean"] = self.run(h=self.data[self.field_hobs].values)
+            # compute the model error
+            self.data["e"] = self.data[self.field_qobs] - self.data[self.field_qobs + "_Mean"]
+
+            # get first transform on H
+            self.data[self.field_ht] = self.data[self.field_hobs] - self.h0
+            # get second transform on H
+            self.data[self.field_htt] = np.log(self.data[self.field_ht])
+            # get transform on Q
+            self.data[self.field_qt] = np.log(self.data[self.field_qobs])
 
             # get transformed Linear params
             c0t = np.log(self.a)
@@ -450,21 +504,18 @@ class RatingCurve:
 
             # now compute the tranformed model
             s_qt_model = self.field_qt + "_Mean"
-            self.data_model[s_qt_model] = c0t + (c1t * self.data_model[self.field_htt])
+            self.data[s_qt_model] = c0t + (c1t * self.data[self.field_htt])
             # compute the transformed error
-            self.data_model["eT"] = self.data_model[self.field_qt] - self.data_model[s_qt_model]
-
-            # get model values (reverse transform)
-            self.data_model[self.field_qobs + "_Mean"] = np.exp(self.data_model[s_qt_model])
-            # compute the error
-            self.data_model["e"] = self.data_model[self.field_qobs] - self.data_model[self.field_qobs + "_Mean"]
+            self.data["eT"] = self.data[self.field_qt] - self.data[s_qt_model]
 
             # update attributes
-            self.rmse = np.sqrt(np.mean(np.square(self.data_model["e"])))
-            self.e_mean = np.mean(self.data_model["e"])
-            self.e_sd = np.std(self.data_model["e"])
-            self.et_mean = np.mean(self.data_model["eT"])
-            self.et_sd = np.std(self.data_model["eT"])
+            self.rmse = np.sqrt(np.mean(np.square(self.data["e"])))
+            self.e_mean = np.mean(self.data["e"])
+            self.e_sd = np.std(self.data["e"])
+            # get transformed attributes
+            self.et_mean = np.mean(self.data["eT"])
+            self.et_sd = np.std(self.data["eT"])
+
         return None
 
     def get_metadata(self):
@@ -537,9 +588,11 @@ class RatingCurve:
         self.n = len(self.data)
         self.units_h = units_h
         self.units_q = units_q
+        self.hmax = self.data[self.field_hobs].max()
+        self.hmin = self.data[self.field_hobs].min()
 
 
-    def fit(self, n_grid=7):
+    def fit(self, n_grid=20):
         """
         Fit Rating Curve method. Q = a * (H - h0)^b
         :param n_grid: number of intervals for h0 iteration
@@ -567,11 +620,11 @@ class RatingCurve:
             # get h0
             n_h0 = _df_fits["h0"].values[i]
             # get transformed variables
-            self.update_model_data(h0=n_h0)
+            self.update(h0=n_h0)
 
             # set Bivar object for tranformed linear model
             biv = Bivar(
-                df_data=self.data_model,
+                df_data=self.data,
                 x_name=self.field_htt,
                 y_name=self.field_qt
             )
@@ -589,8 +642,123 @@ class RatingCurve:
         self.h0 = _df_fits["h0"].values[0]
         self.a = _df_fits["a"].values[0]
         self.b = _df_fits["b"].values[0]
-        self.update_model_data()
+        self.update()
         return None
+
+
+    def get_bands(self, extrap_f=2, n_samples=100, runsize=100, seed=None, talk=False):
+        """
+        Get uncertainty bands from Rating Curve model using Monte Carlo sampling on the transformed error
+        :param extrap_f: extrapolation factor over upper bound
+        :type extrap_f: float
+        :param n_samples: number of extrapolation samples
+        :type n_samples: int
+        :param runsize: number of monte carlo simulations
+        :type runsize: int
+        :param seed: reproducibility seed
+        :type seed: int or None
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: dictionary with output dataframes
+        :rtype: dict
+        """
+        from plans.analyst import Univar
+
+        # random state setup
+        if seed is None:
+            from datetime import datetime
+            np.random.seed(int(datetime.now().timestamp()))
+        else:
+            np.random.seed(seed)
+
+        # ensure model is up-to-date
+        self.update()
+
+        # resample error
+
+        # get the transform error datasets:
+        grd_et = np.random.normal(loc=0, scale=self.et_sd, size=(runsize, len(self.data)))
+        # re-calc qobs_t for all error realizations
+        grd_qt = grd_et + np.array([self.data["{}_Mean".format(self.field_qt)].values])
+        # re-calc qobs
+        grd_qobs = np.exp(grd_qt)
+
+        # setup of montecarlo dataframe
+        mc_models_df = pd.DataFrame(
+            {
+                "Id": ["MC{}".format(str(i + 1).zfill(int(np.log10(runsize)) + 1)) for i in range(runsize)],
+                self.name_h0: np.zeros(runsize),
+                self.name_a: np.zeros(runsize),
+                self.name_b: np.zeros(runsize)
+            }
+        )
+        # set up simulation data
+        grd_qsim = np.zeros(shape=(runsize, n_samples))
+
+        # for each error realization, fit model and extrapolate
+        if talk:
+            print("Processing models...")
+        for i in range(runsize):
+            # set new qobs
+            self.data[self.field_qobs] = grd_qobs[i]
+            # update
+            self.update()
+            # fit
+            self.fit(n_grid=10)
+            # extrapolate
+            hmax = self.hmax * extrap_f
+            _df_ex = self.extrapolate(hmin=0, hmax=hmax, n_samples=n_samples)
+            # store results
+            grd_qsim[i] = _df_ex[self.field_q].values
+            mc_models_df[self.name_h0].values[i] = self.h0
+            mc_models_df[self.name_a].values[i] = self.a
+            mc_models_df[self.name_b].values[i] = self.b
+
+        # extract h values
+        vct_h = _df_ex[self.field_h].values
+        # transpose data
+        grd_qsim_t = np.transpose(grd_qsim)
+
+        # set simulation dataframe
+        mc_sim_df = pd.DataFrame(
+            data=grd_qsim_t,
+            columns=["Q_{}".format(mc_models_df["Id"].values[i]) for i in range(runsize)],
+        )
+        mc_sim_df.insert(0, value=vct_h, column=self.field_h)
+        mc_sim_df = mc_sim_df.dropna(how='any').reset_index(drop=True)
+
+        # clear up memory
+        del grd_qsim
+        del grd_qsim_t
+
+        # set up stats data
+        df_sts_dumm = Univar(data=np.ones(10)).assess_basic_stats()
+        grd_stats = np.zeros(shape=(len(mc_sim_df), len(df_sts_dumm)))
+
+        # retrieve stats from simulation
+        if talk:
+            print("Processing bands...")
+        for i in range(len(mc_sim_df)):
+            vct_data = mc_sim_df.values[i][1:]
+            uni = Univar(data=vct_data)
+            _df_stats = uni.assess_basic_stats()
+            grd_stats[i] = _df_stats["Value"].values
+
+        # set up stats dataframe
+        mc_stats_df = pd.DataFrame(
+            columns=["Q_{}".format(df_sts_dumm["Statistic"].values[i]) for i in range(len(df_sts_dumm))],
+            data=grd_stats
+        )
+        mc_stats_df.insert(0, column=self.field_h, value=mc_sim_df[self.field_h])
+        del grd_stats
+
+        # return objects
+        return {
+            "Models": mc_models_df,
+            "Simulation": mc_sim_df,
+            "Statistics": mc_stats_df
+        }
+
 
     def view(
         self, show=True, folder="C:/data", filename=None, dpi=150, fig_format="jpg"
@@ -658,7 +826,7 @@ class RatingCurve:
         :rtype: None
         """
         from plans.analyst import Bivar
-        self.update_model_data()
+        self.update()
 
         s_xfield = self.field_hobs
         s_yfield = self.field_qobs
@@ -670,7 +838,7 @@ class RatingCurve:
 
         # create Bivar object
         biv = Bivar(
-            df_data=self.data_model,
+            df_data=self.data,
             x_name=s_xfield,
             y_name=s_yfield,
             name="{} Rating Curve".format(self.name),
@@ -679,8 +847,8 @@ class RatingCurve:
         specs = {
             "xlabel": "{} ({})".format(s_xfield, self.units_h),
             "ylabel": "{} ({})".format(s_yfield, self.units_q),
-            "xlim": (0, 1.1 * self.data_model[s_xfield].max()),
-            "ylim": (0, 1.1 * self.data_model[s_yfield].max()),
+            "xlim": (0, 1.1 * self.data[s_xfield].max()),
+            "ylim": (0, 1.1 * self.data[s_yfield].max()),
         }
 
         # set Power model parameters
@@ -2571,7 +2739,7 @@ class RasterCollection:
     ):
         """View Bounding Boxes of Raster collection
 
-        :param colors: list of colors for plotting. expected to be the same size of catalog
+        :param colors: list of colors for plotting. expected to be the same runsize of catalog
         :type colors: list
         :param datapoints: option to plot datapoints as well, defaults to False
         :type datapoints: bool

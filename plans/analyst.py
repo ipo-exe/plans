@@ -92,7 +92,7 @@ class Univar:
     def nbins_sturges(self):
         """
         This function computes the number of bins using the Sturges rule, which assumes that
-        the data follows a normal distribution and computes the number of bins based on its sample size.
+        the data follows a normal distribution and computes the number of bins based on its sample runsize.
         :return: number of bins using the Sturges rule
         :rtype: int
         """
@@ -101,7 +101,7 @@ class Univar:
     def nbins_scott(self):
         """
         This function computes the number of bins using the Scott rule, which is
-        similar to the Freedman-Diaconis rule, but uses the standard deviation of the data to compute the bin size.
+        similar to the Freedman-Diaconis rule, but uses the standard deviation of the data to compute the bin runsize.
         :return: number of bins using the Scott rule
         :rtype: int
         """
@@ -559,9 +559,28 @@ class Univar:
         return df_result
 
     def assess_basic_stats(self):
-        df_aux = pd.DataFrame({"Value": self.data})
-        df_stats = df_aux.describe()
-        df_result = df_stats.reset_index().rename(columns={"index": "Statistic"})
+        dct = {
+            "Count": len(self.data),
+            "Sum": np.sum(self.data),
+            "Mean": np.mean(self.data),
+            "SD": np.std(self.data),
+            "Min": np.min(self.data),
+            "p01": np.percentile(self.data, 1),
+            "p05": np.percentile(self.data, 5),
+            "p25": np.percentile(self.data, 25),
+            "p50": np.percentile(self.data, 50),
+            "p75": np.percentile(self.data, 75),
+            "p90": np.percentile(self.data, 90),
+            "p95": np.percentile(self.data, 95),
+            "p99": np.percentile(self.data, 99),
+            "Max": np.max(self.data)
+        }
+        df_result = pd.DataFrame(
+            {
+                "Statistic": list(dct.keys()),
+                "Value": [dct[key] for key in dct]
+            }
+        )
         return df_result
 
 
