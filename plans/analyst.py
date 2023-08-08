@@ -586,7 +586,7 @@ class Univar:
 
 class Bivar:
     """
-    The Bivariate analyst object
+    The Bivariate analyst base_object
 
     """
 
@@ -684,7 +684,7 @@ class Bivar:
         self, show=True, folder="C:/data", filename="view", specs=None, fig_format="jpg", dpi=300
     ):
         """
-        Plot basic view of Bivar object
+        Plot basic view of Bivar base_object
 
         :param show: Boolean to show instead of saving
         :type show: bool
@@ -933,7 +933,7 @@ class Bivar:
 
     def correlation(self):
         """
-        Compute the R correlation coefficient of the object
+        Compute the R correlation coefficient of the base_object
         :return: R correlation coefficient
         :rtype: float
         """
@@ -960,7 +960,7 @@ class Bivar:
         :type n_seed: int
         :param p0: list of initial values to search. Default: None
         :type p0: list
-        :return: object with result dataframes
+        :return: base_object with result dataframes
         :rtype: dict
         """
         from scipy.optimize import curve_fit
@@ -1088,7 +1088,7 @@ class Bivar:
             df_bands["p95"].values[i] = np.quantile(_values, 0.95)
             df_bands["p99"].values[i] = np.quantile(_values, 0.99)
 
-        # return object
+        # return base_object
         return {
             "Models": df_models,
             "Predictions": df_preds,
@@ -1212,7 +1212,7 @@ class Bayes:
     def conditionalize(self, dct_evidence, s_varfield="E", s_weightfield="W"):
         """
         Conditionalize procedure of the Bayes Theorem
-        :param dct_evidence: object of evidence dataframes
+        :param dct_evidence: base_object of evidence dataframes
         :type dct_evidence: dict
         :param s_varfield: name of variable field in evidence dataframes
         :type s_varfield: str
@@ -1296,7 +1296,7 @@ class Bayes:
         :type folder: str
         :param filename: file name
         :type filename: str
-        :param specs: plot specs object
+        :param specs: plot specs base_object
         :type specs: dict
         :param dpi: plot resolution
         :type dpi: int

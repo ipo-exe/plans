@@ -48,7 +48,7 @@ def dataframe_prepro(dataframe):
     # strip string fields
     for i in range(len(dataframe.columns)):
         # if data type is string
-        if str(dataframe.dtypes.iloc[i]) == "object":
+        if str(dataframe.dtypes.iloc[i]) == "base_object":
             # strip all data
             dataframe[dataframe.columns[i]] = dataframe[
                 dataframe.columns[i]
@@ -81,9 +81,85 @@ def get_random_colors(size=10, cmap="tab20"):
 # Series data structures
 
 
+class Collection:
+    """
+    This is the primitive objects collection
+    """
+
+    def __init__(self, base_object, name="myCatalog"):
+        dct_meta = base_object.get_metadata()
+        self.catalog = pd.DataFrame(columns=dct_meta.keys())
+        self.collection = dict()
+        self.name = name
+
+    def update(self, details=False):
+        """
+        Update the collection catalog
+        :param details: option to update catalog details
+        :type details: bool
+        :return: None
+        :rtype: none
+        """
+        # update details
+        if details:
+            # create new catalog
+            df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
+            for name in self.collection:
+                dct_meta = self.collection[name].get_metadata()
+                lst_keys = dct_meta.keys()
+                _dct = dict()
+                for k in lst_keys:
+                    _dct[k] = [dct_meta[k]]
+                # set new information
+                df_aux = pd.DataFrame(_dct)
+                # append
+                df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
+            self.catalog = df_new_catalog.copy()
+            del df_new_catalog
+        # basic updates
+        self.catalog = self.catalog.drop_duplicates(subset="Name", keep="last")
+        self.catalog = self.catalog.sort_values(by="Name").reset_index(drop=True)
+        return None
+
+    def append(self, new_object):
+        """
+        Append new object to collection.
+        Object is expected to have a .get_metadata() method that returns a dict
+        :param new_object: object to append
+        :type new_object: object
+        :return: None
+        :rtype: None
+        """
+        # append to collection
+        self.collection[new_object.name] = new_object
+        # set
+        dct_meta = new_object.get_metadata()
+        dct_meta_df = dict()
+        for k in dct_meta:
+            dct_meta_df[k] = [dct_meta[k]]
+        df_aux = pd.DataFrame(dct_meta_df)
+        self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
+        self.update()
+        return None
+
+    def remove(self, name):
+        """Remove base_object from collection.
+
+        :param name: object name attribute to remove
+        :type name: str
+        """
+        # delete raster base_object
+        del self.collection[name]
+        # delete from catalog
+        self.catalog = self.catalog.drop(
+            self.catalog[self.catalog["Name"] == name].index
+        ).reset_index(drop=True)
+        return None
+
+
 class DailySeries:
     """
-    The basic daily time series object
+    The basic daily time series base_object
 
     """
 
@@ -110,7 +186,7 @@ class DailySeries:
     def set_data(self, dataframe, varfield, datefield="Date"):
         """Set the data from incoming class:`pandas.DataFrame`.
 
-        :param dataframe: incoming :class:`pandas.DataFrame` object
+        :param dataframe: incoming :class:`pandas.DataFrame` base_object
         :type dataframe: :class:`pandas.DataFrame`
         :param varfield: name of variable field in the incoming :class:`pandas.DataFrame`
         :type varfield: str
@@ -225,7 +301,7 @@ class DailySeries:
 
         plt.style.use("seaborn-v0_8")
 
-        # get univar object
+        # get univar base_object
         uni = Univar(data=self.data[self.varname].values)
 
         # get specs
@@ -342,9 +418,9 @@ class DailySeries:
 
 class PrecipSeries(DailySeries):
     """
-    The precipitation daily time series object
+    The precipitation daily time series base_object
 
-    Example of using this object:
+    Example of using this base_object:
 
     """
 
@@ -358,21 +434,17 @@ class PrecipSeries(DailySeries):
 
 class RatingCurve:
     """
-    This is the Rating Curve object
+    This is the Rating Curve base_object
     """
-    def __init__(self, name, date_start, date_end):
+    def __init__(self, name="MyRatingCurve"):
         """
         Initiate Rating Curve
         :param name: name of rating curve
         :type name: str
-        :param date_start: start date for valid period
-        :type date_start: str
-        :param date_end: end date for valid period
-        :type date_end: str
         """
         self.name = name
-        self.date_start = date_start
-        self.date_end = date_end
+        self.date_start = None
+        self.date_end = None
         self.n = None
         self.hmax = None
         self.hmin = None
@@ -402,7 +474,7 @@ class RatingCurve:
         self.e_mean = None
         self.e_sd = None
         self.et_mean = None
-        self.er_sd = None
+        self.et_sd = None
 
     def __str__(self):
         dct_meta = self.get_metadata()
@@ -520,7 +592,7 @@ class RatingCurve:
 
     def get_metadata(self):
         """
-        Get all metadata from object
+        Get all metadata from base_object
         :return: metadata
         :rtype: dict
         """
@@ -590,6 +662,9 @@ class RatingCurve:
         self.units_q = units_q
         self.hmax = self.data[self.field_hobs].max()
         self.hmin = self.data[self.field_hobs].min()
+        self.date_start = self.data[self.field_date].min()
+        self.date_end = self.data[self.field_date].max()
+        return None
 
 
     def fit(self, n_grid=20):
@@ -622,7 +697,7 @@ class RatingCurve:
             # get transformed variables
             self.update(h0=n_h0)
 
-            # set Bivar object for tranformed linear model
+            # set Bivar base_object for tranformed linear model
             biv = Bivar(
                 df_data=self.data,
                 x_name=self.field_htt,
@@ -836,7 +911,7 @@ class RatingCurve:
             s_yfield = self.field_qt
             model_type = "Linear"
 
-        # create Bivar object
+        # create Bivar base_object
         biv = Bivar(
             df_data=self.data,
             x_name=s_xfield,
@@ -874,13 +949,25 @@ class RatingCurve:
         del biv
         return None
 
-class RatingCurveCollection:
-    # todo colletion here
-    print()
+
+class RatingCurveCollection(Collection):
+
+    def __init__(self, name="MyRatingCurveCollection"):
+        obj_aux = RatingCurve()
+        super().__init__(base_object=obj_aux, name=name)
+        # set up date fields and special attributes
+        self.catalog["Date_Start"] = pd.to_datetime(self.catalog["Date_Start"])
+        self.catalog["Date_End"] = pd.to_datetime(self.catalog["Date_End"])
+
+    def load(self, table_file):
+        print("AH SHIT")
+
+    def view(self):
+        print("AH SHIT")
 
 class Streamflow:
     """
-    The Streamflow (Discharge) object
+    The Streamflow (Discharge) base_object
     """
 
     def __init__(self, name, code):
@@ -906,7 +993,7 @@ class Raster:
     """
 
     def __init__(self, name="myRasterMap", dtype="float32"):
-        """Deploy basic raster map object.
+        """Deploy basic raster map base_object.
 
         :param name: map name
         :type name: str
@@ -1333,7 +1420,7 @@ class Raster:
 
     def get_metadata(self):
         """
-        Get all metadata from object
+        Get all metadata from base_object
         :return: metadata
         :rtype: dict
         """
@@ -1482,7 +1569,7 @@ class Raster:
 
         plt.style.use("seaborn-v0_8")
 
-        # get univar object
+        # get univar base_object
         uni = Univar(data=self.get_grid_data())
         if len(np.unique(uni.data)) <= 1:
             nbins = 1
@@ -2541,13 +2628,13 @@ class AOI(QualiRaster):
 # Raster Collection data structures
 
 
-class RasterCollection:
+class RasterCollection(Collection):
     """
     The raster collection base dataset.
     This data strucute is designed for holding and comparing :class:`Raster` objects.
     """
 
-    def __init__(self, name="myRasterCollection", dtype="float32"):
+    def __init__(self, name="myRasterCollection"):
         """Deploy the raster collection data structure.
 
         :param name: name of raster collection
@@ -2555,79 +2642,12 @@ class RasterCollection:
         :param dtype: data type of raster cells, defaults to float32
         :type dtype: str
         """
-        raster_aux = Raster()
-        dct_meta = raster_aux.get_metadata()
-
-        self.catalog = pd.DataFrame(columns=dct_meta.keys())
+        obj_aux = Raster()
+        super().__init__(base_object=obj_aux, name=name)
+        # set up date fields and special attributes
         self.catalog["Date"] = pd.to_datetime(self.catalog["Date"])
-        self.collection = dict()
-        self.dtype = dtype
-        self.name = name
 
-    def append_raster(self, raster):
-        """Append a :class:`Raster` object to collection.
-        Pre-existing objects with the same :class:`Raster.name` attribute are replaced
-
-        :param raster: incoming :class:`Raster` to append
-        :type raster: :class:`Raster`
-        """
-        # append to collection
-        self.collection[raster.name] = raster
-        # set
-        dct_meta = raster.get_metadata()
-        dct_meta_df = dict()
-        for k in dct_meta:
-            dct_meta_df[k] = [dct_meta[k]]
-        df_aux = pd.DataFrame(dct_meta_df)
-        self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
-        self.update_catalog()
-        return None
-
-    def remove_raster(self, name):
-        """Remove a :class:`Raster` object from collection.
-
-        :param name: :class:`Raster.name` name attribute to remove
-        :type name: str
-        """
-        # delete raster object
-        del self.collection[name]
-        # delete from catalog
-        self.catalog = self.catalog.drop(
-            self.catalog[self.catalog["Name"] == name].index
-        ).reset_index(drop=True)
-        return None
-
-    def update_catalog(self, details=False):
-        """
-        Update the collection catalog
-        :param details: option to update catalog details (looking into rasters)
-        :type details: bool
-        :return: None
-        :rtype: none
-        """
-        # update details
-        if details:
-            # create new catalog
-            df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
-            df_new_catalog["Date"] = pd.to_datetime(df_new_catalog["Date"])
-            for name in self.collection:
-                dct_meta = self.collection[name].get_metadata()
-                lst_keys = dct_meta.keys()
-                _dct = dict()
-                for k in lst_keys:
-                    _dct[k] = [dct_meta[k]]
-                # set new information
-                df_aux = pd.DataFrame(_dct)
-                # append
-                df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
-            self.catalog = df_new_catalog.copy()
-            del df_new_catalog
-        # basic updates
-        self.catalog = self.catalog.drop_duplicates(subset="Name", keep="last")
-        self.catalog = self.catalog.sort_values(by="Name").reset_index(drop=True)
-        return None
-
-    def load_raster(
+    def load(
         self,
         name,
         asc_file,
@@ -2636,8 +2656,9 @@ class RasterCollection:
         varalias=None,
         units=None,
         date=None,
+        dtype="float32"
     ):
-        """Load a :class:`Raster` object from a ``.asc`` raster file.
+        """Load a :class:`Raster` base_object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
@@ -2653,7 +2674,7 @@ class RasterCollection:
         :type date: str
         """
         # create raster
-        rst_aux = Raster(name=name, dtype=self.dtype)
+        rst_aux = Raster(name=name, dtype=dtype)
         # set attributes
         rst_aux.varname = varname
         rst_aux.varalias = varalias
@@ -2667,7 +2688,7 @@ class RasterCollection:
         # read asc file
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
-        self.append_raster(raster=rst_aux)
+        self.append(new_object=rst_aux)
         # delete aux
         del rst_aux
 
@@ -2690,8 +2711,8 @@ class RasterCollection:
 
         # fill values
         for i in range(len(df_aux)):
-            df_aux.loc[i, "count":"max"] = lst_stats[i]["Value"].values
-        df_aux["count"] = df_aux["count"].astype(dtype="uint16")
+            df_aux.loc[i, "Count":"Max"] = lst_stats[i]["Value"].values
+        df_aux["Count"] = df_aux["Count"].astype(dtype="uint16")
         return df_aux
 
     def get_views(
@@ -2848,8 +2869,8 @@ class QualiRasterCollection(RasterCollection):
             name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
         )
 
-    def load_raster(self, name, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`QualiRaster` object from ``.asc`` raster file.
+    def load(self, name, asc_file, prj_file=None, table_file=None):
+        """Load a :class:`QualiRaster` base_object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
@@ -2875,7 +2896,7 @@ class QualiRasterCollection(RasterCollection):
         else:
             rst_aux.load_table(file=table_file)
         # append to collection
-        self.append_raster(raster=rst_aux)
+        self.append(new_object=rst_aux)
         # delete aux
         del rst_aux
         return None
@@ -2898,10 +2919,45 @@ class RasterSeries(RasterCollection):
         :param units: :class:`Raster.units` units attribute, defaults to None
         :type units: str
         """
-        super().__init__(name=name, dtype=dtype)
+        super().__init__(name=name)
         self.varname = varname
         self.varalias = varalias
         self.units = units
+        self.dtype = dtype
+
+    def load(self, name, date, asc_file, prj_file=None):
+        """Load a :class:`Raster` base_object from a ``.asc`` raster file.
+
+        :param name: :class:`Raster.name` name attribute
+        :type name: str
+        :param date: :class:`Raster.date` date attribute, defaults to None
+        :type date: str
+        :param asc_file: path_main to ``.asc`` raster file
+        :type asc_file: str
+        :param prj_file: path_main to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
+        """
+        # create raster
+        rst_aux = Raster(name=name, dtype=self.dtype)
+        # set attributes
+        rst_aux.varname = self.varname
+        rst_aux.varalias = self.varalias
+        rst_aux.units = self.units
+        rst_aux.date = date
+        # read file
+        rst_aux.load_asc_raster(file=asc_file)
+        # append to collection
+        self.append(new_object=rst_aux)
+        # load prj file
+        if prj_file is None:
+            pass
+        else:
+            rst_aux.load_prj_file(file=prj_file)
+        # delete aux
+        del rst_aux
+        return None
 
     def load_folder(self, folder, name_pattern="map_*", talk=False):
         """
@@ -2930,47 +2986,15 @@ class RasterSeries(RasterCollection):
             s_date_map = asc_file.split("_")[-1].split(".")[0]
             s_date_prj = prj_file.split("_")[-1].split(".")[0]
             # load
-            self.load_raster(
+            self.load(
                 name=s_name,
                 date=s_date_map,
                 asc_file=asc_file,
                 prj_file=prj_file,
             )
+        self.update(details=True)
         return None
 
-    def load_raster(self, name, date, asc_file, prj_file=None):
-        """Load a :class:`Raster` object from a ``.asc`` raster file.
-
-        :param name: :class:`Raster.name` name attribute
-        :type name: str
-        :param date: :class:`Raster.date` date attribute, defaults to None
-        :type date: str
-        :param asc_file: path_main to ``.asc`` raster file
-        :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
-        :type prj_file: str
-        :return: None
-        :rtype: None
-        """
-        # create raster
-        rst_aux = Raster(name=name, dtype=self.dtype)
-        # set attributes
-        rst_aux.varname = self.varname
-        rst_aux.varalias = self.varalias
-        rst_aux.units = self.units
-        rst_aux.date = date
-        # read file
-        rst_aux.load_asc_raster(file=asc_file)
-        # append to collection
-        self.append_raster(raster=rst_aux)
-        # load prj file
-        if prj_file is None:
-            pass
-        else:
-            rst_aux.load_prj_file(file=prj_file)
-        # delete aux
-        del rst_aux
-        return None
 
     def apply_aoi_masks(self, grid_aoi):
         """Batch method to apply AOI mask over all maps in collection
@@ -2998,7 +3022,7 @@ class RasterSeries(RasterCollection):
             print("rebase grids...")
         for name in self.collection:
             self.collection[name].rebase_grid(base_raster=base_raster, inplace=True)
-        self.update_catalog(details=True)
+        self.update(details=True)
         return None
 
     def get_series_stats(self):
@@ -3129,8 +3153,8 @@ class NDVISeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file, prj_file):
-        """Load a :class:`NDVI` object from a ``.asc`` raster file.
+    def load(self, name, date, asc_file, prj_file):
+        """Load a :class:`NDVI` base_object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
@@ -3148,7 +3172,7 @@ class NDVISeries(RasterSeries):
         # read file
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
-        self.append_raster(raster=rst_aux)
+        self.append(new_object=rst_aux)
         # load prj file
         rst_aux.load_prj_file(file=prj_file)
         # delete aux
@@ -3170,8 +3194,8 @@ class ETSeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file, prj_file):
-        """Load a :class:`ET24h` object from a ``.asc`` raster file.
+    def load(self, name, date, asc_file, prj_file):
+        """Load a :class:`ET24h` base_object from a ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
@@ -3189,7 +3213,7 @@ class ETSeries(RasterSeries):
         # read file
         rst_aux.load_asc_raster(file=asc_file)
         # append to collection
-        self.append_raster(raster=rst_aux)
+        self.append(new_object=rst_aux)
         # load prj file
         rst_aux.load_prj_file(file=prj_file)
         # delete aux
@@ -3237,19 +3261,19 @@ class QualiRasterSeries(RasterSeries):
         self.table = self.table.drop_duplicates(subset="Id", keep="last")
         return None
 
-    def append_raster(self, raster):
-        """Append a :class:`Raster` object to collection.
+    def append(self, raster):
+        """Append a :class:`Raster` base_object to collection.
         Pre-existing objects with the same :class:`Raster.name` attribute are replaced
 
         :param raster: incoming :class:`Raster` to append
         :type raster: :class:`Raster`
         """
-        super().append_raster(raster=raster)
+        super().append(raster=raster)
         self.update_table()
         return None
 
-    def load_raster(self, name, date, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`QualiRaster` object from ``.asc`` raster file.
+    def load(self, name, date, asc_file, prj_file=None, table_file=None):
+        """Load a :class:`QualiRaster` base_object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
@@ -3279,7 +3303,7 @@ class QualiRasterSeries(RasterSeries):
         else:
             rst_aux.load_table(file=table_file)
         # append to collection
-        self.append_raster(raster=rst_aux)
+        self.append(new_object=rst_aux)
         # delete aux
         del rst_aux
 
@@ -3312,7 +3336,7 @@ class QualiRasterSeries(RasterSeries):
             s_date_map = asc_file.split("_")[-1].split(".")[0]
             s_date_prj = prj_file.split("_")[-1].split(".")[0]
             # load
-            self.load_raster(
+            self.load(
                 name=s_name,
                 date=s_date_map,
                 asc_file=asc_file,
@@ -3496,8 +3520,8 @@ class LULCSeries(QualiRasterSeries):
         # remove
         del rst_aux
 
-    def load_raster(self, name, date, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`LULCRaster` object from ``.asc`` raster file.
+    def load(self, name, date, asc_file, prj_file=None, table_file=None):
+        """Load a :class:`LULCRaster` base_object from ``.asc`` raster file.
 
         :param name: :class:`Raster.name` name attribute
         :type name: str
@@ -3527,7 +3551,7 @@ class LULCSeries(QualiRasterSeries):
         else:
             rst_aux.load_table(file=table_file)
         # append to collection
-        self.append_raster(raster=rst_aux)
+        self.append(new_object=rst_aux)
         # delete aux
         del rst_aux
         return None
@@ -3602,7 +3626,7 @@ class LULCSeries(QualiRasterSeries):
                 date_end=self.catalog["Date"].values[i],
                 by_lulc_id=by_lulc_id,
             )
-            series_lulcc.append_raster(raster=raster)
+            series_lulcc.append(raster=raster)
         return series_lulcc
 
     def get_conversion_matrix(self, date_start, date_end, talk=False):
