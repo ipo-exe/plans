@@ -436,6 +436,7 @@ class RatingCurve:
     """
     This is the Rating Curve base_object
     """
+
     def __init__(self, name="MyRatingCurve"):
         """
         Initiate Rating Curve
@@ -466,7 +467,6 @@ class RatingCurve:
 
         # data attribute
         self.data = None
-        ###self.data_model = None
         self.a = 1
         self.b = 1
         self.h0 = 0
@@ -523,12 +523,7 @@ class RatingCurve:
         vct_h = np.linspace(hmin, hmax, n_samples)
         # run
         vct_q = self.run(h=vct_h)
-        return pd.DataFrame(
-            {
-                self.field_h: vct_h,
-                self.field_q: vct_q
-            }
-        )
+        return pd.DataFrame({self.field_h: vct_h, self.field_q: vct_q})
 
     def update(self, h0=None, a=None, b=None):
         """
@@ -555,13 +550,18 @@ class RatingCurve:
             pass
         else:
             from plans.analyst import Bivar
+
             # sort values by H
             self.data = self.data.sort_values(by=self.field_hobs).reset_index(drop=True)
 
             # get model values (reverse transform)
-            self.data[self.field_qobs + "_Mean"] = self.run(h=self.data[self.field_hobs].values)
+            self.data[self.field_qobs + "_Mean"] = self.run(
+                h=self.data[self.field_hobs].values
+            )
             # compute the model error
-            self.data["e"] = self.data[self.field_qobs] - self.data[self.field_qobs + "_Mean"]
+            self.data["e"] = (
+                self.data[self.field_qobs] - self.data[self.field_qobs + "_Mean"]
+            )
 
             # get first transform on H
             self.data[self.field_ht] = self.data[self.field_hobs] - self.h0
@@ -666,7 +666,6 @@ class RatingCurve:
         self.date_end = self.data[self.field_date].max()
         return None
 
-
     def fit(self, n_grid=20):
         """
         Fit Rating Curve method. Q = a * (H - h0)^b
@@ -676,10 +675,11 @@ class RatingCurve:
         :rtype: None
         """
         from plans.analyst import Bivar
+
         # estimate h0
         _h0_max = self.data[self.field_hobs].min()
         # get range of h0
-        _h0_values = np.linspace(0, 0.99 *_h0_max, n_grid)
+        _h0_values = np.linspace(0, 0.99 * _h0_max, n_grid)
         # set fit dataframe
         _df_fits = pd.DataFrame(
             {
@@ -698,16 +698,14 @@ class RatingCurve:
             self.update(h0=n_h0)
 
             # set Bivar base_object for tranformed linear model
-            biv = Bivar(
-                df_data=self.data,
-                x_name=self.field_htt,
-                y_name=self.field_qt
-            )
+            biv = Bivar(df_data=self.data, x_name=self.field_htt, y_name=self.field_qt)
             # fit linear model
             biv.fit(model_type="Linear")
             ###biv.view()
             # retrieve re-transformed values
-            _df_fits["a"].values[i] = np.exp(biv.models["Linear"]["Setup"]["Mean"].values[0])
+            _df_fits["a"].values[i] = np.exp(
+                biv.models["Linear"]["Setup"]["Mean"].values[0]
+            )
             _df_fits["b"].values[i] = biv.models["Linear"]["Setup"]["Mean"].values[1]
             _df_fits["RMSE"].values[i] = biv.models["Linear"]["RMSE"]
 
@@ -719,7 +717,6 @@ class RatingCurve:
         self.b = _df_fits["b"].values[0]
         self.update()
         return None
-
 
     def get_bands(self, extrap_f=2, n_samples=100, runsize=100, seed=None, talk=False):
         """
@@ -742,6 +739,7 @@ class RatingCurve:
         # random state setup
         if seed is None:
             from datetime import datetime
+
             np.random.seed(int(datetime.now().timestamp()))
         else:
             np.random.seed(seed)
@@ -752,7 +750,9 @@ class RatingCurve:
         # resample error
 
         # get the transform error datasets:
-        grd_et = np.random.normal(loc=0, scale=self.et_sd, size=(runsize, len(self.data)))
+        grd_et = np.random.normal(
+            loc=0, scale=self.et_sd, size=(runsize, len(self.data))
+        )
         # re-calc qobs_t for all error realizations
         grd_qt = grd_et + np.array([self.data["{}_Mean".format(self.field_qt)].values])
         # re-calc qobs
@@ -761,10 +761,13 @@ class RatingCurve:
         # setup of montecarlo dataframe
         mc_models_df = pd.DataFrame(
             {
-                "Id": ["MC{}".format(str(i + 1).zfill(int(np.log10(runsize)) + 1)) for i in range(runsize)],
+                "Id": [
+                    "MC{}".format(str(i + 1).zfill(int(np.log10(runsize)) + 1))
+                    for i in range(runsize)
+                ],
                 self.name_h0: np.zeros(runsize),
                 self.name_a: np.zeros(runsize),
-                self.name_b: np.zeros(runsize)
+                self.name_b: np.zeros(runsize),
             }
         )
         # set up simulation data
@@ -797,10 +800,12 @@ class RatingCurve:
         # set simulation dataframe
         mc_sim_df = pd.DataFrame(
             data=grd_qsim_t,
-            columns=["Q_{}".format(mc_models_df["Id"].values[i]) for i in range(runsize)],
+            columns=[
+                "Q_{}".format(mc_models_df["Id"].values[i]) for i in range(runsize)
+            ],
         )
         mc_sim_df.insert(0, value=vct_h, column=self.field_h)
-        mc_sim_df = mc_sim_df.dropna(how='any').reset_index(drop=True)
+        mc_sim_df = mc_sim_df.dropna(how="any").reset_index(drop=True)
 
         # clear up memory
         del grd_qsim
@@ -821,8 +826,11 @@ class RatingCurve:
 
         # set up stats dataframe
         mc_stats_df = pd.DataFrame(
-            columns=["Q_{}".format(df_sts_dumm["Statistic"].values[i]) for i in range(len(df_sts_dumm))],
-            data=grd_stats
+            columns=[
+                "Q_{}".format(df_sts_dumm["Statistic"].values[i])
+                for i in range(len(df_sts_dumm))
+            ],
+            data=grd_stats,
         )
         mc_stats_df.insert(0, column=self.field_h, value=mc_sim_df[self.field_h])
         del grd_stats
@@ -831,9 +839,8 @@ class RatingCurve:
         return {
             "Models": mc_models_df,
             "Simulation": mc_sim_df,
-            "Statistics": mc_stats_df
+            "Statistics": mc_stats_df,
         }
-
 
     def view(
         self, show=True, folder="C:/data", filename=None, dpi=150, fig_format="jpg"
@@ -880,7 +887,15 @@ class RatingCurve:
         del biv
         return None
 
-    def view_model(self, transform=False, show=True, folder="C:/data", filename=None, dpi=150, fig_format="jpg"):
+    def view_model(
+        self,
+        transform=False,
+        show=True,
+        folder="C:/data",
+        filename=None,
+        dpi=150,
+        fig_format="jpg",
+    ):
         """
         View model Rating Curve
         :param transform: option for plotting transformed variables
@@ -901,6 +916,7 @@ class RatingCurve:
         :rtype: None
         """
         from plans.analyst import Bivar
+
         self.update()
 
         s_xfield = self.field_hobs
@@ -933,9 +949,7 @@ class RatingCurve:
             c0t = np.log(self.a)
             c1t = self.b
             params_model = [c0t, c1t]
-        biv.update_model(
-            params_mean=params_model, model_type=model_type
-        )
+        biv.update_model(params_mean=params_model, model_type=model_type)
 
         biv.view_model(
             model_type=model_type,
@@ -951,7 +965,6 @@ class RatingCurve:
 
 
 class RatingCurveCollection(Collection):
-
     def __init__(self, name="MyRatingCurveCollection"):
         obj_aux = RatingCurve()
         super().__init__(base_object=obj_aux, name=name)
@@ -959,11 +972,101 @@ class RatingCurveCollection(Collection):
         self.catalog["Date_Start"] = pd.to_datetime(self.catalog["Date_Start"])
         self.catalog["Date_End"] = pd.to_datetime(self.catalog["Date_End"])
 
-    def load(self, table_file):
-        print("AH SHIT")
+    def load(
+        self,
+        name,
+        table_file,
+        hobs_field,
+        qobs_field,
+        date_field="Date",
+        units_q="m3/s",
+        units_h="m",
+    ):
+        """
+        Load rating curve to colletion from CSV file
+        :param name: Rating Curve name
+        :type name: str
+        :param table_file: path to CSV file
+        :type table_file: str
+        :param hobs_field: name of observed Stage field
+        :type hobs_field: str
+        :param qobs_field: name of observed Discharge field
+        :type qobs_field: str
+        :param date_field: name of Date field
+        :type date_field: str
+        :param units_q: units of streamflow
+        :type units_q: str
+        :param units_h: units of stage
+        :type units_h: str
+        :return: None
+        :rtype: None
+        """
+        rc_aux = RatingCurve(name=name)
+        rc_aux.load(
+            table_file=table_file,
+            hobs_field=hobs_field,
+            qobs_field=qobs_field,
+            date_field=date_field,
+            units_q=units_q,
+            units_h=units_h
+        )
+        self.append(new_object=rc_aux)
+        # delete aux
+        del rc_aux
+        return None
 
-    def view(self):
-        print("AH SHIT")
+    def view(
+        self,
+        show=True,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=150,
+        fig_format="jpg",
+    ):
+        plt.style.use("seaborn-v0_8")
+        lst_colors = get_random_colors(size=len(self.catalog))
+
+        # get specs
+        default_specs = {
+            "suptitle": "Rating Curves Collection | {}".format(self.name),
+            "width": 5 * 1.618,
+            "height": 5,
+            "xmin": 0,
+            "xmax": 1.5 * self.catalog["H_max"].max(),
+        }
+        # handle input specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        fig.suptitle(specs["suptitle"])
+
+        self.update(details=True)
+        for i in range(len(self.catalog)):
+            s_name = self.catalog["Name"].values[i]
+            _df = self.collection[s_name].data
+            _hfield = self.collection[s_name].field_hobs
+            _qfield = self.collection[s_name].field_qobs
+            plt.scatter(_df[_hfield], _df[_qfield], marker=".", color=lst_colors[i])
+
+        plt.xlim(specs["xmin"], specs["xmax"])
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = "{}_{}".format(self.varalias, self.name)
+            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
+        plt.close(fig)
+        return None
+
 
 class Streamflow:
     """
@@ -982,6 +1085,7 @@ class Streamflow:
         self.rating_curves = None
 
     # todo implement StreamFlow
+
 
 # -----------------------------------------
 # Base raster data structures
@@ -2656,7 +2760,7 @@ class RasterCollection(Collection):
         varalias=None,
         units=None,
         date=None,
-        dtype="float32"
+        dtype="float32",
     ):
         """Load a :class:`Raster` base_object from a ``.asc`` raster file.
 
@@ -2691,6 +2795,7 @@ class RasterCollection(Collection):
         self.append(new_object=rst_aux)
         # delete aux
         del rst_aux
+        return None
 
     def get_collection_stats(self):
         """Get basic statistics from collection.
@@ -2994,7 +3099,6 @@ class RasterSeries(RasterCollection):
             )
         self.update(details=True)
         return None
-
 
     def apply_aoi_masks(self, grid_aoi):
         """Batch method to apply AOI mask over all maps in collection
@@ -3593,7 +3697,9 @@ class LULCSeries(QualiRasterSeries):
         s_name_lulc = self.table.loc[self.table["Id"] == by_lulc_id]["Name"].values[0]
         # instantiate
         map_lulc_change = LULCChange(
-            name="{} of {} from {} to {}".format(s_name, s_name_lulc, date_start, date_end),
+            name="{} of {} from {} to {}".format(
+                s_name, s_name_lulc, date_start, date_end
+            ),
             name_lulc=s_name_lulc,
             date_start=date_start,
             date_end=date_end,
