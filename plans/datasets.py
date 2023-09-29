@@ -1808,18 +1808,18 @@ class Raster:
             )
 
         # stats
-        n_y = 0.25
+        n_y_base = 0.25
         n_x = 0.62
         plt.text(
             x=n_x,
-            y=n_y,
+            y=n_y_base,
             s="d. {}".format(specs["d_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )
-        n_y = n_y - 0.01
+        n_y = n_y_base - 0.01
         n_step = 0.025
-        for i in range(len(df_stats)):
+        for i in range(7):
             s_head = df_stats["Statistic"].values[i]
             s_value = df_stats["Value"].values[i]
             s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
@@ -1832,7 +1832,20 @@ class Raster:
                 fontdict={"family": "monospace"},
                 transform=fig.transFigure,
             )
-
+        n_y = n_y_base - 0.01
+        for i in range(7, len(df_stats)):
+            s_head = df_stats["Statistic"].values[i]
+            s_value = df_stats["Value"].values[i]
+            s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
+            n_y = n_y - n_step
+            plt.text(
+                x=n_x + 0.15    ,
+                y=n_y,
+                s=s_line,
+                fontsize=9,
+                fontdict={"family": "monospace"},
+                transform=fig.transFigure,
+            )
         # show or save
         if show:
             plt.show()
@@ -2897,6 +2910,22 @@ class Zones(QualiRaster):
         self.load_asc_raster(file=asc_file)
         self.load_prj_file(file=prj_file)
         return None
+
+    def get_aoi(self, zone_id):
+        """
+        Get the AOI map from a zone id
+        :param zone_id: number of zone ID
+        :type zone_id: int
+        :return: AOI map
+        :rtype: :class:`AOI` object
+        """
+        map_aoi = AOI(name="{} {}".format(self.varname, zone_id))
+        map_aoi.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi.prj = self.prj
+        self.insert_nodata()
+        map_aoi.set_grid(grid=1 * (self.grid == zone_id))
+        self.mask_nodata()
+        return map_aoi
 
     def view(
         self,
