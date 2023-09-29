@@ -1910,7 +1910,6 @@ class TWI(Raster):
         self.description = "Topographical Wetness Index"
         self.units = "index units"
 
-
 class HAND(Raster):
     """
     HAND raster map dataset.
@@ -2053,6 +2052,121 @@ class ET24h(Raster):
         else:
             for k in default_specs:
                 specs[k] = default_specs[k]
+        super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
+        return None
+
+
+
+class HabQuality(Raster):
+    """
+    Habitat Quality raster map dataset.
+    """
+
+    def __init__(self, name, date):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.varname = "Habitat Quality"
+        self.varalias = "HQ"
+        self.description = "Habitat Quality from the InVEST model"
+        self.units = "index units"
+        self.cmap = "RdYlGn"
+        self.date = date
+
+    def view(
+        self,
+        show=True,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=150,
+        fig_format="jpg",
+    ):
+        """
+        View HQ raster
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path_main to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
+        :return: None
+        :rtype: None
+        """
+        # set specs
+        default_specs = {"vmin": 0, "vmax": 1}
+        if specs is None:
+            specs = default_specs
+        else:
+            for k in default_specs:
+                specs[k] = default_specs[k]
+        # call super
+        super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
+        return None
+
+
+class HabDegradation(Raster):
+    """
+    Habitat Degradation raster map dataset.
+    """
+
+    def __init__(self, name, date):
+        """Deploy dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.varname = "Habitat Degradation"
+        self.varalias = "HDeg"
+        self.description = "Habitat Degradation from the InVEST model"
+        self.units = "index units"
+        self.cmap = "YlOrRd"
+        self.date = date
+
+    def view(
+            self,
+            show=True,
+            folder="./output",
+            filename=None,
+            specs=None,
+            dpi=150,
+            fig_format="jpg",
+    ):
+        """
+        View HDeg raster
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path_main to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
+        :return: None
+        :rtype: None
+        """
+        # set specs
+        default_specs = {"vmin": 0, "vmax": 0.3}
+        if specs is None:
+            specs = default_specs
+        else:
+            for k in default_specs:
+                specs[k] = default_specs[k]
+        # call super
         super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
         return None
 
@@ -2392,7 +2506,6 @@ class QualiRaster(Raster):
 
         # -----------------------------------------------
         # ensure areas are computed
-        # ensure areas are computed
         df_aux = pd.merge(
             self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
         )
@@ -2728,9 +2841,111 @@ class AOI(QualiRaster):
         return None
 
 
+class Zones(QualiRaster):
+    """
+    Zones map dataset
+    """
+
+    def __init__(self, name="ZonesMap"):
+        super().__init__(name, dtype="uint32")
+        self.varname = "Zone"
+        self.varalias = "ZN"
+        self.description = "Ids map of zones"
+        self.units = "zones ID"
+        self.table = None
+
+    def set_table(self):
+        if self.grid is None:
+            self.table = None
+        else:
+            self.insert_nodata()
+            # get unique values
+            vct_unique = np.unique(self.grid)
+            # reapply mask
+            self.mask_nodata()
+            # set table
+            self.table = pd.DataFrame(
+                {
+                    "Id": vct_unique,
+                    "Alias": ["{}{}".format(self.varalias, vct_unique[i]) for i in range(len(vct_unique))],
+                    "Name": ["{} {}".format(self.varname, vct_unique[i]) for i in range(len(vct_unique))]
+                }
+            )
+            self.table = self.table.drop(self.table[self.table["Id"] == self.asc_metadata["NODATA_value"]].index)
+            self.table["Id"] = self.table["Id"].astype(int)
+            self.table = self.table.sort_values(by="Id")
+            self.table = self.table.reset_index(drop=True)
+            self.set_random_colors()
+            del vct_unique
+            return None
+
+    def set_grid(self, grid):
+        super().set_grid(grid)
+        self.set_table()
+        return None
+
+    def load(self, asc_file, prj_file):
+        """
+        Load data from files to raster
+        :param asc_file: path_main to ``.asc`` raster file
+        :type asc_file: str
+        :param prj_file: path_main to ``.prj`` projection file
+        :type prj_file: str
+        :return: None
+        :rtype: None
+        """
+        self.load_asc_raster(file=asc_file)
+        self.load_prj_file(file=prj_file)
+        return None
+
+    def view(
+        self,
+        show=True,
+        folder="./output",
+        filename=None,
+        specs=None,
+        dpi=150,
+        fig_format="jpg",
+    ):
+        """Plot a basic pannel of raster map.
+
+        :param show: boolean to show plot instead of saving, defaults to False
+        :type show: bool
+        :param folder: path_main to output folder, defaults to ``./output``
+        :type folder: str
+        :param filename: name of file, defaults to None
+        :type filename: str
+        :param specs: specifications dictionary, defaults to None
+        :type specs: dict
+        :param dpi: image resolution, defaults to 96
+        :type dpi: int
+        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :type fig_format: str
+        """
+        map_zones_aux = Raster(name=self.name)
+        # set up
+        map_zones_aux.varname = self.varname
+        map_zones_aux.varalias = self.varalias
+        map_zones_aux.units = self.units
+        map_zones_aux.set_asc_metadata(metadata=self.asc_metadata)
+        map_zones_aux.prj = self.prj
+        map_zones_aux.cmap = "tab20"
+        self.insert_nodata()
+        map_zones_aux.set_grid(grid=self.grid)
+        self.mask_nodata()
+        map_zones_aux.view(
+            show=show,
+            folder=folder,
+            filename=filename,
+            specs=specs,
+            dpi=dpi,
+            fig_format=fig_format,
+        )
+        del map_zones_aux
+        return None
+
 # -----------------------------------------
 # Raster Collection data structures
-
 
 class RasterCollection(Collection):
     """
@@ -3372,7 +3587,7 @@ class QualiRasterSeries(RasterSeries):
         :param raster: incoming :class:`Raster` to append
         :type raster: :class:`Raster`
         """
-        super().append(raster=raster)
+        super().append(new_object=raster)
         self.update_table()
         return None
 
@@ -3655,7 +3870,7 @@ class LULCSeries(QualiRasterSeries):
         else:
             rst_aux.load_table(file=table_file)
         # append to collection
-        self.append(new_object=rst_aux)
+        self.append(raster=rst_aux)
         # delete aux
         del rst_aux
         return None
