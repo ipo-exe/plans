@@ -87,6 +87,9 @@ class Univar:
         """
         iqr = np.subtract(*np.percentile(self.data, [75, 25]))
         binsize = 2 * iqr * len(self.data) ** (-1 / 3)
+        # hack for non infinite values
+        if binsize == 0:
+            binsize = 100
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
     def nbins_sturges(self):
