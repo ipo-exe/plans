@@ -3754,6 +3754,7 @@ class QualiRasterSeries(RasterSeries):
             "legend_x": 0.85,
             "legend_y": 0.33,
             "legend_ncol": 3,
+            "filter_by_id": None  # list of ids
         }
         # handle input specs
         if specs is None:
@@ -3781,9 +3782,17 @@ class QualiRasterSeries(RasterSeries):
             _name = self.table["Name"].values[i]
             _alias = self.table["Alias"].values[i]
             _color = self.table["Color"].values[i]
-            # filter series
-            _df = df_areas.query("Id == {}".format(_id)).copy()
-            plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
+            if specs["filter_by_id"] == None:                
+                # filter series
+                _df = df_areas.query("Id == {}".format(_id)).copy()
+                plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
+            else:
+                if _id in specs["filter_by_id"]:
+                    # filter series
+                    _df = df_areas.query("Id == {}".format(_id)).copy()
+                    plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
+                else:
+                    pass
         plt.legend(
             frameon=True,
             fontsize=9,
