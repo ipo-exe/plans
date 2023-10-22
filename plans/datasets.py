@@ -3344,16 +3344,28 @@ class RasterSeries(RasterCollection):
         self.update(details=True)
         return None
 
-    def apply_aoi_masks(self, grid_aoi):
+    def apply_aoi_masks(self, grid_aoi, inplace=False):
         """Batch method to apply AOI mask over all maps in collection
 
         :param grid_aoi: aoi grid
         :type grid_aoi: :class:`numpy.ndarray`
+        :param inplace: overwrite the main grid if True, defaults to False
+        :type inplace: bool
         :return: None
         :rtype: None
         """
         for name in self.collection:
-            self.collection[name].apply_aoi_mask(grid_aoi=grid_aoi, inplace=True)
+            self.collection[name].apply_aoi_mask(grid_aoi=grid_aoi, inplace=inplace)
+        return None
+
+    def release_aoi_masks(self):
+        """Batch method to release the AOI mask over all maps in collection
+
+        :return: None
+        :rtype: None
+        """
+        for name in self.collection:
+            self.collection[name].release_aoi_mask()
         return None
 
     def rebase_grids(self, base_raster, talk=False):
