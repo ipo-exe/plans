@@ -3607,6 +3607,7 @@ class QualiRasterSeries(RasterSeries):
         :return: None
         :rtype: None
         """
+        # todo "drop unfound categories" feature (might have to implement downwards)
         if len(self.catalog) == 0:
             pass
         else:
