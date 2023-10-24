@@ -3686,7 +3686,7 @@ class QualiRasterSeries(RasterSeries):
                 # clear table from unfound values
                 if clear:
                     self.collection[_name].clear_table()
-                # concat tables
+                # concat all tables
                 if i == 0:
                     self.table = self.collection[_name].table.copy()
                 else:
