@@ -2336,6 +2336,20 @@ class QualiRaster(Raster):
         """
         self.table = dataframe_prepro(dataframe=dataframe.copy())
         self.table = self.table.sort_values(by=self.idfield).reset_index(drop=True)
+        return None
+
+    def clear_table(self):
+        """Clear the unfound values in the map from the table."""
+        if self.grid is None:
+            pass
+        else:
+            # found values:
+            lst_ids = np.unique(self.grid)
+            # filter dataframe
+            filtered_df = self.table[self.table[self.idfield].isin(lst_ids)]
+            # reset table
+            self.table = filtered_df.reset_index(drop=True)
+        return None
 
     def set_random_colors(self):
         """Set random colors to attribute table."""
@@ -3657,25 +3671,31 @@ class QualiRasterSeries(RasterSeries):
         )
         self.table = None
 
-    def update_table(self):
-        """
-        Update series table (attributes)
+    def update_table(self, clear=True):
+        """Update series table (attributes)
+        :param clear: option for clear table from unfound values. default: True
+        :type clear: bool
         :return: None
         :rtype: None
         """
-        # todo "drop unfound categories" feature (might have to implement downwards)
         if len(self.catalog) == 0:
             pass
         else:
             for i in range(len(self.catalog)):
                 _name = self.catalog["Name"].values[i]
+                # clear table from unfound values
+                if clear:
+                    self.collection[_name].clear_table()
+                # concat tables
                 if i == 0:
                     self.table = self.collection[_name].table.copy()
                 else:
                     self.table = pd.concat(
                         [self.table, self.collection[_name].table.copy()]
                     )
+        # clear from duplicates
         self.table = self.table.drop_duplicates(subset="Id", keep="last")
+        self.table = self.table.reset_index(drop=True)
         return None
 
     def append(self, raster):
