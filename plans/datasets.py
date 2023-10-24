@@ -1563,6 +1563,8 @@ class Raster:
     def get_grid_datapoints(self, drop_nan=False):
         """Get flat and cleared grid data points (x, y and z)
 
+        :param drop_nan: option for ignore nan values
+        :type drop_nan: bool
         :return: dataframe of x, y and z fields
         :rtype: :class:`pandas.DataFrame` or None
         """
@@ -1643,6 +1645,25 @@ class Raster:
             from plans.analyst import Univar
 
             return Univar(data=self.get_grid_data()).assess_basic_stats()
+
+    def get_aoi(self, by_value_lo, by_value_hi):
+        """
+        Get the AOI map from an interval of values (values are expected to exist in the raster)
+        :param by_value_lo: number for lower bound (inclusive)
+        :type by_value_lo: float
+        :param by_value_hi: number for upper bound (inclusive)
+        :type by_value_hi: float
+        :return: AOI map
+        :rtype: :class:`AOI` object
+        """
+        map_aoi = AOI(name="{} {}-{}".format(self.varname, by_value_lo, by_value_hi))
+        map_aoi.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi.prj = self.prj
+        # set grid
+        self.insert_nodata()
+        map_aoi.set_grid(grid=1 * (self.grid >= by_value_lo) * (self.grid <= by_value_hi))
+        self.mask_nodata()
+        return map_aoi
 
     def view(
         self,
@@ -1867,7 +1888,7 @@ class Elevation(Raster):
     """
 
     def __init__(self, name):
-        """Deploy dataset.
+        """Initialize dataset
 
         :param name: name of map
         :type name: str
@@ -1891,8 +1912,8 @@ class Slope(Raster):
     Slope raster map dataset.
     """
 
-    def __init__(self, name):
-        """Deploy dataset.
+    def __init__(self, name="SlopeMap"):
+        """Initialize dataset
 
         :param name: name of map
         :type name: str
@@ -1910,8 +1931,8 @@ class TWI(Raster):
     TWI raster map dataset.
     """
 
-    def __init__(self, name):
-        """Deploy dataset.
+    def __init__(self, name="TWIMap"):
+        """Initialize dataset
 
         :param name: name of map
         :type name: str
@@ -1928,8 +1949,8 @@ class HAND(Raster):
     HAND raster map dataset.
     """
 
-    def __init__(self, name):
-        """Deploy dataset.
+    def __init__(self, name="HANDMap"):
+        """Initialize dataset
 
         :param name: name of map
         :type name: str
@@ -1948,10 +1969,12 @@ class NDVI(Raster):
     """
 
     def __init__(self, name, date):
-        """Deploy dataset.
+        """Initialize dataset.
 
         :param name: name of map
         :type name: str
+        :param date: date of map in ``yyyy-mm-dd``
+        :type date: str
         """
         super().__init__(name=name, dtype="float32")
         self.cmap = "RdYlGn"
@@ -2010,10 +2033,12 @@ class ET24h(Raster):
     """
 
     def __init__(self, name, date):
-        """Deploy dataset.
+        """Initialize dataset.
 
         :param name: name of map
         :type name: str
+        :param date: date of map in ``yyyy-mm-dd``
+        :type date: str
         """
         import matplotlib as mpl
         from matplotlib.colors import ListedColormap
@@ -2076,10 +2101,12 @@ class HabQuality(Raster):
     """
 
     def __init__(self, name, date):
-        """Deploy dataset.
+        """Initialize dataset.
 
         :param name: name of map
         :type name: str
+        :param date: date of map in ``yyyy-mm-dd``
+        :type date: str
         """
         super().__init__(name=name, dtype="float32")
         self.varname = "Habitat Quality"
@@ -2133,10 +2160,12 @@ class HabDegradation(Raster):
     """
 
     def __init__(self, name, date):
-        """Deploy dataset.
+        """Initialize dataset.
 
         :param name: name of map
         :type name: str
+        :param date: date of map in ``yyyy-mm-dd``
+        :type date: str
         """
         super().__init__(name=name, dtype="float32")
         self.varname = "Habitat Degradation"
@@ -2200,10 +2229,12 @@ class QualiRaster(Raster):
     """
 
     def __init__(self, name="QualiMap", dtype="uint8"):
-        """
-        Deploy dataset
+        """Initialize dataset.
+
         :param name: name of map
         :type name: str
+        :param dtype: data type of raster cells, defaults to uint8
+        :type dtype: str
         """
         super().__init__(name=name, dtype=dtype)
         self.cmap = "tab20"
@@ -2438,6 +2469,23 @@ class QualiRaster(Raster):
                 self.table[k] = df_aux[k].values
 
         return df_aux
+
+    def get_aoi(self, by_value_id):
+        """
+        Get the AOI map from a specific value id (value is expected to exist in the raster)
+        :param by_value_id: category id value
+        :type by_value_id: int
+        :return: AOI map
+        :rtype: :class:`AOI` object
+        """
+        map_aoi = AOI(name="{} {}".format(self.varname, by_value_id))
+        map_aoi.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi.prj = self.prj
+        # set grid
+        self.insert_nodata()
+        map_aoi.set_grid(grid=1 * (self.grid == by_value_id))
+        self.mask_nodata()
+        return map_aoi
 
     def view(
         self,
@@ -2688,7 +2736,11 @@ class LULCChange(QualiRaster):
         :param name: name of map
         :type name: str
         :param date_start: date of map in ``yyyy-mm-dd``
-        :type date: str
+        :type date_start: str
+        :param date_end: date of map in ``yyyy-mm-dd``
+        :type date_end: str
+        :param name_lulc: name of lulc incoming map
+        :type name_lulc: str
         """
         super().__init__(name, dtype="uint8")
         self.cmap = "tab20b"
@@ -2719,6 +2771,11 @@ class Litology(QualiRaster):
     """
 
     def __init__(self, name="LitoMap"):
+        """Initialize :class:`Litology` map
+
+        :param name:
+        :type name:
+        """
         super().__init__(name, dtype="uint8")
         self.cmap = "tab20c"
         self.varname = "Litological Domains"
@@ -2922,6 +2979,7 @@ class Zones(QualiRaster):
         map_aoi = AOI(name="{} {}".format(self.varname, zone_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi.prj = self.prj
+        # set grid
         self.insert_nodata()
         map_aoi.set_grid(grid=1 * (self.grid == zone_id))
         self.mask_nodata()
@@ -2987,8 +3045,6 @@ class RasterCollection(Collection):
 
         :param name: name of raster collection
         :type name: str
-        :param dtype: data type of raster cells, defaults to float32
-        :type dtype: str
         """
         obj_aux = Raster()
         super().__init__(base_object=obj_aux, name=name)
