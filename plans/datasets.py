@@ -2530,6 +2530,7 @@ class QualiRaster(Raster):
         :return: None
         :rtype: None
         """
+        # TODO rethink filter feature -- aggregate in "others" category
         from matplotlib.colors import ListedColormap
         from matplotlib.patches import Patch
 

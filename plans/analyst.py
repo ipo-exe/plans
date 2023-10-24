@@ -61,6 +61,20 @@ def power(x, c0, c1, c2):
     """
     return c2 * (np.power((x + c0), c1))
 
+def power_zero(x, c0, c1):
+    """
+    Power function with root in zero f(x) =  c1 * ((x)^c0)
+    :param x: function input
+    :type x: float | :class:`numpy.ndarray`
+    :param c0: exponent parameter
+    :type c0: float
+    :param c1: scaling parameter
+    :type c1: float
+    :return: function output
+    :rtype: float | :class:`numpy.ndarray`
+    """
+    return c1 * (np.power((x), c0))
+
 # --------- Objects -----------
 
 class Univar:
@@ -630,18 +644,21 @@ class Bivar:
                 ),
                 "Data": None,
                 "RMSE": None
+            },
+            "Power_zero": {
+                "Function": power_zero,
+                "Formula": "f(x) =  c1 * (x^c0)",
+                "Setup": pd.DataFrame(
+                    {
+                        "Parameters": ["c_0", "c_1"],
+                        "Mean": [1, 1],
+                        "SD": [0.1, 0.1]
+                    }
+                ),
+                "Data": None,
+                "RMSE": None
             }
         }
-        '''
-        # linear_model model attributes
-        self.linear_model = None
-        self.linear_model_data = None
-
-        # power_model model attributes
-        self.power_model = None
-        self.power_model_data = None
-        '''
-
 
     def fit(self, model_type="Linear"):
         from scipy.optimize import curve_fit
@@ -967,7 +984,7 @@ class Bivar:
         :rtype: dict
         """
         from scipy.optimize import curve_fit
-
+        # todo this seems to be deprecated
         # handle None bounds
         if lst_bounds is None:
             _min = self.data[self.xname].min()
