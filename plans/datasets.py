@@ -3132,7 +3132,8 @@ class RasterCollection(Collection):
         # fill values
         for i in range(len(df_aux)):
             df_aux.loc[i, "Count":"Max"] = lst_stats[i]["Value"].values
-        df_aux["Count"] = df_aux["Count"].astype(dtype="uint16")
+        # convert to integer
+        df_aux["Count"] = df_aux["Count"].astype(dtype="uint32")
         return df_aux
 
     def get_views(
