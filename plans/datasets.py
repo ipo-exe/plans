@@ -1539,7 +1539,7 @@ class Raster:
             "Description": self.description,
             "cellsize": self.cellsize,
             "ncols": self.asc_metadata["ncols"],
-            "rows": self.asc_metadata["nrows"],
+            "nrows": self.asc_metadata["nrows"],
             "xllcorner": self.asc_metadata["xllcorner"],
             "yllcorner": self.asc_metadata["yllcorner"],
             "NODATA_value": self.nodatavalue,
@@ -2084,7 +2084,7 @@ class ET24h(Raster):
         :return: None
         :rtype: None
         """
-        default_specs = {"vmin": 0, "vmax": 10}
+        default_specs = {"vmin": 0, "vmax": 15}
         if specs is None:
             specs = default_specs
         else:
@@ -3112,9 +3112,214 @@ class RasterCollection(Collection):
         del rst_aux
         return None
 
+    def issamegrid(self):
+        u_cols = len(self.catalog["ncols"].unique())
+        u_rows = len(self.catalog["nrows"].unique())
+        if u_cols == 1 and u_rows == 1:
+            return True
+        else:
+            return False
+
+    def reducer(
+        self,
+        reducer_function,
+        reduction_name,
+        extra_arg=None,
+        skip_nan=False,
+        talk=False,
+    ):
+        """
+        This method reduces the collection by applying a numpy broadcasting function (example: np.mean)
+        :param reducer_function: reducer numpy function (example: np.mean)
+        :type reducer_function: numpy function
+        :param reduction_name: name for the output raster
+        :type reduction_name: str
+        :param extra_arg: extra argument for function (example: np.percentiles) - Default: None
+        :type extra_arg: any
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        import copy
+        # return None if there is different grids
+        if self.issamegrid():
+            # get shape parameters
+            n = len(self.catalog)
+            _first = self.catalog["Name"].values[0]
+            n_flat = self.collection[_first].grid.shape[0] * self.collection[_first].grid.shape[1]
+
+            # create the merged grid
+            grd_merged = np.zeros(shape=(n, n_flat))
+            # insert the flat arrays
+            for i in range(n):
+                _name = self.catalog["Name"].values[i]
+                _vct_flat = self.collection[_name].grid.flatten()
+                grd_merged[i] = _vct_flat
+            # transpose
+            grd_merged_T = grd_merged.transpose()
+
+            # setup stats vector
+            vct_stats = np.zeros(n_flat)
+            # fill vector
+            for i in range(n_flat):
+                _vct = grd_merged_T[i]
+                # remove NaN
+                if skip_nan:
+                    _vct = _vct[~np.isnan(_vct)]
+                    # handle void vector
+                    if len(_vct) == 0:
+                        _vct = np.nan
+                if extra_arg is None:
+                    vct_stats[i] = reducer_function(_vct)
+                else:
+                    vct_stats[i] = reducer_function(_vct, extra_arg)
+
+            # reshape
+            grd_stats = np.reshape(a=vct_stats, newshape=self.collection[_first].grid.shape)
+            # return set up
+            output_raster = copy.deepcopy(self.collection[_first])
+            output_raster.set_grid(grd_stats)
+            output_raster.name = reduction_name
+            return output_raster
+        else:
+            if talk:
+                print("Warning: different grids found")
+            return None
+
+    def mean(self, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Mean raster
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.mean,
+            reduction_name="{} Mean".format(self.name),
+            skip_nan=skip_nan,
+            talk=talk
+        )
+        return output_raster
+
+    def std(self, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Standard Deviation raster
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.std,
+            reduction_name="{} SD".format(self.name),
+            skip_nan=skip_nan,
+            talk=talk
+        )
+        return output_raster
+
+    def min(self, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Min raster
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.min,
+            reduction_name="{} Min".format(self.name),
+            skip_nan=skip_nan,
+            talk=talk
+        )
+        return output_raster
+
+    def max(self, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Max raster
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.max,
+            reduction_name="{} Max".format(self.name),
+            skip_nan=skip_nan,
+            talk=talk
+        )
+        return output_raster
+
+    def sum(self, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Sum raster
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.sum,
+            reduction_name="{} Sum".format(self.name),
+            skip_nan=skip_nan,
+            talk=talk
+        )
+        return output_raster
+
+    def percentile(self, percentile, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Nth Percentile raster
+        :param percentile: Nth percentile (from 0 to 100)
+        :type percentile: float
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.percentile,
+            reduction_name="{} {}th percentile".format(self.name, str(percentile)),
+            skip_nan=skip_nan,
+            talk=talk,
+            extra_arg=percentile,
+        )
+        return output_raster
+
+    def median(self, skip_nan=False, talk=False):
+        """
+        Reduce Collection to the Median raster
+        :param skip_nan: Option for skipping NaN values in map
+        :type skip_nan: bool
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: raster object based on the first object found in the collection
+        :rtype: :class:`Raster`
+        """
+        output_raster = self.reducer(
+            reducer_function=np.median,
+            reduction_name="{} Median".format(self.name),
+            skip_nan=skip_nan,
+            talk=talk
+        )
+        return output_raster
+
     def get_collection_stats(self):
         """Get basic statistics from collection.
-
         :return: statistics data
         :rtype: :class:`pandas.DataFrame`
         """
@@ -3488,9 +3693,9 @@ class RasterSeries(RasterCollection):
         """
 
         # get stats
-        df_stas = self.get_collection_stats()
-        n_vmin = df_stas["min"].max()
-        n_max = df_stas["max"].max()
+        df_stats = self.get_collection_stats()
+        n_vmin = df_stats["Min"].max()
+        n_max = df_stats["Max"].max()
 
         # handle specs
         default_specs = {"vmin": n_vmin, "vmax": n_max, "hist_vmax": 0.05}
