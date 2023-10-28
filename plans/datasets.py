@@ -1131,6 +1131,9 @@ class Raster:
         self.prj = None
         self.path_ascfile = None
         self.path_prjfile = None
+        # get view specs
+        self.view_specs = None
+        self._set_view_specs()
 
     def __str__(self):
         dct_meta = self.get_metadata()
@@ -1646,6 +1649,7 @@ class Raster:
 
             return Univar(data=self.get_grid_data()).assess_basic_stats()
 
+
     def get_aoi(self, by_value_lo, by_value_hi):
         """
         Get the AOI map from an interval of values (values are expected to exist in the raster)
@@ -1665,12 +1669,36 @@ class Raster:
         self.mask_nodata()
         return map_aoi
 
+    def _set_view_specs(self):
+        """
+        Set default view specs
+        :return: None
+        :rtype: None
+        """
+        self.view_specs = {
+            "color": "tab:grey",
+            "cmap": self.cmap,
+            "suptitle": "{} | {}".format(self.varname, self.name),
+            "a_title": "{} ({})".format(self.varalias, self.units),
+            "b_title": "Histogram",
+            "c_title": "Metadata",
+            "d_title": "Statistics",
+            "width": 5 * 1.618,
+            "height": 5,
+            "b_ylabel": "percentage",
+            "b_xlabel": self.units,
+            "nbins": 100,
+            "vmin": None,
+            "vmax": None,
+            "hist_vmax": None,
+        }
+        return None
+
     def view(
         self,
         show=True,
         folder="./output",
         filename=None,
-        specs=None,
         dpi=150,
         fig_format="jpg",
     ):
@@ -1682,8 +1710,6 @@ class Raster:
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
@@ -1696,41 +1722,13 @@ class Raster:
 
         # get univar base_object
         uni = Univar(data=self.get_grid_data())
-        if len(np.unique(uni.data)) <= 1:
-            nbins = 1
-        else:
-            nbins = uni.nbins_fd()
 
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "cmap": self.cmap,
-            "suptitle": "{} | {}".format(self.varname, self.name),
-            "a_title": "{} ({})".format(self.varalias, self.units),
-            "b_title": "Histogram",
-            "c_title": "Metadata",
-            "d_title": "Statistics",
-            "width": 5 * 1.618,
-            "height": 5,
-            "b_ylabel": "percentage",
-            "b_xlabel": self.units,
-            "nbins": nbins,
-            "vmin": None,
-            "vmax": None,
-            "hist_vmax": None,
-        }
-        # handle input specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
+        specs = self.view_specs
 
         if specs["vmin"] is None:
-            specs["vmin"] = np.min(uni.data)
+            specs["vmin"] = np.min(self.grid)
         if specs["vmax"] is None:
-            specs["vmax"] = np.max(uni.data)
+            specs["vmax"] = np.max(self.grid)
 
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
@@ -1899,6 +1897,7 @@ class Elevation(Raster):
         self.varalias = "ELV"
         self.description = "Height above sea level"
         self.units = "m"
+        self._set_view_specs()
 
     def get_tpi(self, cell_radius):
         print("ah shit")
@@ -1924,7 +1923,7 @@ class Slope(Raster):
         self.varalias = "SLP"
         self.description = "Slope of terrain"
         self.units = "deg."
-
+        self._set_view_specs()
 
 class TWI(Raster):
     """
@@ -1943,6 +1942,7 @@ class TWI(Raster):
         self.varalias = "TWI"
         self.description = "Topographical Wetness Index"
         self.units = "index units"
+        self._set_view_specs()
 
 class HAND(Raster):
     """
@@ -1961,6 +1961,7 @@ class HAND(Raster):
         self.varalias = "HAND"
         self.description = "Height Above the Nearest Drainage"
         self.units = "m"
+        self._set_view_specs()
 
 
 class NDVI(Raster):
@@ -1983,49 +1984,14 @@ class NDVI(Raster):
         self.description = "Normalized difference vegetation index"
         self.units = "index units"
         self.date = date
+        self._set_view_specs()
+        self.view_specs["vmin"] = -1
+        self.view_specs["vmax"] = 1
 
     def set_grid(self, grid):
-        super(NDVI, self).set_grid(grid)
+        super().set_grid(grid)
         self.cut_edges(upper=1, lower=-1)
         return None
-
-    def view(
-        self,
-        show=True,
-        folder="./output",
-        filename=None,
-        specs=None,
-        dpi=150,
-        fig_format="jpg",
-    ):
-        """
-        View NDVI raster
-        :param show: boolean to show plot instead of saving, defaults to False
-        :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
-        :type folder: str
-        :param filename: name of file, defaults to None
-        :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
-        :param dpi: image resolution, defaults to 96
-        :type dpi: int
-        :param fig_format: image fig_format (ex: png or jpg). Default jpg
-        :type fig_format: str
-        :return: None
-        :rtype: None
-        """
-        # set specs
-        default_specs = {"vmin": -1, "vmax": 1}
-        if specs is None:
-            specs = default_specs
-        else:
-            for k in default_specs:
-                specs[k] = default_specs[k]
-        # call super
-        super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
-        return None
-
 
 class ET24h(Raster):
     """
@@ -2052,48 +2018,15 @@ class ET24h(Raster):
         jet_big = mpl.colormaps["jet_r"]
         self.cmap = ListedColormap(jet_big(np.linspace(0.3, 0.75, 256)))
         self.date = date
+        # view specs
+        self._set_view_specs()
+        self.view_specs["vmin"] = 0
+        self.view_specs["vmax"] = 15
 
     def set_grid(self, grid):
         super().set_grid(grid)
         self.cut_edges(upper=100, lower=0)
         return None
-
-    def view(
-        self,
-        show=True,
-        folder="./output",
-        filename=None,
-        specs=None,
-        dpi=150,
-        fig_format="jpg",
-    ):
-        """
-        View ET raster
-        :param show: boolean to show plot instead of saving, defaults to False
-        :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
-        :type folder: str
-        :param filename: name of file, defaults to None
-        :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
-        :param dpi: image resolution, defaults to 96
-        :type dpi: int
-        :param fig_format: image fig_format (ex: png or jpg). Default jpg
-        :type fig_format: str
-        :return: None
-        :rtype: None
-        """
-        default_specs = {"vmin": 0, "vmax": 15}
-        if specs is None:
-            specs = default_specs
-        else:
-            for k in default_specs:
-                specs[k] = default_specs[k]
-        super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
-        return None
-
-
 
 class HabQuality(Raster):
     """
@@ -2115,44 +2048,27 @@ class HabQuality(Raster):
         self.units = "index units"
         self.cmap = "RdYlGn"
         self.date = date
+        # view specs
+        self._set_view_specs()
+        # customize
+        self.view_specs["vmin"] = 0
+        self.view_specs["vmax"] = 1
 
-    def view(
-        self,
-        show=True,
-        folder="./output",
-        filename=None,
-        specs=None,
-        dpi=150,
-        fig_format="jpg",
-    ):
-        """
-        View HQ raster
-        :param show: boolean to show plot instead of saving, defaults to False
-        :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
-        :type folder: str
-        :param filename: name of file, defaults to None
-        :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
-        :param dpi: image resolution, defaults to 96
-        :type dpi: int
-        :param fig_format: image fig_format (ex: png or jpg). Default jpg
-        :type fig_format: str
-        :return: None
-        :rtype: None
-        """
-        # set specs
-        default_specs = {"vmin": 0, "vmax": 1}
-        if specs is None:
-            specs = default_specs
-        else:
-            for k in default_specs:
-                specs[k] = default_specs[k]
-        # call super
-        super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
-        return None
-
+    def get_biodiversity_area(self, q_ref):
+        s = self.cellsize
+        grid_ba = np.square(s) * self.grid / (q_ref * 10000)
+        # instantiate output
+        output_raster = BiodiversityArea(
+            name=self.name,
+            date=self.date,
+            q_ref=q_ref
+        )
+        # set raster
+        output_raster.set_asc_metadata(metadata=self.asc_metadata)
+        output_raster.prj = self.prj
+        # set grid
+        output_raster.set_grid(grid=grid_ba)
+        return output_raster
 
 class HabDegradation(Raster):
     """
@@ -2174,44 +2090,40 @@ class HabDegradation(Raster):
         self.units = "index units"
         self.cmap = "YlOrRd"
         self.date = date
+        self._set_view_specs()
+        self.view_specs["vmin"] = 0
+        self.view_specs["vmax"] = 0.7
 
-    def view(
-            self,
-            show=True,
-            folder="./output",
-            filename=None,
-            specs=None,
-            dpi=150,
-            fig_format="jpg",
-    ):
+class BiodiversityArea(Raster):
+    """
+    Biodiversity Area raster map dataset.
+    """
+
+    def __init__(self, name, date, q_ref=1.0):
+        """Initialize dataset.
+
+        :param name: name of map
+        :type name: str
+        :param date: date of map in ``yyyy-mm-dd``
+        :type date: str
+        :param q_ref: habitat quality reference
+        :type q_ref: float
         """
-        View HDeg raster
-        :param show: boolean to show plot instead of saving, defaults to False
-        :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
-        :type folder: str
-        :param filename: name of file, defaults to None
-        :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
-        :param dpi: image resolution, defaults to 96
-        :type dpi: int
-        :param fig_format: image fig_format (ex: png or jpg). Default jpg
-        :type fig_format: str
-        :return: None
-        :rtype: None
-        """
-        # set specs
-        default_specs = {"vmin": 0, "vmax": 0.3}
-        if specs is None:
-            specs = default_specs
-        else:
-            for k in default_specs:
-                specs[k] = default_specs[k]
-        # call super
-        super().view(show, folder, filename, specs, dpi, fig_format=fig_format)
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "YlGn"
+        self.varname = "Biodiversity Area"
+        self.varalias = "Ba"
+        self.description = "Biodiversity area in ha equivalents"
+        self.units = "ha"
+        self.date = date
+        self.ba_total = None
+        self._set_view_specs()
+
+
+    def set_grid(self, grid):
+        super(BiodiversityArea, self).set_grid(grid)
+        self.ba_total = np.sum(grid)
         return None
-
 
 # -----------------------------------------
 # Quali Raster data structures
@@ -2236,20 +2148,24 @@ class QualiRaster(Raster):
         :param dtype: data type of raster cells, defaults to uint8
         :type dtype: str
         """
-        super().__init__(name=name, dtype=dtype)
-        self.cmap = "tab20"
-        self.varname = "Unknown variable"
-        self.varalias = "Var"
-        self.description = "Unknown"
-        self.units = "category ID"
+        # prior setup
+        self.path_tablefile = None
         self.table = None
         self.idfield = "Id"
         self.namefield = "Name"
         self.aliasfield = "Alias"
         self.colorfield = "Color"
         self.areafield = "Area"
-        self.path_tablefile = None
+        # call superior
+        super().__init__(name=name, dtype=dtype)
+        # overwrite
+        self.cmap = "tab20"
+        self.varname = "Unknown variable"
+        self.varalias = "Var"
+        self.description = "Unknown"
+        self.units = "category ID"
         self._overwrite_nodata()
+        # NOTE: view specs is set by setting table
 
     def _overwrite_nodata(self):
         self.nodatavalue = 0
@@ -2336,6 +2252,8 @@ class QualiRaster(Raster):
         """
         self.table = dataframe_prepro(dataframe=dataframe.copy())
         self.table = self.table.sort_values(by=self.idfield).reset_index(drop=True)
+        # set view specs
+        self._set_view_specs()
         return None
 
     def clear_table(self):
@@ -2348,7 +2266,7 @@ class QualiRaster(Raster):
             # filter dataframe
             filtered_df = self.table[self.table[self.idfield].isin(lst_ids)]
             # reset table
-            self.table = filtered_df.reset_index(drop=True)
+            self.set_table(dataframe=filtered_df.reset_index(drop=True))
         return None
 
     def set_random_colors(self):
@@ -2501,12 +2419,59 @@ class QualiRaster(Raster):
         self.mask_nodata()
         return map_aoi
 
+    def _set_view_specs(self):
+        """
+        Get default view specs
+        :return: None
+        :rtype: None
+        """
+        if self.table is None:
+            pass
+        else:
+            from matplotlib.colors import ListedColormap
+            # handle no color field in table:
+            if self.colorfield in self.table.columns:
+                pass
+            else:
+                self.set_random_colors()
+
+            # hack for non-continuous ids:
+            _all_ids = np.arange(0, self.table[self.idfield].max() + 1)
+            _lst_colors = []
+            for i in range(0, len(_all_ids)):
+                _df = self.table.query("{} >= {}".format(self.idfield, i)).copy()
+                _color = _df[self.colorfield].values[0]
+                _lst_colors.append(_color)
+            # setup
+            self.view_specs = {
+                "color": "tab:grey",
+                "cmap": ListedColormap(_lst_colors),
+                "suptitle": "{} ({}) | {}".format(self.varname, self.varalias, self.name),
+                "a_title": "{} Map ({})".format(self.varalias, self.units),
+                "b_title": "{} Prevalence".format(self.varalias),
+                "c_title": "Metadata",
+                "width": 8,
+                "height": 5,
+                "b_area": "km2",
+                "b_xlabel": "Area",
+                "b_xmax": None,
+                "bars_alias": True,
+                "vmin": 0,
+                "vmax": self.table[self.idfield].max(),
+                "gs_rows": 7,
+                "gs_cols": 5,
+                "gs_b_rowlim": 4,
+                "legend_x": 0.4,
+                "legend_y": 0.3,
+                "legend_ncol": 1,
+            }
+        return None
+
     def view(
         self,
         show=True,
         folder="./output",
         filename=None,
-        specs=None,
         dpi=150,
         fig_format="jpg",
         filter=False,
@@ -2519,8 +2484,6 @@ class QualiRaster(Raster):
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
@@ -2531,54 +2494,10 @@ class QualiRaster(Raster):
         :rtype: None
         """
         # TODO rethink filter feature -- aggregate in "others" category
-        from matplotlib.colors import ListedColormap
         from matplotlib.patches import Patch
-
         plt.style.use("seaborn-v0_8")
 
-        if self.colorfield in self.table.columns:
-            pass
-        else:
-            self.set_random_colors()
-
-        # hack for non-continuous ids
-        _all_ids = np.arange(0, self.table[self.idfield].max() + 1)
-        _lst_colors = []
-        for i in range(0, len(_all_ids)):
-            _df = self.table.query("{} >= {}".format(self.idfield, i)).copy()
-            _color = _df[self.colorfield].values[0]
-            _lst_colors.append(_color)
-
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "cmap": ListedColormap(_lst_colors),
-            "suptitle": "{} ({}) | {}".format(self.varname, self.varalias, self.name),
-            "a_title": "{} Map ({})".format(self.varalias, self.units),
-            "b_title": "{} Prevalence".format(self.varalias),
-            "c_title": "Metadata",
-            "width": 8,
-            "height": 5,
-            "b_area": "km2",
-            "b_xlabel": "Area",
-            "b_xmax": None,
-            "bars_alias": True,
-            "vmin": 0,
-            "vmax": self.table[self.idfield].max(),
-            "gs_rows": 7,
-            "gs_cols": 5,
-            "gs_b_rowlim": 4,
-            "legend_x": 0.4,
-            "legend_y": 0.3,
-            "legend_ncol": 1,
-        }
-        # handle input specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
+        specs = self.view_specs
 
         # -----------------------------------------------
         # ensure areas are computed
@@ -2638,8 +2557,7 @@ class QualiRaster(Raster):
 
         # -----------------------------------------------
         # plot horizontal bar of areas
-
-        plt.subplot(gs[: default_specs["gs_b_rowlim"], 3:])
+        plt.subplot(gs[: specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         if specs["bars_alias"]:
             s_bar_labels = self.aliasfield
@@ -2780,13 +2698,13 @@ class LULCChange(QualiRaster):
         )
 
 
-class Litology(QualiRaster):
+class Lithology(QualiRaster):
     """
-    Litology map dataset
+    Lithology map dataset
     """
 
     def __init__(self, name="LitoMap"):
-        """Initialize :class:`Litology` map
+        """Initialize :class:`Lithology` map
 
         :param name:
         :type name:
@@ -2812,7 +2730,18 @@ class Soils(QualiRaster):
         self.description = "Types of Soils and Substrate"
         self.units = "types ID"
 
-    def get_hydro_soils(self, map_lito, map_hand, hand_threshold=2):
+    def set_hydro_soils(self, map_lito, map_hand, hand_threshold=2):
+        """
+        Set hydrological soils based on lithology and Hand map
+        :param map_lito: Lithology raster map
+        :type map_lito: :class:`datasets.Lithology`
+        :param map_hand: HAND raster map
+        :type map_hand: :class:`datasets.HAND`
+        :param hand_threshold: HAND threshold for wetland definition
+        :type hand_threshold: float
+        :return: None
+        :rtype: None
+        """
         # get table copy from lito
         new_table = map_lito.table[["Id", "Alias", "Name", "Color"]].copy()
         # process grid
@@ -2837,6 +2766,7 @@ class Soils(QualiRaster):
         # set more attributes
         self.prj = map_lito.prj
         self.set_asc_metadata(metadata=map_lito.asc_metadata)
+        return None
 
 
 class AOI(QualiRaster):
@@ -2850,9 +2780,11 @@ class AOI(QualiRaster):
         self.varalias = "AOI"
         self.description = "Boolean map an Area of Interest"
         self.units = "classes ID"
-        self.table = pd.DataFrame(
-            {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "silver"}
+        df_aux = pd.DataFrame(
+            {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "magenta"}
         )
+        self.set_table(dataframe=df_aux)
+
 
     def load(self, asc_file, prj_file):
         """
@@ -2873,7 +2805,6 @@ class AOI(QualiRaster):
         show=True,
         folder="./output",
         filename=None,
-        specs=None,
         dpi=150,
         fig_format="jpg",
     ):
@@ -2885,13 +2816,12 @@ class AOI(QualiRaster):
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
         """
+        # todo optimize this -- issue with the view specs
         map_aoi_aux = QualiRaster(name=self.name)
         df_aoi = pd.DataFrame(
             {
@@ -2906,6 +2836,7 @@ class AOI(QualiRaster):
         map_aoi_aux.varalias = self.varalias
         map_aoi_aux.units = self.units
         map_aoi_aux.set_table(dataframe=df_aoi)
+        ##map_aoi_aux.view_specs = self.view_specs
         map_aoi_aux.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi_aux.prj = self.prj
         # process grid
@@ -2918,7 +2849,6 @@ class AOI(QualiRaster):
             show=show,
             folder=folder,
             filename=filename,
-            specs=specs,
             dpi=dpi,
             fig_format=fig_format,
         )
@@ -2961,6 +2891,8 @@ class Zones(QualiRaster):
             self.table = self.table.sort_values(by="Id")
             self.table = self.table.reset_index(drop=True)
             self.set_random_colors()
+            # set view specs
+            self._set_view_specs()
             del vct_unique
             return None
 
@@ -3024,6 +2956,7 @@ class Zones(QualiRaster):
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
         """
+        # todo same issue with AOI map -- need optimization for passing specs
         map_zones_aux = Raster(name=self.name)
         # set up
         map_zones_aux.varname = self.varname
@@ -3035,11 +2968,13 @@ class Zones(QualiRaster):
         self.insert_nodata()
         map_zones_aux.set_grid(grid=self.grid)
         self.mask_nodata()
+        map_zones_aux._set_view_specs()
+        map_zones_aux.view_specs["vmin"] = self.table["Id"].min()
+        map_zones_aux.view_specs["vmax"] = self.table["Id"].max()
         map_zones_aux.view(
             show=show,
             folder=folder,
             filename=filename,
-            specs=specs,
             dpi=dpi,
             fig_format=fig_format,
         )
