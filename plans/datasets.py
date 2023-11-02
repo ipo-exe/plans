@@ -2054,14 +2054,14 @@ class HabQuality(Raster):
         self.view_specs["vmin"] = 0
         self.view_specs["vmax"] = 1
 
-    def get_biodiversity_area(self, q_ref):
+    def get_biodiversity_area(self, q_a):
         s = self.cellsize
-        grid_ba = np.square(s) * self.grid / (q_ref * 10000)
+        grid_ba = q_a * np.square(s) * self.grid / 10000
         # instantiate output
         output_raster = BiodiversityArea(
             name=self.name,
             date=self.date,
-            q_ref=q_ref
+            q_a=q_a
         )
         # set raster
         output_raster.set_asc_metadata(metadata=self.asc_metadata)
@@ -2099,15 +2099,15 @@ class BiodiversityArea(Raster):
     Biodiversity Area raster map dataset.
     """
 
-    def __init__(self, name, date, q_ref=1.0):
+    def __init__(self, name, date, q_a=1.0):
         """Initialize dataset.
 
         :param name: name of map
         :type name: str
         :param date: date of map in ``yyyy-mm-dd``
         :type date: str
-        :param q_ref: habitat quality reference
-        :type q_ref: float
+        :param q_a: habitat quality reference
+        :type q_a: float
         """
         super().__init__(name=name, dtype="float32")
         self.cmap = "YlGn"
