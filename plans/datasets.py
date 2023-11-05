@@ -93,8 +93,8 @@ class Collection:
         self.name = name
 
     def update(self, details=False):
-        """
-        Update the collection catalog
+        """Update the collection catalog
+
         :param details: option to update catalog details
         :type details: bool
         :return: None
@@ -122,9 +122,7 @@ class Collection:
         return None
 
     def append(self, new_object):
-        """
-        Append new object to collection.
-        Object is expected to have a .get_metadata() method that returns a dict
+        """Append new object to collection. Object is expected to have a `.get_metadata()` method that returns a dict
         :param new_object: object to append
         :type new_object: object
         :return: None
@@ -223,8 +221,8 @@ class DailySeries:
         self.set_data(dataframe=df_aux, varfield=varfield, datefield=datefield)
 
     def export_data(self, folder):
-        """
-        Export dataset to ``csv`` file
+        """Export dataset to ``csv`` file
+
         :param folder: path_main to output directory
         :type folder: str
         :return: file path_main
@@ -235,8 +233,8 @@ class DailySeries:
         return s_filepath
 
     def resample_sum(self, period="MS"):
-        """
-        Resampler method for daily time series using the .sum() function
+        """Resampler method for daily time series using the .sum() function
+
         :param period: pandas standard period code
 
         * `W-MON` -- weekly starting on mondays
@@ -254,8 +252,8 @@ class DailySeries:
         return df_aux
 
     def resample_mean(self, period="MS"):
-        """
-        Resampler method for daily time series using the .mean() function
+        """Resampler method for daily time series using the .mean() function
+
         :param period: pandas standard period code
 
         * `W-MON` -- weekly starting on mondays
@@ -281,8 +279,8 @@ class DailySeries:
         dpi=150,
         fig_format="jpg",
     ):
-        """
-        Plot series basic view
+        """Plot series basic view
+
         :type show: option to display plot. Default False
         :type show: bool
         :param folder: output folder
@@ -417,8 +415,7 @@ class DailySeries:
 
 
 class PrecipSeries(DailySeries):
-    """
-    The precipitation daily time series base_object
+    """The precipitation daily time series base_object
 
     Example of using this base_object:
 
@@ -438,8 +435,8 @@ class RatingCurve:
     """
 
     def __init__(self, name="MyRatingCurve"):
-        """
-        Initiate Rating Curve
+        """Initiate Rating Curve
+
         :param name: name of rating curve
         :type name: str
         """
@@ -487,8 +484,8 @@ class RatingCurve:
         return "\n".join(lst_)
 
     def run(self, h):
-        """
-        Run the model Q = a * (H - h0)^b
+        """Run the model Q = a * (H - h0)^b
+
         :param h: vector of H
         :type h: :class:`numpy.ndarray` or float
         :return: computed Q
@@ -497,8 +494,8 @@ class RatingCurve:
         return self.a * (np.power((h - self.h0), self.b))
 
     def extrapolate(self, hmin=None, hmax=None, n_samples=100):
-        """
-        Extrapolate Rating Curve model. Data is expected to be loaded.
+        """Extrapolate Rating Curve model. Data is expected to be loaded.
+
         :param hmin: lower bound
         :type hmin: float
         :param hmax: upper bound
@@ -526,8 +523,8 @@ class RatingCurve:
         return pd.DataFrame({self.field_h: vct_h, self.field_q: vct_q})
 
     def update(self, h0=None, a=None, b=None):
-        """
-        Update rating curve model
+        """Update rating curve model
+
         :param h0: h0 parameter
         :type h0: float or None
         :param a: a parameter
@@ -591,8 +588,8 @@ class RatingCurve:
         return None
 
     def get_metadata(self):
-        """
-        Get all metadata from base_object
+        """Get all metadata from base_object
+
         :return: metadata
         :rtype: dict
         """
@@ -626,8 +623,8 @@ class RatingCurve:
         units_q="m3/s",
         units_h="m",
     ):
-        """
-        Load data from CSV file
+        """Load data from CSV file
+
         :param table_file: path_main to CSV file
         :type table_file: str
         :param hobs_field: name of observed Stage field
@@ -667,8 +664,8 @@ class RatingCurve:
         return None
 
     def fit(self, n_grid=20):
-        """
-        Fit Rating Curve method. Q = a * (H - h0)^b
+        """Fit Rating Curve method. Q = a * (H - h0)^b
+
         :param n_grid: number of intervals for h0 iteration
         :type n_grid: int
         :return: None
@@ -719,8 +716,8 @@ class RatingCurve:
         return None
 
     def get_bands(self, extrap_f=2, n_samples=100, runsize=100, seed=None, talk=False):
-        """
-        Get uncertainty bands from Rating Curve model using Monte Carlo sampling on the transformed error
+        """Get uncertainty bands from Rating Curve model using Monte Carlo sampling on the transformed error
+
         :param extrap_f: extrapolation factor over upper bound
         :type extrap_f: float
         :param n_samples: number of extrapolation samples
@@ -896,8 +893,8 @@ class RatingCurve:
         dpi=150,
         fig_format="jpg",
     ):
-        """
-        View model Rating Curve
+        """View model Rating Curve
+
         :param transform: option for plotting transformed variables
         :type transform: bool
         :param show: boolean to show plot instead of saving, defaults to False
@@ -982,8 +979,8 @@ class RatingCurveCollection(Collection):
         units_q="m3/s",
         units_h="m",
     ):
-        """
-        Load rating curve to colletion from CSV file
+        """Load rating curve to colletion from CSV file
+
         :param name: Rating Curve name
         :type name: str
         :param table_file: path to CSV file
@@ -2725,7 +2722,7 @@ class LULCChange(QualiRaster):
         self.date_start = date_start
         self.date_end = date_end
         self.date = date_end
-        self.table = pd.DataFrame(
+        df_aux = pd.DataFrame(
             {
                 self.idfield: [
                     1,
@@ -2737,7 +2734,7 @@ class LULCChange(QualiRaster):
                 self.colorfield: ["tab:purple", "tab:orange", "tab:red"],
             }
         )
-
+        self.set_table(dataframe=df_aux)
 
 class Lithology(QualiRaster):
     """
@@ -2759,9 +2756,7 @@ class Lithology(QualiRaster):
 
 
 class Soils(QualiRaster):
-    """
-    Soils map dataset
-    """
+    """Soils map dataset"""
 
     def __init__(self, name="SoilsMap"):
         super().__init__(name, dtype="uint8")
@@ -3112,8 +3107,8 @@ class RasterCollection(Collection):
         skip_nan=False,
         talk=False,
     ):
-        """
-        This method reduces the collection by applying a numpy broadcasting function (example: np.mean)
+        """This method reduces the collection by applying a numpy broadcasting function (example: np.mean)
+
         :param reducer_function: reducer numpy function (example: np.mean)
         :type reducer_function: numpy function
         :param reduction_name: name for the output raster
@@ -3174,8 +3169,8 @@ class RasterCollection(Collection):
             return None
 
     def mean(self, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Mean raster
+        """Reduce Collection to the Mean raster
+
         :param skip_nan: Option for skipping NaN values in map
         :type skip_nan: bool
         :param talk: option for printing messages
@@ -3192,8 +3187,8 @@ class RasterCollection(Collection):
         return output_raster
 
     def std(self, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Standard Deviation raster
+        """Reduce Collection to the Standard Deviation raster
+
         :param skip_nan: Option for skipping NaN values in map
         :type skip_nan: bool
         :param talk: option for printing messages
@@ -3210,8 +3205,8 @@ class RasterCollection(Collection):
         return output_raster
 
     def min(self, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Min raster
+        """Reduce Collection to the Min raster
+
         :param skip_nan: Option for skipping NaN values in map
         :type skip_nan: bool
         :param talk: option for printing messages
@@ -3228,8 +3223,8 @@ class RasterCollection(Collection):
         return output_raster
 
     def max(self, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Max raster
+        """Reduce Collection to the Max raster
+
         :param skip_nan: Option for skipping NaN values in map
         :type skip_nan: bool
         :param talk: option for printing messages
@@ -3246,8 +3241,8 @@ class RasterCollection(Collection):
         return output_raster
 
     def sum(self, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Sum raster
+        """Reduce Collection to the Sum raster
+
         :param skip_nan: Option for skipping NaN values in map
         :type skip_nan: bool
         :param talk: option for printing messages
@@ -3264,8 +3259,8 @@ class RasterCollection(Collection):
         return output_raster
 
     def percentile(self, percentile, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Nth Percentile raster
+        """Reduce Collection to the Nth Percentile raster
+
         :param percentile: Nth percentile (from 0 to 100)
         :type percentile: float
         :param skip_nan: Option for skipping NaN values in map
@@ -3285,8 +3280,8 @@ class RasterCollection(Collection):
         return output_raster
 
     def median(self, skip_nan=False, talk=False):
-        """
-        Reduce Collection to the Median raster
+        """Reduce Collection to the Median raster
+
         :param skip_nan: Option for skipping NaN values in map
         :type skip_nan: bool
         :param talk: option for printing messages
@@ -3304,6 +3299,7 @@ class RasterCollection(Collection):
 
     def get_collection_stats(self):
         """Get basic statistics from collection.
+
         :return: statistics data
         :rtype: :class:`pandas.DataFrame`
         """
@@ -3570,9 +3566,8 @@ class RasterSeries(RasterCollection):
         return None
 
     def load_folder(self, folder, name_pattern="map_*", talk=False):
-        """
-        Load all rasters from a folder by following a name pattern.
-        Date is expected to be at the end of name before file extension.
+        """Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
+
         :param folder: path_main to folder
         :type folder: str
         :param name_pattern: name pattern. example map_*
@@ -3714,8 +3709,7 @@ class RasterSeries(RasterCollection):
         dpi=150,
         fig_format="jpg",
     ):
-        """
-        View raster series statistics
+        """View raster series statistics
 
         :param statistic: statistc to view. Default mean
         :type statistic: str
@@ -3890,8 +3884,7 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def append(self, raster):
-        """Append a :class:`Raster` base_object to collection.
-        Pre-existing objects with the same :class:`Raster.name` attribute are replaced
+        """Append a :class:`Raster` base_object to collection. Pre-existing objects with the same :class:`Raster.name` attribute are replaced
 
         :param raster: incoming :class:`Raster` to append
         :type raster: :class:`Raster`
@@ -3936,9 +3929,8 @@ class QualiRasterSeries(RasterSeries):
         del rst_aux
 
     def load_folder(self, folder, table_file, name_pattern="map_*", talk=False):
-        """
-        Load all rasters from a folder by following a name pattern.
-        Date is expected to be at the end of name before file extension.
+        """Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
+
         :param folder: path_main to folder
         :type folder: str
         :param table_file: path_main to table file
@@ -3974,8 +3966,8 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def get_series_areas(self):
-        """
-        Get areas prevalance for all series
+        """Get areas prevalance for all series
+
         :return: dataframe of series areas
         :rtype: :class:`pandas.DataFrame`
         """
@@ -4006,8 +3998,8 @@ class QualiRasterSeries(RasterSeries):
         dpi=150,
         fig_format="jpg",
     ):
-        """
-        View series areas
+        """View series areas
+
         :param specs: specifications dictionary, defaults to None
         :type specs: dict
         :param show: option to show plot instead of saving, defaults to False
@@ -4194,8 +4186,8 @@ class LULCSeries(QualiRasterSeries):
         return None
 
     def get_lulcc(self, date_start, date_end, by_lulc_id):
-        """
-        Get the :class:`LULCChange` of a given time interval and LULC class Id
+        """Get the :class:`LULCChange` of a given time interval and LULC class Id
+
         :param date_start: start date of time interval
         :type date_start: str
         :param date_end: end date of time interval
@@ -4246,8 +4238,8 @@ class LULCSeries(QualiRasterSeries):
         return map_lulc_change
 
     def get_lulcc_series(self, by_lulc_id):
-        """
-        Get the :class:`QualiRasterSeries` of LULC Change for the entire LULC series for a given LULC Id
+        """Get the :class:`QualiRasterSeries` of LULC Change for the entire LULC series for a given LULC Id
+
         :param by_lulc_id: LULC class Id
         :type by_lulc_id: int
         :return: Series of LULC Change
@@ -4269,8 +4261,8 @@ class LULCSeries(QualiRasterSeries):
         return series_lulcc
 
     def get_conversion_matrix(self, date_start, date_end, talk=False):
-        """
-        Compute the conversion matrix, expansion matrix and retraction matrix for a given interval
+        """Compute the conversion matrix, expansion matrix and retraction matrix for a given interval
+
         :param date_start: start date of time interval
         :type date_start: str
         :param date_end: end date of time interval
