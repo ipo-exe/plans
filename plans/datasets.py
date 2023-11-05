@@ -2375,7 +2375,13 @@ class QualiRaster(Raster):
         from plans.analyst import Univar
 
         # deploy dataframe
-        df_aux = self.table[["Id", "Name", "Alias"]].copy()
+        df_aux1 = self.table.copy()
+        self.clear_table() # clean
+        df_aux = self.table.copy() # get copy
+        df_aux = df_aux[["Id", "Name", "Alias"]].copy()  # filter
+        self.set_table(dataframe=df_aux1) # restore uncleaned table
+        ##### df_aux = self.table[["Id", "Name", "Alias"]].copy()
+
         # store copy of raster
         grid_raster = raster_sample.grid
         varname = raster_sample.varname
