@@ -1185,8 +1185,8 @@ class Raster:
         return None
 
     def load(self, asc_file, prj_file):
-        """
-        Load data from files to raster
+        """Load data from files to raster
+
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
         :param prj_file: path_main to ``.prj`` projection file
@@ -1304,9 +1304,9 @@ class Raster:
         return None
 
     def export(self, folder, filename=None):
-        """
-        Export raster data to folder
-        param folder: string of directory path_main,
+        """Export raster data to folder
+
+        :param folder: string of directory path_main,
         :type folder: str
         :param filename: string of file without extension, defaults to None
         :type filename: str
@@ -1425,9 +1425,8 @@ class Raster:
         return None
 
     def rebase_grid(self, base_raster, inplace=False, method="linear_model"):
-        """
-        Rebase grid of raster. This function creates a new grid based on a provided raster. Both rasters
-        are expected to be in the same coordinate system and having overlapping bounding boxes.
+        """Rebase grid of raster. This function creates a new grid based on a provided raster. Both rasters are expected to be in the same coordinate system and having overlapping bounding boxes.
+
         :param base_raster: reference raster for rebase
         :type base_raster: :class:`datasets.Raster`
         :param inplace: option for rebase the own grid if True, defaults to False
@@ -1489,8 +1488,8 @@ class Raster:
         return None
 
     def release_aoi_mask(self):
-        """
-        Release AOI mask from main grid. Backup grid is restored.
+        """Release AOI mask from main grid. Backup grid is restored.
+
         :return: None
         :rtype: None
         """
@@ -1526,8 +1525,8 @@ class Raster:
                 return new_grid
 
     def get_metadata(self):
-        """
-        Get all metadata from base_object
+        """Get all metadata from base_object
+
         :return: metadata
         :rtype: dict
         """
@@ -1551,6 +1550,7 @@ class Raster:
 
     def get_bbox(self):
         """Get the Bounding Box of map
+
         :return: dictionary of xmin, xmax ymin and ymax
         :rtype: dict
         """
@@ -1651,8 +1651,8 @@ class Raster:
 
 
     def get_aoi(self, by_value_lo, by_value_hi):
-        """
-        Get the AOI map from an interval of values (values are expected to exist in the raster)
+        """Get the AOI map from an interval of values (values are expected to exist in the raster)
+
         :param by_value_lo: number for lower bound (inclusive)
         :type by_value_lo: float
         :param by_value_hi: number for upper bound (inclusive)
@@ -1670,8 +1670,8 @@ class Raster:
         return map_aoi
 
     def _set_view_specs(self):
-        """
-        Set default view specs
+        """Set default view specs
+
         :return: None
         :rtype: None
         """
@@ -1696,11 +1696,12 @@ class Raster:
 
     def view(
         self,
+        accum=True,
         show=True,
         folder="./output",
         filename=None,
-        dpi=150,
-        fig_format="jpg",
+        dpi=300,
+        fig_format="jpg"
     ):
         """Plot a basic pannel of raster map.
 
@@ -1710,7 +1711,7 @@ class Raster:
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
-        :param dpi: image resolution, defaults to 96
+        :param dpi: image resolution, defaults to 300
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
@@ -1756,6 +1757,7 @@ class Raster:
             weights=np.ones(len(uni.data)) / len(uni.data)
             # orientation="horizontal"
         )
+
         # get upper limit if none
         if specs["hist_vmax"] is None:
             specs["hist_vmax"] = 1.2 * np.max(vct_result[0])
@@ -1770,7 +1772,7 @@ class Raster:
             # label="mean ({:.2f})".fig_format(n_mean)
         )
         plt.text(
-            x=n_mean + 2 * (specs["vmax"] - specs["vmin"]) / 100,
+            x=n_mean - 32 * (specs["vmax"] - specs["vmin"]) / 100,
             y=0.9 * specs["hist_vmax"],
             s="{:.2f} (mean)".format(n_mean),
         )
@@ -1784,6 +1786,15 @@ class Raster:
         yticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol="%", is_latex=False)
         ax = plt.gca()
         ax.yaxis.set_major_formatter(yticks)
+
+        # --------
+        # plot accumulated probability
+        if accum:
+            ax2 = ax.twinx()
+            vct_cump = np.cumsum(a=vct_result[0]) / np.sum(vct_result[0])
+            plt.plot(vct_result[1][1:], vct_cump, color="darkred")
+            ax2.grid(False)
+
 
         # ------------------------------------------------------------------
         # plot metadata
@@ -1885,7 +1896,7 @@ class Elevation(Raster):
     Elevation (DEM) raster map dataset.
     """
 
-    def __init__(self, name):
+    def __init__(self, name="ElevationMap"):
         """Initialize dataset
 
         :param name: name of map
@@ -2054,14 +2065,21 @@ class HabQuality(Raster):
         self.view_specs["vmin"] = 0
         self.view_specs["vmax"] = 1
 
-    def get_biodiversity_area(self, q_a):
+    def get_biodiversity_area(self, b_a: float=1.0) -> Raster:
+        """
+        Get a raster of Biodiversity Area
+        :param b_a: model parameter
+        :type b_a: float
+        :return: Raster object of biodiversity area
+        :rtype: Raster
+        """
         s = self.cellsize
-        grid_ba = q_a * np.square(s) * self.grid / 10000
+        grid_ba = b_a * np.square(s) * self.grid / 10000
         # instantiate output
         output_raster = BiodiversityArea(
             name=self.name,
             date=self.date,
-            q_a=q_a
+            q_a=b_a
         )
         # set raster
         output_raster.set_asc_metadata(metadata=self.asc_metadata)
@@ -2168,6 +2186,7 @@ class QualiRaster(Raster):
         # NOTE: view specs is set by setting table
 
     def _overwrite_nodata(self):
+        """No data in QualiRaster is set by default to 0"""
         self.nodatavalue = 0
         self.asc_metadata["NODATA_value"] = self.nodatavalue
         return None
@@ -2475,6 +2494,7 @@ class QualiRaster(Raster):
         dpi=150,
         fig_format="jpg",
         filter=False,
+        n_filter=6,
     ):
         """Plot a basic pannel of qualitative raster map.
 
@@ -2488,12 +2508,13 @@ class QualiRaster(Raster):
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
-        :param filter: option for cutting off zero-area classes
+        :param filter: option for collapsing to n classes max (create "other" class)
         :type filter: bool
+        :param n_filter: number of total classes + others
+        :type n_filter: int
         :return: None
         :rtype: None
         """
-        # TODO rethink filter feature -- aggregate in "others" category
         from matplotlib.patches import Patch
         plt.style.use("seaborn-v0_8")
 
@@ -2506,7 +2527,27 @@ class QualiRaster(Raster):
         )
         df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         if filter:
-            df_aux = df_aux.query("{}_m2 > 0".format(self.areafield))
+            if len(df_aux) > n_filter:
+                n_limit = df_aux["{}_m2".format(self.areafield)].values[-n_filter]
+                df_aux2 = df_aux.query("{}_m2 < {}".format(self.areafield, n_limit))
+                df_aux2 = pd.DataFrame(
+                    {
+                        "Id": [0],
+                        "Color": ["tab:grey"],
+                        "Name": ["Others"],
+                        "Alias": ["etc"],
+                        "Cell_count": [df_aux2["Cell_count"].sum()],
+                        "{}_m2".format(self.areafield): [df_aux2["{}_m2".format(self.areafield)].sum()],
+                        "{}_ha".format(self.areafield): [df_aux2["{}_ha".format(self.areafield)].sum()],
+                        "{}_km2".format(self.areafield): [df_aux2["{}_km2".format(self.areafield)].sum()],
+                        "{}_f".format(self.areafield): [df_aux2["{}_f".format(self.areafield)].sum()],
+                        "{}_%".format(self.areafield): [df_aux2["{}_%".format(self.areafield)].sum()],
+                    }
+                )
+                df_aux = df_aux.query("{}_m2 >= {}".format(self.areafield, n_limit))
+                df_aux = pd.concat([df_aux, df_aux2])
+                df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield))
+                df_aux = df_aux.reset_index(drop=True)
 
         # -----------------------------------------------
         # Deploy figure
@@ -2781,7 +2822,12 @@ class AOI(QualiRaster):
         self.description = "Boolean map an Area of Interest"
         self.units = "classes ID"
         df_aux = pd.DataFrame(
-            {"Id": [1], "Name": [self.name], "Alias": ["AOI"], "Color": "magenta"}
+            {
+                "Id": [1, 2],
+                "Alias": ["AOI", "EZ"],
+                "Name": ["Area of Interest", "Exclusion Zone"],
+                "Color": ["magenta", "silver"],
+            }
         )
         self.set_table(dataframe=df_aux)
 
@@ -2821,30 +2867,24 @@ class AOI(QualiRaster):
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
         """
-        # todo optimize this -- issue with the view specs
         map_aoi_aux = QualiRaster(name=self.name)
-        df_aoi = pd.DataFrame(
-            {
-                "Id": [1, 2],
-                "Alias": ["AOI", "EZ"],
-                "Name": ["Area of Interest", "Exclusion Zone"],
-                "Color": ["magenta", "silver"],
-            }
-        )
+
         # set up
         map_aoi_aux.varname = self.varname
         map_aoi_aux.varalias = self.varalias
         map_aoi_aux.units = self.units
-        map_aoi_aux.set_table(dataframe=df_aoi)
-        ##map_aoi_aux.view_specs = self.view_specs
+        map_aoi_aux.set_table(dataframe=self.table)
+        map_aoi_aux.view_specs = self.view_specs
         map_aoi_aux.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi_aux.prj = self.prj
+
         # process grid
         self.insert_nodata()
         grd_new = 2 * np.ones(shape=self.grid.shape, dtype="byte")
         grd_new = grd_new - (1 * (self.grid == 1))
         self.mask_nodata()
         map_aoi_aux.set_grid(grid=grd_new)
+        # this will call the view
         map_aoi_aux.view(
             show=show,
             folder=folder,
@@ -2893,6 +2933,8 @@ class Zones(QualiRaster):
             self.set_random_colors()
             # set view specs
             self._set_view_specs()
+            # fix some view_specs:
+            self.view_specs["b_xlabel"] = "zones ID"
             del vct_unique
             return None
 
@@ -2956,7 +2998,7 @@ class Zones(QualiRaster):
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
         """
-        # todo same issue with AOI map -- need optimization for passing specs
+        # set Raster map for plotting
         map_zones_aux = Raster(name=self.name)
         # set up
         map_zones_aux.varname = self.varname
@@ -2965,13 +3007,20 @@ class Zones(QualiRaster):
         map_zones_aux.set_asc_metadata(metadata=self.asc_metadata)
         map_zones_aux.prj = self.prj
         map_zones_aux.cmap = "tab20"
+
+        # grid setup
         self.insert_nodata()
         map_zones_aux.set_grid(grid=self.grid)
         self.mask_nodata()
         map_zones_aux._set_view_specs()
         map_zones_aux.view_specs["vmin"] = self.table["Id"].min()
         map_zones_aux.view_specs["vmax"] = self.table["Id"].max()
+        # update extra view specs:
+        for k in self.view_specs:
+            map_zones_aux.view_specs[k] = self.view_specs[k]
+        # call view
         map_zones_aux.view(
+            accum=False,
             show=show,
             folder=folder,
             filename=filename,
