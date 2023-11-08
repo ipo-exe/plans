@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from PIL import Image
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -63,7 +62,6 @@ def get_random_colors(size=10, cmap="tab20"):
 
 # -----------------------------------------
 # Series data structures
-
 
 class Collection:
     """
@@ -1186,6 +1184,7 @@ class Raster:
         :return: None
         :rtype: None
         """
+        from PIL import Image
         # Open the TIF file
         img_data = Image.open(file)
         # Convert the PIL image to a NumPy array
