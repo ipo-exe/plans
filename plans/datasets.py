@@ -28,6 +28,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from PIL import Image
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -114,6 +115,8 @@ class Collection:
                 df_aux = pd.DataFrame(_dct)
                 # append
                 df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
+
+
             self.catalog = df_new_catalog.copy()
             del df_new_catalog
         # basic updates
@@ -297,8 +300,6 @@ class DailySeries:
         import matplotlib.ticker as mtick
         from plans.analyst import Univar
 
-        plt.style.use("seaborn-v0_8")
-
         # get univar base_object
         uni = Univar(data=self.data[self.varname].values)
 
@@ -410,7 +411,7 @@ class DailySeries:
             if filename is None:
                 filename = self.name
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
-        plt.close(fig)
+            plt.close(fig)
         return None
 
 
@@ -1021,7 +1022,6 @@ class RatingCurveCollection(Collection):
         dpi=150,
         fig_format="jpg",
     ):
-        plt.style.use("seaborn-v0_8")
         lst_colors = get_random_colors(size=len(self.catalog))
 
         # get specs
@@ -1061,7 +1061,7 @@ class RatingCurveCollection(Collection):
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
-        plt.close(fig)
+            plt.close(fig)
         return None
 
 
@@ -1195,13 +1195,28 @@ class Raster:
         self.load_prj_file(file=prj_file)
         return None
 
-    def load_asc_raster(self, file, nan=False):
+    def load_tif_raster(self, file):
+        """A function to load data from ``.tif`` raster files. Note that metadata may be provided from other sources.
+
+        :param file: string of file path with the ``.tif`` extension
+        :type file: str
+        :return: None
+        :rtype: None
+        """
+        # Open the TIF file
+        img_data = Image.open(file)
+        # Convert the PIL image to a NumPy array
+        grd_data = np.array(img_data)
+        # set grid
+        self.set_grid(grid=grd_data)
+        return None
+
+
+    def load_asc_raster(self, file):
         """A function to load data and metadata from ``.asc`` raster files.
 
         :param file: string of file path_main with the ``.asc`` extension
         :type file: str
-        :param nan: boolean to convert nan values to np.nan, defaults to False
-        :type nan: bool
         """
         # get file
         self.path_ascfile = file
@@ -1237,16 +1252,6 @@ class Raster:
         # create grid file
         grd_data = np.array(lst_grid, dtype=self.dtype)
         #
-        # replace NoData value by np.nan
-        if nan:
-            ndv = float(dct_meta["NODATA_value"])
-            for i in range(len(grd_data)):
-                lcl_row_sum = np.sum((grd_data[i] == ndv) * 1)
-                if lcl_row_sum > 0:
-                    for j in range(len(grd_data[i])):
-                        if grd_data[i][j] == ndv:
-                            grd_data[i][j] = np.nan
-
         self.set_asc_metadata(metadata=dct_meta)
         self.set_grid(grid=grd_data)
         return None
@@ -1688,6 +1693,7 @@ class Raster:
             "vmin": None,
             "vmax": None,
             "hist_vmax": None,
+            "suffix": None
         }
         return None
 
@@ -1716,8 +1722,6 @@ class Raster:
         import matplotlib.ticker as mtick
         from plans.analyst import Univar
 
-        plt.style.use("seaborn-v0_8")
-
         # get univar base_object
         uni = Univar(data=self.get_grid_data())
 
@@ -1728,12 +1732,17 @@ class Raster:
         if specs["vmax"] is None:
             specs["vmax"] = np.max(self.grid)
 
+        if specs["suffix"] is None:
+            suff = ""
+        else:
+            suff = "_{}".format(specs["suffix"])
+
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
             4, 5, wspace=0.8, hspace=0.1, left=0.05, bottom=0.1, top=0.85, right=0.95
         )
-        fig.suptitle(specs["suptitle"])
+        fig.suptitle(specs["suptitle"] + suff)
 
         # plot map
         plt.subplot(gs[:3, :3])
@@ -1878,9 +1887,9 @@ class Raster:
             plt.show()
         else:
             if filename is None:
-                filename = "{}_{}".format(self.varalias, self.name)
-            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
-        plt.close(fig)
+                filename = "{}_{}{}".format(self.varalias, self.name, suff)
+            plt.savefig("{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi)
+            plt.close(fig)
         return None
 
 
@@ -2486,6 +2495,7 @@ class QualiRaster(Raster):
                 "legend_x": 0.4,
                 "legend_y": 0.3,
                 "legend_ncol": 1,
+                "suffix": None
             }
         return None
 
@@ -2519,9 +2529,14 @@ class QualiRaster(Raster):
         :rtype: None
         """
         from matplotlib.patches import Patch
-        plt.style.use("seaborn-v0_8")
 
+        # pass specs
         specs = self.view_specs
+
+        if specs["suffix"] is None:
+            suff = ""
+        else:
+            suff = "_{}".format(specs["suffix"])
 
         # -----------------------------------------------
         # ensure areas are computed
@@ -2565,7 +2580,7 @@ class QualiRaster(Raster):
             top=0.85,
             right=0.95,
         )
-        fig.suptitle(specs["suptitle"])
+        fig.suptitle(specs["suptitle"] + suff)
 
         # plot map
         plt.subplot(gs[:5, :3])
@@ -2674,9 +2689,9 @@ class QualiRaster(Raster):
             plt.show()
         else:
             if filename is None:
-                filename = "{}_{}".format(self.varalias, self.name)
-            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
-        plt.close(fig)
+                filename = "{}_{}{}".format(self.varalias, self.name, suff)
+            plt.savefig("{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi)
+            plt.close(fig)
         return None
 
 
@@ -3314,6 +3329,7 @@ class RasterCollection(Collection):
         lst_stats = []
         for i in range(len(self.catalog)):
             s_name = self.catalog["Name"].values[i]
+            print(s_name)
             df_stats = self.collection[s_name].get_grid_stats()
             lst_stats.append(df_stats.copy())
         # deploy fields
@@ -3649,6 +3665,7 @@ class RasterSeries(RasterCollection):
 
     def get_series_stats(self):
         """Get the raster series statistics
+
         :return: dataframe of raster series statistics
         :rtype: :class:`pandas.DataFrame`
         """
@@ -3659,7 +3676,7 @@ class RasterSeries(RasterCollection):
         return df_series
 
     def get_views(
-        self, show=True, folder="./output", specs=None, dpi=150, fig_format="jpg"
+        self, show=True, folder="./output", view_specs=None, dpi=300, fig_format="jpg", talk=False
     ):
         """Plot all basic pannel of raster maps in collection.
 
@@ -3667,12 +3684,14 @@ class RasterSeries(RasterCollection):
         :type show: bool
         :param folder: path_main to output folder, defaults to ``./output``
         :type folder: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
+        :param view_specs: specifications dictionary, defaults to None
+        :type view_specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
+        :param talk: option for print messages
+        :type talk: bool
         :return: None
         :rtype: None
         """
@@ -3680,24 +3699,29 @@ class RasterSeries(RasterCollection):
         # get stats
         df_stats = self.get_collection_stats()
         n_vmin = df_stats["Min"].max()
-        n_max = df_stats["Max"].max()
-
-        # handle specs
-        default_specs = {"vmin": n_vmin, "vmax": n_max, "hist_vmax": 0.05}
-        if specs is None:
-            specs = default_specs
-        else:
-            # overwrite incoming specs
-            for k in default_specs:
-                specs[k] = default_specs[k]
+        n_vmax = df_stats["Max"].max()
 
         # plot loop
         for k in self.collection:
+
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
+            if talk:
+                print("plotting view of {}...".format(s_name))
+
+            # handle specs
+            rst_lcl.view_specs["vmin"] = n_vmin
+            rst_lcl.view_specs["vmax"] = n_vmax
+            rst_lcl.view_specs["hist_vmax"] = 0.05
+            if view_specs is None:
+                pass
+            else:
+                # overwrite incoming specs
+                for k in view_specs:
+                    rst_lcl.view_specs[k] = view_specs[k]
+            # plot
             rst_lcl.view(
                 show=show,
-                specs=specs,
                 folder=folder,
                 filename=s_name,
                 dpi=dpi,
@@ -3707,7 +3731,7 @@ class RasterSeries(RasterCollection):
 
     def view_series_stats(
         self,
-        statistic="mean",
+        statistic="Mean",
         folder="./output",
         filename=None,
         specs=None,
