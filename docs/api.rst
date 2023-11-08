@@ -12,8 +12,7 @@ API Preamble
 
 .. note::
 
-    This module uses the Python logging module to log diagnostic and errors
-    in an output independent way.
+    This is a note.
 
 Modules
 ********************************************
@@ -32,3 +31,8 @@ Modules
    :toctree: generated
 
    plans.analyst
+
+.. autosummary::
+   :toctree: generated
+
+   plans.project
