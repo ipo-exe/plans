@@ -2188,9 +2188,30 @@ class QualiRaster(Raster):
         out = super().rebase_grid(base_raster, inplace, method="nearest")
         return out
 
-    def reclassify(self, dct_reclass, method="fast"):
-        # todo here
-        print("ah shit")
+    def reclassify(self, dict_ids, df_new_table, talk=False):
+        """Reclassify QualiRaster Ids in grid and table
+
+        :param dict_ids: dictionary to map from "Old_Id" to "New_id"
+        :type dict_ids: dict
+        :param df_new_table: new table for QualiRaster
+        :type df_new_table: :class:`pandas.DataFrame`
+        :param talk: option for printing messages
+        :type talk: bool
+        :return: None
+        :rtype: None
+        """
+        grid_new = self.grid.copy()
+        for i in range(len(dict_ids["Old_Id"])):
+            n_old_id = dict_ids["Old_Id"][i]
+            n_new_id = dict_ids["New_Id"][i]
+            if talk:
+                print(">> reclassify Ids from {} to {}".format(n_old_id, n_new_id))
+            grid_new = (grid_new * (grid_new != n_old_id)) + (n_new_id * (grid_new == n_old_id))
+        # set new grid
+        self.set_grid(grid=grid_new)
+        # reset table
+        self.set_table(dataframe=df_new_table)
+        return None
 
     def load(self, asc_file, prj_file, table_file):
         """
@@ -2284,6 +2305,8 @@ class QualiRaster(Raster):
             self.table[self.colorfield] = get_random_colors(
                 size=len(self.table), cmap=self.cmap
             )
+            # reaload table for reset viewspecs
+            self.set_table(dataframe=self.table)
         return None
 
     def get_areas(self, merge=False):
@@ -2546,6 +2569,7 @@ class QualiRaster(Raster):
                 )
                 df_aux = df_aux.query("{}_m2 >= {}".format(self.areafield, n_limit))
                 df_aux = pd.concat([df_aux, df_aux2])
+                df_aux = df_aux.drop_duplicates(subset="Id")
                 df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield))
                 df_aux = df_aux.reset_index(drop=True)
 
@@ -2769,42 +2793,73 @@ class Soils(QualiRaster):
         self.description = "Types of Soils and Substrate"
         self.units = "types ID"
 
-    def set_hydro_soils(self, map_lito, map_hand, hand_threshold=2):
-        """
-        Set hydrological soils based on lithology and Hand map
+    def set_hydro_soils(self, map_lito, map_hand, map_slope, n_hand=2, n_slope=10):
+        """Set hydrological soils based on lithology, Hand and Slope maps
+
         :param map_lito: Lithology raster map
         :type map_lito: :class:`datasets.Lithology`
         :param map_hand: HAND raster map
         :type map_hand: :class:`datasets.HAND`
-        :param hand_threshold: HAND threshold for wetland definition
-        :type hand_threshold: float
+        param map_slope: Slope raster map
+        :type map_slope: :class:`datasets.Slope`
+        :param n_hand: HAND threshold for alluvial definition
+        :type n_hand: float
+        :param n_slope: Slope threshold for colluvial definition
+        :type n_slope: float
         :return: None
         :rtype: None
         """
-        # get table copy from lito
-        new_table = map_lito.table[["Id", "Alias", "Name", "Color"]].copy()
+
         # process grid
         grd_soils = map_lito.grid.copy()
-        grd_soils = grd_soils * (map_hand.grid > hand_threshold)
-        n_all_id = new_table["Id"].max() + 1
-        grd_alluvial = n_all_id * (map_hand.grid <= hand_threshold)
+        # this assumes that there is less than 10 lito classes:
+        grd_slopes = 10 * (map_slope.grid > n_slope)
+        # append colluvial (+10)
+        grd_soils = grd_soils + grd_slopes
+        # append alluvial
+        grd_soils = grd_soils * (map_hand.grid > n_hand)
+        n_all_id = np.max(grd_soils) + 1
+        grd_alluvial = n_all_id * (map_hand.grid <= n_hand)
         grd_soils = grd_soils + grd_alluvial
         self.set_grid(grid=grd_soils)
 
         # edit table
-        new_table["Name"] = "Residual " + new_table["Name"]
-        new_table["Alias"] = "R" + new_table["Alias"]
+        # get table copy from lito
+        df_table_res = map_lito.table[["Id", "Alias", "Name", "Color"]].copy()
+        df_table_col = map_lito.table[["Id", "Alias", "Name", "Color"]].copy()
+        #
+        df_table_res["Name"] = "Residual " + df_table_res["Name"]
+        df_table_res["Alias"] = "R" + df_table_res["Alias"]
+        #
+        df_table_col["Name"] = "Colluvial " + df_table_col["Name"]
+        df_table_col["Alias"] = "C" + df_table_col["Alias"]
+        df_table_col["Id"] = 10 + df_table_col["Id"].values
         # new soil table
-        df_aux = pd.DataFrame(
+        df_table_all = pd.DataFrame(
             {"Id": [n_all_id], "Alias": ["Alv"], "Name": ["Alluvial"], "Color": ["tan"]}
         )
         # append
-        new_table = pd.concat([new_table, df_aux], ignore_index=True)
+        df_new = pd.concat([df_table_res, df_table_col], ignore_index=True)
+        df_new = pd.concat([df_new, df_table_all], ignore_index=True)
         # set table
-        self.set_table(dataframe=new_table)
+        self.set_table(dataframe=df_new)
+        # set colors
+        self.set_random_colors()
         # set more attributes
         self.prj = map_lito.prj
         self.set_asc_metadata(metadata=map_lito.asc_metadata)
+
+        # reclassify
+        df_new_table = self.table.copy()
+        df_new_table["Id"] = [i for i in range(1, len(df_new_table) + 1)]
+        dict_ids = {
+            "Old_Id": self.table["Id"].values,
+            "New_Id": df_new_table["Id"].values,
+        }
+        self.reclassify(
+            dict_ids=dict_ids,
+            df_new_table=df_new_table
+        )
         return None
 
 
@@ -4100,46 +4155,56 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def get_views(
-        self,
-        show=True,
-        folder="./output",
-        specs=None,
-        dpi=150,
-        fig_format="jpg",
-        filter=False,
-        talk=False,
+            self,
+            show=True,
+            filter=False,
+            n_filter=6,
+            folder="./output",
+            view_specs=None,
+            dpi=300,
+            fig_format="jpg",
+            talk=False,
+
     ):
-        """Plot all basic pannel of qualiraster maps in collection.
+        """Plot all basic pannel of raster maps in collection.
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
         :param folder: path_main to output folder, defaults to ``./output``
         :type folder: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
+        :param view_specs: specifications dictionary, defaults to None
+        :type view_specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
         :type fig_format: str
-        :param filter: option for cutting off zero-area classes
-        :type filter: bool
+        :param talk: option for print messages
+        :type talk: bool
         :return: None
         :rtype: None
         """
+
         # plot loop
         for k in self.collection:
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
             if talk:
-                print("exporting {} view...".format(s_name))
+                print("plotting view of {}...".format(s_name))
+            if view_specs is None:
+                pass
+            else:
+                # overwrite incoming specs
+                for k in view_specs:
+                    rst_lcl.view_specs[k] = view_specs[k]
+            # plot
             rst_lcl.view(
                 show=show,
-                specs=specs,
                 folder=folder,
-                filename=self.name + "_" + s_name,
+                filename=s_name,
                 dpi=dpi,
                 fig_format=fig_format,
                 filter=filter,
+                n_filter=n_filter
             )
         return None
 
