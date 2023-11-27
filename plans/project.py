@@ -9,28 +9,7 @@ Copyright (C) 2022 Iporã Brito Possantti
 import os
 import glob
 import pandas as pd
-
-class Workplace:
-    def __init__(self, root):
-
-        # root setup
-        self.root = root
-        if os.path.isdir(self.root):
-            pass
-        else:
-            os.mkdir(self.root)
-
-        self.catalogfile = "{}/catalog.csv".format(self.root)
-        if os.path.isfile(self.catalogfile):
-            pass
-        else:
-            df = pd.DataFrame(
-                {
-                    "Project_Name": [""],
-                    "Project_Alias": [""]
-
-                }
-            )
+import datasets
 
 class Project:
 
@@ -53,18 +32,35 @@ class Project:
         self.path_out_asm = "{}/assessment".format(self.path_out)
         self.path_out_unc = "{}/uncertainty".format(self.path_out)
         self.path_out_sal = "{}/sensitivity".format(self.path_out)
+        self.dict_paths_obs = dict()
         #
-        self.ds_structure = {
-            "geo": ['dem.asc', 'slope.asc', 'twi.asc', 'hand.asc', 'soils.asc', 'lito.asc'],
-            "lulc" : ["lulc_*.asc", "lulc_table.csv"],
-            "ndvi": ["ndvi_*.asc"],
-            "et": ["et_*.asc"],
+        self.dict_obs_structure = {
+            "geo": {
+                "dem": datasets.Elevation,
+                "slope": datasets.Slope,
+                "twi": datasets.TWI,
+                "hand": datasets.HAND
+            },
+            "soil": {
+                "soils": datasets.Soils,
+                "litology": datasets.Lithology
+            },
+            "lulc" : datasets.LULCSeries,
+            "ndvi": datasets.NDVISeries,
+            "et": datasets.ETSeries,
             "series": ["stage", "rain", "temp"],
             "model": ['---']
         }
-
+        # fill folders
         self.fill()
         self.fill_ds_obs()
+        #
+        #
+        self.geo = None
+        self.soil = None
+        self.lulc = None
+        self.et = None
+        self.ndvi = None
 
     def fill(self):
         list_folders = [
@@ -85,12 +81,51 @@ class Project:
                 os.mkdir(d)
 
     def fill_ds_obs(self):
-        for k in self.ds_structure:
+        for k in self.dict_obs_structure:
             d = self.path_ds_obs + "/" + k
+            self.dict_paths_obs[k] = d[:]
             if os.path.isdir(d):
                 pass
             else:
                 os.mkdir(d)
+
+    def teste(self):
+        print("********** hey *************")
+
+    def get_geo_collection(self):
+        str_label = "geo"
+        self.geo = datasets.RasterCollection(name="Geomorphology")
+        for k in self.dict_obs_structure[str_label]:
+            new_raster = self.dict_obs_structure[str_label][k](name=k)
+            new_raster.load(
+                asc_file=self.dict_paths_obs[str_label] + "/{}.asc".format(k),
+                prj_file=self.dict_paths_obs[str_label] + "/{}.prj".format(k)
+            )
+            self.geo.append(new_object=new_raster)
+            del new_raster
+
+    def get_soil_collection(self):
+        str_label = "soil"
+        self.soil = datasets.QualiRasterCollection(name="Soil")
+        for k in self.dict_obs_structure[str_label]:
+            new_raster = self.dict_obs_structure[str_label][k](name=k)
+            new_raster.load(
+                asc_file=self.dict_paths_obs[str_label] + "/{}.asc".format(k),
+                prj_file=self.dict_paths_obs[str_label] + "/{}.prj".format(k),
+                table_file=self.dict_paths_obs[str_label] + "/{}.csv".format(k),
+            )
+            self.soil.append(new_object=new_raster)
+            del new_raster
+
+    def get_lulc_collection(self, name_pattern="map_lulc_*"):
+        str_label = "lulc"
+        self.lulc = datasets.LULCSeries(name="LULC")
+        self.lulc.load_folder(
+            folder=self.dict_paths_obs[str_label],
+            table_file=self.dict_paths_obs[str_label] + "/lulc.csv",
+            name_pattern=name_pattern
+        )
+
 
     def download_datasets(self, zip_url):
         """
@@ -141,3 +176,25 @@ class Project:
         if remove:
             os.remove(zip_file)
         return None
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    plt.style.use("seaborn")
+
+    p = Project(name="teste", root="C:/plans")
+    p.get_lulc_collection()
+
+    print(p.lulc.catalog.to_string())
+    p.lulc.collection["map_lulc_1985-01-01"].view(show=True)
+    p.lulc.get_views(
+        show=False,
+        folder=p.dict_paths_obs["lulc"]
+    )
+    '''
+    p.soil.collection["soils"].view(show=True)
+    p.soil.get_views(
+        show=False,
+        folder=p.dict_paths_obs["soil"]
+    )
+    '''

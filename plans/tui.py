@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import filedialog
 import project
 
+
 def the_prompt():
     global projet_name, root_name
     str_aux = root_name[:]
@@ -14,67 +15,79 @@ def the_prompt():
         str_aux = str_aux + "@" + projet_name[:]
     return "{} >>>:".format(str_aux)
 
+
 def warning(message):
     return "{} warning! {}".format(the_prompt(), message)
 
+def done():
+    print("{} done.".format(the_prompt()))
+    time.sleep(0.75)
+
+def ok(message):
+    return "{} OK. {}".format(the_prompt(), message)
+
+def proceed(message=None):
+    if message is None:
+        return "{} proceed? (y/n): ".format(the_prompt())
+    else:
+        return "{} {} -- proceed? (y/n): ".format(the_prompt(), message)
 
 def confirm(prefix_message=None):
-    if prefix_message is None:
-        str_message = "{} proceed? (y/n): ".format(the_prompt())
-    else:
-        str_message = "{} {} -- proceed? (y/n): ".format(the_prompt(), prefix_message)
     while True:
-        str_confirm = input(str_message).strip()
+        str_confirm = input(proceed(message=prefix_message)).strip()
         if str_confirm in ["y", "n"]:
             break
         else:
             pass
     return str_confirm
 
+
 def pick_folder(title="Select a folder"):
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
+    root_tk = tk.Tk()
+    root_tk.withdraw()  # Hide the main window
 
     folder_path = filedialog.askdirectory(title=title)
 
     if folder_path:
         return folder_path
-    else: # cancel
+    else:  # cancel
         return None
 
-def func_a(params):
-    print(params)
+
+def func_a():
+    print("ok")
     time.sleep(2)
+
 
 def func_b(params):
     print("wohooo")
     time.sleep(2)
 
+
 def func_c(params):
-    dict_menu = {
-        "Option A": [func_a, None],
-        "Option B": [func_b, None]
-    }
+    dict_menu = {"Option A": [func_a, None], "Option B": [func_b, None]}
 
     m2 = Menu(dict_actions=dict_menu, name="project setup")
     m2.loop()
 
-def change_workplace(params=None):
+
+def change_workplace():
     global prompt_name
     str_new_folder = pick_folder()
     if str_new_folder is None:
-        print('{} cancel'.format(the_prompt()))
+        print("{} cancel".format(the_prompt()))
     else:
         global root
         root = str_new_folder
-        print('{} new workplace: {}'.format(the_prompt(), root))
+        print("{} new workplace: {}".format(the_prompt(), root))
     time.sleep(2)
     return None
 
-def new_project(params=None):
+
+def new_project():
     global prompt_name, project_name, root, my_project
 
-    def set_new_project(params=None):
+    def set_new_project():
         while True:
             str_name = input("{} enter new project name: ".format(the_prompt())).strip()
             if str_name in os.listdir(root):
@@ -91,73 +104,124 @@ def new_project(params=None):
                 if str_confirm == "n":
                     pass
                 else:
+                    # create new project
+                    print(ok(message="creating new project {}...".format(str_name)))
                     my_project = project.Project(name=str_name, root=root)
                     my_project = None
+                    time.sleep(0.5)
+                    done()
                 break
         return 0
-
 
     dict_menu = {
         "set project name": [set_new_project, None],
     }
 
-    m2 = Menu(dict_actions=dict_menu, name="new project", message=get_workplace)
+    m2 = Menu(dict_actions=dict_menu, name="new project", message=get_location)
     m2.loop()
+
+
+def data_mgmt_obs_geo():
+    global my_project
+    def get_location():
+        return "location: {}\n".format(my_project.path_ds_obs)
+
+    dict_menu = {
+        "import dem map": [my_project.teste, None],
+        "import twi map": [my_project.teste, None],
+        "import slope map": [my_project.teste, None],
+        "import hand map": [my_project.teste, None],
+        "import litology map": [my_project.teste, None],
+        "import litology table": [my_project.teste, None],
+
+    }
+    submenu_name = "{} - datasets - observed".format(my_project.name)
+    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location)
+    submenu.loop()
+
+
+
+def data_mgmt_obs():
+
+    def get_location():
+        return "location: {}\n".format(my_project.path_ds_obs)
+
+    dict_menu = {
+        "import data": [data_mgmt_obs_geo, None],
+        "view data catalog": [func_b, None],
+    }
+    submenu_name = "{} - datasets - observed".format(my_project.name)
+    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location)
+    submenu.loop()
+
+def data_mgmt():
+    global my_project
+
+    def get_location():
+        return "location: {}\n".format(my_project.path_ds)
+
+    dict_menu = {
+        "manage observed data": [data_mgmt_obs, None],
+        "manage scenarios": [func_b, None],
+    }
+    submenu_name = "{} - datasets".format(my_project.name)
+    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location)
+    submenu.loop()
 
 
 def project_session():
     global my_project
 
     dict_menu = {
-        "data management": [func_a, None],
+        "data management": [data_mgmt, None],
         "simulation tools": [func_a, None],
         "assessment tools": [func_a, None],
         "model diagnostics": [func_a, None],
     }
-    m2 = Menu(dict_actions=dict_menu, name=my_project.name, message=get_workplace)
-    m2.loop()
+    submenu = Menu(dict_actions=dict_menu, name=my_project.name, message=get_location)
+    submenu.loop()
 
 
-
-def open_project(params=None):
+def open_project():
     global root, my_project, prompt_name
 
     def set_project(params=None):
         global my_project, projet_name, root
         my_project = project.Project(name=params[:], root=root)
         projet_name = params[:]
-
+        # start project session
         project_session()
-
+        # reset global variables
         my_project = None
         projet_name = None
-
         return 0
 
-
     list_projects = os.listdir(root)
-    print(list_projects)
     dict_menu = dict()
     for p in list_projects:
         dict_menu[p] = [set_project, p]
 
-    m2 = Menu(dict_actions=dict_menu, name="open project", message=get_workplace)
+    m2 = Menu(dict_actions=dict_menu, name="open project", message=get_location)
     m2.loop()
 
 
-def get_workplace():
+def get_location():
     global root, my_project
     if my_project is None:
         str_workplace = root[:]
     else:
         str_workplace = my_project.path_main[:]
-    return "\nworkplace: {}\n".format(str_workplace)
+    return "location: {}\n".format(str_workplace)
+
 
 class Menu:
-    '''
+    """
     The Primitive Menu Object
-    '''
-    def __init__(self, dict_actions, name="Menu", exit_key="e", prompt_name="plans", message=None):
+    """
+
+    def __init__(
+        self, dict_actions, name="Menu", exit_key="e", prompt_name="plans", message=None
+    ):
         """Instantiate the Menu object
 
         :param dict_actions: dictionary of actions (functions) and parameters (dict)
@@ -169,7 +233,7 @@ class Menu:
         :param prompt_name: prompt name
         :type prompt_name: str
         """
-        self.header_size = 60
+        self.header_size = 80
         self.header_char = "*"
         self.name = name
         self.message = message
@@ -206,19 +270,14 @@ class Menu:
 
         list_options.insert(0, "-" * (n_line_size + 2))
         list_keys.insert(0, "-" * 10)
-        df_table = pd.DataFrame(
-            {
-                "options": list_options,
-                "keys": list_keys
-            }
-        )
+        df_table = pd.DataFrame({"options": list_options, "keys": list_keys})
         return df_table
 
     def header(self):
         n_name = len(self.name)
         n_aux = int((self.header_size - n_name) / 2)
         str_aux = self.header_char * n_aux
-        return "\n{} {} {}\n".format(str_aux, self.name.upper(), str_aux)
+        return "\n\n{} {} {}\n".format(str_aux, self.name.upper(), str_aux)
 
     def ask(self):
         print(self.header())
@@ -238,17 +297,17 @@ class Menu:
 
     def validade(self, str_answer):
         if str_answer in self.list_keys:
-            print("{} OK. selected key: <{}>".format(the_prompt(), str_answer))
+            print(ok(message="selected: {} >> {}".format(str_answer, self.dict_labels[str_answer])))
+            time.sleep(0.5)
             return True
         else:
-            print("{} <{}> key not found. options available: {}".format(
-                the_prompt(),
-                str_answer,
-                self.list_keys))
-            time.sleep(2)
+            print(warning(message="<{}> key not found. options available: {}".format(
+                str_answer, self.list_keys
+            )))
+            time.sleep(0.5)
             return False
 
-    def loop(self):
+    def loop(self, skip_confirmation=True):
         self.get_table()
         while True:
             str_answer = self.ask()
@@ -257,16 +316,28 @@ class Menu:
                 break
             else:
                 if b_valid:
-                    str_confirm = confirm(prefix_message=self.dict_labels[str_answer])
-                    if str_confirm == "y":
+                    b_run = True
+                    if skip_confirmation:
+                        pass
+                    else:
+                        str_confirm = confirm(prefix_message=self.dict_labels[str_answer])
+                        if str_confirm == "y":
+                            b_run = True
+                        else:
+                            b_run = False
+                    if b_run:
                         # run function
-                        output = self.dict_keys[str_answer][0](self.dict_keys[str_answer][1])
+                        if self.dict_keys[str_answer][1] is None:
+                            output = self.dict_keys[str_answer][0]()
+                        else:
+                            output = self.dict_keys[str_answer][0](
+                                self.dict_keys[str_answer][1]
+                            )
                         if output == 0:
                             break
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     # define root
     root_name = "plans"
     root = "C:/" + root_name
@@ -285,16 +356,14 @@ if __name__ == '__main__':
     dict_menu = {
         "open project": [open_project, None],
         "new project": [new_project, None],
-        "change workplace": [change_workplace, None]
+        "change workplace": [change_workplace, None],
     }
     # set menu
     m = Menu(
         dict_actions=dict_menu,
         name="plans - Home",
         prompt_name=prompt_name,
-        message=get_workplace
-
-
+        message=get_location,
     )
     # loop
     m.loop()

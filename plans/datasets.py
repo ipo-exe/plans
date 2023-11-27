@@ -1550,6 +1550,8 @@ class Raster:
             "yllcorner": self.asc_metadata["yllcorner"],
             "NODATA_value": self.nodatavalue,
             "Prj": self.prj,
+            "Path_ASC": self.path_ascfile,
+            "Path_PRJ": self.path_prjfile,
         }
 
     def get_bbox(self):
@@ -1905,7 +1907,7 @@ class Elevation(Raster):
     Elevation (DEM) raster map dataset.
     """
 
-    def __init__(self, name="ElevationMap"):
+    def __init__(self, name="DEM"):
         """Initialize dataset
 
         :param name: name of map
@@ -1914,7 +1916,7 @@ class Elevation(Raster):
         super().__init__(name=name, dtype="float32")
         self.cmap = "BrBG_r"
         self.varname = "Elevation"
-        self.varalias = "ELV"
+        self.varalias = "DEM"
         self.description = "Height above sea level"
         self.units = "m"
         self._set_view_specs()
@@ -1931,7 +1933,7 @@ class Slope(Raster):
     Slope raster map dataset.
     """
 
-    def __init__(self, name="SlopeMap"):
+    def __init__(self, name="Slope"):
         """Initialize dataset
 
         :param name: name of map
@@ -1950,7 +1952,7 @@ class TWI(Raster):
     TWI raster map dataset.
     """
 
-    def __init__(self, name="TWIMap"):
+    def __init__(self, name="TWI"):
         """Initialize dataset
 
         :param name: name of map
@@ -1969,7 +1971,7 @@ class HAND(Raster):
     HAND raster map dataset.
     """
 
-    def __init__(self, name="HANDMap"):
+    def __init__(self, name="HAND"):
         """Initialize dataset
 
         :param name: name of map
@@ -2286,7 +2288,7 @@ class QualiRaster(Raster):
         :type dtype: str
         """
         # prior setup
-        self.path_tablefile = None
+        self.path_csvfile = None
         self.table = None
         self.idfield = "Id"
         self.namefield = "Name"
@@ -2301,6 +2303,7 @@ class QualiRaster(Raster):
         self.varalias = "Var"
         self.description = "Unknown"
         self.units = "category ID"
+        self.path_csvfile = None
         self._overwrite_nodata()
         # NOTE: view specs is set by setting table
 
@@ -2366,7 +2369,7 @@ class QualiRaster(Raster):
         :param file: path_main to file
         :type file: str
         """
-        self.path_tablefile = file
+        self.path_csvfile = file
         # read raw file
         df_aux = pd.read_csv(file, sep=";")
         # set to self
@@ -2585,6 +2588,17 @@ class QualiRaster(Raster):
         map_aoi.set_grid(grid=1 * (self.grid == by_value_id))
         self.mask_nodata()
         return map_aoi
+
+    def get_metadata(self):
+        """Get all metadata from base_object
+
+        :return: metadata
+        :rtype: dict
+        """
+        _dict = super().get_metadata()
+        _dict["Path_CSV"] = self.path_csvfile[:]
+        return _dict
+
 
     def _set_view_specs(self):
         """
@@ -3512,7 +3526,7 @@ class RasterCollection(Collection):
         return df_aux
 
     def get_views(
-        self, show=True, folder="./output", specs=None, dpi=150, fig_format="jpg"
+        self, show=True, folder="./output", dpi=300, fig_format="jpg"
     ):
         """Plot all basic pannel of raster maps in collection.
 
@@ -3520,8 +3534,6 @@ class RasterCollection(Collection):
         :type show: bool
         :param folder: path_main to output folder, defaults to ``./output``
         :type folder: str
-        :param specs: specifications dictionary, defaults to None
-        :type specs: dict
         :param dpi: image resolution, defaults to 96
         :type dpi: int
         :param fig_format: image fig_format (ex: png or jpg). Default jpg
@@ -3536,7 +3548,6 @@ class RasterCollection(Collection):
             s_name = rst_lcl.name
             rst_lcl.view(
                 show=show,
-                specs=specs,
                 folder=folder,
                 filename=s_name,
                 dpi=dpi,
@@ -3651,7 +3662,7 @@ class QualiRasterCollection(RasterCollection):
     This data strucute is designed for holding and comparing :class:`QualiRaster` objects.
     """
 
-    def __init__(self, name, varname, varalias, dtype="uint8"):
+    def __init__(self, name):
         """Deploy Qualitative Raster Series
 
         :param name: :class:`RasterSeries.name` name attribute
@@ -3661,9 +3672,7 @@ class QualiRasterCollection(RasterCollection):
         :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
         :type varalias: str
         """
-        super().__init__(
-            name=name, varname=varname, varalias=varalias, dtype=dtype, units="ID"
-        )
+        super().__init__(name=name)
 
     def load(self, name, asc_file, prj_file=None, table_file=None):
         """Load a :class:`QualiRaster` base_object from ``.asc`` raster file.
