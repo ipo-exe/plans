@@ -8,7 +8,29 @@ Copyright (C) 2022 Iporã Brito Possantti
 """
 import os
 import glob
+import pandas as pd
 
+class Workplace:
+    def __init__(self, root):
+
+        # root setup
+        self.root = root
+        if os.path.isdir(self.root):
+            pass
+        else:
+            os.mkdir(self.root)
+
+        self.catalogfile = "{}/catalog.csv".format(self.root)
+        if os.path.isfile(self.catalogfile):
+            pass
+        else:
+            df = pd.DataFrame(
+                {
+                    "Project_Name": [""],
+                    "Project_Alias": [""]
+
+                }
+            )
 
 class Project:
 
@@ -24,17 +46,51 @@ class Project:
         self.root = root
         self.path_main = "{}/{}".format(root, name)
         self.path_ds = "{}/datasets".format(self.path_main)
+        self.path_ds_obs = "{}/observed".format(self.path_ds)
+        self.path_ds_scn = "{}/scenarios".format(self.path_ds)
+        self.path_out = "{}/outputs".format(self.path_main)
+        self.path_out_sim = "{}/simulation".format(self.path_out)
+        self.path_out_asm = "{}/assessment".format(self.path_out)
+        self.path_out_unc = "{}/uncertainty".format(self.path_out)
+        self.path_out_sal = "{}/sensitivity".format(self.path_out)
+        #
+        self.ds_structure = {
+            "geo": ['dem.asc', 'slope.asc', 'twi.asc', 'hand.asc', 'soils.asc', 'lito.asc'],
+            "lulc" : ["lulc_*.asc", "lulc_table.csv"],
+            "ndvi": ["ndvi_*.asc"],
+            "et": ["et_*.asc"],
+            "series": ["stage", "rain", "temp"],
+            "model": ['---']
+        }
 
-        # set up folders
-        if os.path.isdir(self.path_main):
-            # handle datasets folder
-            if os.path.isdir(self.path_ds):
+        self.fill()
+        self.fill_ds_obs()
+
+    def fill(self):
+        list_folders = [
+            self.path_main,
+            self.path_ds,
+            self.path_ds_obs,
+            self.path_ds_scn,
+            self.path_out,
+            self.path_out_unc,
+            self.path_out_asm,
+            self.path_out_sal,
+            self.path_out_sim
+        ]
+        for d in list_folders:
+            if os.path.isdir(d):
                 pass
             else:
-                os.mkdir(self.path_ds)
-        else:
-            os.mkdir(self.path_main)
-            os.mkdir(self.path_ds)
+                os.mkdir(d)
+
+    def fill_ds_obs(self):
+        for k in self.ds_structure:
+            d = self.path_ds_obs + "/" + k
+            if os.path.isdir(d):
+                pass
+            else:
+                os.mkdir(d)
 
     def download_datasets(self, zip_url):
         """

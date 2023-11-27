@@ -1287,6 +1287,26 @@ class Raster:
             self.prj = f.readline().strip("\n")
         return None
 
+
+    def copy_structure(self, raster_ref, n_nodatavalue=None):
+        """Copy structure (asc_metadata and prj file) from other raster object
+
+        :param raster: reference incoming raster object to copy asc_metadata and prj
+        :type raster_ref: :class:`datasets.Raster`
+        :param n_nodatavalue: new nodata value for different rasters objects
+        :type n_nodatavalue: float
+        :return: None
+        :rtype: None
+        """
+        dict_meta = raster_ref.asc_metadata.copy()
+        # handle new nodatavalue
+        if n_nodatavalue is None:
+            pass
+        else:
+            dict_meta["NODATA_value"] = n_nodatavalue
+        self.set_asc_metadata(metadata=dict_meta)
+        self.prj = raster_ref.prj[:]
+
     def export(self, folder, filename=None):
         """Export raster data to folder
 
@@ -1767,6 +1787,7 @@ class Raster:
 
         plt.ylim(0, specs["hist_vmax"])
         plt.xlim(specs["vmin"], specs["vmax"])
+
         # plt.ylabel(specs["b_ylabel"])
         plt.xlabel(specs["b_xlabel"])
 
@@ -2027,6 +2048,113 @@ class ET24h(Raster):
         self.cut_edges(upper=100, lower=0)
         return None
 
+class Hydrology(Raster):
+    """
+    Primitive hydrology raster map dataset.
+    """
+
+    def __init__(self, name, varalias):
+        """Initialize dataset
+
+        :param name: name of map
+        :type name: str
+        """
+        import matplotlib as mpl
+        from matplotlib.colors import ListedColormap
+
+        dict_cmaps = {
+            "flow surface": "gist_earth_r",
+            "flow vapor": ListedColormap(mpl.colormaps["jet_r"](np.linspace(0.3, 0.75, 256))),
+            "flow subsurface": "gist_earth_r",
+            "stock surface": "",
+            "stock subsurface": "",
+            "deficit": ""
+        }
+        # evaluate load this from csv
+        dict_flows = {
+            "r": {
+                "varname": "Runoff",
+                "description": "Combined overland flows",
+                "type": "flow",
+                "subtype": "surface"
+            },
+            "rie": {
+                "varname": "Runoff by Infiltration Excess",
+                "description": "Hortonian overland flow",
+                "type": "flow",
+                "subtype": "surface"
+            },
+            "rse": {
+                "varname": "Runoff by Saturation Excess",
+                "description": "Dunnean overland flow",
+                "type": "flow",
+                "subtype": "surface"
+            },
+            "ptf": {
+                "varname": "Throughfall",
+                "description": "Effective precipitation at the surface",
+                "type": "flow",
+                "subtype": "surface"
+            },
+            "inf": {
+                "varname": "Infiltration",
+                "description": "Water infiltration in soil",
+                "type": "flow",
+                "subtype": "subsurface"
+            },
+            "qv": {
+                "varname": "Recharge",
+                "description": "Recharge of groundwater",
+                "type": "flow",
+                "subtype": "subsurface"
+            },
+            "et": {
+                "varname": "Evapotranspiration",
+                "description": "Combined Evaporation and Transpiration flows",
+                "type": "flow",
+                "subtype": "vapor"
+            },
+            "evc": {
+                "varname": "Canopy evaporation",
+                "description": "Direct evaporation from canopy",
+                "type": "flow",
+                "subtype": "vapor"
+            },
+            "evs": {
+                "varname": "Surface evaporation",
+                "description": "Direct evaporation from soil surface",
+                "type": "flow",
+                "subtype": "vapor"
+            },
+            "tun": {
+                "varname": "Soil tranpiration",
+                "description": "Transpiration from the water moisture in the soil",
+                "type": "flow",
+                "subtype": "vapor"
+            },
+            "tgw": {
+                "varname": "Groundwater transpiration",
+                "description": "Transpiration from the saturated water zone",
+                "type": "flow",
+                "subtype": "vapor"
+            },
+        }
+
+        super().__init__(name=name, dtype="float32")
+        self.varalias = varalias.lower()
+        str_cmap_id = "{} {}".format(
+            dict_flows[self.varalias]["type"],
+            dict_flows[self.varalias]["subtype"]
+
+        )
+        self.cmap = dict_cmaps[str_cmap_id]
+        self.varname = dict_flows[self.varalias]["varname"]
+        self.description = dict_flows[self.varalias]["description"]
+        self.units = "mm"
+        self.timescale = "annual"
+        self._set_view_specs()
+
+
 class HabQuality(Raster):
     """
     Habitat Quality raster map dataset.
@@ -2130,6 +2258,9 @@ class BiodiversityArea(Raster):
         super(BiodiversityArea, self).set_grid(grid)
         self.ba_total = np.sum(grid)
         return None
+
+
+
 
 # -----------------------------------------
 # Quali Raster data structures
