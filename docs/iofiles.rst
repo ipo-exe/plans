@@ -3,8 +3,8 @@
     :align: center
     :alt: Logo
 
---------------------------------------------
 
+############################################
 I/O Reference
 ############################################
 
@@ -13,24 +13,25 @@ This is Input and Output reference documentation of ``plans`` tool.
 .. toctree::
    iofiles
 
---------------------------------------------
 
+********************************************
 Data structures
 ********************************************
 
 Files used in ``plans`` are related to the following two data structures:
 
-- Tables
-- Raster maps
+- Table
+- Raster map
 
-**Tables** can store a frame of data in rows and columns in a single file. **Raster maps** are a little bit more
-complicated than tables because they are a multi-format data structure that requires more than one single file.
+A **Table** can store a frame of data in rows and columns in a single file.
+A **Raster map** can store a map grid in a matrix of numbers in a single file.
+Extra files may be required for complete information about the map.
 
 Input files must be formatted in by standard way, otherwise the tool is not going to work.
 The standards are meant to be simple and user-friendly for any human and Operating System.
 All kinds of files can be opened and edited by hand in Notepad-like applications. They are described below.
 
-.. _tables:
+.. _table:
 
 Tables
 ============================================
@@ -71,10 +72,12 @@ For example, in the following table ``Id`` is an integer-number field, ``NDVI_me
         5;Urban;Urb;0.24;grey
 
 
-Time series
-============================================
+.. _timeseries:
 
-A **time series** in ``plans`` is a special kind of :ref:`tables` file which must have a ``Datetime`` field (generally in the first column).
+Time series
+--------------------------------------------
+
+A **time series** in ``plans`` is a special kind of :ref:`table` file which must have a ``Datetime`` field (generally in the first column).
 The ``Datetime`` field is a text field that stores dates in the format ``yyyy-mm-dd HH:MM:SS.SSS`` (year, month, day, hour, minute and seconds).
 The other fields generally are real number fields that stores the state of *variables* like precipitation ``Plu`` and temperature ``T``.
 
@@ -135,50 +138,64 @@ Time series files tends to have a large number of rows. The first 10 rows of a t
         2020-01-09 00:00:00.000;  0.0; 27.1
 
 
-Attribute table
-============================================
+.. _attribute:
 
-An **attribute table** is a special kind of table file which must have at least the following fields:
+Attribute table
+--------------------------------------------
+
+An **attribute table** is a special kind of :ref:`table` file which must have at least the following fields:
 
 - ``Id``: [integer number] Unique numeric code;
 - ``Name``: [text] Unique name;
 - ``Alias``: [text] Unique short nickname;
 - ``Color``: [text] Color HEX code or name available in ``matplotlib``;
 
-Extra mandatory fields are also required, depending on each dataset.
+**Extra fields** are also required, depending on each dataset.
 
-.. warning:: Attention to white spaces and special characters
+.. warning::
 
-    ``plans`` is not designed for handling special characters and white spaces in names.
+    Attention to white spaces and special characters because ``plans`` is **not** designed for handling special
+    characters and white spaces in names. If needed, use underline ``_`` instead of white space.
 
-.. warning:: ``plans`` is case-sensitive
+.. warning::
 
-    Be consistent with your own naming conventions because ``plans`` will consider ``Name`` different than ``name``.
-
-
-
+    ``plans`` **is case-sensitive** so be consistent with your own naming conventions (i.e.: ``Name`` is different than ``name``).
 
 
-Raster maps
+.. _raster:
+
+Raster map
 ============================================
 
-The actual map grid data goes in the ``.asc`` file. Then the projection information goes in the ``.prj``.
-The projection information is not mandatory but is quite useful to open the map in the right place when using GIS applications.
+A **raster** map in ``plans`` is a frame of data defined by a matrix of cells storing numbers (integer or real values)
+and encoded in way that it can be georreferenced in a given Coordinate Reference System (CRS).
+The raster map data structure is composed at least by two files:
 
-A **raster map** in ``plans`` is a matrix of cells storing numbers (integer or real values) and encoded in way that it can be georreferenced in a given Coordinate Reference System (CRS). It must follow this general rules:
+- [mandatory] the main **grid file** (``.asc`` extension);
+- [optional] the auxiliary **projection file** (``.prj`` extension);
 
-- the file must be a plain text file with ``.asc`` extension
+Both files may be readily obtained using GIS desktop applications. The projection file is not mandatory but is quite
+useful to open the map in the right place and to check consistency of multiple maps.
+
+
+The grid file
+--------------------------------------------
+
+The grid file must follow this general rules:
+
+- the file must be a plain file with ``.asc`` extension
 - the first 6 lines must encode a **heading**, specifying the following metadata:
-    - ``ncols``: integer number of columns of the matrix
-    - ``nrows``: integer number  of rows of the matrix
-    - ``xllcorner``: real number of X (longitude) of the lower left corner in the CRS units (meters or degrees)
-    - ``yllcorner``: real number of Y (longitude) of the lower left corner in the CRS units (meters or degrees)
-    - ``cellsize``: positive real number of the cell resolution in the CRS units (meters or degrees)
-    - ``NODATA_value``: real number encoding cells with no data
+    - ``ncols``: [integer number] columns of the matrix
+    - ``nrows``: [integer number]  rows of the matrix
+    - ``xllcorner``: [real number] X (longitude) of the lower left corner in the CRS units (meters or degrees)
+    - ``yllcorner``: [real number] Y (longitude) of the lower left corner in the CRS units (meters or degrees)
+    - ``cellsize``: [positive real number] cell resolution in the CRS units (meters or degrees)
+    - ``NODATA_value``: [real number] encoding cells with no data
 - after the first 6 lines, the matrix cells must be arranged using blank spaces for value separation.
 - period ``.`` must be the separator of decimal places for real numbers
 
-Raster maps tends to have a large number of rows and columns. The first 10 rows and columns of a ``.asc`` raster file looks like this:
+Raster maps tends to have a large number of rows and columns.
+The first 10 rows and columns of a ``.asc`` raster file looks like this:
 
 .. code-block::
 
@@ -201,13 +218,16 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
      290 297 310 328 343 359 379 399 417 427 ...
      ...
 
-.. note:: Convert .tif files Using GIS and python
+.. note:: Convert files from ``.tif`` to ``.asc`` using GIS and python
 
-    Most GIS desktop applications have tools for converting the commonly distributed ``.tif`` raster files to the ``.asc`` format used in ``plans``.
+    Most GIS desktop applications have tools for converting the commonly distributed ``.tif`` raster files
+    to the ``.asc`` format used in ``plans``.
 
-    Hence, you actually only  have to worry about setting up the *data type* (integer or real) and the *no-data value* in the moment of exporting your ``.tif`` raster files to ``.asc`` format.
+    Hence, you actually only have to worry about setting up the *data type* (integer or real) and
+    the *no-data value* in the moment of exporting your ``.tif`` raster files to ``.asc`` format.
 
-    In ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif`` raster files to the ``.asc`` format:
+    In ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif``
+    raster files to the ``.asc`` format (the ``.prj`` file is also created):
 
     .. code-block:: python
 
@@ -267,8 +287,22 @@ Raster maps tends to have a large number of rows and columns. The first 10 rows 
                 data = src.read(1) # read only the first band
                 dst.write(data.astype(data_type)) # ensure data type
 
+
+.. _qualiraster:
+
+Qualitative raster map
 --------------------------------------------
 
+A **quali-raster** in ``plans`` is a special kind of :ref:`raster` file in which an auxiliary :ref:`attribute`
+must be provided alongside the grid and projection files.
+
+.. note:: one attribute table can feed many maps
+
+    The same attribute table file can supply the information required of many raster maps. For instance, consider
+    a set of 10 land use and land cover maps, for different years. They all can use the same attribute table file.
+
+
+********************************************
 Conventions
 ********************************************
 
@@ -280,8 +314,7 @@ Hydrological variables
 
 
 
---------------------------------------------
-
+********************************************
 Input files reference
 ********************************************
 
@@ -297,8 +330,9 @@ Input files catalog
 
 .. include:: input_catalog.rst
 
---------------------------------------------
 
+
+********************************************
 Output files reference
 ********************************************
 
