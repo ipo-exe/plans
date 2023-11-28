@@ -25,8 +25,11 @@ class Project:
         self.root = root
         self.path_main = "{}/{}".format(root, name)
         self.path_ds = "{}/datasets".format(self.path_main)
-        self.path_ds_obs = "{}/observed".format(self.path_ds)
-        self.path_ds_scn = "{}/scenarios".format(self.path_ds)
+        self.path_ds_topo = "{}/topo".format(self.path_ds)
+        self.path_ds_soil = "{}/soil".format(self.path_ds)
+        self.path_ds_lulc = "{}/lulc".format(self.path_ds)
+        self.path_ds_lulc_obs = "{}/lulc/obs".format(self.path_ds)
+        self.path_ds_topo = "{}/topo".format(self.path_ds)
         self.path_out = "{}/outputs".format(self.path_main)
         self.path_out_sim = "{}/simulation".format(self.path_out)
         self.path_out_asm = "{}/assessment".format(self.path_out)
@@ -34,16 +37,25 @@ class Project:
         self.path_out_sal = "{}/sensitivity".format(self.path_out)
         self.dict_paths_obs = dict()
         #
-        self.dict_obs_structure = {
-            "geo": {
+
+        self.dict_ds_structure = {
+            "topo": {
                 "dem": datasets.Elevation,
                 "slope": datasets.Slope,
                 "twi": datasets.TWI,
-                "hand": datasets.HAND
+                "hand": datasets.HAND,
+                # todo create flowacc and ldd objects
+                "flowacc": datasets.Raster,
+                "ldd": datasets.QualiRaster
             },
             "soil": {
                 "soils": datasets.Soils,
                 "litology": datasets.Lithology
+            },
+            "land": {
+              "obs": {
+
+              }
             },
             "lulc" : datasets.LULCSeries,
             "ndvi": datasets.NDVISeries,
@@ -66,8 +78,6 @@ class Project:
         list_folders = [
             self.path_main,
             self.path_ds,
-            self.path_ds_obs,
-            self.path_ds_scn,
             self.path_out,
             self.path_out_unc,
             self.path_out_asm,
@@ -81,8 +91,8 @@ class Project:
                 os.mkdir(d)
 
     def fill_ds_obs(self):
-        for k in self.dict_obs_structure:
-            d = self.path_ds_obs + "/" + k
+        for k in self.dict_ds_structure:
+            d = self.path_ds + "/" + k
             self.dict_paths_obs[k] = d[:]
             if os.path.isdir(d):
                 pass
@@ -95,8 +105,8 @@ class Project:
     def get_geo_collection(self):
         str_label = "geo"
         self.geo = datasets.RasterCollection(name="Geomorphology")
-        for k in self.dict_obs_structure[str_label]:
-            new_raster = self.dict_obs_structure[str_label][k](name=k)
+        for k in self.dict_ds_structure[str_label]:
+            new_raster = self.dict_ds_structure[str_label][k](name=k)
             new_raster.load(
                 asc_file=self.dict_paths_obs[str_label] + "/{}.asc".format(k),
                 prj_file=self.dict_paths_obs[str_label] + "/{}.prj".format(k)
@@ -107,8 +117,8 @@ class Project:
     def get_soil_collection(self):
         str_label = "soil"
         self.soil = datasets.QualiRasterCollection(name="Soil")
-        for k in self.dict_obs_structure[str_label]:
-            new_raster = self.dict_obs_structure[str_label][k](name=k)
+        for k in self.dict_ds_structure[str_label]:
+            new_raster = self.dict_ds_structure[str_label][k](name=k)
             new_raster.load(
                 asc_file=self.dict_paths_obs[str_label] + "/{}.asc".format(k),
                 prj_file=self.dict_paths_obs[str_label] + "/{}.prj".format(k),

@@ -15,39 +15,35 @@ This is Input and Output reference documentation of ``plans`` tool.
 
 --------------------------------------------
 
-File formatting
+Data structures
 ********************************************
 
-Files used in ``plans`` are of three kinds:
+Files used in ``plans`` are related to the following two data structures:
 
 - Tables
-- Time series
 - Raster maps
 
-Input files must be formatted in by standard way, otherwise the tool is not going to work. The standards are meant to be simple and user-friendly for any human and Operating System. All kinds of files can be opened and edited by hand in Notepad applications. They are described below.
+**Tables** can store a frame of data in rows and columns in a single file. **Raster maps** are a little bit more
+complicated than tables because they are a multi-format data structure that requires more than one single file.
 
-.. admonition:: Note Title
+Input files must be formatted in by standard way, otherwise the tool is not going to work.
+The standards are meant to be simple and user-friendly for any human and Operating System.
+All kinds of files can be opened and edited by hand in Notepad-like applications. They are described below.
 
-   This is a note with a custom class using the admonition directive.
-
-OK
-
-.. note:: Note Title
-
-   This is a note with a title.
-
-
+.. _tables:
 
 Tables
 ============================================
 
-A **table** in ``plans`` is a frame of data defined by rows and columns. It must follow this general rules:
+A **table** in ``plans`` is a frame of data defined by rows and columns. Each column represents a **field** that must be *homogeneous*.
+This means that each field stores the same **data type**, like text, datetime, integer numbers or real numbers.
+The first row stores the names of the fields. The subsequent rows stores the data itself.
 
-- the file must be a plain text file with ``.txt`` extension
+A table must follow this general rules:
+
+- the file must be a plain file with ``.csv`` or ``.txt`` extension
 - semi-column ``;`` must be the separator of columns
 - period ``.`` must be the separator of decimal places for real numbers
-
-Each column represents a **field** that must be *homogeneous*. This means that each field stores the same **data type**, like text, integer numbers or real numbers. The first row stores the names of the fields. The subsequent rows stores the data itself.
 
 For example, in the following table ``Id`` is an integer-number field, ``NDVI_mean`` is a real-number field and the remaining are text fields.
 
@@ -63,7 +59,7 @@ For example, in the following table ``Id`` is an integer-number field, ``NDVI_me
 
 .. note:: No need for column alignment
 
-   ``plans`` is *not* sensitive to *spaces* in table files. Hence, columns in table files can be either beautifully aligned like the above example or compacted like the following:
+   ``plans`` is *not* sensitive to *spaces* in table ``.txt`` files. Hence, columns in table files can be either beautifully aligned like the above example or compacted like the following:
 
    .. code-block::
 
@@ -78,51 +74,96 @@ For example, in the following table ``Id`` is an integer-number field, ``NDVI_me
 Time series
 ============================================
 
-A **time series** in ``plans`` is a special kind of table file which must have a ``Date`` field. The ``Date`` field is a text field that stores dates in the format ``yyyy-mm-dd`` (year, month, day). The other fields generally are real number fields that stores the state of *variables* like precipitation ``P`` and temperature ``T``.
+A **time series** in ``plans`` is a special kind of :ref:`tables` file which must have a ``Datetime`` field (generally in the first column).
+The ``Datetime`` field is a text field that stores dates in the format ``yyyy-mm-dd HH:MM:SS.SSS`` (year, month, day, hour, minute and seconds).
+The other fields generally are real number fields that stores the state of *variables* like precipitation ``Plu`` and temperature ``T``.
 
 Time series files tends to have a large number of rows. The first 10 rows of a time series file looks like this:
 
 .. code-block::
 
-         Date;    P;    T
-   2020-01-01;  0.0; 20.1
-   2020-01-02;  5.1; 24.3
-   2020-01-03;  0.0; 25.8
-   2020-01-04; 12.9; 21.4
-   2020-01-05;  0.0; 21.5
-   2020-01-06;  0.0; 23.6
-   2020-01-07;  8.6; 20.6
-   2020-01-08;  4.7; 28.3
-   2020-01-09;  0.0; 27.1
+                  Datetime;  Plu;    T
+   2020-01-01 00:00:00.000;  0.0; 20.1
+   2020-01-02 00:00:00.000;  5.1; 24.3
+   2020-01-03 00:00:00.000;  0.0; 25.8
+   2020-01-04 00:00:00.000; 12.9; 21.4
+   2020-01-05 00:00:00.000;  0.0; 21.5
+   2020-01-06 00:00:00.000;  0.0; 23.6
+   2020-01-07 00:00:00.000;  8.6; 20.6
+   2020-01-08 00:00:00.000;  4.7; 28.3
+   2020-01-09 00:00:00.000;  0.0; 27.1
 
-Daily time series
---------------------------------------------
+.. note:: Automatic fill of time information
 
-A **daily time series** in ``plans`` is a special time series file that must meet some extra requirements:
+   ``plans`` will automatically fill a constant time information (hours, minute and seconds) if only the date is passed, like in the above example.
 
-- no *date gaps* are allowed. All days from the start to end must be in the sequence of rows
-- no *data voids* are allowed. All information must be filled in the variable field.
 
-.. warning:: Gaps and voids are not allowed in daily time series
+.. warning:: Beware of small gaps and voids in time series
 
-    In daily time series gaps and voids must be *filled* in the pre-processing phase with interpolation and statistical techniques.
+    ``plans`` will automatically try to fill or interpolate small gaps and voids in a given time series.
+    However, be aware that this may cause a unnoticed impact on the model outputs.
+    A best option is to interpolate and fill voids prior to the processing so you can understand what is going on.
 
-    For instance, the following daily time series is *not* suited for ``plans`` because it has a date gap (missing Jan/3 and Jan/4 dates) and a data void for ``P`` in Jan/8:
+    For instance, consider the following time series that has a date gap (missing Jan/3 and Jan/4 dates) and a data void for ``Plu`` in Jan/8:
 
     .. code-block::
         :emphasize-lines: 3,4,7
 
-             Date;    P;    T
-        2020-01-01;  0.0; 20.1
-        2020-01-02;  5.1; 24.3
-        2020-01-05;  0.0; 21.5
-        2020-01-06;  0.0; 23.6
-        2020-01-07;  8.6; 20.6
-        2020-01-08;     ; 28.3
-        2020-01-09;  0.0; 27.1
+                       Datetime;  Plu;    T
+        2020-01-01 00:00:00.000;  0.0; 20.1
+        2020-01-02 00:00:00.000;  5.1; 24.3
+        2020-01-05 00:00:00.000;  0.0; 21.5
+        2020-01-06 00:00:00.000;  0.0; 23.6
+        2020-01-07 00:00:00.000;  8.6; 20.6
+        2020-01-08 00:00:00.000;     ; 28.3
+        2020-01-09 00:00:00.000;  0.0; 27.1
+
+    In this case, ``plans`` would interpolate temperature ``T`` and fill with 0 the precipitation ``Plu``:
+
+    .. code-block::
+        :emphasize-lines: 3,4,7
+
+                       Datetime;  Plu;    T
+        2020-01-01 00:00:00.000;  0.0; 20.1
+        2020-01-02 00:00:00.000;  5.1; 24.3
+        2020-01-03 00:00:00.000;  0.0; 23.3
+        2020-01-04 00:00:00.000;  0.0; 22.4
+        2020-01-05 00:00:00.000;  0.0; 21.5
+        2020-01-06 00:00:00.000;  0.0; 23.6
+        2020-01-07 00:00:00.000;  8.6; 20.6
+        2020-01-08 00:00:00.000;  0.0; 28.3
+        2020-01-09 00:00:00.000;  0.0; 27.1
+
+
+Attribute table
+============================================
+
+An **attribute table** is a special kind of table file which must have at least the following fields:
+
+- ``Id``: [integer number] Unique numeric code;
+- ``Name``: [text] Unique name;
+- ``Alias``: [text] Unique short nickname;
+- ``Color``: [text] Color HEX code or name available in ``matplotlib``;
+
+Extra mandatory fields are also required, depending on each dataset.
+
+.. warning:: Attention to white spaces and special characters
+
+    ``plans`` is not designed for handling special characters and white spaces in names.
+
+.. warning:: ``plans`` is case-sensitive
+
+    Be consistent with your own naming conventions because ``plans`` will consider ``Name`` different than ``name``.
+
+
+
+
 
 Raster maps
 ============================================
+
+The actual map grid data goes in the ``.asc`` file. Then the projection information goes in the ``.prj``.
+The projection information is not mandatory but is quite useful to open the map in the right place when using GIS applications.
 
 A **raster map** in ``plans`` is a matrix of cells storing numbers (integer or real values) and encoded in way that it can be georreferenced in a given Coordinate Reference System (CRS). It must follow this general rules:
 
