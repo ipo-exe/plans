@@ -1,21 +1,21 @@
-file,description,format,io,data type,no-data value,mandatory fields,optional fields
-map_aoi.asc,Map of the Area Of Interest (AOI). Expected to be a boolean map (1 and 0 values only). I can be a copy of the main basin map.,raster map,input,8-bit unsigned integer,0,..,..
-map_basin_<station alias>.asc,Map of the basin related to a given flow station. Alias (unique nickname) of station is expected ate the end of file name. Example: ``map_basin_Reach1.asc``,raster map,input,8-bit unsigned integer,0,..,..
-map_et_<date>.asc,Description text,raster map,input,32-bit floating point,-1,..,..
-map_hand.asc,Description text,raster map,input,32-bit floating point,-1,..,..
-map_hru_<date>.asc,Description text,raster map,output,16-bit unsigned integer,0,..,..
-map_lst_<date>.asc,Description text,raster map,input,32-bit floating point,0,..,..
-map_lulc_<date>.asc,Description text,raster map,input,8-bit unsigned integer,0,..,..
-map_ndvi_<date>.asc,Description text,raster map,input,32-bit floating point,-9999,..,..
-map_slope.asc,Description text,raster map,input,32-bit floating point,-1,..,..
-map_soils.asc,Description text,raster map,input,8-bit unsigned integer,0,..,..
-map_twi.asc,Description text,raster map,input,32-bit floating point,-1,..,..
-series_prec_<station alias>.txt,Description text,daily time series,input,..,..,|Prec: positive real: daily precipitation in mm|,..
-series_qobs_<station alias>.txt,Description text,daily time series,output,..,..,|Qobs: positive real: daily streamflow in m3/d|,..
-series_stage_<station alias>.txt,Description text,daily time series,input,..,..,|Stage: positive real: daily level stage in m|,..
-series_temp_<station alias>.txt,Description text,daily time series,input,..,..,|Temp: positive real: daily temperature in Celcius degrees|,..
-series_curve_<station alias>.txt,Description text,time series,input,..,..,|Stage: positive real: daily level stage in m| Qobs: positive real: daily streamflow in m3/s|,..
-table_lulc.txt,Description text,table,input,..,..,|Id: non-zero positive integer: unique identification number for LULC classes. Must match values in all LULC maps |Name: text: name of LULC class| Alias: text: alias (short unique nickname) for LULC class| Color: text: matplotlib color name or hexcode|,..
-table_parameters.txt,Description text,table,input,..,..,..,..
-table_soils.txt,Description text,table,input,..,..,|Id: non-zero positive integer: Unique identification number for Soil types. Must match values in all LULC maps |Name: text: name of LULC Soil types| Alias: text: alias (short unique nickname) for Soil types| Color: text: matplotlib color name or hexcode|,..
-table_stations.txt,Description text,table,input,..,..,..,..
+file,description,structure,io,type,no-data value,mandatory fields,optional fields
+dem.asc,Digital Elevation Model,raster,input,32-bit floating point,-1,..,..
+slope.asc,Slope map,raster,input,32-bit floating point,-1,..,..
+hand.asc,Height Above the Nearest Drainage,raster,input,32-bit floating point,-1,..,..
+twi.asc,Topographic Wetness Index,raster,input,32-bit floating point,-1,..,..
+ldd.asc,Local Drain Direction,raster,input,8-bit unsigned integer,255,..,..
+flowacc.asc,Flow accumulation,raster,input,32-bit floating point,0,..,..
+lulc_<yyyy-mm-dd>.asc,"Land Use and Land Cover map at date encoded by yyyy-mm-dd (year, month, day)",quali-raster,input,8-bit unsigned integer,0,..,..
+ndvi_<yyyy-mm-dd>.asc,"NDVI map at date encoded by yyyy-mm-dd (year, month, day)",raster,input,32-bit floating point,-9999,..,..
+et_<yyyy-mm-dd>.asc,Evapotranspiration map (remote sensing),raster,input,32-bit floating point,-1,..,..
+lito.asc,Lithology map,quali-raster,input,8-bit unsigned integer,0,..,..
+soils.asc,Soils map,quali-raster,input,32-bit floating point,-1,..,..
+flu_<name>_basin.asc,Basin of Streamflow gauge station,raster,input,8-bit unsigned integer,,|Prec: positive real: daily precipitation in mm|,..
+plu_<name>_zone.asc,Zone of influence of Rain gauge station,raster,input,8-bit unsigned integer,,|Qobs: positive real: daily streamflow in m3/d|,..
+lulc.csv,Land Use and Land Cover attributes,attribute table,input,,,|Stage: positive real: daily level stage in m|,..
+soils.csv,Soils attributes,attribute table,input,,,|Temp: positive real: daily temperature in Celcius degrees|,..
+plu_zones.asc,Rain gauge stations zones,raster,intermediate,16-bit unsigned integer,,|Stage: positive real: daily level stage in m| Qobs: positive real: daily streamflow in m3/s|,..
+flu_zones.asc,Streamflow gauge stations basins,raster,intermediate,16-bit unsigned integer,,|Id: non-zero positive integer: unique identification number for LULC classes. Must match values in all LULC maps |Name: text: name of LULC class| Alias: text: alias (short unique nickname) for LULC class| Color: text: matplotlib color name or hexcode|,..
+plu_<name>_series.csv,Rain gauge station time series,time series,input,,,..,..
+flu_<name>_series.csv,Streamflow gauge station time series,time series,input,,,|Id: non-zero positive integer: Unique identification number for Soil types. Must match values in all LULC maps |Name: text: name of LULC Soil types| Alias: text: alias (short unique nickname) for Soil types| Color: text: matplotlib color name or hexcode|,..
+,,,,,,..,..

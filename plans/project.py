@@ -11,6 +11,14 @@ import glob
 import pandas as pd
 import datasets
 
+
+def make_dir(str_path):
+    if os.path.isdir(str_path):
+        pass
+    else:
+        os.mkdir(str_path)
+
+
 class Project:
 
     def __init__(self, name, root):
@@ -24,48 +32,86 @@ class Project:
         self.name = name
         self.root = root
         self.path_main = "{}/{}".format(root, name)
-        self.path_ds = "{}/datasets".format(self.path_main)
-        self.path_ds_topo = "{}/topo".format(self.path_ds)
-        self.path_ds_soil = "{}/soil".format(self.path_ds)
-        self.path_ds_lulc = "{}/lulc".format(self.path_ds)
-        self.path_ds_lulc_obs = "{}/lulc/obs".format(self.path_ds)
-        self.path_ds_topo = "{}/topo".format(self.path_ds)
-        self.path_out = "{}/outputs".format(self.path_main)
-        self.path_out_sim = "{}/simulation".format(self.path_out)
-        self.path_out_asm = "{}/assessment".format(self.path_out)
-        self.path_out_unc = "{}/uncertainty".format(self.path_out)
-        self.path_out_sal = "{}/sensitivity".format(self.path_out)
-        self.dict_paths_obs = dict()
+        # make main dir
+        make_dir(str_path=self.path_main)
+
         #
-
-        self.dict_ds_structure = {
-            "topo": {
-                "dem": datasets.Elevation,
-                "slope": datasets.Slope,
-                "twi": datasets.TWI,
-                "hand": datasets.HAND,
-                # todo create flowacc and ldd objects
-                "flowacc": datasets.Raster,
-                "ldd": datasets.QualiRaster
+        # struture of the project
+        self.structure = {
+            "datasets": {
+                "topo":{
+                    "dem": datasets.Elevation,
+                    "slope": datasets.Slope,
+                    "twi": datasets.TWI,
+                    "hand": datasets.HAND,
+                    "flowacc": datasets.Raster,
+                    "ldd": datasets.Raster
+                },
+                "lulc":{
+                    "obs":{
+                        "lulc_*": datasets.LULC,
+                    },
+                    "bau":{
+                        "lulc_*": datasets.LULC,
+                    },
+                    "base": {
+                        "lulc_*": datasets.LULC,
+                    },
+                    "nbs": {
+                        "lulc_*": datasets.LULC,
+                    },
+                },
+                "soil":{
+                    "soils": datasets.Soils,
+                    "lito": datasets.Lithology
+                },
+                "et":{
+                    "et_*": datasets.ET24h
+                },
+                "ndvi":{
+                    "ndvi_*": datasets.NDVI
+                },
+                "flu":{
+                    "flu_*": datasets.Streamflow
+                },
+                "plu": {
+                    "obs": {
+                        "plu_*": None
+                    },
+                    "bau": {
+                        "plu_*": None
+                    }
+                },
+                "temp": {
+                    "obs":{
+                        "temp_*": None
+                    }
+                },
+                "model":{
+                    "hist": None
+                }
             },
-            "soil": {
-                "soils": datasets.Soils,
-                "litology": datasets.Lithology
-            },
-            "land": {
-              "obs": {
-
-              }
-            },
-            "lulc" : datasets.LULCSeries,
-            "ndvi": datasets.NDVISeries,
-            "et": datasets.ETSeries,
-            "series": ["stage", "rain", "temp"],
-            "model": ['---']
+            "outputs": {
+                "simulation": {
+                    "sim_*": None
+                },
+                "assessment": {
+                    "asm_*": None
+                },
+                "uncertainty": {
+                    "unc_*": None
+                },
+                "sensitivity": {
+                    "sal_*": None
+                }
+            }
         }
+
         # fill folders
-        self.fill()
-        self.fill_ds_obs()
+        self.fill(
+            dict_struct=self.structure,
+            local_root=self.path_main
+        )
         #
         #
         self.geo = None
@@ -74,34 +120,24 @@ class Project:
         self.et = None
         self.ndvi = None
 
-    def fill(self):
-        list_folders = [
-            self.path_main,
-            self.path_ds,
-            self.path_out,
-            self.path_out_unc,
-            self.path_out_asm,
-            self.path_out_sal,
-            self.path_out_sim
-        ]
-        for d in list_folders:
-            if os.path.isdir(d):
+    def fill(self, dict_struct, local_root):
+        for k in dict_struct:
+            if isinstance(dict_struct[k], dict):
+                # make a dir
+                _d = local_root + "/" + k
+                make_dir(str_path=_d)
+                # now move down:
+                self.fill(
+                    dict_struct = dict_struct[k],
+                    local_root=_d
+                )
+            else: # is file
                 pass
-            else:
-                os.mkdir(d)
 
-    def fill_ds_obs(self):
-        for k in self.dict_ds_structure:
-            d = self.path_ds + "/" + k
-            self.dict_paths_obs[k] = d[:]
-            if os.path.isdir(d):
-                pass
-            else:
-                os.mkdir(d)
 
     def teste(self):
         print("********** hey *************")
-
+    '''
     def get_geo_collection(self):
         str_label = "geo"
         self.geo = datasets.RasterCollection(name="Geomorphology")
@@ -135,6 +171,7 @@ class Project:
             table_file=self.dict_paths_obs[str_label] + "/lulc.csv",
             name_pattern=name_pattern
         )
+    '''
 
 
     def download_datasets(self, zip_url):
@@ -192,19 +229,4 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.style.use("seaborn")
 
-    p = Project(name="teste", root="C:/plans")
-    p.get_lulc_collection()
-
-    print(p.lulc.catalog.to_string())
-    p.lulc.collection["map_lulc_1985-01-01"].view(show=True)
-    p.lulc.get_views(
-        show=False,
-        folder=p.dict_paths_obs["lulc"]
-    )
-    '''
-    p.soil.collection["soils"].view(show=True)
-    p.soil.get_views(
-        show=False,
-        folder=p.dict_paths_obs["soil"]
-    )
-    '''
+    print("hi")

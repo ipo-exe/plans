@@ -31,9 +31,10 @@ Input files must be formatted in by standard way, otherwise the tool is not goin
 The standards are meant to be simple and user-friendly for any human and Operating System.
 All kinds of files can be opened and edited by hand in Notepad-like applications. They are described below.
 
+
 .. _table:
 
-Tables
+Table
 ============================================
 
 A **table** in ``plans`` is a frame of data defined by rows and columns. Each column represents a **field** that must be *homogeneous*.
