@@ -1162,7 +1162,7 @@ class Raster:
         self.cellsize = self.asc_metadata["cellsize"]
         return None
 
-    def load(self, asc_file, prj_file):
+    def load(self, asc_file, prj_file=None):
         """Load data from files to raster
 
         :param asc_file: path_main to ``.asc`` raster file
@@ -1173,7 +1173,13 @@ class Raster:
         :rtype: None
         """
         self.load_asc_raster(file=asc_file)
-        self.load_prj_file(file=prj_file)
+        if prj_file is None:
+            # try to use the same path and name
+            prj_file = asc_file.split(".")[0] + ".prj"
+            if os.path.isfile(prj_file):
+                self.load_prj_file(file=prj_file)
+        else:
+            self.load_prj_file(file=prj_file)
         return None
 
     def load_tif_raster(self, file):
@@ -1985,6 +1991,25 @@ class HAND(Raster):
         self.units = "m"
         self._set_view_specs()
 
+
+class DTO(Raster):
+    """
+    Distance to outlet raster map dataset.
+    """
+
+    def __init__(self, name="DTO"):
+        """Initialize dataset
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "rainbow"#"gist_rainbow_r"
+        self.varname = "DTO"
+        self.varalias = "DTO"
+        self.description = "Distance To Outlet"
+        self.units = "meters"
+        self._set_view_specs()
 
 class NDVI(Raster):
     """
@@ -3008,31 +3033,33 @@ class Soils(QualiRaster):
         return None
 
 
-class AOI(QualiRaster):
+class QualiHard(QualiRaster):
     """
-    AOI map dataset
+    A Quali-Hard is a hard-coded qualitative map (that is, the table is pre-set)
     """
 
-    def __init__(self, name="AOIMap"):
+    def __init__(self, name="qualihard"):
         super().__init__(name, dtype="uint8")
-        self.varname = "Area Of Interest"
-        self.varalias = "AOI"
-        self.description = "Boolean map an Area of Interest"
+        self.varname = "QualiRasterHard"
+        self.varalias = "QRH"
+        self.description = "Preset Classes"
         self.units = "classes ID"
+        self.set_table(dataframe=self.get_table())
+
+    def get_table(self):
         df_aux = pd.DataFrame(
             {
-                "Id": [1, 2],
-                "Alias": ["AOI", "EZ"],
-                "Name": ["Area of Interest", "Exclusion Zone"],
-                "Color": ["magenta", "silver"],
+                "Id": [1, 2, 3],
+                "Alias": ["A", "B", "C"],
+                "Name": ["Class A", "Class B", "Class C"],
+                "Color": ["red", "green", "blue"],
             }
         )
-        self.set_table(dataframe=df_aux)
+        return df_aux
 
+    def load(self, asc_file, prj_file=None):
+        """Load data from files to raster
 
-    def load(self, asc_file, prj_file):
-        """
-        Load data from files to raster
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
         :param prj_file: path_main to ``.prj`` projection file
@@ -3041,16 +3068,48 @@ class AOI(QualiRaster):
         :rtype: None
         """
         self.load_asc_raster(file=asc_file)
-        self.load_prj_file(file=prj_file)
+        if prj_file is None:
+            # try to use the same path and name
+            prj_file = asc_file.split(".")[0] + ".prj"
+            if os.path.isfile(prj_file):
+                self.load_prj_file(file=prj_file)
+        else:
+            self.load_prj_file(file=prj_file)
         return None
 
+
+
+class AOI(QualiHard):
+    """
+    AOI map dataset
+    """
+
+    def __init__(self, name="AOIMap"):
+        super().__init__(name)
+        self.varname = "Area Of Interest"
+        self.varalias = "AOI"
+        self.description = "Boolean map an Area of Interest"
+        self.units = "classes ID"
+        self.set_table(dataframe=self.get_table())
+
+    def get_table(self):
+        df_aux = pd.DataFrame(
+            {
+                "Id": [1, 2],
+                "Alias": ["AOI", "EZ"],
+                "Name": ["Area of Interest", "Exclusion Zone"],
+                "Color": ["magenta", "silver"],
+            }
+        )
+        return df_aux
+
     def view(
-        self,
-        show=True,
-        folder="./output",
-        filename=None,
-        dpi=150,
-        fig_format="jpg",
+            self,
+            show=True,
+            folder="./output",
+            filename=None,
+            dpi=150,
+            fig_format="jpg",
     ):
         """Plot a basic pannel of raster map.
 
@@ -3092,6 +3151,53 @@ class AOI(QualiRaster):
         )
         del map_aoi_aux
         return None
+
+class LDD(QualiHard):
+    """
+    LDD - Local Drain Direction map dataset
+    convention:
+
+    7   8   9
+    4   5   6
+    1   2   3
+    """
+
+    def __init__(self, name="LDDMap"):
+        super().__init__(name)
+        self.varname = "Local Drain Direction"
+        self.varalias = "LDD"
+        self.description = "Direction of flux"
+        self.units = "direction ID"
+        self.set_table(dataframe=self.get_table())
+        self.view_specs["legend_ncol"] = 2
+        self.view_specs["legend_x"] = 0.5
+
+    def get_table(self):
+        df_aux = pd.DataFrame(
+            {
+                "Id": [
+                    1, 2, 3,
+                    4, 5, 6,
+                    7, 8, 9
+                ],
+                "Alias": [
+                    "1-SW", "2-S", "3-SE",
+                    "4-W", "5-C", "6-E",
+                    "7-NW", "8-N", "9-NE"
+                ],
+                "Name": [
+                    "South-west", "South", "South-east",
+                    "West", "Center", "East",
+                    "North-west", "North", "North-east",
+                ],
+                "Color": [
+                    '#8c564b', '#9edae5', '#98df8a',
+                    '#dbdb8d', '#d62728', '#ff7f0e',
+                    '#1f77b4', '#f7b6d2', '#98df8a'
+                ],
+            }
+        )
+        return df_aux
 
 
 class Zones(QualiRaster):
@@ -3258,6 +3364,7 @@ class RasterCollection(Collection):
         units=None,
         date=None,
         dtype="float32",
+        skip_grid=False,
     ):
         """Load a :class:`Raster` base_object from a ``.asc`` raster file.
 
@@ -3273,6 +3380,8 @@ class RasterCollection(Collection):
         :type units: str
         :param date: :class:`Raster.date` date attribute, defaults to None
         :type date: str
+        :param skip_grid: option for loading only the metadata
+        :type skip_grid: bool
         """
         # create raster
         rst_aux = Raster(name=name, dtype=dtype)
@@ -3287,7 +3396,10 @@ class RasterCollection(Collection):
         else:
             rst_aux.load_prj_file(file=prj_file)
         # read asc file
-        rst_aux.load_asc_raster(file=asc_file)
+        if skip_grid:
+            rst_aux.load_asc_metadata(file=asc_file)
+        else:
+            rst_aux.load_asc_raster(file=asc_file)
         # append to collection
         self.append(new_object=rst_aux)
         # delete aux
@@ -4577,4 +4689,16 @@ class LULCSeries(QualiRasterSeries):
 
 
 if __name__ == "__main__":
-    print("Hi!")
+    #print(plt.style.available)
+    plt.style.use("seaborn-v0_8")
+    f = r"C:\gis\_projects_\canela\micro\aoi_canela_10m.asc"
+    aoi = AOI()
+    aoi.load(file=f)
+    aoi.view()
+
+
+    f = r"C:\data\ldd.asc"
+    ldd = LDD()
+    ldd.load(asc_file=f)
+    ldd.view()
+    print(get_random_colors(size=9))

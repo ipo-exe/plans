@@ -6,18 +6,38 @@ This module stores all project-related objects and routines of PLANS.
 
 Copyright (C) 2022 Iporã Brito Possantti
 """
-import os
-import glob
+import os, shutil, glob
 import pandas as pd
 import datasets
 
+def get_file_size_mb(file_path):
+    # Get the file size in bytes
+    file_size_bytes = os.path.getsize(file_path)
+    # Convert bytes to megabytes
+    file_size_mb = file_size_bytes / (1024 * 1024)
+    return file_size_mb
 
 def make_dir(str_path):
     if os.path.isdir(str_path):
         pass
     else:
         os.mkdir(str_path)
+    return None
 
+def fill_dir_strucuture(dict_struct, local_root):
+    for k in dict_struct:
+        if isinstance(dict_struct[k], dict):
+            # make a dir
+            _d = local_root + "/" + k
+            make_dir(str_path=_d)
+            # now move down:
+            fill_dir_strucuture(
+                dict_struct=dict_struct[k],
+                local_root=_d
+            )
+        else:  # is file
+            pass
+    return None
 
 class Project:
 
@@ -45,7 +65,7 @@ class Project:
                     "twi": datasets.TWI,
                     "hand": datasets.HAND,
                     "flowacc": datasets.Raster,
-                    "ldd": datasets.Raster
+                    "ldd": datasets.LDD
                 },
                 "lulc":{
                     "obs":{
@@ -108,32 +128,71 @@ class Project:
         }
 
         # fill folders
-        self.fill(
-            dict_struct=self.structure,
-            local_root=self.path_main
-        )
+        self.fill()
         #
         #
-        self.geo = None
+        self.topo_status = None
+        self.update_status_topo()
+
+        self.topo = None
         self.soil = None
         self.lulc = None
         self.et = None
         self.ndvi = None
 
-    def fill(self, dict_struct, local_root):
-        for k in dict_struct:
-            if isinstance(dict_struct[k], dict):
-                # make a dir
-                _d = local_root + "/" + k
-                make_dir(str_path=_d)
-                # now move down:
-                self.fill(
-                    dict_struct = dict_struct[k],
-                    local_root=_d
-                )
-            else: # is file
-                pass
+    def fill(self):
+        fill_dir_strucuture(
+            dict_struct=self.structure,
+            local_root=self.path_main
+        )
+        return None
 
+    def update_status_topo(self):
+        str_path = self.path_main + "/datasets/topo"
+        list_names = list(self.structure["datasets"]["topo"].keys())
+        dict_lists = {
+            "Name": list_names,
+            "File": ["{}.asc".format(f) for f in list_names],
+        }
+        dict_lists["Path"] = ["{}/{}".format(str_path, f) for f in dict_lists["File"]]
+        dict_lists["Status"] = ["missing" for i in dict_lists["Name"]]
+        dict_lists["Size"] = ["" for i in dict_lists["Name"]]
+        dict_lists["Shape"] = ["" for i in dict_lists["Name"]]
+        dict_lists["Cellsize"] = ["" for i in dict_lists["Name"]]
+        dict_lists["Nodata"] = ["" for i in dict_lists["Name"]]
+        dict_lists["Origin"] = ["" for i in dict_lists["Name"]]
+
+        # Set up
+        for i in range(len(dict_lists["Path"])):
+            f = dict_lists["Path"][i]
+            name = dict_lists["Name"][i]
+            if os.path.isfile(f):
+                dict_lists["Status"][i] = "available"
+                dict_lists["Size"][i] = "{:.1f} MB".format(get_file_size_mb(f))
+                rst_aux = self.structure["datasets"]["topo"][name](name=name)
+                rst_aux.load_asc_metadata(file=f)
+                dict_meta = rst_aux.asc_metadata
+                dict_lists["Shape"][i] = "{} x {}".format(
+                    dict_meta["nrows"],
+                    dict_meta["ncols"]
+                )
+                dict_lists["Cellsize"][i] = "{} m".format(dict_meta["cellsize"])
+                dict_lists["Nodata"][i] = "{}".format(dict_meta["NODATA_value"])
+                dict_lists["Origin"][i] = "({}, {})".format(
+                    dict_meta["xllcorner"],
+                    dict_meta["yllcorner"]
+                )
+
+        str_liner = "="
+        for k in dict_lists:
+            list_maxs = [len(dict_lists[k][e]) + 2 for e in range(len(dict_lists[k]))]
+            n_max = max(list_maxs)
+            dict_lists[k].insert(0, str_liner*n_max)
+
+
+        # Set attribute
+        self.topo_status = pd.DataFrame(dict_lists)
+        return None
 
     def teste(self):
         print("********** hey *************")
@@ -226,7 +285,12 @@ class Project:
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    plt.style.use("seaborn")
+    #import matplotlib.pyplot as plt
+    #plt.style.use("seaborn-v0_8")
 
-    print("hi")
+    p = Project(
+        name="nimes",
+        root="C:/plans"
+    )
+
+    print(p.topo_status.to_string())

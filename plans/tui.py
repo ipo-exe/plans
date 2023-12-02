@@ -1,4 +1,4 @@
-import os
+import os, shutil
 import pandas as pd
 import time
 import tkinter as tk
@@ -15,12 +15,20 @@ def the_prompt():
         str_aux = str_aux + "@" + projet_name[:]
     return "{} >>>:".format(str_aux)
 
+def get_location(place):
+    global my_project, root
+    if my_project is None:
+        place = root
+    return "location: {}\n".format(place)
 
 def warning(message):
     return "{} warning! {}".format(the_prompt(), message)
 
-def done():
-    print("{} done.".format(the_prompt()))
+def done(message=None):
+    if message is None:
+        print("{} done.".format(the_prompt()))
+    else:
+        print("{} done. {}".format(the_prompt()), message)
     time.sleep(0.75)
 
 def ok(message):
@@ -41,6 +49,8 @@ def confirm(prefix_message=None):
             pass
     return str_confirm
 
+def copy_file(src, dst):
+    shutil.copy(src, dst)
 
 def pick_folder(title="Select a folder"):
     root_tk = tk.Tk()
@@ -59,29 +69,16 @@ def func_a():
     time.sleep(2)
 
 
-def func_b(params):
+def func_b():
     print("wohooo")
     time.sleep(2)
 
 
-def func_c(params):
+def func_c(p):
     dict_menu = {"Option A": [func_a, None], "Option B": [func_b, None]}
 
     m2 = Menu(dict_actions=dict_menu, name="project setup")
     m2.loop()
-
-
-def change_workplace():
-    global prompt_name
-    str_new_folder = pick_folder()
-    if str_new_folder is None:
-        print("{} cancel".format(the_prompt()))
-    else:
-        global root
-        root = str_new_folder
-        print("{} new workplace: {}".format(the_prompt(), root))
-    time.sleep(2)
-    return None
 
 
 def new_project():
@@ -120,52 +117,59 @@ def new_project():
     m2 = Menu(dict_actions=dict_menu, name="new project", message=get_location)
     m2.loop()
 
+def import_file():
+    print("ihaa")
 
-def data_mgmt_obs_geo():
+def data_mgmt_topo():
     global my_project
-    def get_location():
-        return "location: {}\n".format(my_project.path_ds_obs)
+
+    def import_topo():
+
+        dict_menu = {
+            "dem.asc": [func_b, None],
+            "slope.asc": [func_b, None],
+            "twi.asc": [func_b, None],
+        }
+
+        submenu_name = "{} - datasets - [topo]".format(my_project.name)
+        submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=place)
+        submenu.loop()
+
+    my_project.update_status_topo()
+
+    place = my_project.path_main + "/datasets/topo"
+
+    df_status = my_project.topo_status
+    df_status = df_status.drop(columns=["Name", "Path"])
+
+    str_df_status = df_status.to_string(index=False)
+    str_message = "{}\n{}\n".format(get_location(place), str_df_status)
 
     dict_menu = {
-        "import dem map": [my_project.teste, None],
-        "import twi map": [my_project.teste, None],
-        "import slope map": [my_project.teste, None],
-        "import hand map": [my_project.teste, None],
-        "import litology map": [my_project.teste, None],
-        "import litology table": [my_project.teste, None],
-
+        "import map": [import_topo, None],
+        "view map": [func_b, None],
+        "run diagnostics": [func_b, None],
     }
-    submenu_name = "{} - datasets - observed".format(my_project.name)
-    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location)
-    submenu.loop()
 
-
-
-def data_mgmt_obs():
-
-    def get_location():
-        return "location: {}\n".format(my_project.path_ds_obs)
-
-    dict_menu = {
-        "import data": [data_mgmt_obs_geo, None],
-        "view data catalog": [func_b, None],
-    }
-    submenu_name = "{} - datasets - observed".format(my_project.name)
-    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location)
+    submenu_name = "{} - datasets - [topo]".format(my_project.name)
+    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=str_message)
     submenu.loop()
 
 def data_mgmt():
     global my_project
 
-    def get_location():
-        return "location: {}\n".format(my_project.path_ds)
-
     dict_menu = {
-        "manage observed data": [data_mgmt_obs, None],
-        "manage scenarios": [func_b, None],
+        "topographic maps [topo]": [data_mgmt_topo, None],
+        "soil and lithology [soils]": [func_b, None],
+        "land use land cover [lulc]": [func_b, None],
+        "rainfall data [plu]": [func_b, None],
+        "streamflow data [flu]": [func_b, None],
+        "vegetation index [ndvi]": [func_b, None],
+        "model data [model]": [func_b, None],
     }
+    place = my_project.path_main + "/datasets"
     submenu_name = "{} - datasets".format(my_project.name)
-    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location)
+    submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location(place))
     submenu.loop()
 
 
@@ -178,7 +182,8 @@ def project_session():
         "assessment tools": [func_a, None],
         "model diagnostics": [func_a, None],
     }
-    submenu = Menu(dict_actions=dict_menu, name=my_project.name, message=get_location)
+    place = my_project.path_main
+    submenu = Menu(dict_actions=dict_menu, name=my_project.name, message=get_location(place))
     submenu.loop()
 
 
@@ -200,19 +205,9 @@ def open_project():
     dict_menu = dict()
     for p in list_projects:
         dict_menu[p] = [set_project, p]
-
-    m2 = Menu(dict_actions=dict_menu, name="open project", message=get_location)
+    place = root
+    m2 = Menu(dict_actions=dict_menu, name="open project", message=get_location(place))
     m2.loop()
-
-
-def get_location():
-    global root, my_project
-    if my_project is None:
-        str_workplace = root[:]
-    else:
-        str_workplace = my_project.path_main[:]
-    return "location: {}\n".format(str_workplace)
-
 
 class Menu:
     """
@@ -284,7 +279,7 @@ class Menu:
         if self.message is None:
             pass
         else:
-            print(self.message())
+            print(self.message)
         print(self.get_table().to_string(index=False))
         print("\n")
         while True:
@@ -329,7 +324,7 @@ class Menu:
                         # run function
                         if self.dict_keys[str_answer][1] is None:
                             output = self.dict_keys[str_answer][0]()
-                        else:
+                        else: # run with parameters
                             output = self.dict_keys[str_answer][0](
                                 self.dict_keys[str_answer][1]
                             )
@@ -356,14 +351,13 @@ if __name__ == "__main__":
     dict_menu = {
         "open project": [open_project, None],
         "new project": [new_project, None],
-        "change workplace": [change_workplace, None],
     }
     # set menu
     m = Menu(
         dict_actions=dict_menu,
         name="plans - Home",
         prompt_name=prompt_name,
-        message=get_location,
+        message=get_location(place=root),
     )
     # loop
     m.loop()
