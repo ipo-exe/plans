@@ -8,6 +8,74 @@ Copyright (C) 2022 Iporã Brito Possantti
 """
 import numpy as np
 
+def slope(dem, cellsize, degree=True):
+    """Slope algorithm based on gradient built in functions of numpy
+    :param dem: 2d numpy array of dem
+    :type dem: :class:`numpy.ndarray`
+    :param cellsize: float value of cellsize (delta x = delta y)
+    :type cellsize: float
+    :param degree: boolean to control output units. Default = True. If False output units are in radians
+    :type degree: bool
+    :return: 2d numpy array of slope
+    :rtype: :class:`numpy.ndarray`
+    """
+    grad = np.gradient(dem)
+    gradx = grad[0] / cellsize
+    grady = grad[1] / cellsize
+    gradv = np.sqrt((gradx * gradx) + (grady * grady))
+    slope_array = np.arctan(gradv)
+    if degree:
+        slope_array = slope_array * 360 / (2 * np.pi)
+    return slope_array
+
+def euclidean_distance(grd_input):
+    """Calculate the euclidean distance from pixels=1
+
+    :param grd_input: pseudo-boolean 2d numpy array
+    :type grd_input: :class:`numpy.ndarray`
+    :return: 2d numpy array of euclidean distance
+    :rtype: :class:`numpy.ndarray`
+    """
+    from scipy.ndimage import distance_transform_edt
+    grd_input = 1 * (grd_input == 0) # reverse foreground values
+    # Calculate the distance map
+    return distance_transform_edt(grd_input)
+
+
+def rivers_wedge(grd_rivers, w=3, h=3):
+    """Get a wedge-like trench along the river lines
+
+    :param grd_rivers: pseudo-boolean grid of rivers
+    :type grd_rivers: :class:`numpy.ndarray`
+    :param w: width (single sided) in pixels
+    :type w: int
+    :param h: height in meters
+    :type h: float
+    :return: grid of wedge (positive)
+    :rtype: :class:`numpy.ndarray`
+    """
+    grd_dist = euclidean_distance(grd_input=grd_rivers)
+    return (((-h/w) * grd_dist) + h) * (grd_dist <= w)
+
+
+def burn_dem(grd_dem, grd_rivers, w=3, h=10):
+    """burn a dem map with rivers lines
+
+    :param grd_dem: dem map
+    :type grd_dem: :class:`numpy.ndarray`
+    :param grd_rivers: rivers maps (pseudo-boolean)
+    :type grd_rivers: :class:`numpy.ndarray`
+    :param w: width parameter in pixels
+    :type w: int
+    :param h: heigth parameter
+    :type h: float
+    :return: burned dem
+    :rtype: :class:`numpy.ndarray`
+    """
+    grd_wedge = rivers_wedge(grd_rivers, w=w, h=h)
+    return (grd_dem + h) - grd_wedge
+
+
 def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
     """Compute i and j donwstream cell coordinates based on cell flow direction
 
@@ -180,4 +248,10 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd', b_tui=True):
     return n_res * grd_outdist
 
 if __name__ == "__main__":
-    print("Hi")
+    import matplotlib.pyplot as plt
+    grd = np.zeros(shape=(100, 100))
+    grd[50][50] = 1
+
+    grd_d = rivers_wedge(grd_rivers=grd)
+    plt.imshow(grd_d)
+    plt.show()

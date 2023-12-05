@@ -91,15 +91,15 @@ class Project:
                 "ndvi":{
                     "ndvi_*": datasets.NDVI
                 },
-                "flu":{
-                    "flu_*": datasets.Streamflow
+                "stream":{
+                    "stream_*": datasets.Streamflow
                 },
-                "plu": {
+                "rain": {
                     "obs": {
-                        "plu_*": None
+                        "rain_*": None
                     },
                     "bau": {
-                        "plu_*": None
+                        "rain_*": None
                     }
                 },
                 "temp": {
