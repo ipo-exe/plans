@@ -41,6 +41,9 @@ def euclidean_distance(grd_input):
     # Calculate the distance map
     return distance_transform_edt(grd_input)
 
+def twi(slope, flowacc, cellsize):
+    # +0.01 is a hack for non-nan values
+    return np.log((flowacc / cellsize)/ (np.tan((slope * np.pi / 180) + 0.01)))
 
 def rivers_wedge(grd_rivers, w=3, h=3):
     """Get a wedge-like trench along the river lines
