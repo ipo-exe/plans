@@ -8,7 +8,7 @@ Copyright (C) 2022 Iporã Brito Possantti
 """
 import os, shutil, glob
 import pandas as pd
-import datasets
+from plans import datasets
 
 def get_file_size_mb(file_path):
     # Get the file size in bytes
@@ -64,7 +64,7 @@ class Project:
                     "slope": datasets.Slope,
                     "twi": datasets.TWI,
                     "hand": datasets.HAND,
-                    "flowacc": datasets.Raster,
+                    "accflux": datasets.Raster,
                     "ldd": datasets.LDD
                 },
                 "lulc":{
@@ -193,45 +193,6 @@ class Project:
         # Set attribute
         self.topo_status = pd.DataFrame(dict_lists)
         return None
-
-    def teste(self):
-        print("********** hey *************")
-    '''
-    def get_geo_collection(self):
-        str_label = "geo"
-        self.geo = datasets.RasterCollection(name="Geomorphology")
-        for k in self.dict_ds_structure[str_label]:
-            new_raster = self.dict_ds_structure[str_label][k](name=k)
-            new_raster.load(
-                asc_file=self.dict_paths_obs[str_label] + "/{}.asc".format(k),
-                prj_file=self.dict_paths_obs[str_label] + "/{}.prj".format(k)
-            )
-            self.geo.append(new_object=new_raster)
-            del new_raster
-
-    def get_soil_collection(self):
-        str_label = "soil"
-        self.soil = datasets.QualiRasterCollection(name="Soil")
-        for k in self.dict_ds_structure[str_label]:
-            new_raster = self.dict_ds_structure[str_label][k](name=k)
-            new_raster.load(
-                asc_file=self.dict_paths_obs[str_label] + "/{}.asc".format(k),
-                prj_file=self.dict_paths_obs[str_label] + "/{}.prj".format(k),
-                table_file=self.dict_paths_obs[str_label] + "/{}.csv".format(k),
-            )
-            self.soil.append(new_object=new_raster)
-            del new_raster
-
-    def get_lulc_collection(self, name_pattern="map_lulc_*"):
-        str_label = "lulc"
-        self.lulc = datasets.LULCSeries(name="LULC")
-        self.lulc.load_folder(
-            folder=self.dict_paths_obs[str_label],
-            table_file=self.dict_paths_obs[str_label] + "/lulc.csv",
-            name_pattern=name_pattern
-        )
-    '''
-
 
     def download_datasets(self, zip_url):
         """

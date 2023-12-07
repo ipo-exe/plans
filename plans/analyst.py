@@ -14,8 +14,7 @@ import matplotlib as mpl
 
 # --------- Functions -----------
 def linear(x, c0, c1):
-    """
-    Linear function f(x) = c0 + c1 * x
+    """Linear function f(x) = c0 + c1 * x
     :param x: function input
     :type x: float | :class:`numpy.ndarray`
     :param c0: translational parameter
@@ -29,8 +28,7 @@ def linear(x, c0, c1):
 
 
 def power(x, c0, c1, c2):
-    """
-    Power function f(x) =  c2 * ((x + c0)^c1)
+    """Power function f(x) =  c2 * ((x + c0)^c1)
     :param x: function input
     :type x: float | :class:`numpy.ndarray`
     :param c0: translational parameter
@@ -45,8 +43,7 @@ def power(x, c0, c1, c2):
     return c2 * (np.power((x + c0), c1))
 
 def power_zero(x, c0, c1):
-    """
-    Power function with root in zero f(x) =  c1 * ((x)^c0)
+    """Power function with root in zero f(x) =  c1 * ((x)^c0)
     :param x: function input
     :type x: float | :class:`numpy.ndarray`
     :param c0: exponent parameter
@@ -67,8 +64,7 @@ class Univar:
     """
 
     def __init__(self, data, name="myvar"):
-        """
-        Deploy the Analyst
+        """Deploy the Analyst
         :param data: n-D vector of data
         :type data: :class:`numpy.ndarray`
         """
@@ -76,8 +72,7 @@ class Univar:
         self.name = name
 
     def nbins_fd(self):
-        """
-        This function computes the number of bins for histograms using the Freedman-Diaconis rule,
+        """This function computes the number of bins for histograms using the Freedman-Diaconis rule,
         which takes into account the interquartile range (IQR) of the data, in addition to its range.
         :return: number of bins for histogram using the Freedman-Diaconis rule
         :rtype: int
@@ -90,8 +85,7 @@ class Univar:
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
     def nbins_sturges(self):
-        """
-        This function computes the number of bins using the Sturges rule, which assumes that
+        """This function computes the number of bins using the Sturges rule, which assumes that
         the data follows a normal distribution and computes the number of bins based on its sample runsize.
         :return: number of bins using the Sturges rule
         :rtype: int
@@ -99,8 +93,7 @@ class Univar:
         return int(np.ceil(np.log2(len(self.data)) + 1))
 
     def nbins_scott(self):
-        """
-        This function computes the number of bins using the Scott rule, which is
+        """This function computes the number of bins using the Scott rule, which is
         similar to the Freedman-Diaconis rule, but uses the standard deviation of the data to compute the bin runsize.
         :return: number of bins using the Scott rule
         :rtype: int
@@ -109,8 +102,7 @@ class Univar:
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
     def nbins_by_rule(self, rule=None):
-        """
-        Util function for rule-based nbins computation
+        """Util function for rule-based nbins computation
         :param rule: rule code (sturges, fd, scott)
         :type rule: str
         :return: number of bins for histogram
@@ -131,8 +123,7 @@ class Univar:
         return bins
 
     def histogram(self, bins=100, rule=None):
-        """
-        Compute the histogram of the sample
+        """Compute the histogram of the sample
         :param bins: number of bins
         :type bins: int
         :param rule: rule to define the number of bins. If 'none', uses bins parameters.
@@ -152,8 +143,7 @@ class Univar:
         return df_hist
 
     def qqplot(self):
-        """
-        Calculate the QQ-plot of data agains normal distribution
+        """Calculate the QQ-plot of data agains normal distribution
         :return: dataframe of QQ plot
         :rtype: :class:`pandas.DataFrame`
         """
@@ -172,8 +162,7 @@ class Univar:
         return _df
 
     def trace_variance(self):
-        """
-        Trace the mean variance from data
+        """Trace the mean variance from data
         :return: vector of accumulated variance
         :rtype: :class:`numpy.ndarray`
         """
@@ -192,8 +181,7 @@ class Univar:
         specs=None,
         dpi=300,
     ):
-        """
-        Plot histogram of data
+        """Plot histogram of data
 
         :param bins: number of bins
         :type bins: int
@@ -265,8 +253,7 @@ class Univar:
     def view(
         self, show=True, folder="C:/data", filename="view", specs=None, dpi=300
     ):
-        """
-        Plot basic view of data
+        """Plot basic view of data
 
         :param show: Boolean to show instead of saving
         :type show: bool
@@ -336,8 +323,7 @@ class Univar:
     def plot_qqplot(
         self, show=True, folder="C:/data", filename="qqplot", specs=None, dpi=300
     ):
-        """
-        Plot Q-Q Plot on Normal distribution
+        """Plot Q-Q Plot on Normal distribution
 
         :param show: Boolean to show instead of saving
         :type show: bool
@@ -401,8 +387,7 @@ class Univar:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
     def _distribution_test(self, test_name, stat, p, clevel=0.95, distr="normal"):
-        """
-        Util function
+        """Util function
         :param test_name: name of test
         :type test_name: str
         :param stat: statistic
@@ -432,8 +417,7 @@ class Univar:
         return dct_out
 
     def test_normal_ks(self, clevel=0.95):
-        """
-        Test for normality using the Kolmogorov-Smirnov test
+        """Test for normality using the Kolmogorov-Smirnov test
 
         Kolmogorov-Smirnov Test: This test compares the observed distribution with
         the expected normal distribution using a test statistic and a p-value.
@@ -457,8 +441,7 @@ class Univar:
         )
 
     def test_shapiro_wilk(self, clevel=0.95):
-        """
-        Test for normality using the Shapiro-Wilk test.
+        """Test for normality using the Shapiro-Wilk test.
 
         :return: test result dictionary. Keys: Statistic, p-value and Is normal
         :rtype: dct
@@ -477,8 +460,7 @@ class Univar:
         )
 
     def test_dagostino_pearson(self, clevel=0.95):
-        """
-        Test for normality using the D'Agostino-Pearson test.
+        """Test for normality using the D'Agostino-Pearson test.
 
         :return: test result dictionary. Keys: Statistic, p-value and Is normal
         :rtype: dct
@@ -497,8 +479,7 @@ class Univar:
         )
 
     def assess_normality(self, clevel=0.95):
-        """
-        Assessment on normality using standard tests
+        """Assessment on normality using standard tests
         :return: dataframe of assessment results
         :rtype: :class:`pandas.DataFrame`
         """
@@ -531,8 +512,7 @@ class Univar:
         return df_result
 
     def assess_frequency(self):
-        """
-        Assessment on data frequency
+        """Assessment on data frequency
         :return: result dataframe
         :rtype: :class:`pandas.DataFrame`
         """
@@ -644,6 +624,13 @@ class Bivar:
         }
 
     def fit(self, model_type="Linear"):
+        """Fit model to bivariate object
+
+        :param model_type: model type. options: Linear, Power, Power_zero
+        :type model_type: str
+        :return: None
+        :rtype: None
+        """
         from scipy.optimize import curve_fit
         popt, pcov = curve_fit(
             f=self.models[model_type]["Function"],
@@ -657,6 +644,17 @@ class Bivar:
         return None
 
     def update_model(self, params_mean, params_sd=None, model_type="Linear"):
+        """Update model based on parameters
+
+        :param params_mean: list of mean of parameters
+        :type params_mean: list
+        :param params_sd: list of standard deviation of parameters
+        :type params_sd: list
+        :param model_type: model type. options: Linear, Power, Power_zero
+        :type model_type: str
+        :return: None
+        :rtype: None
+        """
         # Setup
         self.models[model_type]["Setup"]["Mean"] = params_mean
         if params_sd is None:
@@ -671,6 +669,13 @@ class Bivar:
         return None
 
     def updata_model_data(self, model_type="Linear"):
+        """Update only model data output
+
+        :param model_type: model type. options: Linear, Power, Power_zero
+        :type model_type: str
+        :return: None
+        :rtype: None
+        """
         popt = self.models[model_type]["Setup"]["Mean"].values
         _df = self.data.copy()
         s_ymodel = "{}_Mean".format(self.yname)
@@ -686,8 +691,7 @@ class Bivar:
     def view(
         self, show=True, folder="C:/data", filename="view", specs=None, fig_format="jpg", dpi=300
     ):
-        """
-        Plot basic view of Bivar base_object
+        """Plot basic view of Bivar base_object
 
         :param show: Boolean to show instead of saving
         :type show: bool
@@ -793,8 +797,7 @@ class Bivar:
         dpi=300,
         fig_format="jpg"
     ):
-        """
-        Plot pannel for model analysis
+        """Plot pannel for model analysis
         :param show: Boolean to show instead of saving
         :type show: bool
         :param folder: output folder
@@ -935,8 +938,7 @@ class Bivar:
         return None
 
     def correlation(self):
-        """
-        Compute the R correlation coefficient of the base_object
+        """Compute the R correlation coefficient of the base_object
         :return: R correlation coefficient
         :rtype: float
         """
@@ -951,8 +953,7 @@ class Bivar:
             n_seed=None,
             p0=None
     ):
-        """
-        Run Monte Carlo Simulation to get prediciton bands
+        """Run Monte Carlo Simulation to get prediciton bands
         :param lst_bounds: list of prediction bounds [min, max], if None, 3x the date range is used
         :type lst_bounds: list
         :param n_sim: number of simulation runs
@@ -1105,8 +1106,7 @@ class Bayes:
     """
 
     def __init__(self, df_hypotheses, name="myBayes", nomenclature=None, gridsize=100):
-        """
-        Deploy the Bayes Analyst
+        """Deploy the Bayes Analyst
         :param df_hypotheses: dataframe listing all model hypotheses. Must contain a field Name (of parameter), Min and Max.
         :type df_hypotheses: :class:pandas.DataFrame
         :param name: name of analyst
@@ -1147,8 +1147,7 @@ class Bayes:
         return s1
 
     def _reset_nomenclature(self, dct_names):
-        """
-        Reset nomenclature
+        """Reset nomenclature
         :param dct_names: dictionary to rename nomenclatures
         :type dct_names: dict
         :return: None
@@ -1163,8 +1162,7 @@ class Bayes:
             self.saux = self.sprior + self.slike
 
     def _insert_new_step(self):
-        """
-        convenience void function for inserting new step objects
+        """convenience void function for inserting new step objects
         :return: None
         :rtype:
         """
@@ -1187,8 +1185,7 @@ class Bayes:
         return None
 
     def _accumulate(self, n_step):
-        """
-        convenience void function for accumulate probability
+        """convenience void function for accumulate probability
         :param n_step: step number to accumulate
         :type n_step: int
         :return: None
@@ -1213,8 +1210,7 @@ class Bayes:
         return None
 
     def conditionalize(self, dct_evidence, s_varfield="E", s_weightfield="W"):
-        """
-        Conditionalize procedure of the Bayes Theorem
+        """Conditionalize procedure of the Bayes Theorem
         :param dct_evidence: base_object of evidence dataframes
         :type dct_evidence: dict
         :param s_varfield: name of variable field in evidence dataframes
@@ -1291,8 +1287,7 @@ class Bayes:
         dpi=300,
         show=False,
     ):
-        """
-        Void function for plot pannel of conditionalization step
+        """Void function for plot pannel of conditionalization step
         :param n_step: step number
         :type n_step: int
         :param folder: export folder

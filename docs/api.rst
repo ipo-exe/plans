@@ -36,3 +36,8 @@ Modules
    :toctree: generated
 
    plans.project
+
+.. autosummary::
+   :toctree: generated
+
+   plans.iamlazy
