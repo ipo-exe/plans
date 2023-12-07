@@ -42,7 +42,7 @@ autodoc_mock_imports = [
     'warnings',
     'PIL',
     'processing',
-    'qgis.core',
+    'qgis',
     'osgeo',
 ]
 

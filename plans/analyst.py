@@ -6,7 +6,6 @@ This module stores all analyst objects of PLANS.
 
 Copyright (C) 2022 Iporã Brito Possantti
 """
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,6 +14,7 @@ import matplotlib as mpl
 # --------- Functions -----------
 def linear(x, c0, c1):
     """Linear function f(x) = c0 + c1 * x
+
     :param x: function input
     :type x: float | :class:`numpy.ndarray`
     :param c0: translational parameter
@@ -29,6 +29,7 @@ def linear(x, c0, c1):
 
 def power(x, c0, c1, c2):
     """Power function f(x) =  c2 * ((x + c0)^c1)
+
     :param x: function input
     :type x: float | :class:`numpy.ndarray`
     :param c0: translational parameter
@@ -44,6 +45,7 @@ def power(x, c0, c1, c2):
 
 def power_zero(x, c0, c1):
     """Power function with root in zero f(x) =  c1 * ((x)^c0)
+
     :param x: function input
     :type x: float | :class:`numpy.ndarray`
     :param c0: exponent parameter
@@ -65,6 +67,7 @@ class Univar:
 
     def __init__(self, data, name="myvar"):
         """Deploy the Analyst
+
         :param data: n-D vector of data
         :type data: :class:`numpy.ndarray`
         """
@@ -72,8 +75,8 @@ class Univar:
         self.name = name
 
     def nbins_fd(self):
-        """This function computes the number of bins for histograms using the Freedman-Diaconis rule,
-        which takes into account the interquartile range (IQR) of the data, in addition to its range.
+        """This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into account the interquartile range (IQR) of the data, in addition to its range.
+
         :return: number of bins for histogram using the Freedman-Diaconis rule
         :rtype: int
         """
@@ -85,16 +88,18 @@ class Univar:
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
     def nbins_sturges(self):
-        """This function computes the number of bins using the Sturges rule, which assumes that
-        the data follows a normal distribution and computes the number of bins based on its sample runsize.
+        """This function computes the number of bins using the Sturges rule, which assumes that the data follows a normal distribution and computes the number of bins based on its sample runsize.
+
         :return: number of bins using the Sturges rule
         :rtype: int
         """
         return int(np.ceil(np.log2(len(self.data)) + 1))
 
     def nbins_scott(self):
-        """This function computes the number of bins using the Scott rule, which is
-        similar to the Freedman-Diaconis rule, but uses the standard deviation of the data to compute the bin runsize.
+        """This function computes the number of bins using the Scott rule,
+        which is similar to the Freedman-Diaconis rule, but uses the standard deviation
+        of the data to compute the bin runsize.
+
         :return: number of bins using the Scott rule
         :rtype: int
         """
@@ -124,6 +129,7 @@ class Univar:
 
     def histogram(self, bins=100, rule=None):
         """Compute the histogram of the sample
+
         :param bins: number of bins
         :type bins: int
         :param rule: rule to define the number of bins. If 'none', uses bins parameters.
@@ -144,6 +150,7 @@ class Univar:
 
     def qqplot(self):
         """Calculate the QQ-plot of data agains normal distribution
+
         :return: dataframe of QQ plot
         :rtype: :class:`pandas.DataFrame`
         """
@@ -163,6 +170,7 @@ class Univar:
 
     def trace_variance(self):
         """Trace the mean variance from data
+
         :return: vector of accumulated variance
         :rtype: :class:`numpy.ndarray`
         """

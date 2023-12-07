@@ -11,6 +11,13 @@ import pandas as pd
 from plans import datasets
 
 def get_file_size_mb(file_path):
+    """Util for getting the file size in MB
+
+    :param file_path: path to file
+    :type file_path: str
+    :return: file size in MB
+    :rtype: float
+    """
     # Get the file size in bytes
     file_size_bytes = os.path.getsize(file_path)
     # Convert bytes to megabytes
@@ -18,6 +25,13 @@ def get_file_size_mb(file_path):
     return file_size_mb
 
 def make_dir(str_path):
+    """Util function for making a diretory
+
+    :param str_path: path to dir
+    :type str_path: str
+    :return: None
+    :rtype: None
+    """
     if os.path.isdir(str_path):
         pass
     else:
@@ -25,6 +39,15 @@ def make_dir(str_path):
     return None
 
 def fill_dir_strucuture(dict_struct, local_root):
+    """Recursive function for filling a directory structure
+
+    :param dict_struct: dicitonary of directory structure
+    :type dict_struct: dict
+    :param local_root: path to local folder
+    :type local_root: str
+    :return: None
+    :rtype: None
+    """
     for k in dict_struct:
         if isinstance(dict_struct[k], dict):
             # make a dir
@@ -42,8 +65,8 @@ def fill_dir_strucuture(dict_struct, local_root):
 class Project:
 
     def __init__(self, name, root):
-        """
-        Initiate a project
+        """Initiate a project
+
         :param name: name of project
         :type name: str
         :param root: path to root folder
@@ -195,8 +218,8 @@ class Project:
         return None
 
     def download_datasets(self, zip_url):
-        """
-        Download datasets from a URL. The download is expected to be a ZIP file. Note: requests library is required
+        """Download datasets from a URL. The download is expected to be a ZIP file. Note: requests library is required
+
         :param zip_url: url to dataset ZIP file
         :type zip_url: str
         :return: None
@@ -216,8 +239,8 @@ class Project:
         return None
 
     def download_default_datasets(self):
-        """
-        Download the default datasets for PLANS
+        """Download the default datasets for PLANS
+
         :return: None
         :rtype: None
         """
@@ -226,8 +249,8 @@ class Project:
         return None
 
     def extract_datasets(self, zip_file, remove=False):
-        """
-        Extract from ZIP file to datasets folder
+        """Extract from ZIP file to datasets folder
+
         :param zip_file: path to zip file
         :type zip_file: str
         :param remove: option for deleting the zip file after extraction
