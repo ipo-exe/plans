@@ -107,6 +107,7 @@ class Collection:
 
     def append(self, new_object):
         """Append new object to collection. Object is expected to have a `.get_metadata()` method that returns a dict
+
         :param new_object: object to append
         :type new_object: object
         :return: None

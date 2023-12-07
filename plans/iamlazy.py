@@ -18,7 +18,7 @@ from osgeo import gdal
 from qgis.core import QgsCoordinateReferenceSystem
 import numpy as np
 from plans import geo
-import os
+import os, shutil
 
 
 def reproject_layer(input_db, layer_name, target_crs):
@@ -55,7 +55,29 @@ def reproject_layer(input_db, layer_name, target_crs):
     return new_layer_name
 
 
-def get_extent(input_db, layer_name):
+def get_extent_raster(file_input):
+    """Get the extent from a raster layer
+
+    :param file_input: file path to raster layer
+    :type file_input: str
+    :return: dictionary of bouding box: xmin, xmax, ymin, ymax
+    :rtype: dict
+    """
+    from qgis.core import QgsRasterLayer
+
+    # Create a raster layer object
+    raster_layer = QgsRasterLayer(file_input, "Raster Layer")
+    layer_extent = raster_layer.extent()
+
+    return {
+        "xmin": layer_extent.xMinimum(),
+        "xmax": layer_extent.xMaximum(),
+        "ymin": layer_extent.yMinimum(),
+        "ymax": layer_extent.yMaximum(),
+    }
+
+
+def get_extent_vector(input_db, layer_name):
     """Get the extent from a vector layer
 
     :param input_db: path to geopackage database
@@ -71,9 +93,7 @@ def get_extent(input_db, layer_name):
     layer = QgsVectorLayer(
         "{}|layername={}".format(input_db, layer_name), layer_name, "ogr"
     )
-
     layer_extent = layer.extent()
-
     return {
         "xmin": layer_extent.xMinimum(),
         "xmax": layer_extent.xMaximum(),
@@ -101,6 +121,7 @@ def get_cellsize(file_input):
 
 def get_blank_raster(file_input, file_output, blank_value=0):
     """get a blank raster copy from other raster
+
     :param file_input: path to input raster file
     :type file_input: str
     :param file_output: path to output raster file
@@ -161,7 +182,14 @@ def get_blank_raster(file_input, file_output, blank_value=0):
     return file_output
 
 
-def get_dem(file_main_dem, file_output, target_crs, target_extent_dict, target_cellsize=30, source_crs="4326"):
+def get_dem(
+    file_main_dem,
+    file_output,
+    target_crs,
+    target_extent_dict,
+    target_cellsize=30,
+    source_crs="4326",
+):
     """Get a reprojected DEM raster from a larger DEM dataset
 
     :param file_main_dem: file path to main DEM dataset raster
@@ -196,7 +224,7 @@ def get_dem(file_main_dem, file_output, target_crs, target_extent_dict, target_c
             "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
             "RESAMPLING": 5,  # average=5; nearest=0
             "NODATA": -1,
-            "TARGET_RESOLUTION": target_cellsize, # in meters
+            "TARGET_RESOLUTION": target_cellsize,  # in meters
             "OPTIONS": "",
             "DATA_TYPE": 6,  # float32=6, byte=1
             "TARGET_EXTENT": target_extent_str,
@@ -211,8 +239,8 @@ def get_dem(file_main_dem, file_output, target_crs, target_extent_dict, target_c
     return file_output
 
 
-def get_burned_dem(file_dem, file_rivers, file_output, w=3, h=10):
-    """Apply a burning (carve) method to DEM raster
+def get_carved_dem(file_dem, file_rivers, file_output, w=3, h=10):
+    """Apply a carving method to DEM raster
 
     :param file_dem: file path to DEM raster
     :type file_dem: str
@@ -505,10 +533,7 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
     file_outlets_1 = "{}/hs_outlets_scalar.map".format(output_folder)
     processing.run(
         "pcraster:uniqueid",
-        {
-            "INPUT": file_drainage,
-            "OUTPUT": file_outlets_1
-        },
+        {"INPUT": file_drainage, "OUTPUT": file_outlets_1},
     )
 
     # -- PCRaster - convert unique ids to nominal
@@ -581,16 +606,18 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
         "hs_outlets_nominal": file_outlets_2,
         "hillslopes": file_hillslopes,
         "hs_zmin": file_zmin,
-        "hand": file_hand
+        "hand": file_hand,
     }
+
 
 def get_topo(
     output_folder,
     file_main_dem,
     target_crs,
     input_db,
-    layer_name_aoi="aoi",
-    layer_name_rivers="rivers",
+    layer_aoi="aoi",
+    layer_rivers="rivers",
+    source_crs="4326",
     w=3,
     h=10,
     hand_cells=100,
@@ -605,10 +632,12 @@ def get_topo(
     :type target_crs: str
     :param input_db: path to geopackage database
     :type input_db: str
-    :param layer_name_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
-    :type layer_name_aoi: str
-    :param layer_name_rivers: name of main rivers layers (lines). Default is "rivers"
-    :type layer_name_rivers: str
+    :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
+    :type layer_aoi: str
+    :param layer_rivers: name of main rivers layers (lines). Default is "rivers"
+    :type layer_rivers: str
+    :param source_crs: EPSG code (number only) for the source CRS. default is WGS-84 (4326)
+    :type source_crs: str
     :param w: [burning dem parameter] width parameter in unit cells
     :type w: int
     :param h: [burning dem parameter] height parameter in dem units (e.g., meters)
@@ -661,19 +690,19 @@ def get_topo(
         "dem_bf_pc": "{}/dem_bf.map".format(output_folder_pcraster),
     }
 
-    # 1)
+    #
     print("reproject layers...")
     # reproject aoi
     new_layer_aoi = reproject_layer(
-        input_db=input_db, layer_name=layer_name_aoi, target_crs=target_crs
+        input_db=input_db, layer_name=layer_aoi, target_crs=target_crs
     )
     # reproject rivers
     new_layer_rivers = reproject_layer(
-        input_db=input_db, layer_name=layer_name_rivers, target_crs=target_crs
+        input_db=input_db, layer_name=layer_rivers, target_crs=target_crs
     )
     # 2)
     print("get aoi extent...")
-    dict_bbox = get_extent(input_db=input_db, layer_name=new_layer_aoi)
+    dict_bbox = get_extent_vector(input_db=input_db, layer_name=new_layer_aoi)
     print(dict_bbox)
     # 3)
     print("clip and warp dem...")
@@ -682,6 +711,7 @@ def get_topo(
         target_crs=target_crs,
         target_extent_dict=dict_bbox,
         file_output=dict_files["dem"],
+        source_crs=source_crs,
     )
     cellsize = get_cellsize(file_input=dict_files["dem"])
     # get rivers blank
@@ -704,7 +734,7 @@ def get_topo(
     )
     print("burn dem...")
     # 6) get burned
-    file_burn = get_burned_dem(
+    file_burn = get_carved_dem(
         file_dem=dict_files["dem"],
         file_rivers=dict_files["main_rivers"],
         file_output=dict_files["dem_b"],
@@ -781,14 +811,14 @@ def get_topo(
         file_dem_filled=dict_files["dem_bf_pc"],
         output_folder=output_folder_pcraster,
         hand_cells=hand_cells,
-        file_dem_sample=dict_files["dem_pc"]
+        file_dem_sample=dict_files["dem_pc"],
     )
     # append to dict
     for f in dict_hand:
         dict_files[f] = dict_hand[f]
 
     # translate all
-    dict_raster = {"nodata": -1,"data_type": 6}
+    dict_raster = {"nodata": -1, "data_type": 6}
     dict_qualiraster = {"nodata": 0, "data_type": 1}
     dict_translate = {
         "dem": dict_raster,
@@ -796,7 +826,7 @@ def get_topo(
         "twi": dict_raster,
         "accflux": dict_raster,
         "hand": dict_raster,
-        "ldd": dict_qualiraster
+        "ldd": dict_qualiraster,
     }
     # loop
     print("translating outputs...")
@@ -804,19 +834,177 @@ def get_topo(
         processing.run(
             "gdal:translate",
             {
-                'INPUT': dict_files[k],
-                'TARGET_CRS': QgsCoordinateReferenceSystem('EPSG:{}'.format(target_crs)),
-                'NODATA': dict_translate[k]["nodata"],
-                'COPY_SUBDATASETS': False,
-                'OPTIONS': '',
-                'EXTRA': '',
-                'DATA_TYPE': dict_translate[k]["data_type"],
-                'OUTPUT': '{}/{}.asc'.format(output_folder, k)
-            }
+                "INPUT": dict_files[k],
+                "TARGET_CRS": QgsCoordinateReferenceSystem(
+                    "EPSG:{}".format(target_crs)
+                ),
+                "NODATA": dict_translate[k]["nodata"],
+                "COPY_SUBDATASETS": False,
+                "OPTIONS": "",
+                "EXTRA": "",
+                "DATA_TYPE": dict_translate[k]["data_type"],
+                "OUTPUT": "{}/{}.asc".format(output_folder, k),
+            },
         )
 
     return None
 
 
-def get_lulc_obs():
-    print("hi")
+def get_lulc(
+    list_main_files,
+    list_dates,
+    output_folder,
+    target_file,
+    target_crs,
+    input_db=None,
+    layer_roads_dirty="roads_dirty",
+    layer_roads_paved="roads_paved",
+    source_crs="4326",
+    qml_file=None,
+):
+    """Get LULC maps from a larger main LULC dataset.
+
+    :param list_main_files: list of file paths to main lulc rasters
+    :type list_main_files: list
+    :param list_dates: list of dates (YYYY-MM-DD) for each main raster
+    :type list_dates: list
+    :param output_folder: path to output folder
+    :type output_folder: str
+    :param target_file: file path to target raster (e.g., the DEM raster)
+    :type target_file: str
+    :param target_crs: EPSG code (number only) for the target CRS
+    :type target_crs: str
+    :param input_db: [optional] path to geopackage database with road layers
+    :type input_db: str
+    :param layer_roads_dirty: layer name of dirty roads
+    :type layer_roads_dirty: str
+    :param layer_roads_paved: layer name of paved roads
+    :type layer_roads_paved: str
+    :param source_crs: EPSG code (number only) for the source CRS. default is WGS-84 (4326)
+    :type source_crs: str
+    :param qml_file: [optional] file path to QML style file
+    :type qml_file: str
+    :return: None
+    :rtype: None
+    """
+    # folders and file setup
+    output_folder_interm = "{}/intermediate".format(output_folder)
+    if os.path.isdir(output_folder_interm):
+        pass
+    else:
+        os.mkdir(output_folder_interm)
+    # ---------- warp lulc -----------
+    target_extent_dict = get_extent_raster(file_input=target_file)
+    # get extent string
+    target_extent_str = "{},{},{},{} [EPSG:{}]".format(
+        target_extent_dict["xmin"],
+        target_extent_dict["xmax"],
+        target_extent_dict["ymin"],
+        target_extent_dict["ymax"],
+        target_crs,
+    )
+    cellsize = get_cellsize(file_input=target_file)
+    list_output_files = list()
+    list_filenames = list()
+    print("clip and warp lulc ... ")
+    for i in range(len(list_main_files)):
+        file_main_lulc = list_main_files[i]
+        date = list_dates[i]
+        str_filename = "lulc_{}".format(date)
+        file_output = "{}/{}.tif".format(output_folder_interm, str_filename)
+        list_output_files.append(file_output[:])
+        list_filenames.append(str_filename[:])
+        # run warp
+        processing.run(
+            "gdal:warpreproject",
+            {
+                "INPUT": file_main_lulc,
+                "SOURCE_CRS": QgsCoordinateReferenceSystem(
+                    "EPSG:{}".format(source_crs)
+                ),
+                "TARGET_CRS": QgsCoordinateReferenceSystem(
+                    "EPSG:{}".format(target_crs)
+                ),
+                "RESAMPLING": 0,
+                "NODATA": 0,
+                "TARGET_RESOLUTION": cellsize,
+                "OPTIONS": "",
+                "DATA_TYPE": 1,
+                "TARGET_EXTENT": target_extent_str,
+                "TARGET_EXTENT_CRS": QgsCoordinateReferenceSystem(
+                    "EPSG:{}".format(target_crs)
+                ),
+                "MULTITHREADING": False,
+                "EXTRA": "",
+                "OUTPUT": file_output,
+            },
+        )
+
+    #
+    # ---------- handle roads -----------
+    if input_db is None:
+        pass
+    else:
+        print("reproject road layers...")
+        # reproject dirty
+        new_layer_dirty = reproject_layer(
+            input_db=input_db, layer_name=layer_roads_dirty, target_crs=target_crs
+        )
+        # reproject paved
+        new_layer_paved = reproject_layer(
+            input_db=input_db, layer_name=layer_roads_paved, target_crs=target_crs
+        )
+
+        # rasterize loop
+        print("rasterizing road layers...")
+        for i in range(len(list_output_files)):
+            input_raster = list_output_files[i]
+            # dirty
+            processing.run(
+                "gdal:rasterize_over_fixed_value",
+                {
+                    "INPUT": "{}|layername={}".format(input_db, new_layer_dirty),
+                    "INPUT_RASTER": input_raster,
+                    "BURN": 255,
+                    "ADD": False,
+                    "EXTRA": "",
+                },
+            )
+            # paved
+            processing.run(
+                "gdal:rasterize_over_fixed_value",
+                {
+                    "INPUT": "{}|layername={}".format(input_db, new_layer_paved),
+                    "INPUT_RASTER": input_raster,
+                    "BURN": 254,
+                    "ADD": False,
+                    "EXTRA": "",
+                },
+            )
+    # ---------- translate all -----------
+    print("translate...")
+    for i in range(len(list_output_files)):
+        input_file = list_output_files[i]
+        filename = list_filenames[i]
+        processing.run(
+            "gdal:translate",
+            {
+                'INPUT': input_file,
+                'TARGET_CRS': QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+                'NODATA': 0,
+                'COPY_SUBDATASETS': False,
+                'OPTIONS': '',
+                'EXTRA': '',
+                'DATA_TYPE': 1,
+                'OUTPUT': '{}/{}.asc'.format(output_folder, filename)
+            }
+        )
+        # Handle style
+        if qml_file is None:
+            pass
+        else:
+            shutil.copy(
+                src=qml_file, dst="{}/{}.qml".format(output_folder, filename)
+            )
+
+    return None
