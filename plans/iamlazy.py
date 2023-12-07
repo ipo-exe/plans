@@ -816,3 +816,7 @@ def get_topo(
         )
 
     return None
+
+
+def get_lulc_obs():
+    print("hi")

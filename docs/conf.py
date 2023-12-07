@@ -44,7 +44,6 @@ autodoc_mock_imports = [
     'processing',
     'qgis.core',
     'osgeo',
-    'plans'
 ]
 
 autodoc_member_order = 'bysource'
