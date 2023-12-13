@@ -762,27 +762,6 @@ def get_topo(
 ):
     """Get all [topo] datasets for running PLANS.
 
-    Script example (for QGIS Python Console):
-
-    .. code-block:: python
-
-        # plans source code must be pasted to QGIS plugins directory
-        from plans import iamlazy
-
-        # call function
-        iamlazy.get_topo(
-            output_folder="path/to/folder",
-            file_main_dem="path/to/main_large_dem.tif",
-            target_crs="31982",
-            input_db="path/to/project_db.gpkg",
-            layer_aoi='aoi',
-            layer_rivers='rivers',
-            source_crs='4326',
-            w=3,
-            h=10,
-            hand_cells=100
-        )
-
     :param output_folder: path to output folder to export datasets
     :type output_folder: str
     :param file_main_dem: file path to larger DEM dataset raster -- expected to be in WGS-84
@@ -805,6 +784,32 @@ def get_topo(
     :type hand_cells: int
     :return: None
     :rtype: None
+
+    Script example (for QGIS Python Console):
+
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+
+        # call function
+        iamlazy.get_topo(
+            output_folder="path/to/folder",
+            file_main_dem="path/to/main_large_dem.tif",
+            target_crs="31982",
+            input_db="path/to/project_db.gpkg",
+            layer_aoi='aoi',
+            layer_rivers='rivers',
+            source_crs='4326',
+            w=3,
+            h=10,
+            hand_cells=100
+        )
+
+    .. warning::
+
+        You must change the path files in the previous example.
+
     """
     # folders and file setup
     output_folder_interm = "{}/intermediate".format(output_folder)
@@ -1023,6 +1028,29 @@ def get_lulc(
 ):
     """Get LULC maps from a larger main LULC dataset.
 
+    :param list_main_files: list of file paths to main lulc rasters
+    :type list_main_files: list
+    :param list_dates: list of dates (YYYY-MM-DD) for each main raster
+    :type list_dates: list
+    :param output_folder: path to output folder
+    :type output_folder: str
+    :param target_file: file path to target raster (e.g., the DEM raster)
+    :type target_file: str
+    :param target_crs: EPSG code (number only) for the target CRS
+    :type target_crs: str
+    :param input_db: [optional] path to geopackage database with road layers
+    :type input_db: str
+    :param layer_roads_dirty: layer name of dirty roads
+    :type layer_roads_dirty: str
+    :param layer_roads_paved: layer name of paved roads
+    :type layer_roads_paved: str
+    :param source_crs: EPSG code (number only) for the source CRS. default is WGS-84 (4326)
+    :type source_crs: str
+    :param qml_file: [optional] file path to QML style file
+    :type qml_file: str
+    :return: None
+    :rtype: None
+
     Script example (for QGIS):
 
     .. code-block:: python
@@ -1053,50 +1081,6 @@ def get_lulc(
             layer_roads_paved='roads_paved',
             source_crs='4326',
             qml_file="path/to/style.qml"
-        )
-
-
-    :param list_main_files: list of file paths to main lulc rasters
-    :type list_main_files: list
-    :param list_dates: list of dates (YYYY-MM-DD) for each main raster
-    :type list_dates: list
-    :param output_folder: path to output folder
-    :type output_folder: str
-    :param target_file: file path to target raster (e.g., the DEM raster)
-    :type target_file: str
-    :param target_crs: EPSG code (number only) for the target CRS
-    :type target_crs: str
-    :param input_db: [optional] path to geopackage database with road layers
-    :type input_db: str
-    :param layer_roads_dirty: layer name of dirty roads
-    :type layer_roads_dirty: str
-    :param layer_roads_paved: layer name of paved roads
-    :type layer_roads_paved: str
-    :param source_crs: EPSG code (number only) for the source CRS. default is WGS-84 (4326)
-    :type source_crs: str
-    :param qml_file: [optional] file path to QML style file
-    :type qml_file: str
-    :return: None
-    :rtype: None
-
-    [testing] Example of script:
-
-    .. code-block:: python
-
-        # plans source code must be pasted to QGIS plugins directory
-        from plans import iamlazy
-        # run function
-        iamlazy.get_topo(
-            output_folder="path/to/folder",
-            file_main_dem="path/to/main_large_dem.tif",
-            target_crs="31982",
-            input_db="path/to/project_db.gpkg",
-            layer_aoi='aoi',
-            layer_rivers='rivers',
-            source_crs='4326',
-            w=3,
-            h=10,
-            hand_cells=100
         )
 
     """
@@ -1233,6 +1217,21 @@ def get_rain(
 ):
     """Get [rain] datasets for running PLANS.
 
+    ::param output_folder: path to output folder
+    :type output_folder: str
+    :param input_db: path to geopackage database with rain gauge layer
+    :type input_db: str
+    :param target_file: file path to target raster (e.g., the DEM raster)
+    :type target_file: str
+    ::param target_crs: EPSG code (number only) for the target CRS
+    :type target_crs: str
+    :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
+    :type layer_aoi: str
+    :param layer_rain_gauges: layer name of rain gauges layer
+    :type layer_rain_gauges: str
+    :return: None
+    :rtype: None
+
     Script example (for QGIS Python Console):
 
     .. code-block:: python
@@ -1250,20 +1249,6 @@ def get_rain(
             layer_rain_gauges="rain"
         )
 
-    ::param output_folder: path to output folder
-    :type output_folder: str
-    :param input_db: path to geopackage database with rain gauge layer
-    :type input_db: str
-    :param target_file: file path to target raster (e.g., the DEM raster)
-    :type target_file: str
-    ::param target_crs: EPSG code (number only) for the target CRS
-    :type target_crs: str
-    :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
-    :type layer_aoi: str
-    :param layer_rain_gauges: layer name of rain gauges layer
-    :type layer_rain_gauges: str
-    :return: None
-    :rtype: None
     """
     def calculate_buffer_ratios(box_small, box_large):
         delta_x_small = abs(box_small["xmax"] - box_small["xmin"])
@@ -1390,6 +1375,19 @@ def get_basins(
 ):
     """Get all [basins] datasets for running PLANS.
 
+    :param output_folder: path to output folder
+    :type output_folder: str
+    :param input_db: path to geopackage database with streamflow gauges layer
+    :type input_db: str
+    :param ldd_file: file path to LDD raster
+    :type ldd_file: str
+    :param target_crs: EPSG code (number only) for the target CRS
+    :type target_crs: str
+    :param layer_stream_gauges: layer name of streamflow gauges layer
+    :type layer_stream_gauges: str
+    :return: None
+    :rtype: None
+
     Script example (for QGIS Python Console):
 
     .. code-block:: python
@@ -1406,18 +1404,6 @@ def get_basins(
             layer_stream_gauges="stream"
         )
 
-    :param output_folder: path to output folder
-    :type output_folder: str
-    :param input_db: path to geopackage database with streamflow gauges layer
-    :type input_db: str
-    :param ldd_file: file path to LDD raster
-    :type ldd_file: str
-    :param target_crs: EPSG code (number only) for the target CRS
-    :type target_crs: str
-    :param layer_stream_gauges: layer name of streamflow gauges layer
-    :type layer_stream_gauges: str
-    :return: None
-    :rtype: None
     """
     print("folder setup...")
     # folders and file setup
