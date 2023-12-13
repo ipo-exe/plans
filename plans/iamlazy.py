@@ -19,17 +19,18 @@ from qgis.core import QgsCoordinateReferenceSystem
 import numpy as np
 from plans import geo
 import os, shutil
+import geopandas as gpd
 
 
-def reproject_layer(input_db, layer_name, target_crs):
+def reproject_layer(input_db, target_crs, layer_name=None):
     """Reproject a vector layer
 
-    :param input_db: path to geopackage database
+    :param input_db: path to database
     :type input_db: str
-    :param layer_name: name of the layer in geopackage database
-    :type layer_name: str
     :param target_crs: EPSG code (number only) for the target CRS
     :type target_crs: str
+    :param layer_name: name of the layer in database (for geopackage)
+    :type layer_name: str
     :return: new layer name
     :rtype: str
     """
@@ -38,21 +39,46 @@ def reproject_layer(input_db, layer_name, target_crs):
         "31982": {"zone": 22, "hem": "south"},
         "31981": {"zone": 21, "hem": "south"},
     }
-    new_layer_name = "{}_EPSG{}".format(layer_name, target_crs)
+    if layer_name is None:  # to shapefile
+        input_file = input_db
+        output_dir = os.path.dirname(input_file)
+        output_name = os.path.basename(input_file).split(".")[0]
+        output_file = "{}/{}_EPSG{}.shp".format(output_dir, output_name, target_crs)
+        new_layer_name = output_file
+    else:  # to geopackage
+        input_file = "{}|layername={}".format(input_db, layer_name)
+        new_layer_name = "{}_EPSG{}".format(layer_name, target_crs)
+        output_file = "ogr:dbname='{}' table=\"{}\" (geom)".format(
+            input_db, new_layer_name
+        )
     processing.run(
         "native:reprojectlayer",
         {
-            "INPUT": "{}|layername={}".format(input_db, layer_name),
+            "INPUT": input_file,
             "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
             "OPERATION": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone={} +{} +ellps=GRS80".format(
                 dict_operations[target_crs]["zone"], dict_operations[target_crs]["hem"]
             ),
-            "OUTPUT": "ogr:dbname='{}' table=\"{}\" (geom)".format(
-                input_db, new_layer_name
-            ),
+            "OUTPUT": output_file,
         },
     )
     return new_layer_name
+
+
+def is_bounded_by(extent_a, extent_b):
+    """Check if extent B is bounded by extent A
+
+    :param extent_a: extent A
+    :type extent_a: dict
+    :param extent_b: extent B
+    :type extent_b: dict
+    :return: Case if bounded
+    :rtype: bool
+    """
+    return (
+        extent_a["xmin"] <= extent_b["xmin"] <= extent_b["xmax"] <= extent_a["xmax"]
+        and extent_a["ymin"] <= extent_b["ymin"] <= extent_b["ymax"] <= extent_a["ymax"]
+    )
 
 
 def get_extent_raster(file_input):
@@ -102,6 +128,25 @@ def get_extent_vector(input_db, layer_name):
     }
 
 
+def get_feature_count(input_db, layer_name):
+    """Get the number of features from a vector layer
+
+    :param input_db: path to geopackage database
+    :type input_db: str
+    :param layer_name: name of the layer in geopackage database
+    :type layer_name: str
+    :return: number of features
+    :rtype: int
+    """
+    from qgis.core import QgsVectorLayer
+
+    # Create the vector layer from the GeoPackage
+    layer = QgsVectorLayer(
+        "{}|layername={}".format(input_db, layer_name), layer_name, "ogr"
+    )
+    return int(layer.featureCount())
+
+
 def get_cellsize(file_input):
     """Get the cell size in map units (degrees or meters)
 
@@ -143,9 +188,6 @@ def get_blank_raster(file_input, file_output, blank_value=0):
     # Read the raster data as a numpy array
     grid_input = band_input.ReadAsArray()
 
-    # truncate to byte integer
-    grid_input = grid_input.astype(np.uint8)
-
     # -- Collect useful metadata
 
     raster_x_size = raster_input.RasterXSize
@@ -158,6 +200,9 @@ def get_blank_raster(file_input, file_output, blank_value=0):
 
     # -------------------------------------------------------------------------
     # PROCESS
+    # get ones to byte integer
+    grid_input = np.ones(shape=grid_input.shape, dtype=np.uint8)
+
     grid_output = grid_input * blank_value
 
     # -------------------------------------------------------------------------
@@ -237,6 +282,98 @@ def get_dem(
         },
     )
     return file_output
+
+
+def get_downstream_ids(file_ldd, file_basins, file_outlets):
+    """Get the basin Ids from downstream cells
+
+    :param file_ldd: file path to LDD raster
+    :type file_ldd: str
+    :param file_basins: file path to basins raster
+    :type file_basins: str
+    :param file_outlets: file path to outlets raster
+    :type file_outlets: str
+    :return: dictionaty with lists of "Id" and "Downstream_Id"
+    :rtype: dict
+    """
+
+    # -------------------------------------------------------------------------
+    # LOAD LDD
+
+    # Open the raster file using gdal
+    raster_input = gdal.Open(file_ldd)
+
+    # Get the raster band
+    band_input = raster_input.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grid_ldd = band_input.ReadAsArray()
+    # truncate to byte integer
+    grid_ldd = grid_ldd.astype(np.uint8)
+
+    # -- Close the raster
+    raster_input = None
+
+    # -------------------------------------------------------------------------
+    # LOAD OUTLETS
+
+    # Open the raster file using gdal
+    raster_input = gdal.Open(file_outlets)
+
+    # Get the raster band
+    band_input = raster_input.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grid_outlets = band_input.ReadAsArray()
+    # truncate to byte integer
+    grid_outlets = grid_outlets.astype(np.uint8)
+
+    # -- Close the raster
+    raster_input = None
+
+    # -------------------------------------------------------------------------
+    # LOAD BASINS
+
+    # Open the raster file using gdal
+    raster_input = gdal.Open(file_basins)
+
+    # Get the raster band
+    band_input = raster_input.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grid_basins = band_input.ReadAsArray()
+    # truncate to byte integer
+    grid_basins = grid_basins.astype(np.uint8)
+
+    # -- Close the raster
+    raster_input = None
+
+    # -------------------------------------------------------------------------
+    # PROCESS
+
+    # Get the indices of non-zero elements
+    nonzero_indices = np.nonzero(grid_outlets)
+    # Create a list of tuples containing row and column indices
+    list_positions = list(zip(nonzero_indices[0], nonzero_indices[1]))
+
+    list_ids = list()
+    list_ds_ids = list()
+    for outlet in list_positions:
+        i = outlet[0]
+        j = outlet[1]
+        # get the ID
+        n_id = grid_outlets[i][j]
+        # get the direction code (LDD)
+        n_dir = grid_ldd[i][j]
+        # get downstream coordinates
+        dict_dc = geo.downstream_coordinates(n_dir=n_dir, i=i, j=j, s_convention="ldd")
+        new_i = dict_dc["i"]
+        new_j = dict_dc["j"]
+        n_ds_id = grid_basins[new_i][new_j]
+        list_ids.append(n_id)
+        list_ds_ids.append(n_ds_id)
+
+    return {"Id": list_ids, "Downstream_Id": list_ds_ids}
 
 
 def get_carved_dem(file_dem, file_rivers, file_output, w=3, h=10):
@@ -455,7 +592,8 @@ def get_twi(file_slope, file_flowacc, file_output):
 
 
 def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=None):
-    """Get the HAND raster map from a DEM. The DEM must be hydrologically consistent (no sinks)
+    """Get the HAND raster map from a DEM.
+    The DEM must be hydrologically consistent (no sinks).
 
     :param file_dem_filled: file path to filled DEM (no sinks)
     :type file_dem_filled: str
@@ -622,7 +760,28 @@ def get_topo(
     h=10,
     hand_cells=100,
 ):
-    """Get all [topo] datasets for runnins PLANS
+    """Get all [topo] datasets for running PLANS.
+
+    Script example (for QGIS Python Console):
+
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+
+        # call function
+        iamlazy.get_topo(
+            output_folder="path/to/folder",
+            file_main_dem="path/to/main_large_dem.tif",
+            target_crs="31982",
+            input_db="path/to/project_db.gpkg",
+            layer_aoi='aoi',
+            layer_rivers='rivers',
+            source_crs='4326',
+            w=3,
+            h=10,
+            hand_cells=100
+        )
 
     :param output_folder: path to output folder to export datasets
     :type output_folder: str
@@ -703,7 +862,7 @@ def get_topo(
     # 2)
     print("get aoi extent...")
     dict_bbox = get_extent_vector(input_db=input_db, layer_name=new_layer_aoi)
-    print(dict_bbox)
+    # print(dict_bbox)
     # 3)
     print("clip and warp dem...")
     file_dem = get_dem(
@@ -862,7 +1021,10 @@ def get_lulc(
     source_crs="4326",
     qml_file=None,
 ):
-    """Get LULC maps from a larger main LULC dataset. Script example (for QGIS):
+    """Get LULC maps from a larger main LULC dataset.
+
+    Script example (for QGIS):
+
     .. code-block:: python
 
         # plans source code must be pasted to QGIS plugins directory
@@ -916,6 +1078,27 @@ def get_lulc(
     :type qml_file: str
     :return: None
     :rtype: None
+
+    [testing] Example of script:
+
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+        # run function
+        iamlazy.get_topo(
+            output_folder="path/to/folder",
+            file_main_dem="path/to/main_large_dem.tif",
+            target_crs="31982",
+            input_db="path/to/project_db.gpkg",
+            layer_aoi='aoi',
+            layer_rivers='rivers',
+            source_crs='4326',
+            w=3,
+            h=10,
+            hand_cells=100
+        )
+
     """
     # folders and file setup
     output_folder_interm = "{}/intermediate".format(output_folder)
@@ -1019,22 +1202,314 @@ def get_lulc(
         processing.run(
             "gdal:translate",
             {
-                'INPUT': input_file,
-                'TARGET_CRS': QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
-                'NODATA': 0,
-                'COPY_SUBDATASETS': False,
-                'OPTIONS': '',
-                'EXTRA': '',
-                'DATA_TYPE': 1,
-                'OUTPUT': '{}/{}.asc'.format(output_folder, filename)
-            }
+                "INPUT": input_file,
+                "TARGET_CRS": QgsCoordinateReferenceSystem(
+                    "EPSG:{}".format(target_crs)
+                ),
+                "NODATA": 0,
+                "COPY_SUBDATASETS": False,
+                "OPTIONS": "",
+                "EXTRA": "",
+                "DATA_TYPE": 1,
+                "OUTPUT": "{}/{}.asc".format(output_folder, filename),
+            },
         )
         # Handle style
         if qml_file is None:
             pass
         else:
-            shutil.copy(
-                src=qml_file, dst="{}/{}.qml".format(output_folder, filename)
+            shutil.copy(src=qml_file, dst="{}/{}.qml".format(output_folder, filename))
+
+    return None
+
+
+def get_rain(
+    output_folder,
+    input_db,
+    target_file,
+    target_crs,
+    layer_aoi="aoi",
+    layer_rain_gauges="rain",
+):
+    """Get [rain] datasets for running PLANS.
+
+    ::param output_folder: path to output folder
+    :type output_folder: str
+    :param input_db: path to geopackage database with rain gauge layer
+    :type input_db: str
+    :param target_file: file path to target raster (e.g., the DEM raster)
+    :type target_file: str
+    ::param target_crs: EPSG code (number only) for the target CRS
+    :type target_crs: str
+    :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
+    :type layer_aoi: str
+    :param layer_rain_gauges: layer name of rain gauges layer
+    :type layer_rain_gauges: str
+    :return: None
+    :rtype: None
+    """
+    def calculate_buffer_ratios(box_small, box_large):
+        delta_x_small = abs(box_small["xmax"] - box_small["xmin"])
+        lower_x = abs(box_small["xmin"] - box_large["xmin"])
+        upper_x = abs(box_small["xmax"] - box_large["xmax"])
+        x_ratio = max(lower_x / delta_x_small, upper_x / delta_x_small)
+
+        delta_y_small = abs(box_small["ymax"] - box_small["ymin"])
+        lower_y = abs(box_small["ymin"] - box_large["ymin"])
+        upper_y = abs(box_small["ymax"] - box_large["ymax"])
+        y_ratio = max(lower_y / delta_y_small, upper_y / delta_y_small)
+
+        return (x_ratio, y_ratio)
+
+    print("folder setup...")
+    # folders and file setup
+    output_folder_interm = "{}/intermediate".format(output_folder)
+    if os.path.isdir(output_folder_interm):
+        pass
+    else:
+        os.mkdir(output_folder_interm)
+
+    print("get info...")
+    # load table
+    rain_gdf = gpd.read_file(input_db, layer=layer_rain_gauges, ignore_geometry=True)
+    # export csv file
+    rain_gdf.to_csv("{}/rain_info.csv".format(output_folder), sep=";", index=False)
+    # print(rain_gdf.to_string())
+
+    # first check number of features
+    n_rain_gauges = get_feature_count(input_db=input_db, layer_name=layer_rain_gauges)
+    dict_blank = {"constant": 0, "voronoi": 0}
+    s_type = "voronoi"
+    if n_rain_gauges < 2:
+        print(" -- only one rain gauge found")
+        s_type = "constant"
+        # create constant raster layer based on target and Id
+
+        # >> find rain id
+        n_id = rain_gdf["Id"].values[0]
+        # update dict
+        dict_blank["constant"] = n_id
+    else:
+        # get voronoi zones
+
+        # first validade extents
+        dict_extent_aoi = get_extent_vector(input_db=input_db, layer_name=layer_aoi)
+        dict_extent_rain = get_extent_vector(
+            input_db=input_db, layer_name=layer_rain_gauges
+        )
+
+        # check is is bounded:
+        if is_bounded_by(extent_a=dict_extent_rain, extent_b=dict_extent_aoi):
+            n_buffer = 20
+        else:
+            n_buffer = (
+                100
+                * 1.2
+                * max(
+                    calculate_buffer_ratios(
+                        box_small=dict_extent_rain, box_large=dict_extent_aoi
+                    )
+                )
             )
 
+        # reproject rain
+        layer_rain_gauges_2 = reproject_layer(
+            input_db=input_db, layer_name=layer_rain_gauges, target_crs=target_crs
+        )
+        print("get voronoi polygons...")
+        # run function
+        processing.run(
+            "qgis:voronoipolygons",
+            {
+                "INPUT": "{}|layername={}".format(input_db, layer_rain_gauges_2),
+                "BUFFER": n_buffer,
+                "OUTPUT": "{}/zones.shp".format(output_folder_interm),
+            },
+        )
+    print("get zones raster...")
+    zones_raster = "{}/zones.tif".format(output_folder_interm)
+    # >> create constant raster layer
+    get_blank_raster(
+        file_input=target_file, file_output=zones_raster, blank_value=dict_blank[s_type]
+    )
+    # rasterize target raster
+    if s_type == "voronoi":
+        # rasterize voronoi
+        processing.run(
+            "gdal:rasterize_over",
+            {
+                "INPUT": "{}/zones.shp".format(output_folder_interm),
+                "INPUT_RASTER": "{}/rain_zones.tif".format(output_folder_interm),
+                "FIELD": "Id",
+                "ADD": False,
+                "EXTRA": "",
+            },
+        )
+    print("translate...")
+    # translante raster layer
+    processing.run(
+        "gdal:translate",
+        {
+            "INPUT": "{}/rain_zones.tif".format(output_folder_interm),
+            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+            "NODATA": 0,
+            "COPY_SUBDATASETS": False,
+            "OPTIONS": "",
+            "EXTRA": "",
+            "DATA_TYPE": 1,
+            "OUTPUT": "{}/rain_zones.asc".format(output_folder),
+        },
+    )
+    print("end")
+    return None
+
+
+def get_basins(
+    output_folder,
+    input_db,
+    ldd_file,
+    target_crs,
+    layer_stream_gauges="stream",
+):
+    """Get all [basins] datasets for running PLANS.
+
+    Script example (for QGIS Python Console):
+
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+
+        # call function
+        iamlazy.get_basins(
+            output_folder="D:/gis/_projects_/andreas/basins",
+            ldd_file="D:/gis/_projects_/andreas/topo/ldd.asc",
+            target_crs="31982",
+            input_db="D:/gis/_projects_/andreas/andreas_db.gpkg",
+            layer_stream_gauges="stream"
+        )
+
+    :param output_folder: path to output folder
+    :type output_folder: str
+    :param input_db: path to geopackage database with streamflow gauges layer
+    :type input_db: str
+    :param ldd_file: file path to LDD raster
+    :type ldd_file: str
+    :param target_crs: EPSG code (number only) for the target CRS
+    :type target_crs: str
+    :param layer_stream_gauges: layer name of streamflow gauges layer
+    :type layer_stream_gauges: str
+    :return: None
+    :rtype: None
+    """
+    print("folder setup...")
+    # folders and file setup
+    output_folder_interm = "{}/intermediate".format(output_folder)
+    if os.path.isdir(output_folder_interm):
+        pass
+    else:
+        os.mkdir(output_folder_interm)
+
+    # GDAL folder
+    output_folder_gdal = "{}/gdal".format(output_folder_interm)
+    if os.path.isdir(output_folder_gdal):
+        pass
+    else:
+        os.mkdir(output_folder_gdal)
+
+    # PCRASTER folder
+    output_folder_pcraster = "{}/pcraster".format(output_folder_interm)
+    if os.path.isdir(output_folder_pcraster):
+        pass
+    else:
+        os.mkdir(output_folder_pcraster)
+    print("reproject...")
+    # reproject streams
+    layer_stream_gauges_new = reproject_layer(
+        input_db=input_db, target_crs=target_crs, layer_name=layer_stream_gauges
+    )
+    print("blank raster...")
+    gauge_raster = "{}/gauges.tif".format(output_folder_gdal)
+    # get blanks
+    get_blank_raster(file_input=ldd_file, file_output=gauge_raster, blank_value=0)
+    print("rasterize...")
+    # rasterize
+    processing.run(
+        "gdal:rasterize_over",
+        {
+            "INPUT": "{}|layername={}".format(input_db, layer_stream_gauges_new),
+            "INPUT_RASTER": gauge_raster,
+            "FIELD": "Id",
+            "ADD": False,
+            "EXTRA": "",
+        },
+    )
+    # todo validate gauge positions
+
+    # convert to pc raster
+    print("get outlets...")
+    outlets_raster_pc = "{}/outlets.map".format(output_folder_pcraster)
+    processing.run(
+        "pcraster:converttopcrasterformat",
+        {"INPUT": gauge_raster, "INPUT2": 1, "OUTPUT": outlets_raster_pc},
+    )
+    # convert ldd
+    print("get ldd...")
+    ldd_file_pc = "{}/ldd.map".format(output_folder_pcraster)
+    processing.run(
+        "pcraster:converttopcrasterformat",
+        {"INPUT": ldd_file, "INPUT2": 5, "OUTPUT": ldd_file_pc},
+    )
+    # get basins
+    basins_file_pc = "{}/basins.map".format(output_folder_pcraster)
+    print("get basins...")
+    processing.run(
+        "pcraster:subcatchment",
+        {"INPUT1": ldd_file_pc, "INPUT2": outlets_raster_pc, "OUTPUT": basins_file_pc},
+    )
+    # translante raster layers
+    outlets_raster = "{}/outlets.asc".format(output_folder)
+    processing.run(
+        "gdal:translate",
+        {
+            "INPUT": outlets_raster_pc,
+            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+            "NODATA": 0,
+            "COPY_SUBDATASETS": False,
+            "OPTIONS": "",
+            "EXTRA": "",
+            "DATA_TYPE": 1,
+            "OUTPUT": outlets_raster,
+        },
+    )
+    basins_raster = "{}/basins.asc".format(output_folder)
+    processing.run(
+        "gdal:translate",
+        {
+            "INPUT": basins_file_pc,
+            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+            "NODATA": 0,
+            "COPY_SUBDATASETS": False,
+            "OPTIONS": "",
+            "EXTRA": "",
+            "DATA_TYPE": 1,
+            "OUTPUT": basins_raster,
+        },
+    )
+    # load table
+    basins_gdf = gpd.read_file(
+        input_db, layer=layer_stream_gauges, ignore_geometry=True
+    )
+    print("compute basin topology")
+
+    dict_aux = get_downstream_ids(
+        file_ldd=ldd_file, file_basins=basins_raster, file_outlets=outlets_raster
+    )
+
+    aux_gdf = gpd.GeoDataFrame.from_dict(dict_aux, geometry=None)
+    merged_gdf = basins_gdf.merge(aux_gdf, on="Id")
+    # export csv file
+    merged_gdf.to_csv("{}/basins_info.csv".format(output_folder), sep=";", index=False)
+
+    print("end")
     return None
