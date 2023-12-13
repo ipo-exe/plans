@@ -2622,7 +2622,7 @@ class QualiRaster(Raster):
         :rtype: dict
         """
         _dict = super().get_metadata()
-        _dict["Path_CSV"] = self.path_csvfile[:]
+        _dict["Path_CSV"] = self.path_csvfile
         return _dict
 
 
