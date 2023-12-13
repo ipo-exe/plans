@@ -862,7 +862,37 @@ def get_lulc(
     source_crs="4326",
     qml_file=None,
 ):
-    """Get LULC maps from a larger main LULC dataset.
+    """Get LULC maps from a larger main LULC dataset. Script example (for QGIS):
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+        # set files
+        lst_files = [
+            "path/to/lulc_2015.tif",
+            "path/to/lulc_2015.tif",
+            "path/to/lulc_2016.tif",
+        ]
+        # set dates
+        lst_dates = [
+            "2014-01-01",
+            "2015-01-01",
+            "2016-01-01",
+        ]
+        # run function
+        iamlazy.get_lulc(
+            list_main_files=lst_files,
+            list_dates=lst_dates,
+            output_folder="path/to/output",
+            target_file="/path/to/raster.tif",
+            target_crs="31982",
+            input_db="path/to/input_db.gpkg",
+            layer_roads_dirty='roads_dirty',
+            layer_roads_paved='roads_paved',
+            source_crs='4326',
+            qml_file="path/to/style.qml"
+        )
+
 
     :param list_main_files: list of file paths to main lulc rasters
     :type list_main_files: list

@@ -332,7 +332,6 @@ Input files catalog
 .. include:: input_catalog.rst
 
 
-
 ********************************************
 Output files reference
 ********************************************
@@ -352,8 +351,3 @@ Text.
 .. DANGER::
    Beware killer rabbits!
 
-.. This table is not displayed live in github
-.. csv-table:: Doctable
-    :file: /docs/table.csv
-    :widths: 33, 33, 33
-    :header-rows: 0
