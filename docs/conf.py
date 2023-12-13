@@ -44,6 +44,7 @@ autodoc_mock_imports = [
     'processing',
     'qgis',
     'osgeo',
+    'geopandas'
 ]
 
 autodoc_member_order = 'bysource'
