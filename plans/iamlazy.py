@@ -1233,6 +1233,23 @@ def get_rain(
 ):
     """Get [rain] datasets for running PLANS.
 
+    Script example (for QGIS Python Console):
+
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+
+        # call function
+        iamlazy.get_rain(
+            output_folder="path/to/rain",
+            target_file="path/to/dem.asc",
+            target_crs="31982",
+            input_db="path/to/my_db.gpkg",
+            layer_aoi="aoi",
+            layer_rain_gauges="rain"
+        )
+
     ::param output_folder: path to output folder
     :type output_folder: str
     :param input_db: path to geopackage database with rain gauge layer
@@ -1382,10 +1399,10 @@ def get_basins(
 
         # call function
         iamlazy.get_basins(
-            output_folder="D:/gis/_projects_/andreas/basins",
-            ldd_file="D:/gis/_projects_/andreas/topo/ldd.asc",
+            output_folder="path/to/basins",
+            ldd_file="path/to/ldd.asc",
             target_crs="31982",
-            input_db="D:/gis/_projects_/andreas/andreas_db.gpkg",
+            input_db="path/to/my_db.gpkg",
             layer_stream_gauges="stream"
         )
 
