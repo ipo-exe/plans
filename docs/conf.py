@@ -9,10 +9,10 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path_main here. If the directory is relative to the
 # documentation root, use os.path_main.abspath to make it absolute, like shown here.
-#
-#import os
-#import sys
-#sys.path.insert(0, os.path.abspath('..'))
+# mask here
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
@@ -31,7 +31,8 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
-    # 'sphinx_copybutton'
+    # mask here
+    #'sphinx_copybutton'
 ]
 
 
