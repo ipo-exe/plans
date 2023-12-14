@@ -10,9 +10,9 @@
 # add these directories to sys.path_main here. If the directory is relative to the
 # documentation root, use os.path_main.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path_main.insert(0, os.path_main.abspath('.'))
+#import os
+#import sys
+#sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
@@ -31,6 +31,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
+    'sphinx_copybutton'
 ]
 
 

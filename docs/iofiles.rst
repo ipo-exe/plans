@@ -1,4 +1,4 @@
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
+.. image:: ./figs/logo.png
     :width: 150 px
     :align: center
     :alt: Logo
@@ -8,11 +8,34 @@
 I/O Reference
 ############################################
 
-This is Input and Output reference documentation of ``plans`` tool.
+This is the Input and Output reference documentation of ``plans`` tool.
 
 .. toctree::
    iofiles
 
+********************************************
+Overview
+********************************************
+
+As shown bellow, the ``plans`` model Input/Output workflow is
+quite straight forward. There are three types of files:
+
+- :ref:`Input Files<io-input-files>`;
+- :ref:`Intermediate Files<io-interm-files>`, and;
+- :ref:`Output Files<io-output-files>`;
+
+The only bottle neck in the process is to prepare input files
+in the right format.
+
+.. figure:: ./figs/io.jpg
+   :width: 500 px
+   :align: center
+   :alt: IO overview
+
+   Input/Output overview in ``plans``.
+
+
+.. _io-data-struct:
 
 ********************************************
 Data structures
@@ -20,73 +43,85 @@ Data structures
 
 Files used in ``plans`` are related to the following two data structures:
 
-- Table
-- Raster map
+- :ref:`Table<io-table>`
+- :ref:`Raster map<io-raster>`
 
-A **Table** can store a frame of data in rows and columns in a single file.
-A **Raster map** can store a map grid in a matrix of numbers in a single file.
+A :ref:`Table<io-table>` can store a frame of data in rows and columns in a single file.
+A :ref:`Raster map<io-raster>` can store a map grid in a matrix of numbers in a single file.
 Extra files may be required for complete information about the map.
 
 Input files must be formatted in by standard way, otherwise the tool is not going to work.
 The standards are meant to be simple and user-friendly for any human and Operating System.
-All kinds of files can be opened and edited by hand in Notepad-like applications. They are described below.
+All kinds of files can be opened and edited by hand in Notepad-like applications.
+They are described below.
 
 
-.. _table:
+.. _io-table:
 
 Table
 ============================================
 
-A **table** in ``plans`` is a frame of data defined by rows and columns. Each column represents a **field** that must be *homogeneous*.
-This means that each field stores the same **data type**, like text, datetime, integer numbers or real numbers.
-The first row stores the names of the fields. The subsequent rows stores the data itself.
+A **table** in ``plans`` is a frame of data defined by rows and columns.
+Each column represents a **field** that must be *homogeneous*.
+This means that each field stores the same **data type**, like text,
+datetime, integer numbers or real numbers.
+The first row stores the names of the fields. The subsequent rows stores
+the data itself.
 
-A table must follow this general rules:
+For input tables it must follow this general rules:
 
 - the file must be a plain file with ``.csv`` or ``.txt`` extension
 - semi-column ``;`` must be the separator of columns
 - period ``.`` must be the separator of decimal places for real numbers
 
-For example, in the following table ``Id`` is an integer-number field, ``NDVI_mean`` is a real-number field and the remaining are text fields.
+For example, in the following table ``Id`` is an integer-number field,
+``NDVI_mean`` is a real-number field and the remaining are text fields.
 
 .. code-block::
 
-   Id;     Name; Alias; NDVI_mean;   Color
-    1;    Water;   Wtr;      -0.9;    blue
-    2;   Forest;   Fst;      0.87;   green
-    3;    Crops;   Crp;      0.42; magenta
-    4;  Pasture;   Pst;      0.76;  orange
-    5;    Urban;   Urb;      0.24;    grey
+   Id;     Name; Alias;    Color;  NDVI_mean
+    1;    Water;     W;     blue;       -0.9
+    2;   Forest;     F;    green;       0.87
+    3;    Crops;     C;  magenta;       0.42
+    4;  Pasture;     P;   orange;       0.76
+    5;    Urban;     U;   9AA7A3;       0.24
 
 
-.. note:: No need for column alignment
+.. note::
 
-   ``plans`` is *not* sensitive to *spaces* in table ``.txt`` files. Hence, columns in table files can be either beautifully aligned like the above example or compacted like the following:
+    **No need for column alignment**. ``plans`` is *not* sensitive
+    to *spaces* in table ``txt`` files. Hence, columns in table files
+    can be either beautifully aligned like the above example or
+    compacted like the following:
 
-   .. code-block::
+    .. code-block::
 
-        Id;Name;Alias;NDVI_mean;Color
-        1;Water;Wtr;-0.9;blue
-        2;Forest;Fst;0.87;green
-        3;Crops;Crp;0.42;magenta
-        4;Pasture;Pst;0.76;orange
-        5;Urban;Urb;0.24;grey
+        Id;Name;Alias;Color;NDVI_mean
+        1;Water;W;blue;-0.9
+        2;Forest;F;green;0.87
+        3;Crops;C;magenta;0.42
+        4;Pasture;P;orange;0.76
+        5;Urban;U;9AA7A3;0.24
 
 
-.. _timeseries:
+.. _io-timeseries:
 
 Time series
 --------------------------------------------
 
-A **time series** in ``plans`` is a special kind of :ref:`table` file which must have a ``Datetime`` field (generally in the first column).
-The ``Datetime`` field is a text field that stores dates in the format ``yyyy-mm-dd HH:MM:SS.SSS`` (year, month, day, hour, minute and seconds).
-The other fields generally are real number fields that stores the state of *variables* like precipitation ``Plu`` and temperature ``T``.
+A :ref:`Time Series<io-timeseries>` in ``plans`` is a special kind of :ref:`Table<io-table>` file
+which must have a ``Datetime`` field (generally in the first column).
+The ``Datetime`` field is a text field that stores dates in the format
+``yyyy-mm-dd HH:MM:SS.SSS`` (year, month, day, hour, minute and seconds).
+The other fields generally are real number fields that stores the state
+of *variables* like precipitation ``P`` and temperature ``T``.
 
-Time series files tends to have a large number of rows. The first 10 rows of a time series file looks like this:
+Time series files tends to have a large number of rows. The first 10 rows
+of a time series file looks like this:
 
-.. code-block::
+.. code-block:: text
 
-                  Datetime;  Plu;    T
+                  Datetime;    P;    T
    2020-01-01 00:00:00.000;  0.0; 20.1
    2020-01-02 00:00:00.000;  5.1; 24.3
    2020-01-03 00:00:00.000;  0.0; 25.8
@@ -97,23 +132,31 @@ Time series files tends to have a large number of rows. The first 10 rows of a t
    2020-01-08 00:00:00.000;  4.7; 28.3
    2020-01-09 00:00:00.000;  0.0; 27.1
 
-.. note:: Automatic fill of time information
+.. note::
 
-   ``plans`` will automatically fill a constant time information (hours, minute and seconds) if only the date is passed, like in the above example.
+    **Automatic fill of time information**. ``plans`` will automatically
+    fill a constant *time* information (hours, minute and seconds) if
+    only the *date* is passed (year, month and day), like in the above
+    example.
 
 
-.. warning:: Beware of small gaps and voids in time series
+.. important::
 
-    ``plans`` will automatically try to fill or interpolate small gaps and voids in a given time series.
-    However, be aware that this may cause a unnoticed impact on the model outputs.
-    A best option is to interpolate and fill voids prior to the processing so you can understand what is going on.
+    **Beware of small gaps and voids in time series**. ``plans`` will
+    automatically try to fill or interpolate small gaps and voids in a
+    given time series. However, be aware that this may cause unnoticed
+    impacts on model outputs. A best practice is to interpolate and fill
+    voids *prior* to the processing so you can understand what
+    is going on.
 
-    For instance, consider the following time series that has a date gap (missing Jan/3 and Jan/4 dates) and a data void for ``Plu`` in Jan/8:
+    For instance, consider the following time series that has
+    a date gap (missing Jan/3 and Jan/4 dates) and a data void
+    for ``P`` in Jan/8:
 
     .. code-block::
         :emphasize-lines: 3,4,7
 
-                       Datetime;  Plu;    T
+                       Datetime;    P;    T
         2020-01-01 00:00:00.000;  0.0; 20.1
         2020-01-02 00:00:00.000;  5.1; 24.3
         2020-01-05 00:00:00.000;  0.0; 21.5
@@ -122,12 +165,13 @@ Time series files tends to have a large number of rows. The first 10 rows of a t
         2020-01-08 00:00:00.000;     ; 28.3
         2020-01-09 00:00:00.000;  0.0; 27.1
 
-    In this case, ``plans`` would interpolate temperature ``T`` and fill with 0 the precipitation ``Plu``:
+    In this case, ``plans`` would interpolate temperature ``T`` and fill with 0
+    the precipitation ``P``:
 
     .. code-block::
-        :emphasize-lines: 3,4,7
+        :emphasize-lines: 4,5,8
 
-                       Datetime;  Plu;    T
+                       Datetime;    P;    T
         2020-01-01 00:00:00.000;  0.0; 20.1
         2020-01-02 00:00:00.000;  5.1; 24.3
         2020-01-03 00:00:00.000;  0.0; 23.3
@@ -139,50 +183,99 @@ Time series files tends to have a large number of rows. The first 10 rows of a t
         2020-01-09 00:00:00.000;  0.0; 27.1
 
 
-.. _attribute:
+.. _io-attribute:
 
 Attribute table
 --------------------------------------------
 
-An **attribute table** is a special kind of :ref:`table` file which must have at least the following fields:
+An :ref:`Attribute Table<io-attribute>` is a special kind of :ref:`Table<io-table>` file which must
+have at least the following fields:
 
 - ``Id``: [integer number] Unique numeric code;
 - ``Name``: [text] Unique name;
 - ``Alias``: [text] Unique short nickname;
 - ``Color``: [text] Color HEX code or name available in ``matplotlib``;
 
-**Extra fields** are also required, depending on each dataset.
+**Extra required fields** may be also needed, depending on each dataset.
 
-.. warning::
+Example of an attribute table:
 
-    Attention to white spaces and special characters because ``plans`` is **not** designed for handling special
-    characters and white spaces in names. If needed, use underline ``_`` instead of white space.
+.. code-block:: text
 
-.. warning::
+   Id;     Name; Alias;    Color;  NDVI_mean
+    1;    Water;     W;     blue;       -0.9
+    2;   Forest;     F;    green;       0.87
+    3;    Crops;     C;  magenta;       0.42
+    4;  Pasture;     P;   orange;       0.76
+    5;    Urban;     U;  #9AA7A3;       0.24
 
-    ``plans`` **is case-sensitive** so be consistent with your own naming conventions (i.e.: ``Name`` is different than ``name``).
+
+.. important::
+
+    **Be consistent with your own naming conventions**. ``plans`` **is case-sensitive**
+    ``Name`` is different than ``name``.
 
 
-.. _raster:
+.. tip::
+
+    **Make names and aliases simple and then add extra fields**.
+    Any other fields (columns) other than the required will be ignored so
+    you can add convenient and useful extra non-required fields.
+    For instance, here a ``Description`` field was added
+    for holding more information about each land use class:
+
+    .. code-block:: text
+
+       Id;     Name; Alias;    Color;  NDVI_mean;                          Description
+        1;    Water;     W;     blue;       -0.9;              Lakes, rivers and ocean
+        2;   Forest;     F;    green;       0.87;     Forests (natural and cultivated)
+        3;    Crops;     C;  magenta;       0.42;            Conventional annual crops
+        4;  Pasture;     P;   orange;       0.76;  Conventional pasture and grasslands
+        5;    Urban;     U;   9AA7A3;       0.24;                      Developed areas
+
+
+.. danger::
+
+    **Do not use white spaces and special characters**. This is because
+    ``plans`` is **not** designed for handling special characters and
+    white spaces in names. If needed, use underline ``_`` instead of white space.
+
+
+.. _io-large-table:
+
+Large tables
+--------------------------------------------
+
+An :ref:`Large Table<io-large-table>` is a special kind of :ref:`Table<io-table>` file
+that is expected to be very large. For proper optimization, this type of file must present
+the ``parquet`` extension. Only Output Files and Intermediate Files are of this kind.
+
+
+.. _io-raster:
 
 Raster map
 ============================================
 
-A **raster** map in ``plans`` is a frame of data defined by a matrix of cells storing numbers (integer or real values)
-and encoded in way that it can be georreferenced in a given Coordinate Reference System (CRS).
+A **raster** map in ``plans`` is a frame of data defined by a matrix of cells
+storing numbers (integer or real values) and encoded in way that it can be
+georreferenced in a given Coordinate Reference System (CRS).
 The raster map data structure is composed at least by two files:
 
-- [mandatory] the main **grid file** (``.asc`` extension);
-- [optional] the auxiliary **projection file** (``.prj`` extension);
+- [mandatory] the main :ref:`Grid file<io-grid-file>`  (``.asc`` extension);
+- [optional] the auxiliary :ref:`Grid file<io-prj-file>`  (``.prj`` extension);
 
-Both files may be readily obtained using GIS desktop applications. The projection file is not mandatory but is quite
-useful to open the map in the right place and to check consistency of multiple maps.
+Both files may be readily obtained using GIS desktop applications.
+The projection file is not mandatory but is quite useful to open the map
+in the right place and to check consistency of multiple maps.
 
 
-The grid file
+.. _io-grid-file::
+
+Grid file
 --------------------------------------------
 
-The grid file must follow this general rules:
+The Grid file stores most relevent information about the map.
+Formatting must follow this rules:
 
 - the file must be a plain file with ``.asc`` extension
 - the first 6 lines must encode a **heading**, specifying the following metadata:
@@ -198,7 +291,7 @@ The grid file must follow this general rules:
 Raster maps tends to have a large number of rows and columns.
 The first 10 rows and columns of a ``.asc`` raster file looks like this:
 
-.. code-block::
+.. code-block:: text
 
     ncols        311
     nrows        375
@@ -219,18 +312,23 @@ The first 10 rows and columns of a ``.asc`` raster file looks like this:
      290 297 310 328 343 359 379 399 417 427 ...
      ...
 
-.. note:: Convert files from ``.tif`` to ``.asc`` using GIS and python
+.. tip::
 
-    Most GIS desktop applications have tools for converting the commonly distributed ``.tif`` raster files
-    to the ``.asc`` format used in ``plans``.
+    **Convert files using GIS and python**.
 
-    Hence, you actually only have to worry about setting up the *data type* (integer or real) and
-    the *no-data value* in the moment of exporting your ``.tif`` raster files to ``.asc`` format.
+    Most GIS desktop applications have tools for converting the commonly
+    distributed ``.tif`` raster files to the ``.asc`` format used in ``plans``.
 
-    In ``QGIS 3``, you may adapt the following python code for automating the conversion from ``.tif``
-    raster files to the ``.asc`` format (the ``.prj`` file is also created):
+    Hence, you actually only have to worry about setting up the *data type*
+    (integer or real) and the *no-data value* in the moment of exporting your
+    ``.tif`` raster files to ``.asc`` format.
+
+    In ``QGIS 3``, you may adapt the following python code for automating the
+    conversion from ``.tif`` raster files to the ``.asc`` format
+    (the ``.prj`` projection file is also created):
 
     .. code-block:: python
+        :linenos:
 
         # This code is for QGIS python console
         import processing
@@ -259,9 +357,11 @@ The first 10 rows and columns of a ``.asc`` raster file looks like this:
            'OUTPUT':output_file,  # set input tif raster
         })
 
-    Alternatively, you may use ``rasterio`` python library in other environments, such as in ``colab`` cloud notebooks:
+    Alternatively, you may use ``rasterio`` python library in other environments,
+    such as in ``colab`` notebooks:
 
     .. code-block:: python
+        :linenos:
 
         # This code assumes rasterio is already installed via pip install
         import rasterio
@@ -289,42 +389,79 @@ The first 10 rows and columns of a ``.asc`` raster file looks like this:
                 dst.write(data.astype(data_type)) # ensure data type
 
 
-.. _qualiraster:
+.. _io-prj-file::
+
+Projection file
+--------------------------------------------
+
+The Projection file is an auxiliary optional file for proper Raster manipulation
+in the right Coordinate Reference System. It is usually automatically
+generated in GIS desktop application like QGIS or ArcGIS.
+
+Formatting rules:
+- must have the ``.prj`` extension/
+- must have the same name of the associated :ref:`Grid file<io-grid>`;
+
+A typical Projection file is a large single-line text that has the following structure:
+
+.. code-block:: text
+
+   PROJCS["SIRGAS_2000_UTM_Zone_22S",GEOGCS["GCS_SIRGAS_2000",DATUM["D_SIRGAS_2000",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",10000000.0],PARAMETER["Central_Meridian",-51.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]
+
+
+.. _io-qualiraster:
 
 Qualitative raster map
 --------------------------------------------
 
-A **quali-raster** in ``plans`` is a special kind of :ref:`raster` file in which an auxiliary :ref:`attribute`
-must be provided alongside the grid and projection files.
+A **quali-raster** in ``plans`` is a special kind of :ref:`Raster map<io-raster>` file
+in which an auxiliary :ref:`Attribute Table<io-attribute>` must be provided alongside the
+:ref:`Grid file<io-grid-file>`  and projection files.
 
-.. note:: one attribute table can feed many maps
+For instance, a Land Use Land Cover raster map only stores the ``Id``
+code for each class. More information must be stored in the
+attribute table.
 
-    The same attribute table file can supply the information required of many raster maps. For instance, consider
-    a set of 10 land use and land cover maps, for different years. They all can use the same attribute table file.
+.. note::
+
+    **One attribute table can feed many maps**. The same attribute table
+    file can supply the information required of many raster maps. For instance,
+    consider a set of 10 land use and land cover maps, for different years.
+    They all can use the same attribute table file.
 
 
 ********************************************
 Conventions
 ********************************************
 
-Text.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 Hydrological variables
 ============================================
 
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 
+.. _io-input-files:
 
 ********************************************
-Input files reference
+Input Files
 ********************************************
 
-Text.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 Input files summary
 ============================================
 
-Text.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 Input files catalog
 ============================================
@@ -332,22 +469,52 @@ Input files catalog
 .. include:: input_catalog.rst
 
 
+.. _io-interm-files:
+
 ********************************************
-Output files reference
+Intermediate Files
 ********************************************
 
-Text.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+Intermediate files summary
+============================================
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+Intermediate files catalog
+============================================
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+
+.. _io-output-files:
+
+********************************************
+Output Files
+********************************************
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 Output files summary
 ============================================
 
-Text.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 Output files catalog
 ============================================
 
-Text.
-
-.. DANGER::
-   Beware killer rabbits!
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida
+ex quam, in porttitor lacus lobortis vitae. In a lacinia nisl.
 
