@@ -32,7 +32,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     # mask here
-    #'sphinx_copybutton'
+    'sphinx_copybutton'
 ]
 
 
