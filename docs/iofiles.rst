@@ -274,7 +274,7 @@ in the right place and to check consistency of multiple maps.
 Grid file
 --------------------------------------------
 
-The Grid file stores most relevent information about the map.
+The Grid file stores most relevant information about the map.
 Formatting must follow this rules:
 
 - the file must be a plain file with ``.asc`` extension
@@ -314,7 +314,7 @@ The first 10 rows and columns of a ``.asc`` raster file looks like this:
 
 .. tip::
 
-    **Convert files using GIS and python**.
+    **Convert files using GIS and Python**.
 
     Most GIS desktop applications have tools for converting the commonly
     distributed ``.tif`` raster files to the ``.asc`` format used in ``plans``.
@@ -323,14 +323,14 @@ The first 10 rows and columns of a ``.asc`` raster file looks like this:
     (integer or real) and the *no-data value* in the moment of exporting your
     ``.tif`` raster files to ``.asc`` format.
 
-    In ``QGIS 3``, you may adapt the following python code for automating the
+    In ``QGIS 3``, you may adapt the following Python code for automating the
     conversion from ``.tif`` raster files to the ``.asc`` format
     (the ``.prj`` projection file is also created):
 
-    .. code-block:: python
+    .. code-block:: Python
         :linenos:
 
-        # This code is for QGIS python console
+        # This code is for QGIS Python console
         import processing
 
         # Set file names
@@ -357,10 +357,10 @@ The first 10 rows and columns of a ``.asc`` raster file looks like this:
            'OUTPUT':output_file,  # set input tif raster
         })
 
-    Alternatively, you may use ``rasterio`` python library in other environments,
+    Alternatively, you may use ``rasterio`` Python library in other environments,
     such as in ``colab`` notebooks:
 
-    .. code-block:: python
+    .. code-block:: Python
         :linenos:
 
         # This code assumes rasterio is already installed via pip install

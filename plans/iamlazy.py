@@ -604,8 +604,9 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
     :param file_dem_sample: [optional] file path to raw DEM for sampling the HAND.
     :type file_dem_sample: str
     :return: dictionary with raster output paths. keys:
-    "ldd", "material", "accflux", "threshold", "drainage", "hs_outlets_scalar",
-    "hs_outlets_nominal", "hillslopes", "hs_zmin", "hand"
+        "ldd", "material", "accflux", "threshold", "drainage", "hs_outlets_scalar",
+        "hs_outlets_nominal", "hillslopes", "hs_zmin", "hand"
+
     :rtype: dict
     """
     # -- PCRaster - get LDD map

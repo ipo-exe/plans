@@ -1472,8 +1472,7 @@ class Raster:
     def apply_aoi_mask(self, grid_aoi, inplace=False):
         """Apply AOI (area of interest) mask to raster map.
 
-        :param grid_aoi: map of AOI (masked array or pseudo-boolean)
-        Expected to have the same grid shape.
+        :param grid_aoi: map of AOI (masked array or pseudo-boolean). Expected to have the same grid shape.
         :type grid_aoi: :class:`numpy.ndarray`
         :param inplace: overwrite the main grid if True, defaults to False
         :type inplace: bool
@@ -2965,13 +2964,13 @@ class Soils(QualiRaster):
         self.units = "types ID"
 
     def set_hydro_soils(self, map_lito, map_hand, map_slope, n_hand=2, n_slope=10):
-        """Set hydrological soils based on lithology, Hand and Slope maps
+        """Set hydrological soils based on lithology, Hand and Slope maps.
 
         :param map_lito: Lithology raster map
         :type map_lito: :class:`datasets.Lithology`
         :param map_hand: HAND raster map
         :type map_hand: :class:`datasets.HAND`
-        param map_slope: Slope raster map
+        :param map_slope: Slope raster map
         :type map_slope: :class:`datasets.Slope`
         :param n_hand: HAND threshold for alluvial definition
         :type n_hand: float
@@ -2980,7 +2979,6 @@ class Soils(QualiRaster):
         :return: None
         :rtype: None
         """
-
         # process grid
         grd_soils = map_lito.grid.copy()
         # this assumes that there is less than 10 lito classes:
