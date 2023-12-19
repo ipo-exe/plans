@@ -63,6 +63,7 @@ def get_random_colors(size=10, cmap="tab20"):
 # -----------------------------------------
 # Series data structures
 
+
 class Collection:
     """
     This is the primitive objects collection
@@ -96,7 +97,6 @@ class Collection:
                 df_aux = pd.DataFrame(_dct)
                 # append
                 df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
-
 
             self.catalog = df_new_catalog.copy()
             del df_new_catalog
@@ -137,6 +137,607 @@ class Collection:
         self.catalog = self.catalog.drop(
             self.catalog[self.catalog["Name"] == name].index
         ).reset_index(drop=True)
+        return None
+
+
+class TimeSeries:
+    """
+    The primitive time series object
+
+    """
+
+    def __init__(self, name, varname, varfield, units):
+        """Deploy time series object
+
+        :param name: Name for the object
+        :type name: str
+        :param varname: variable name
+        :type varname: str
+        :param varfield: variable field alias
+        :type varfield: str
+        :param units: Units of the variable
+        :type units: str
+        """
+        self.name = name
+        self.varname = varname
+        self.varfield = varfield
+        self.units = units
+        self.dtfield = "Datetime"
+        self.data = None
+        self.dtres = "minute"
+        self.isstandard = False
+        self.agg = "sum"
+        self.epochs_stats = None
+        self.gapsize = 3
+        self._set_view_specs()
+
+    def _set_view_specs(self):
+        self.view_specs = {
+            "title": "{} | {} ({})".format(self.name, self.varname, self.varfield),
+            "width": 5 * 1.618,
+            "height": 3,
+            "xlabel": "Date",
+            "ylabel": self.units,
+            "vmin": 0,
+            "vmax": None,
+        }
+        return None
+
+    def load_data(
+        self,
+        input_file,
+        input_varfield,
+        input_dtres,
+        input_dtfield="Datetime",
+        sep=";",
+    ):
+        """Load data from file
+
+        :param input_file: path to `csv` input file
+        :type input_file: str
+        :param input_varfield: name of incoming varfield
+        :type input_varfield: str
+        :param input_dtres: datetime resolution. Options: second, minute, hour, day, month and year
+        :type input_dtres: str
+        :param input_dtfield: name of incoming datetime field
+        :type input_dtfield: str
+        :param sep: string separator. Default: `;`
+        :type sep: str
+        :return: None
+        :rtype: None
+        """
+        # load from csv
+        df = pd.read_csv(input_file, sep=sep, usecols=[input_dtfield, input_varfield])
+
+        # set data
+        self.set_data(
+            input_df=df,
+            input_varfield=input_varfield,
+            input_dtfield=input_dtfield,
+            input_dtres=input_dtres,
+        )
+        # clear
+        del df
+        return None
+
+    def set_data(self, input_df, input_dtfield, input_varfield, input_dtres="minute"):
+        """Set the data from the incoming pandas DataFrame.
+
+        :param input_df: :class:`pandas.DataFrame`
+            Incoming DataFrame.
+        :param input_dtfield: str
+            Name of the incoming datetime field.
+        :param input_varfield: str
+            Name of the incoming variable field.
+        :param input_dtres: str
+            Datetime resolution. Options: second, minute, hour, day, month, and year.
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        This function sets the time series data from an incoming DataFrame, applying a specified datetime resolution.
+
+        **Examples:**
+
+        >>> ts.set_data(df, "timestamp", "temperature", "hour")
+        """
+        # resolution dict
+        s_std_time = "2020-01-01 12:00:00"
+        dict_res = {
+            "second": "",
+            "minute": s_std_time[-3:],  # add seconds
+            "hour": s_std_time[-6:],  # add minutes
+            "day": s_std_time[-9:],  # add standard hour
+            "month": s_std_time[-12:],  # add day
+            "year": s_std_time[-16:],  # add month
+        }
+        # get copy
+        df = input_df.copy()
+
+        # drop nan values
+        df = df.dropna()
+
+        # rename columns to standard format
+        df = df.rename(
+            columns={input_dtfield: self.dtfield, input_varfield: self.varfield}
+        )
+
+        # datetime standard format
+        df[self.dtfield] = pd.to_datetime(
+            df[self.dtfield] + dict_res[input_dtres], format="%Y-%m-%d %H:%M:%S"
+        )
+
+        # set to attribute
+        self.data = df.copy()
+        self.dtres = input_dtres
+
+        return None
+
+    def standardize(self):
+        """Standardize the data based on regular datetime steps and the time resolution.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        This function standardizes the time series data based on regular datetime steps and the specified time resolution.
+
+        **Examples:**
+
+        >>> ts.standardize()
+        """
+        dict_freq = {
+            "second": ["20min", 15],
+            "minute": ["20min", 15],
+            "hour": ["H", 13],
+            "day": ["D", 10],
+            "month": ["MS", 7],
+            "year": ["YS", 4],
+        }
+        # get a date range for all period
+        dt_index = pd.date_range(
+            start=self.data[self.dtfield].dt.date.values[0],
+            end=self.data[self.dtfield].dt.date.values[-1],
+            freq=dict_freq[self.dtres][0],
+        )
+        # set dataframe
+        df = pd.DataFrame({self.dtfield: dt_index, "StEpoch": "-"})
+        # insert Epochs
+        df["StEpoch"] = df[self.dtfield].astype(str)
+        df["StEpoch"] = df["StEpoch"].str.slice(0, dict_freq[self.dtres][1])
+
+        # insert Epochs
+        df2 = self.data.copy()
+        df2["StEpoch"] = df2[self.dtfield].astype(str)
+        df2["StEpoch"] = df2["StEpoch"].str.slice(0, dict_freq[self.dtres][1])
+
+        # Group by 'Epochs' and calculate agg function
+        result_df = df2.groupby("StEpoch")[self.varfield].agg([self.agg]).reset_index()
+        # rename
+        result_df = result_df.rename(columns={self.agg: self.varfield})
+
+        # merge
+        df = pd.merge(
+            left=df, right=result_df, left_on="StEpoch", right_on="StEpoch", how="left"
+        )
+        # clear
+        self.data = df.drop(columns="StEpoch").copy()
+
+        # cut off edges
+        self.cut_edges(inplace=True)
+
+        self.isstandard = True
+        return None
+
+    def get_epochs(self, inplace=False):
+        """Get Epochs (periods) for continuous time series (0 = gap epoch).
+
+        :param inplace: bool, optional
+            Option to set Epochs inplace. Default is False.
+        :type inplace: bool
+        :return: :class:`pandas.DataFrame` or None
+            A DataFrame if inplace is False or None.
+        :rtype: :class:`pandas.DataFrame`, None
+
+        **Notes:**
+
+        This function labels continuous chunks of data as Epochs, with Epoch 0 representing gaps in the time series.
+
+        **Examples:**
+
+        >>> df_epochs = ts.get_epochs()
+        """
+        df = self.data.copy()
+        # Create a helper column to label continuous chunks of data
+        df["CumSum"] = (
+            df[self.varfield]
+            .isna()
+            .astype(int)
+            .groupby(df[self.varfield].notna().cumsum())
+            .cumsum()
+        )
+
+        # get skip hint
+        skip_v = np.zeros(len(df))
+        for i in range(len(df) - 1):
+            n_curr = df["CumSum"].values[i]
+            n_next = df["CumSum"].values[i + 1]
+            if n_next < n_curr:
+                if n_curr >= self.gapsize:
+                    n_start = i - n_curr
+                    if i <= n_curr:
+                        n_start = 0
+                    skip_v[n_start + 1 : i + 1] = 1
+        df["Skip"] = skip_v
+
+        # Set Epoch Field
+        df["Epoch_Id"] = 0
+        # counter epochs
+        counter = 1
+        for i in range(len(df) - 1):
+            if df["Skip"].values[i] == 0:
+                df["Epoch_Id"].values[i] = counter
+            else:
+                if df["Skip"].values[i + 1] == 0:
+                    counter = counter + 1
+        if df["Skip"].values[i + 1] == 0:
+            df["Epoch_Id"].values[i] = counter
+
+        df = df.drop(columns=["CumSum", "Skip"])
+
+        if inplace:
+            self.data = df.copy()
+            del df
+            return None
+        else:
+            return df
+
+    def update_epochs_stats(self):
+        """Update all epochs statistics.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        This function updates statistics for all epochs in the time series.
+
+        **Examples:**
+
+        >>> ts.update_epochs_stats()
+        """
+        # get epochs
+        if self.isstandard:
+            pass
+        else:
+            self.standardize()
+        df = self.get_epochs(inplace=False)
+        # remove epoch = 0
+        df.drop(df[df["Epoch_Id"] == 0].index, inplace=True)
+        df = df.rename(columns={"Epoch_Id": "Id"})
+        # group by
+        self.epochs_stats = (
+            df.groupby("Id")
+            .agg(
+                Count=("Id", "count"),
+                Start=(self.dtfield, "min"),
+                End=(self.dtfield, "max"),
+            )
+            .reset_index()
+        )
+        # get colors
+        self.epochs_stats["Color"] = get_random_colors(size=len(self.epochs_stats))
+        return None
+
+    def fill_gaps(self, method="linear", inplace=False):
+        """Fill gaps in a time series by interpolating missing values. If the time series is not in standard form, it will be standardized before interpolation.
+
+        :param method: str, optional
+            Specifies the interpolation method. Default is "linear".
+        :type method: str
+
+        :param inplace: bool, optional
+            If True, the interpolation will be performed in-place, and the original data will be modified.
+            If False, a new DataFrame with interpolated values will be returned, and the original data will remain unchanged.
+            Default is False.
+        :type inplace: bool
+
+        :return: :class:`pandas.DataFrame` or None
+            If inplace is False, a new DataFrame with interpolated values.
+            If inplace is True, returns None, and the original data is modified in-place.
+        :rtype: :class:`pandas.DataFrame` or None
+
+        **Notes:**
+
+        The interpolation is performed for each unique epoch in the time series.
+        The method supports linear interpolation and other interpolation methods provided by scipy.interpolate.interp1d.
+
+        **Examples:**
+
+        >>> ts.fill_gaps(method="linear", inplace=True)
+
+        >>> interpolated_ts = ts.fill_gaps(method="linear", inplace=False)
+        """
+        from scipy.interpolate import interp1d
+
+        if self.isstandard:
+            pass
+        else:
+            self.standardize()
+        # get epochs for interpolation
+        df = self.get_epochs(inplace=False)
+        epochs = df["Epoch_Id"].unique()
+        list_dfs = list()
+        for epoch in epochs:
+            df_aux1 = df.query("Epoch_Id == {}".format(epoch)).copy()
+            if epoch == 0:
+                df_aux1["{}_interp".format(self.varfield)] = np.nan
+            else:
+                df_aux2 = df_aux1.dropna().copy()
+                # Create an interpolation function without the datetimes
+                interpolation_func = interp1d(
+                    df_aux2[self.dtfield].astype(np.int64).values,
+                    df_aux2[self.varfield].values,
+                    kind=method,
+                    fill_value="extrapolate",
+                )
+                # interpolate full values
+                df_aux1["{}_interp".format(self.varfield)] = interpolation_func(
+                    df_aux1[self.dtfield].astype(np.int64)
+                )
+            # append
+            list_dfs.append(df_aux1)
+        df_new = pd.concat(list_dfs, ignore_index=True)
+        df_new = df_new.sort_values(by=self.dtfield).reset_index(drop=True)
+
+        if inplace:
+            self.data[self.varfield] = df_new["{}_interp".format(self.varfield)].values
+            return None
+        else:
+            return df_new
+
+    def cut_edges(self, inplace=False):
+        """Cut off initial and final NaN records in a given time series.
+
+        :param inplace: bool, optional
+            If True, the operation will be performed in-place, and the original data will be modified.
+            If False, a new DataFrame with cut edges will be returned, and the original data will remain unchanged.
+            Default is False.
+        :type inplace: bool
+
+        :return: :class:`pandas.DataFrame` or None
+            If inplace is False, a new DataFrame with cut edges.
+            If inplace is True, returns None, and the original data is modified in-place.
+        :rtype: :class:`pandas.DataFrame` or None
+
+        **Notes:**
+
+        This function removes leading and trailing rows with NaN values in the specified variable field.
+        The operation is performed on a copy of the original data, and the original data remains unchanged.
+
+        **Examples:**
+
+        >>> ts.cut_edges(inplace=True)
+
+        >>> trimmed_ts = ts.cut_edges(inplace=False)
+        """
+        # get dataframe
+        in_df = self.data.copy()
+        def_len = len(in_df)
+        # drop first nan lines
+        drop_ids = list()
+        # loop to collect indexes in the start of series
+        for def_i in range(def_len):
+            aux = in_df[self.varfield].isnull().iloc[def_i]
+            if aux:
+                drop_ids.append(def_i)
+            else:
+                break
+        # loop to collect indexes in the end of series
+        for def_i in range(def_len - 1, -1, -1):
+            aux = in_df[self.varfield].isnull().iloc[def_i]
+            if aux:
+                drop_ids.append(def_i)
+            else:
+                break
+        # loop to drop rows:
+        for def_i in range(len(drop_ids)):
+            in_df.drop(drop_ids[def_i], inplace=True)
+        # output
+        if inplace:
+            self.data = in_df.copy()
+            del in_df
+            return None
+        else:
+            return in_df
+
+    def aggregate(self, freq, agg_funcs=None, bad_max=7):
+        """Aggregate the time series data based on a specified frequency using various aggregation functions.
+
+        :param freq: str
+            Pandas-like alias frequency at which to aggregate the time series data, e.g., 'D' for daily, 'M' for monthly.
+        :type freq: str
+
+        :param agg_funcs: dict, optional
+            A dictionary specifying customized aggregation functions for each variable.
+            Default is None, which uses standard aggregation functions (sum, mean, median, min, max, std, var, percentiles).
+        :type agg_funcs: dict
+
+        :param bad_max: int, optional
+            The maximum number of 'Bad' records allowed in a time window for aggregation. Records with more 'Bad' entries
+            will be excluded from the aggregated result.
+            Default is 7.
+        :type bad_max: int
+
+        :return: pandas.DataFrame
+            A new DataFrame with aggregated values based on the specified frequency.
+        :rtype: pandas.DataFrame
+
+        **Notes:**
+
+        This function resamples the time series data to the specified frequency and aggregates the values using the
+        specified aggregation functions. It also counts the number of 'Bad' records in each time window and excludes
+        time windows with more 'Bad' entries than the specified threshold.
+
+        **Examples:**
+
+        >>> agg_result = ts.aggregate(freq='D', agg_funcs={'sum': 'sum', 'mean': 'mean'}, bad_max=5)
+        """
+
+        def custom_percentile(series, percentile):
+            return np.percentile(series, percentile)
+
+        if agg_funcs is None:
+            # Create a dictionary of standard and custom aggregation functions
+            agg_funcs = {
+                "sum": "sum",
+                "mean": "mean",
+                "median": "median",
+                "min": "min",
+                "max": "max",
+                "std": "std",
+                "var": "var",
+            }
+            # Add custom percentiles to the dictionary
+            percentiles_to_compute = [1, 5, 10, 25, 50, 75, 90, 95, 99]
+            for p in percentiles_to_compute:
+                agg_funcs[f"p{p}"] = lambda x, p=p: np.percentile(x, p)
+
+        # set list of tuples
+        agg_funcs_list = [
+            ("{}_{}".format(self.varfield, f), agg_funcs[f]) for f in agg_funcs
+        ]
+
+        # get data
+        df = self.data.copy()
+        df["Bad"] = df[self.varfield].isna().astype(int)
+        # Set the 'datetime' column as the index
+        df.set_index(self.dtfield, inplace=True)
+
+        # Resample the time series to a frequency using aggregation functions
+        agg_df1 = df.resample(freq)[self.varfield].agg(agg_funcs_list)
+        agg_df2 = df.resample(freq)["Bad"].agg([("Bad_count", "sum")])
+
+        # Reset the index to get 'Datetime' as a regular column
+        agg_df1.reset_index(inplace=True)
+        agg_df2.reset_index(inplace=True)
+
+        # merge with bad dates
+        agg_df = pd.merge(left=agg_df1, right=agg_df2, how="left", on=self.dtfield)
+
+        # set new df
+        agg_df_new = pd.DataFrame(
+            {
+                self.dtfield: pd.date_range(
+                    start=agg_df[self.dtfield].values[0],
+                    end=agg_df[self.dtfield].values[-1],
+                    freq=freq,
+                )
+            }
+        )
+        # remove bad records
+        agg_df.drop(agg_df[agg_df["Bad_count"] > bad_max].index, inplace=True)
+        # remove bad column
+        agg_df.drop(columns=["Bad_count"], inplace=True)
+
+        # left join
+        agg_df_new = pd.merge(
+            left=agg_df_new, right=agg_df, on=self.dtfield, how="left"
+        )
+
+        return agg_df_new
+
+    def view(
+        self, show=True, folder="./output", filename=None, dpi=300, fig_format="jpg"
+    ):
+        """Visualize the time series data using a scatter plot with colored epochs.
+
+        :param show: bool, optional
+            If True, the plot will be displayed interactively.
+            If False, the plot will be saved to a file.
+            Default is True.
+        :type show: bool
+
+        :param folder: str, optional
+            The folder where the plot file will be saved. Used only if show is False.
+            Default is "./output".
+        :type folder: str
+
+        :param filename: str, optional
+            The base name of the plot file. Used only if show is False. If None, a default filename is generated.
+            Default is None.
+        :type filename: str or None
+
+        :param dpi: int, optional
+            The dots per inch (resolution) of the plot file. Used only if show is False.
+            Default is 300.
+        :type dpi: int
+
+        :param fig_format: str, optional
+            The format of the plot file. Used only if show is False.
+            Default is "jpg".
+        :type fig_format: str
+
+        :return: None
+            If show is True, the plot is displayed interactively.
+            If show is False, the plot is saved to a file.
+        :rtype: None
+
+        **Notes:**
+
+        This function generates a scatter plot with colored epochs based on the epochs' start and end times.
+        The plot includes data points within each epoch, and each epoch is labeled with its corresponding ID.
+
+        **Examples:**
+
+        >>> ts.view(show=True)
+
+        >>> ts.view(show=False, folder="./output", filename="time_series_plot", dpi=300, fig_format="png")
+        """
+        specs = self.view_specs
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+
+        self.update_epochs_stats()
+        for i in range(len(self.epochs_stats)):
+            start = self.epochs_stats["Start"].values[i]
+            end = self.epochs_stats["End"].values[i]
+            df_aux = self.data.query(
+                "{} >= '{}' and {} < '{}'".format(
+                    self.dtfield, start, self.dtfield, end
+                )
+            )
+            epoch_c = self.epochs_stats["Color"].values[i]
+            epoch_id = self.epochs_stats["Id"].values[i]
+            plt.plot(
+                df_aux[self.dtfield],
+                df_aux[self.varfield],
+                ".",
+                color=epoch_c,
+                label=f"Epoch_{epoch_id}",
+            )
+        plt.legend(frameon=True, ncol=2)
+        plt.title(specs["title"])
+        plt.ylabel(specs["ylabel"])
+        plt.xlabel(specs["xlabel"])
+        plt.xlim(self.data[self.dtfield].min(), self.data[self.dtfield].max())
+        plt.ylim(0, 1.2 * self.data[self.varfield].max())
+
+        # Adjust layout to prevent cutoff
+        plt.tight_layout()
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = "{}_{}{}".format(self.varalias, self.name, suff)
+            plt.savefig(
+                "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
+            )
+            plt.close(fig)
         return None
 
 
@@ -988,7 +1589,7 @@ class RatingCurveCollection(Collection):
             qobs_field=qobs_field,
             date_field=date_field,
             units_q=units_q,
-            units_h=units_h
+            units_h=units_h,
         )
         self.append(new_object=rc_aux)
         # delete aux
@@ -1192,6 +1793,7 @@ class Raster:
         :rtype: None
         """
         from PIL import Image
+
         # Open the TIF file
         img_data = Image.open(file)
         # Convert the PIL image to a NumPy array
@@ -1199,7 +1801,6 @@ class Raster:
         # set grid
         self.set_grid(grid=grd_data)
         return None
-
 
     def load_asc_raster(self, file):
         """A function to load data and metadata from ``.asc`` raster files.
@@ -1293,7 +1894,6 @@ class Raster:
         with open(file) as f:
             self.prj = f.readline().strip("\n")
         return None
-
 
     def copy_structure(self, raster_ref, n_nodatavalue=None):
         """Copy structure (asc_metadata and prj file) from other raster object
@@ -1661,7 +2261,6 @@ class Raster:
 
             return Univar(data=self.get_grid_data()).assess_basic_stats()
 
-
     def get_aoi(self, by_value_lo, by_value_hi):
         """Get the AOI map from an interval of values (values are expected to exist in the raster)
 
@@ -1677,7 +2276,9 @@ class Raster:
         map_aoi.prj = self.prj
         # set grid
         self.insert_nodata()
-        map_aoi.set_grid(grid=1 * (self.grid >= by_value_lo) * (self.grid <= by_value_hi))
+        map_aoi.set_grid(
+            grid=1 * (self.grid >= by_value_lo) * (self.grid <= by_value_hi)
+        )
         self.mask_nodata()
         return map_aoi
 
@@ -1703,7 +2304,7 @@ class Raster:
             "vmin": None,
             "vmax": None,
             "hist_vmax": None,
-            "suffix": None
+            "suffix": None,
         }
         return None
 
@@ -1714,7 +2315,7 @@ class Raster:
         folder="./output",
         filename=None,
         dpi=300,
-        fig_format="jpg"
+        fig_format="jpg",
     ):
         """Plot a basic pannel of raster map.
 
@@ -1812,7 +2413,6 @@ class Raster:
             plt.plot(vct_result[1][1:], vct_cump, color="darkred")
             ax2.grid(False)
 
-
         # ------------------------------------------------------------------
         # plot metadata
 
@@ -1886,7 +2486,7 @@ class Raster:
             s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
             n_y = n_y - n_step
             plt.text(
-                x=n_x + 0.15    ,
+                x=n_x + 0.15,
                 y=n_y,
                 s=s_line,
                 fontsize=9,
@@ -1899,7 +2499,9 @@ class Raster:
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varalias, self.name, suff)
-            plt.savefig("{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi)
+            plt.savefig(
+                "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
+            )
             plt.close(fig)
         return None
 
@@ -1953,6 +2555,7 @@ class Slope(Raster):
         self.units = "deg."
         self._set_view_specs()
 
+
 class TWI(Raster):
     """
     TWI raster map dataset.
@@ -1971,6 +2574,7 @@ class TWI(Raster):
         self.description = "Topographical Wetness Index"
         self.units = "index units"
         self._set_view_specs()
+
 
 class HAND(Raster):
     """
@@ -2004,12 +2608,13 @@ class DTO(Raster):
         :type name: str
         """
         super().__init__(name=name, dtype="float32")
-        self.cmap = "rainbow"#"gist_rainbow_r"
+        self.cmap = "rainbow"  # "gist_rainbow_r"
         self.varname = "DTO"
         self.varalias = "DTO"
         self.description = "Distance To Outlet"
         self.units = "meters"
         self._set_view_specs()
+
 
 class NDVI(Raster):
     """
@@ -2039,6 +2644,7 @@ class NDVI(Raster):
         super().set_grid(grid)
         self.cut_edges(upper=1, lower=-1)
         return None
+
 
 class ET24h(Raster):
     """
@@ -2075,6 +2681,7 @@ class ET24h(Raster):
         self.cut_edges(upper=100, lower=0)
         return None
 
+
 class Hydrology(Raster):
     """
     Primitive hydrology raster map dataset.
@@ -2091,11 +2698,13 @@ class Hydrology(Raster):
 
         dict_cmaps = {
             "flow surface": "gist_earth_r",
-            "flow vapor": ListedColormap(mpl.colormaps["jet_r"](np.linspace(0.3, 0.75, 256))),
+            "flow vapor": ListedColormap(
+                mpl.colormaps["jet_r"](np.linspace(0.3, 0.75, 256))
+            ),
             "flow subsurface": "gist_earth_r",
             "stock surface": "",
             "stock subsurface": "",
-            "deficit": ""
+            "deficit": "",
         }
         # evaluate load this from csv
         dict_flows = {
@@ -2103,76 +2712,74 @@ class Hydrology(Raster):
                 "varname": "Runoff",
                 "description": "Combined overland flows",
                 "type": "flow",
-                "subtype": "surface"
+                "subtype": "surface",
             },
             "rie": {
                 "varname": "Runoff by Infiltration Excess",
                 "description": "Hortonian overland flow",
                 "type": "flow",
-                "subtype": "surface"
+                "subtype": "surface",
             },
             "rse": {
                 "varname": "Runoff by Saturation Excess",
                 "description": "Dunnean overland flow",
                 "type": "flow",
-                "subtype": "surface"
+                "subtype": "surface",
             },
             "ptf": {
                 "varname": "Throughfall",
                 "description": "Effective precipitation at the surface",
                 "type": "flow",
-                "subtype": "surface"
+                "subtype": "surface",
             },
             "inf": {
                 "varname": "Infiltration",
                 "description": "Water infiltration in soil",
                 "type": "flow",
-                "subtype": "subsurface"
+                "subtype": "subsurface",
             },
             "qv": {
                 "varname": "Recharge",
                 "description": "Recharge of groundwater",
                 "type": "flow",
-                "subtype": "subsurface"
+                "subtype": "subsurface",
             },
             "et": {
                 "varname": "Evapotranspiration",
                 "description": "Combined Evaporation and Transpiration flows",
                 "type": "flow",
-                "subtype": "vapor"
+                "subtype": "vapor",
             },
             "evc": {
                 "varname": "Canopy evaporation",
                 "description": "Direct evaporation from canopy",
                 "type": "flow",
-                "subtype": "vapor"
+                "subtype": "vapor",
             },
             "evs": {
                 "varname": "Surface evaporation",
                 "description": "Direct evaporation from soil surface",
                 "type": "flow",
-                "subtype": "vapor"
+                "subtype": "vapor",
             },
             "tun": {
                 "varname": "Soil tranpiration",
                 "description": "Transpiration from the water moisture in the soil",
                 "type": "flow",
-                "subtype": "vapor"
+                "subtype": "vapor",
             },
             "tgw": {
                 "varname": "Groundwater transpiration",
                 "description": "Transpiration from the saturated water zone",
                 "type": "flow",
-                "subtype": "vapor"
+                "subtype": "vapor",
             },
         }
 
         super().__init__(name=name, dtype="float32")
         self.varalias = varalias.lower()
         str_cmap_id = "{} {}".format(
-            dict_flows[self.varalias]["type"],
-            dict_flows[self.varalias]["subtype"]
-
+            dict_flows[self.varalias]["type"], dict_flows[self.varalias]["subtype"]
         )
         self.cmap = dict_cmaps[str_cmap_id]
         self.varname = dict_flows[self.varalias]["varname"]
@@ -2208,7 +2815,7 @@ class HabQuality(Raster):
         self.view_specs["vmin"] = 0
         self.view_specs["vmax"] = 1
 
-    def get_biodiversity_area(self, b_a: float=1.0) -> Raster:
+    def get_biodiversity_area(self, b_a: float = 1.0) -> Raster:
         """
         Get a raster of Biodiversity Area
         :param b_a: model parameter
@@ -2219,17 +2826,14 @@ class HabQuality(Raster):
         s = self.cellsize
         grid_ba = b_a * np.square(s) * self.grid / 10000
         # instantiate output
-        output_raster = BiodiversityArea(
-            name=self.name,
-            date=self.date,
-            q_a=b_a
-        )
+        output_raster = BiodiversityArea(name=self.name, date=self.date, q_a=b_a)
         # set raster
         output_raster.set_asc_metadata(metadata=self.asc_metadata)
         output_raster.prj = self.prj
         # set grid
         output_raster.set_grid(grid=grid_ba)
         return output_raster
+
 
 class HabDegradation(Raster):
     """
@@ -2254,6 +2858,7 @@ class HabDegradation(Raster):
         self._set_view_specs()
         self.view_specs["vmin"] = 0
         self.view_specs["vmax"] = 0.7
+
 
 class BiodiversityArea(Raster):
     """
@@ -2280,13 +2885,10 @@ class BiodiversityArea(Raster):
         self.ba_total = None
         self._set_view_specs()
 
-
     def set_grid(self, grid):
         super(BiodiversityArea, self).set_grid(grid)
         self.ba_total = np.sum(grid)
         return None
-
-
 
 
 # -----------------------------------------
@@ -2365,7 +2967,9 @@ class QualiRaster(Raster):
             n_new_id = dict_ids["New_Id"][i]
             if talk:
                 print(">> reclassify Ids from {} to {}".format(n_old_id, n_new_id))
-            grid_new = (grid_new * (grid_new != n_old_id)) + (n_new_id * (grid_new == n_old_id))
+            grid_new = (grid_new * (grid_new != n_old_id)) + (
+                n_new_id * (grid_new == n_old_id)
+            )
         # set new grid
         self.set_grid(grid=grid_new)
         # reset table
@@ -2549,10 +3153,10 @@ class QualiRaster(Raster):
 
         # deploy dataframe
         df_aux1 = self.table.copy()
-        self.clear_table() # clean
-        df_aux = self.table.copy() # get copy
+        self.clear_table()  # clean
+        df_aux = self.table.copy()  # get copy
         df_aux = df_aux[["Id", "Name", "Alias"]].copy()  # filter
-        self.set_table(dataframe=df_aux1) # restore uncleaned table
+        self.set_table(dataframe=df_aux1)  # restore uncleaned table
         ##### df_aux = self.table[["Id", "Name", "Alias"]].copy()
 
         # store copy of raster
@@ -2624,7 +3228,6 @@ class QualiRaster(Raster):
         _dict["Path_CSV"] = self.path_csvfile
         return _dict
 
-
     def _set_view_specs(self):
         """
         Get default view specs
@@ -2635,6 +3238,7 @@ class QualiRaster(Raster):
             pass
         else:
             from matplotlib.colors import ListedColormap
+
             # handle no color field in table:
             if self.colorfield in self.table.columns:
                 pass
@@ -2652,7 +3256,9 @@ class QualiRaster(Raster):
             self.view_specs = {
                 "color": "tab:grey",
                 "cmap": ListedColormap(_lst_colors),
-                "suptitle": "{} ({}) | {}".format(self.varname, self.varalias, self.name),
+                "suptitle": "{} ({}) | {}".format(
+                    self.varname, self.varalias, self.name
+                ),
                 "a_title": "{} Map ({})".format(self.varalias, self.units),
                 "b_title": "{} Prevalence".format(self.varalias),
                 "c_title": "Metadata",
@@ -2670,7 +3276,7 @@ class QualiRaster(Raster):
                 "legend_x": 0.4,
                 "legend_y": 0.3,
                 "legend_ncol": 1,
-                "suffix": None
+                "suffix": None,
             }
         return None
 
@@ -2730,11 +3336,21 @@ class QualiRaster(Raster):
                         "Name": ["Others"],
                         "Alias": ["etc"],
                         "Cell_count": [df_aux2["Cell_count"].sum()],
-                        "{}_m2".format(self.areafield): [df_aux2["{}_m2".format(self.areafield)].sum()],
-                        "{}_ha".format(self.areafield): [df_aux2["{}_ha".format(self.areafield)].sum()],
-                        "{}_km2".format(self.areafield): [df_aux2["{}_km2".format(self.areafield)].sum()],
-                        "{}_f".format(self.areafield): [df_aux2["{}_f".format(self.areafield)].sum()],
-                        "{}_%".format(self.areafield): [df_aux2["{}_%".format(self.areafield)].sum()],
+                        "{}_m2".format(self.areafield): [
+                            df_aux2["{}_m2".format(self.areafield)].sum()
+                        ],
+                        "{}_ha".format(self.areafield): [
+                            df_aux2["{}_ha".format(self.areafield)].sum()
+                        ],
+                        "{}_km2".format(self.areafield): [
+                            df_aux2["{}_km2".format(self.areafield)].sum()
+                        ],
+                        "{}_f".format(self.areafield): [
+                            df_aux2["{}_f".format(self.areafield)].sum()
+                        ],
+                        "{}_%".format(self.areafield): [
+                            df_aux2["{}_%".format(self.areafield)].sum()
+                        ],
                     }
                 )
                 df_aux = df_aux.query("{}_m2 >= {}".format(self.areafield, n_limit))
@@ -2866,7 +3482,9 @@ class QualiRaster(Raster):
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varalias, self.name, suff)
-            plt.savefig("{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi)
+            plt.savefig(
+                "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
+            )
             plt.close(fig)
         return None
 
@@ -2932,6 +3550,7 @@ class LULCChange(QualiRaster):
             }
         )
         self.set_table(dataframe=df_aux)
+
 
 class Lithology(QualiRaster):
     """
@@ -3025,10 +3644,7 @@ class Soils(QualiRaster):
             "Old_Id": self.table["Id"].values,
             "New_Id": df_new_table["Id"].values,
         }
-        self.reclassify(
-            dict_ids=dict_ids,
-            df_new_table=df_new_table
-        )
+        self.reclassify(dict_ids=dict_ids, df_new_table=df_new_table)
         return None
 
 
@@ -3077,7 +3693,6 @@ class QualiHard(QualiRaster):
         return None
 
 
-
 class AOI(QualiHard):
     """
     AOI map dataset
@@ -3103,12 +3718,12 @@ class AOI(QualiHard):
         return df_aux
 
     def view(
-            self,
-            show=True,
-            folder="./output",
-            filename=None,
-            dpi=150,
-            fig_format="jpg",
+        self,
+        show=True,
+        folder="./output",
+        filename=None,
+        dpi=150,
+        fig_format="jpg",
     ):
         """Plot a basic pannel of raster map.
 
@@ -3151,6 +3766,7 @@ class AOI(QualiHard):
         del map_aoi_aux
         return None
 
+
 class LDD(QualiHard):
     """
     LDD - Local Drain Direction map dataset
@@ -3174,25 +3790,39 @@ class LDD(QualiHard):
     def get_table(self):
         df_aux = pd.DataFrame(
             {
-                "Id": [
-                    1, 2, 3,
-                    4, 5, 6,
-                    7, 8, 9
-                ],
+                "Id": [1, 2, 3, 4, 5, 6, 7, 8, 9],
                 "Alias": [
-                    "1-SW", "2-S", "3-SE",
-                    "4-W", "5-C", "6-E",
-                    "7-NW", "8-N", "9-NE"
+                    "1-SW",
+                    "2-S",
+                    "3-SE",
+                    "4-W",
+                    "5-C",
+                    "6-E",
+                    "7-NW",
+                    "8-N",
+                    "9-NE",
                 ],
                 "Name": [
-                    "South-west", "South", "South-east",
-                    "West", "Center", "East",
-                    "North-west", "North", "North-east",
+                    "South-west",
+                    "South",
+                    "South-east",
+                    "West",
+                    "Center",
+                    "East",
+                    "North-west",
+                    "North",
+                    "North-east",
                 ],
                 "Color": [
-                    '#8c564b', '#9edae5', '#98df8a',
-                    '#dbdb8d', '#d62728', '#ff7f0e',
-                    '#1f77b4', '#f7b6d2', '#98df8a'
+                    "#8c564b",
+                    "#9edae5",
+                    "#98df8a",
+                    "#dbdb8d",
+                    "#d62728",
+                    "#ff7f0e",
+                    "#1f77b4",
+                    "#f7b6d2",
+                    "#98df8a",
                 ],
             }
         )
@@ -3225,11 +3855,19 @@ class Zones(QualiRaster):
             self.table = pd.DataFrame(
                 {
                     "Id": vct_unique,
-                    "Alias": ["{}{}".format(self.varalias, vct_unique[i]) for i in range(len(vct_unique))],
-                    "Name": ["{} {}".format(self.varname, vct_unique[i]) for i in range(len(vct_unique))]
+                    "Alias": [
+                        "{}{}".format(self.varalias, vct_unique[i])
+                        for i in range(len(vct_unique))
+                    ],
+                    "Name": [
+                        "{} {}".format(self.varname, vct_unique[i])
+                        for i in range(len(vct_unique))
+                    ],
                 }
             )
-            self.table = self.table.drop(self.table[self.table["Id"] == self.asc_metadata["NODATA_value"]].index)
+            self.table = self.table.drop(
+                self.table[self.table["Id"] == self.asc_metadata["NODATA_value"]].index
+            )
             self.table["Id"] = self.table["Id"].astype(int)
             self.table = self.table.sort_values(by="Id")
             self.table = self.table.reset_index(drop=True)
@@ -3333,8 +3971,10 @@ class Zones(QualiRaster):
         del map_zones_aux
         return None
 
+
 # -----------------------------------------
 # Raster Collection data structures
+
 
 class RasterCollection(Collection):
     """
@@ -3437,12 +4077,16 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         import copy
+
         # return None if there is different grids
         if self.issamegrid():
             # get shape parameters
             n = len(self.catalog)
             _first = self.catalog["Name"].values[0]
-            n_flat = self.collection[_first].grid.shape[0] * self.collection[_first].grid.shape[1]
+            n_flat = (
+                self.collection[_first].grid.shape[0]
+                * self.collection[_first].grid.shape[1]
+            )
 
             # create the merged grid
             grd_merged = np.zeros(shape=(n, n_flat))
@@ -3471,7 +4115,9 @@ class RasterCollection(Collection):
                     vct_stats[i] = reducer_function(_vct, extra_arg)
 
             # reshape
-            grd_stats = np.reshape(a=vct_stats, newshape=self.collection[_first].grid.shape)
+            grd_stats = np.reshape(
+                a=vct_stats, newshape=self.collection[_first].grid.shape
+            )
             # return set up
             output_raster = copy.deepcopy(self.collection[_first])
             output_raster.set_grid(grd_stats)
@@ -3496,7 +4142,7 @@ class RasterCollection(Collection):
             reducer_function=np.mean,
             reduction_name="{} Mean".format(self.name),
             skip_nan=skip_nan,
-            talk=talk
+            talk=talk,
         )
         return output_raster
 
@@ -3514,7 +4160,7 @@ class RasterCollection(Collection):
             reducer_function=np.std,
             reduction_name="{} SD".format(self.name),
             skip_nan=skip_nan,
-            talk=talk
+            talk=talk,
         )
         return output_raster
 
@@ -3532,7 +4178,7 @@ class RasterCollection(Collection):
             reducer_function=np.min,
             reduction_name="{} Min".format(self.name),
             skip_nan=skip_nan,
-            talk=talk
+            talk=talk,
         )
         return output_raster
 
@@ -3550,7 +4196,7 @@ class RasterCollection(Collection):
             reducer_function=np.max,
             reduction_name="{} Max".format(self.name),
             skip_nan=skip_nan,
-            talk=talk
+            talk=talk,
         )
         return output_raster
 
@@ -3568,7 +4214,7 @@ class RasterCollection(Collection):
             reducer_function=np.sum,
             reduction_name="{} Sum".format(self.name),
             skip_nan=skip_nan,
-            talk=talk
+            talk=talk,
         )
         return output_raster
 
@@ -3607,7 +4253,7 @@ class RasterCollection(Collection):
             reducer_function=np.median,
             reduction_name="{} Median".format(self.name),
             skip_nan=skip_nan,
-            talk=talk
+            talk=talk,
         )
         return output_raster
 
@@ -3636,9 +4282,7 @@ class RasterCollection(Collection):
         df_aux["Count"] = df_aux["Count"].astype(dtype="uint32")
         return df_aux
 
-    def get_views(
-        self, show=True, folder="./output", dpi=300, fig_format="jpg"
-    ):
+    def get_views(self, show=True, folder="./output", dpi=300, fig_format="jpg"):
         """Plot all basic pannel of raster maps in collection.
 
         :param show: boolean to show plot instead of saving,
@@ -3964,7 +4608,13 @@ class RasterSeries(RasterCollection):
         return df_series
 
     def get_views(
-        self, show=True, folder="./output", view_specs=None, dpi=300, fig_format="jpg", talk=False
+        self,
+        show=True,
+        folder="./output",
+        view_specs=None,
+        dpi=300,
+        fig_format="jpg",
+        talk=False,
     ):
         """Plot all basic pannel of raster maps in collection.
 
@@ -3991,7 +4641,6 @@ class RasterSeries(RasterCollection):
 
         # plot loop
         for k in self.collection:
-
             rst_lcl = self.collection[k]
             s_name = rst_lcl.name
             if talk:
@@ -4344,7 +4993,7 @@ class QualiRasterSeries(RasterSeries):
             "legend_x": 0.85,
             "legend_y": 0.33,
             "legend_ncol": 3,
-            "filter_by_id": None  # list of ids
+            "filter_by_id": None,  # list of ids
         }
         # handle input specs
         if specs is None:
@@ -4372,7 +5021,7 @@ class QualiRasterSeries(RasterSeries):
             _name = self.table["Name"].values[i]
             _alias = self.table["Alias"].values[i]
             _color = self.table["Color"].values[i]
-            if specs["filter_by_id"] == None:                
+            if specs["filter_by_id"] == None:
                 # filter series
                 _df = df_areas.query("Id == {}".format(_id)).copy()
                 plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
@@ -4406,16 +5055,15 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def get_views(
-            self,
-            show=True,
-            filter=False,
-            n_filter=6,
-            folder="./output",
-            view_specs=None,
-            dpi=300,
-            fig_format="jpg",
-            talk=False,
-
+        self,
+        show=True,
+        filter=False,
+        n_filter=6,
+        folder="./output",
+        view_specs=None,
+        dpi=300,
+        fig_format="jpg",
+        talk=False,
     ):
         """Plot all basic pannel of raster maps in collection.
 
@@ -4455,7 +5103,7 @@ class QualiRasterSeries(RasterSeries):
                 dpi=dpi,
                 fig_format=fig_format,
                 filter=filter,
-                n_filter=n_filter
+                n_filter=n_filter,
             )
         return None
 
@@ -4688,16 +5336,31 @@ class LULCSeries(QualiRasterSeries):
 
 
 if __name__ == "__main__":
-    #print(plt.style.available)
     plt.style.use("seaborn-v0_8")
-    f = r"C:\gis\_projects_\canela\micro\aoi_canela_10m.asc"
-    aoi = AOI()
-    aoi.load(file=f)
-    aoi.view()
+    # f = "C:/data/p_1.csv"
+    # df = pd.read_csv(f, sep=";", parse_dates=["Date"])
+    # df = df.query("Date >= '2017-01-01'")
+    # df.to_csv(f, sep=";", index=False)
 
+    dict_f = {
+        0: ["C:/data/p_1.csv", "second"],
+        1: ["C:/data/p_2.csv", "minute"],
+        2: ["C:/data/p_3.csv", "day"],
+    }
+    f = 0
 
-    f = r"C:\data\ldd.asc"
-    ldd = LDD()
-    ldd.load(asc_file=f)
-    ldd.view()
-    print(get_random_colors(size=9))
+    ts = TimeSeries(name="MyTS", varname="Precipitation", varfield="P", units="mm")
+    ts.load_data(
+        input_file=dict_f[f][0],
+        input_dtfield="Date",
+        input_varfield="P_PVG42_mm",
+        input_dtres=dict_f[f][1],
+    )
+
+    ts.standardize()
+    print(ts.data.head(10))
+
+    ts.fill_gaps(method="linear", inplace=True)
+    print(ts.data.head(10))
+
+    ts.view(show=True)
