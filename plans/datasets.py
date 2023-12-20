@@ -1677,12 +1677,42 @@ class Raster:
     """
 
     def __init__(self, name="myRasterMap", dtype="float32"):
-        """Deploy basic raster map base_object.
+        """Deploy a basic raster map object.
 
-        :param name: map name
+        :param name: Map name, defaults to "myRasterMap"
         :type name: str
-        :param dtype: data type of raster cells - options: byte, uint8, int16, int32, float32, etc, defaults to float32
+        :param dtype: Data type of raster cells. Options: byte, uint8, int16, int32, float32, etc., defaults to "float32"
         :type dtype: str
+
+        **Attributes:**
+
+        - `grid` (None): Main grid of the raster.
+        - `backup_grid` (None): Backup grid for AOI operations.
+        - `isaoi` (False): Flag indicating whether an AOI mask is applied.
+        - `asc_metadata` (dict): Metadata dictionary with keys: ncols, nrows, xllcorner, yllcorner, cellsize, NODATA_value.
+        - `nodatavalue` (None): NODATA value from asc_metadata.
+        - `cellsize` (None): Cell size from asc_metadata.
+        - `name` (str): Name of the raster map.
+        - `dtype` (str): Data type of raster cells.
+        - `cmap` ("jet"): Default color map for visualization.
+        - `varname` ("Unknown variable"): Variable name associated with the raster.
+        - `varalias` ("Var"): Variable alias.
+        - `description` (None): Description of the raster map.
+        - `units` ("units"): Measurement units of the raster values.
+        - `date` (None): Date associated with the raster map.
+        - `source_data` (None): Source data information.
+        - `prj` (None): Projection information.
+        - `path_ascfile` (None): Path to the .asc raster file.
+        - `path_prjfile` (None): Path to the .prj projection file.
+        - `view_specs` (None): View specifications for visualization.
+
+        **Examples:**
+
+        >>> # Create a raster map with default settings
+        >>> raster = Raster()
+
+        >>> # Create a raster map with custom name and data type
+        >>> custom_raster = Raster(name="CustomRaster", dtype="int16")
         """
         # -------------------------------------
         # set basic attributes
@@ -1726,10 +1756,24 @@ class Raster:
         return "\n".join(lst_)
 
     def set_grid(self, grid):
-        """Set data from incoming objects.
+        """Set the data grid for the raster object.
 
-        :param grid: data grid
+        This function allows setting the data grid for the raster object. The incoming grid should be a NumPy array.
+
+        :param grid: :class:`numpy.ndarray`
+            The data grid to be set for the raster.
         :type grid: :class:`numpy.ndarray`
+
+        **Notes:**
+
+        - The function overwrites the existing data grid in the raster object with the incoming grid, ensuring that the data type matches the raster's dtype.
+        - Nodata values are masked after setting the grid.
+
+        **Examples:**
+
+        >>> # Example of setting a new grid
+        >>> new_grid = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        >>> raster.set_grid(new_grid)
         """
         # overwrite incoming dtype
         self.grid = grid.astype(self.dtype)
@@ -1738,23 +1782,36 @@ class Raster:
         return None
 
     def set_asc_metadata(self, metadata):
-        """Set metadata from incoming objects
+        """Set metadata for the raster object based on incoming metadata.
 
-        Example of metadata for ``.asc`` file raster:
+        This function allows setting metadata for the raster object from an incoming metadata dictionary. The metadata should include information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
 
-        .. code-block:: python
+        :param metadata: dict
+            A dictionary containing metadata for the raster. Example metadata for a '.asc' file raster:
 
-            meta = {
-                'ncols': 366,
-                'nrows': 434,
-                'xllcorner': 559493.08,
-                'yllcorner': 6704832.2,
-                'cellsize': 30,
-                'NODATA_value': -1
-            }.
+            .. code-block:: python
 
-        :param metadata: metadata dictionary
+                meta = {
+                    'ncols': 366,
+                    'nrows': 434,
+                    'xllcorner': 559493.08,
+                    'yllcorner': 6704832.2,
+                    'cellsize': 30,
+                    'NODATA_value': -1
+                }
+
         :type metadata: dict
+
+        **Notes:**
+
+        - The function updates the raster object's metadata based on the provided dictionary, ensuring that existing metadata keys are preserved.
+        - It specifically updates nodata value and cell size attributes in the raster object.
+
+        **Examples:**
+
+        >>> # Example of setting metadata
+        >>> metadata_dict = {'ncols': 200, 'nrows': 300, 'xllcorner': 500000.0, 'yllcorner': 6000000.0, 'cellsize': 25, 'NODATA_value': -9999}
+        >>> raster.set_asc_metadata(metadata_dict)
         """
         for k in self.asc_metadata:
             if k in metadata:
@@ -1765,14 +1822,34 @@ class Raster:
         return None
 
     def load(self, asc_file, prj_file=None):
-        """Load data from files to raster
+        """Load data from files to the raster object.
 
-        :param asc_file: path_main to ``.asc`` raster file
+        This function loads data from '.asc' raster and '.prj' projection files into the raster object.
+
+        :param asc_file: str
+            The path to the '.asc' raster file.
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+
+        :param prj_file: str, optional
+            The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the '.asc' file with the '.prj' extension.
         :type prj_file: str
+
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - The function first loads the raster data from the '.asc' file using the `load_asc_raster` method.
+        - If a '.prj' file is not explicitly provided, the function attempts to use a '.prj' file with the same path and name as the '.asc' file.
+        - The function then loads the projection information from the '.prj' file using the `load_prj_file` method.
+
+        **Examples:**
+
+        >>> # Example of loading data
+        >>> raster.load(asc_file="path/to/raster.asc")
+
+        >>> # Example of loading data with a specified projection file
+        >>> raster.load(asc_file="path/to/raster.asc", prj_file="path/to/raster.prj")
         """
         self.load_asc_raster(file=asc_file)
         if prj_file is None:
@@ -1785,12 +1862,27 @@ class Raster:
         return None
 
     def load_tif_raster(self, file):
-        """A function to load data from ``.tif`` raster files. Note that metadata may be provided from other sources.
+        """Load data from '.tif' raster files.
 
-        :param file: string of file path with the ``.tif`` extension
+        This function loads data from '.tif' raster files into the raster object. Note that metadata may be provided from other sources.
+
+        :param file: str
+            The file path of the '.tif' raster file.
         :type file: str
+
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - The function uses the Pillow (PIL) library to open the '.tif' file and converts it to a NumPy array.
+        - Metadata may need to be provided separately, as this function focuses on loading raster data.
+        - The loaded data grid is set using the `set_grid` method of the raster object.
+
+        **Examples:**
+
+        >>> # Example of loading data from a '.tif' file
+        >>> raster.load_tif_raster(file="path/to/raster.tif")
         """
         from PIL import Image
 
@@ -1803,10 +1895,29 @@ class Raster:
         return None
 
     def load_asc_raster(self, file):
-        """A function to load data and metadata from ``.asc`` raster files.
+        """Load data and metadata from '.asc' raster files.
 
-        :param file: string of file path_main with the ``.asc`` extension
+        This function loads both data and metadata from '.asc' raster files into the raster object.
+
+        :param file: str
+            The file path to the '.asc' raster file.
         :type file: str
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function reads the content of the '.asc' file, extracts metadata, and constructs the data grid.
+        - The metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
+        - The data grid is constructed from the array information provided in the '.asc' file.
+        - The function depends on the existence of a properly formatted '.asc' file.
+        - No additional dependencies beyond standard Python libraries are required.
+
+        **Examples:**
+
+        >>> # Example of loading data and metadata from a '.asc' file
+        >>> raster.load_asc_raster(file="path/to/raster.asc")
         """
         # get file
         self.path_ascfile = file
@@ -1847,12 +1958,29 @@ class Raster:
         return None
 
     def load_asc_metadata(self, file):
-        """A function to load only metadata from ``.asc`` raster files.
+        """Load only metadata from '.asc' raster files.
 
-        :param file: string of file path_main with the ``.asc`` extension
+        This function extracts metadata from '.asc' raster files and sets it as attributes in the raster object.
+
+        :param file: str
+            The file path to the '.asc' raster file.
         :type file: str
-        """
 
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function reads the first six lines of the '.asc' file to extract metadata.
+        - Metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
+        - The function sets the metadata as attributes in the raster object using the `set_asc_metadata` method.
+        - This function is useful when only metadata needs to be loaded without the entire data grid.
+
+        **Examples:**
+
+        >>> # Example of loading metadata from a '.asc' file
+        >>> raster.load_asc_metadata(file="path/to/raster.asc")
+        """
         with open(file) as f:
             def_lst = []
             for i, line in enumerate(f):
@@ -1883,12 +2011,27 @@ class Raster:
         return None
 
     def load_prj_file(self, file):
-        """Function for loading ``.prj`` aux file to the prj attribute
+        """Load '.prj' auxiliary file to the 'prj' attribute.
 
-        :param file: string of file path_main with the ``.prj`` extension
+        This function loads the content of a '.prj' auxiliary file and sets it as the 'prj' attribute in the raster object.
+
+        :param file: str
+            The file path to the '.prj' auxiliary file.
         :type file: str
+
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - The function reads the content of the '.prj' file and assigns it to the 'prj' attribute.
+        - The 'prj' attribute typically contains coordinate system information in Well-Known Text (WKT) format.
+        - This function is useful for associating coordinate system information with raster data.
+
+        **Examples:**
+
+        >>> # Example of loading coordinate system information from a '.prj' file
+        >>> raster.load_prj_file(file="path/to/raster.prj")
         """
         self.path_prjfile = file
         with open(file) as f:
@@ -1896,14 +2039,31 @@ class Raster:
         return None
 
     def copy_structure(self, raster_ref, n_nodatavalue=None):
-        """Copy structure (asc_metadata and prj file) from other raster object
+        """Copy structure (asc_metadata and prj file) from another raster object.
 
-        :param raster: reference incoming raster object to copy asc_metadata and prj
+        This function copies the structure, including asc_metadata and prj, from another raster object to the current raster object.
+
+        :param raster_ref: :class:`datasets.Raster`
+            The reference incoming raster object from which to copy asc_metadata and prj.
         :type raster_ref: :class:`datasets.Raster`
-        :param n_nodatavalue: new nodata value for different rasters objects
+
+        :param n_nodatavalue: float, optional
+            The new nodata value for different raster objects. If None, the nodata value remains unchanged.
         :type n_nodatavalue: float
+
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - The function copies the asc_metadata and prj attributes from the reference raster object to the current raster object.
+        - If a new nodata value is provided, it updates the 'NODATA_value' in the copied asc_metadata.
+        - This function is useful for ensuring consistency in metadata and coordinate system information between raster objects.
+
+        **Examples:**
+
+        >>> # Example of copying structure from a reference raster object
+        >>> new_raster.copy_structure(raster_ref=reference_raster, n_nodatavalue=-9999.0)
         """
         dict_meta = raster_ref.asc_metadata.copy()
         # handle new nodatavalue
@@ -1913,16 +2073,35 @@ class Raster:
             dict_meta["NODATA_value"] = n_nodatavalue
         self.set_asc_metadata(metadata=dict_meta)
         self.prj = raster_ref.prj[:]
+        return None
 
     def export(self, folder, filename=None):
-        """Export raster data to folder
+        """Export raster data to a folder.
 
-        :param folder: string of directory path_main,
+        This function exports raster data, including the '.asc' raster file and '.prj' projection file, to the specified folder.
+
+        :param folder: str
+            The directory path to export the raster data.
         :type folder: str
-        :param filename: string of file without extension, defaults to None
+
+        :param filename: str, optional
+            The name of the exported files without extension. If None, the name of the raster object is used.
         :type filename: str
+
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - The function exports the raster data to the specified folder, creating '.asc' and '.prj' files.
+        - If a filename is not provided, the function uses the name of the raster object.
+        - The exported files will have the same filename with different extensions ('.asc' and '.prj').
+        - This function is useful for saving raster data to a specified directory.
+
+        **Examples:**
+
+        >>> # Example of exporting raster data to a folder
+        >>> raster.export(folder="path/to/export_folder", filename="exported_raster")
         """
         if filename is None:
             filename = self.name
@@ -1931,14 +2110,33 @@ class Raster:
         return None
 
     def export_asc_raster(self, folder, filename=None):
-        """Function for exporting an ``.asc`` raster file.
+        """Export an '.asc' raster file.
 
-        :param folder: string of directory path_main,
+        This function exports the raster data as an '.asc' file to the specified folder.
+
+        :param folder: str
+            The directory path to export the '.asc' raster file.
         :type folder: str
-        :param filename: string of file without extension, defaults to None
+
+        :param filename: str, optional
+            The name of the exported file without extension. If None, the name of the raster object is used.
         :type filename: str
-        :return: full file name (path_main and extension) string
+
+        :return: str
+            The full file name (path and extension) of the exported '.asc' raster file.
         :rtype: str
+
+        **Notes:**
+
+        - The function exports the raster data to an '.asc' file in the specified folder.
+        - If a filename is not provided, the function uses the name of the raster object.
+        - The exported '.asc' file contains metadata and data information.
+        - This function is useful for saving raster data in ASCII format.
+
+        **Examples:**
+
+        >>> # Example of exporting an '.asc' raster file to a folder
+        >>> raster.export_asc_raster(folder="path/to/export_folder", filename="exported_raster")
         """
         if self.grid is None or self.asc_metadata is None:
             pass
@@ -1988,14 +2186,33 @@ class Raster:
             return flenm
 
     def export_prj_file(self, folder, filename=None):
-        """Function for exporting an ``.prj`` file.
+        """Export a '.prj' file.
 
-        :param folder: string of directory path_main,
+        This function exports the coordinate system information to a '.prj' file in the specified folder.
+
+        :param folder: str
+            The directory path to export the '.prj' file.
         :type folder: str
-        :param filename: string of file without extension, defaults to None
+
+        :param filename: str, optional
+            The name of the exported file without extension. If None, the name of the raster object is used.
         :type filename: str
-        :return: full file name (path_main and extension) string
+
+        :return: str or None
+            The full file name (path and extension) of the exported '.prj' file, or None if no coordinate system information is available.
         :rtype: str or None
+
+        **Notes:**
+
+        - The function exports the coordinate system information to a '.prj' file in the specified folder.
+        - If a filename is not provided, the function uses the name of the raster object.
+        - The exported '.prj' file contains coordinate system information in Well-Known Text (WKT) format.
+        - This function is useful for saving coordinate system information associated with raster data.
+
+        **Examples:**
+
+        >>> # Example of exporting a '.prj' file to a folder
+        >>> raster.export_prj_file(folder="path/to/export_folder", filename="exported_prj")
         """
         if self.prj is None:
             return None
@@ -2010,7 +2227,16 @@ class Raster:
             return flenm
 
     def mask_nodata(self):
-        """Mask grid cells as NaN where data is NODATA."""
+        """Mask grid cells as NaN where data is NODATA.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function masks grid cells as NaN where the data is equal to the specified NODATA value.
+        - If NODATA value is not set, no masking is performed.
+        """
         if self.nodatavalue is None:
             pass
         else:
@@ -2023,7 +2249,16 @@ class Raster:
         return None
 
     def insert_nodata(self):
-        """Insert grid cells as NODATA where data is NaN."""
+        """Insert grid cells as NODATA where data is NaN.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function inserts NODATA values into grid cells where the data is NaN.
+        - If NODATA value is not set, no insertion is performed.
+        """
         if self.nodatavalue is None:
             pass
         else:
@@ -2036,16 +2271,40 @@ class Raster:
         return None
 
     def rebase_grid(self, base_raster, inplace=False, method="linear_model"):
-        """Rebase grid of raster. This function creates a new grid based on a provided raster. Both rasters are expected to be in the same coordinate system and having overlapping bounding boxes.
+        """Rebase the grid of a raster.
 
-        :param base_raster: reference raster for rebase
+        This function creates a new grid based on a provided reference raster. Both rasters are expected to be in the same coordinate system and have overlapping bounding boxes.
+
+        :param base_raster: :class:`datasets.Raster`
+            The reference raster used for rebase. It should be in the same coordinate system and have overlapping bounding boxes.
         :type base_raster: :class:`datasets.Raster`
-        :param inplace: option for rebase the own grid if True, defaults to False
+
+        :param inplace: bool, optional
+            If True, the rebase operation will be performed in-place, and the original raster's grid will be modified. If False, a new rebased grid will be returned, and the original data will remain unchanged. Default is False.
         :type inplace: bool
-        :param method: interpolation method - linear_model, nearest and cubic
+
+        :param method: str, optional
+            Interpolation method for rebasing the grid. Options include "linear_model," "nearest," and "cubic." Default is "linear_model."
         :type method: str
-        :return: rebased grid
+
+        :return: :class:`numpy.ndarray` or None
+            If inplace is False, a new rebased grid as a NumPy array.
+            If inplace is True, returns None, and the original raster's grid is modified in-place.
         :rtype: :class:`numpy.ndarray` or None
+
+        **Notes:**
+
+        - The rebase operation involves interpolating the values of the original grid to align with the reference raster's grid.
+        - The method parameter specifies the interpolation method and can be "linear_model," "nearest," or "cubic."
+        - The rebase assumes that both rasters are in the same coordinate system and have overlapping bounding boxes.
+
+        **Examples:**
+
+        >>> # Example with inplace=True
+        >>> raster.rebase_grid(base_raster=reference_raster, inplace=True)
+
+        >>> # Example with inplace=False
+        >>> rebased_grid = raster.rebase_grid(base_raster=reference_raster, inplace=False)
         """
         from scipy.interpolate import griddata
 
@@ -2070,14 +2329,33 @@ class Raster:
             return grd_zi
 
     def apply_aoi_mask(self, grid_aoi, inplace=False):
-        """Apply AOI (area of interest) mask to raster map.
+        """Apply AOI (area of interest) mask to the raster map.
 
-        :param grid_aoi: map of AOI (masked array or pseudo-boolean). Expected to have the same grid shape.
+        This function applies an AOI (area of interest) mask to the raster map, replacing values outside the AOI with the NODATA value.
+
+        :param grid_aoi: :class:`numpy.ndarray`
+            Map of AOI (masked array or pseudo-boolean). Expected to have the same grid shape as the raster.
         :type grid_aoi: :class:`numpy.ndarray`
-        :param inplace: overwrite the main grid if True, defaults to False
+
+        :param inplace: bool, optional
+            If True, overwrite the main grid with the masked values. If False, create a backup and modify a copy of the grid.
+            Default is False.
         :type inplace: bool
+
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - The function replaces values outside the AOI (where grid_aoi is 0) with the NODATA value.
+        - If NODATA value is not set, no replacement is performed.
+        - If inplace is True, the main grid is modified. If False, a backup of the grid is created before modification.
+        - This function is useful for focusing analysis or visualization on a specific area within the raster map.
+
+        **Examples:**
+
+        >>> # Example of applying an AOI mask to the raster map
+        >>> raster.apply_aoi_mask(grid_aoi=aoi_mask, inplace=True)
         """
         if self.nodatavalue is None or self.grid is None:
             pass
@@ -2098,10 +2376,23 @@ class Raster:
         return None
 
     def release_aoi_mask(self):
-        """Release AOI mask from main grid. Backup grid is restored.
+        """Release AOI mask from the main grid. Backup grid is restored.
+
+        This function releases the AOI (area of interest) mask from the main grid, restoring the original values from the backup grid.
 
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - If an AOI mask has been applied, this function restores the original values to the main grid from the backup grid.
+        - If no AOI mask has been applied, the function has no effect.
+        - After releasing the AOI mask, the backup grid is set to None, and the raster object is no longer considered to have an AOI mask.
+
+        **Examples:**
+
+        >>> # Example of releasing the AOI mask from the main grid
+        >>> raster.release_aoi_mask()
         """
         if self.isaoi:
             self.set_grid(grid=self.backup_grid)
@@ -2109,17 +2400,39 @@ class Raster:
             self.isaoi = False
         return None
 
-    def cut_edges(self, upper, lower, inplace=False):
-        """Cutoff upper and lower values of grid.
+    def cut_edges(self, upper, lower, inplace= False):
+        """Cutoff upper and lower values of the raster grid.
 
-        :param upper: upper value
+        :param upper: float or int
+            The upper value for the cutoff.
         :type upper: float or int
-        :param lower: lower value
+
+        :param lower: float or int
+            The lower value for the cutoff.
         :type lower: float or int
-        :param inplace: option to set the raster grid, defaults to False
+
+        :param inplace: bool, optional
+            If True, modify the main grid in-place. If False, create a processed copy of the grid.
+            Default is False.
         :type inplace: bool
-        :return: the processed grid if inplace=False
-        :rtype: :class:`numpy.ndarray` or None
+
+        :return: :class:`numpy.ndarray` or None
+            The processed grid if inplace is False. If inplace is True, returns None.
+        :rtype: Union[None, np.ndarray]
+
+        **Notes:**
+
+        - Values in the raster grid below the lower value are set to the lower value.
+        - Values in the raster grid above the upper value are set to the upper value.
+        - If inplace is False, a processed copy of the grid is returned, leaving the original grid unchanged.
+        - This function is useful for clipping extreme values in the raster grid.
+
+        **Examples:**
+
+        >>> # Example of cutting off upper and lower values in the raster grid
+        >>> processed_grid = raster.cut_edges(upper=100, lower=0, inplace=False)
+        >>> # Alternatively, modify the main grid in-place
+        >>> raster.cut_edges(upper=100, lower=0, inplace=True)
         """
         if self.grid is None:
             return None
@@ -2135,9 +2448,26 @@ class Raster:
                 return new_grid
 
     def get_metadata(self):
-        """Get all metadata from base_object
+        """Get all metadata from the base object.
 
-        :return: metadata
+        :return: Metadata dictionary.
+
+            - "Name" (str): Name of the raster.
+            - "Variable" (str): Variable name.
+            - "VarAlias" (str): Variable alias.
+            - "Units" (str): Measurement units.
+            - "Date" (str): Date information.
+            - "Source" (str): Data source.
+            - "Description" (str): Description of the raster.
+            - "cellsize" (float): Cell size of the raster.
+            - "ncols" (int): Number of columns in the raster grid.
+            - "nrows" (int): Number of rows in the raster grid.
+            - "xllcorner" (float): X-coordinate of the lower-left corner.
+            - "yllcorner" (float): Y-coordinate of the lower-left corner.
+            - "NODATA_value" (Union[float, None]): NODATA value in the raster.
+            - "Prj" (str): Projection information.
+            - "Path_ASC" (str): File path to the ASC raster file.
+            - "Path_PRJ" (str): File path to the PRJ projection file.
         :rtype: dict
         """
         return {
@@ -2147,7 +2477,6 @@ class Raster:
             "Units": self.units,
             "Date": self.date,
             "Source": self.source_data,
-            "Date": self.date,
             "Description": self.description,
             "cellsize": self.cellsize,
             "ncols": self.asc_metadata["ncols"],
@@ -2161,9 +2490,14 @@ class Raster:
         }
 
     def get_bbox(self):
-        """Get the Bounding Box of map
+        """Get the Bounding Box of the map.
 
-        :return: dictionary of xmin, xmax ymin and ymax
+        :return: Dictionary of xmin, xmax, ymin, and ymax.
+
+            - "xmin" (float): Minimum x-coordinate.
+            - "xmax" (float): Maximum x-coordinate.
+            - "ymin" (float): Minimum y-coordinate.
+            - "ymax" (float): Maximum y-coordinate.
         :rtype: dict
         """
         return {
@@ -2176,12 +2510,28 @@ class Raster:
         }
 
     def get_grid_datapoints(self, drop_nan=False):
-        """Get flat and cleared grid data points (x, y and z)
+        """Get flat and cleared grid data points (x, y, and z).
 
-        :param drop_nan: option for ignore nan values
+        :param drop_nan: Option to ignore nan values.
         :type drop_nan: bool
-        :return: dataframe of x, y and z fields
+
+        :return: DataFrame of x, y, and z fields.
         :rtype: :class:`pandas.DataFrame` or None
+            If the grid is None, returns None.
+
+        **Notes:**
+
+        - This function extracts coordinates (x, y, and z) from the raster grid.
+        - The x and y coordinates are determined based on the grid cell center positions.
+        - If drop_nan is True, nan values are ignored in the resulting DataFrame.
+        - The resulting DataFrame includes columns for x, y, z, i, and j coordinates.
+
+        **Examples:**
+
+        >>> # Get grid data points with nan values included
+        >>> datapoints_df = raster.get_grid_datapoints(drop_nan=False)
+        >>> # Get grid data points with nan values ignored
+        >>> clean_datapoints_df = raster.get_grid_datapoints(drop_nan=True)
         """
         if self.grid is None:
             return None
@@ -2233,8 +2583,20 @@ class Raster:
     def get_grid_data(self):
         """Get flat and cleared grid data.
 
-        :return: 1d vector of cleared data
+        :return: 1D vector of cleared data.
         :rtype: :class:`numpy.ndarray` or None
+            If the grid is None, returns None.
+
+        **Notes:**
+
+        - This function extracts and flattens the grid data, removing any masked or NaN values.
+        - For integer grids, the masked values are ignored.
+        - For floating-point grids, both masked and NaN values are ignored.
+
+        **Examples:**
+
+        >>> # Get flattened and cleared grid data
+        >>> data_vector = raster.get_grid_data()
         """
         if self.grid is None:
             return None
@@ -2249,10 +2611,22 @@ class Raster:
                 return _grid
 
     def get_grid_stats(self):
-        """Get basic statistics from flat and clear data.
+        """Get basic statistics from flat and cleared data.
 
-        :return: dataframe of basic statistics
+        :return: DataFrame of basic statistics.
         :rtype: :class:`pandas.DataFrame` or None
+            If the grid is None, returns None.
+
+        **Notes:**
+
+        - This function computes basic statistics from the flattened and cleared grid data.
+        - Basic statistics include measures such as mean, median, standard deviation, minimum, and maximum.
+        - Requires the 'plans.analyst' module for statistical analysis.
+
+        **Examples:**
+
+        >>> # Get basic statistics from the raster grid
+        >>> stats_dataframe = raster.get_grid_stats()
         """
         if self.grid is None:
             return None
@@ -2262,14 +2636,25 @@ class Raster:
             return Univar(data=self.get_grid_data()).assess_basic_stats()
 
     def get_aoi(self, by_value_lo, by_value_hi):
-        """Get the AOI map from an interval of values (values are expected to exist in the raster)
+        """Get the AOI map from an interval of values (values are expected to exist in the raster).
 
-        :param by_value_lo: number for lower bound (inclusive)
+        :param by_value_lo: Number for the lower bound (inclusive).
         :type by_value_lo: float
-        :param by_value_hi: number for upper bound (inclusive)
+        :param by_value_hi: Number for the upper bound (inclusive).
         :type by_value_hi: float
-        :return: AOI map
+
+        :return: AOI map.
         :rtype: :class:`AOI` object
+
+        **Notes:**
+
+        - This function creates an AOI (Area of Interest) map based on a specified value range.
+        - The AOI map is constructed as a binary grid where values within the specified range are set to 1, and others to 0.
+
+        **Examples:**
+
+        >>> # Get AOI map for values between 10 and 20
+        >>> aoi_map = raster.get_aoi(by_value_lo=10, by_value_hi=20)
         """
         map_aoi = AOI(name="{} {}-{}".format(self.varname, by_value_lo, by_value_hi))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
@@ -2283,10 +2668,21 @@ class Raster:
         return map_aoi
 
     def _set_view_specs(self):
-        """Set default view specs
+        """Set default view specs.
 
         :return: None
         :rtype: None
+
+        **Notes:**
+
+        - This private method sets default view specifications for visualization.
+        - The view specs include color, colormap, titles, dimensions, and other parameters for visualization.
+        - These default values can be adjusted based on specific requirements.
+
+        **Examples:**
+
+        >>> # Set default view specifications
+        >>> obj._set_view_specs()
         """
         self.view_specs = {
             "color": "tab:grey",
@@ -2317,18 +2713,35 @@ class Raster:
         dpi=300,
         fig_format="jpg",
     ):
-        """Plot a basic pannel of raster map.
+        """Plot a basic panel of the raster map.
 
-        :param show: boolean to show plot instead of saving, defaults to False
+        :param accum: boolean to include an accumulated probability plot, defaults to True
+        :type accum: bool
+        :param show: boolean to show the plot instead of saving, defaults to True
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: path to the output folder, defaults to "./output"
         :type folder: str
-        :param filename: name of file, defaults to None
+        :param filename: name of the file, defaults to None
         :type filename: str
         :param dpi: image resolution, defaults to 300
         :type dpi: int
-        :param fig_format: image fig_format (ex: png or jpg). Default jpg
+        :param fig_format: image format (e.g., jpg or png), defaults to "jpg"
         :type fig_format: str
+
+        **Notes:**
+
+        - This function generates a basic panel for visualizing the raster map, including the map itself, a histogram,
+          metadata, and basic statistics.
+        - The panel includes various customization options such as color, titles, dimensions, and more.
+        - The resulting plot can be displayed or saved based on the specified parameters.
+
+        **Examples:**
+
+        >>> # Show the plot without saving
+        >>> raster.view()
+
+        >>> # Save the plot to a file
+        >>> raster.view(show=False, folder="./output", filename="raster_plot", dpi=300, fig_format="png")
         """
         import matplotlib.ticker as mtick
         from plans.analyst import Univar
