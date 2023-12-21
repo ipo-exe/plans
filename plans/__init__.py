@@ -1,9 +1,17 @@
 """
-PLANS - Planning Nature-based Solutions. Modules:
-
-``datasets``
-    This module provides objects to handle all PLANS datasets.
 
 ``analyst``
-    This module provides objects to handle data analysis.
+    The ``analyst`` module provides objects to handle data analysis.
+
+``datasets``
+    The ``datasets`` module provides objects to handle all ``plans`` datasets.
+
+``iamlazy``
+    The ``iamlazy`` module provides useful template routines for pre-processing input data
+    in QGIS 3.x Python console.
+
+``project``
+    The ``project`` module provides project-related objects and routines of ``plans``.
+
+
 """

@@ -1,12 +1,60 @@
 """
-PLANS - Planning Nature-based Solutions
+Description:
+    The ``datasets`` module provides objects to handle all ``plans`` datasets.
 
-Module description:
-This module stores all dataset objects of PLANS.
+License:
+    This software is released under the GNU General Public License v3.0 (GPL-3.0).
+    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Copyright (C) 2022 Iporã Brito Possantti
+Author:
+    Iporã Possantti
+
+Contact:
+    possantti@gmail.com
+
+
+Overview
+--------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis.
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
+
+>>> from plans import datasets
+
+Class aptent taciti sociosqu ad litora torquent per
+conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
+eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+
+Example
+-------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+.. code-block:: python
+
+    import numpy as np
+    from plans import analyst
+
+    # get data to a vector
+    data_vector = np.random.rand(1000)
+
+    # instantiate the Univar object
+    uni = analyst.Univar(data=data_vector, name="my_data")
+
+    # view data
+    uni.view()
+
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl.
+
 """
-import os, glob
+import os, glob, copy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -65,11 +113,53 @@ def get_random_colors(size=10, cmap="tab20"):
 
 
 class Collection:
-    """
-    This is the primitive objects collection
+    """A collection of primitive objects with associated metadata.
+
+    Attributes:
+        - catalog (class:`pandas.DataFrame`): A catalog containing metadata of the objects in the collection.
+        - collection (dict): A dictionary containing the objects in the collection.
+        - name (str): The name of the collection.
+
+    Methods:
+        - __init__(self, base_object, name="myCatalog"): Initializes a new collection with a base object.
+        - update(self, details=False): Updates the collection catalog.
+        - append(self, new_object): Appends a new object to the collection.
+        - remove(self, name): Removes an object from the collection.
+
+    **Examples:**
+    Here's how to use the Collection class:
+
+    1. Initializing a Collection
+
+    >>> base_obj = YourBaseObject()
+    >>> collection = Collection(base_object=base_obj, name="myCatalog")
+
+    2. Appending a New Object
+
+    >>> new_obj = YourNewObject()
+    >>> collection.append(new_object=new_obj)
+
+    3. Removing an Object
+
+    >>> collection.remove(name="ObjectToRemove")
+
+    4. Updating the Catalog
+
+    >>> collection.update(details=True)
+
+    .. note::
+
+        You must replace YourBaseObject and YourNewObject with the actual class names used in your implementation.
     """
 
     def __init__(self, base_object, name="myCatalog"):
+        """Initializes a new collection with a base object.
+
+        :param base_object: The base object used to initialize the collection.
+        :type base_object: object
+        :param name: The name of the collection, defaults to "myCatalog".
+        :type name: str
+        """
         dct_meta = base_object.get_metadata()
         self.catalog = pd.DataFrame(columns=dct_meta.keys())
         self.collection = dict()
@@ -113,8 +203,10 @@ class Collection:
         :return: None
         :rtype: None
         """
+        # Append a copy of the object
+        copied_object = copy.deepcopy(new_object)
         # append to collection
-        self.collection[new_object.name] = new_object
+        self.collection[new_object.name] = copied_object
         # set
         dct_meta = new_object.get_metadata()
         dct_meta_df = dict()
@@ -146,7 +238,7 @@ class TimeSeries:
 
     """
 
-    def __init__(self, name, varname, varfield, units):
+    def __init__(self, name="MyTS", varname="Variable", varfield="V", units="units"):
         """Deploy time series object
 
         :param name: Name for the object
@@ -160,15 +252,34 @@ class TimeSeries:
         """
         self.name = name
         self.varname = varname
+        self.varalias = varfield
         self.varfield = varfield
         self.units = units
         self.dtfield = "Datetime"
+        # --- optional info --
+        self.source_data = None
+        self.description = None
+        self.color = None
+        # --- auto update info
         self.data = None
-        self.dtres = "minute"
+        self.data_size = None
+        self.start = None
+        self.end = None
+        self.dtfreq = "20min"
+        self.dtres = "minutes"
+        self.min = None
+        self.max = None
         self.isstandard = False
         self.agg = "sum"
         self.epochs_stats = None
-        self.gapsize = 3
+        self.epochs_n = None
+        self.gapsize = 7
+        self.path_input = None
+
+        # hack attributes
+        self.cmap = "tab20b"
+
+        # set specs
         self._set_view_specs()
 
     def _set_view_specs(self):
@@ -180,14 +291,63 @@ class TimeSeries:
             "ylabel": self.units,
             "vmin": 0,
             "vmax": None,
+            "xmin": None,
+            "xmax": None,
         }
         return None
+
+    def get_metadata(self):
+        """Get metadata information from the base object.
+
+        Returns:
+            dict: A dictionary containing the following metadata:
+
+            - "Name" (str): Name of the timeseries.
+            - "Variable" (str): Variable name.
+            - "VarAlias" (str): Variable alias.
+            - "VarField" (str): Variable field.
+            - "Units" (str): Measurement units.
+            - "Start" (str): Start date.
+            - "End" (str): End date.
+            - "Min" (float): minimal value.
+            - "Max" (float): maximal value.
+            - "Source" (str): Data source.
+            - "Description" (str): Description of the timeseries.
+            - "Path_input" (str): File path to the input file.
+            - "Time_res" (str): Time resolution.
+            - "IsStandard" (bool): Indicates if the data follows a standard format.
+            - "Epochs" (int): Number of epochs.
+            - "Fill_gap" (int): Gap size allowed for filling missing data.
+
+        Example:
+            >>> metadata = get_metadata()
+        """
+        return {
+            "Name": self.name,
+            "Variable": self.varname,
+            "VarAlias": self.varalias,
+            "VarField": self.varfield,
+            "DtField": self.dtfield,
+            "Units": self.units,
+            "Size": self.data_size,
+            "Epochs": self.epochs_n,
+            "Start": self.start,
+            "End": self.end,
+            "Min": self.min,
+            "Max": self.max,
+            "Time_res": self.dtfreq,
+            "IsStandard": self.isstandard,
+            "Fill_gap": self.gapsize,
+            "Color": self.color,
+            "Source": self.source_data,
+            "Description": self.description,
+            "Path_input": self.path_input,
+        }
 
     def load_data(
         self,
         input_file,
         input_varfield,
-        input_dtres,
         input_dtfield="Datetime",
         sep=";",
     ):
@@ -197,121 +357,154 @@ class TimeSeries:
         :type input_file: str
         :param input_varfield: name of incoming varfield
         :type input_varfield: str
-        :param input_dtres: datetime resolution. Options: second, minute, hour, day, month and year
-        :type input_dtres: str
         :param input_dtfield: name of incoming datetime field
         :type input_dtfield: str
         :param sep: string separator. Default: `;`
         :type sep: str
         :return: None
         :rtype: None
+
+        .. warning::
+
+            The Datetime field in the incoming file must be a full timestamp
+            ``YYYY-mm-DD HH:MM:SS``. Even if the data is a daily time series,
+            make sure to include a constant, default timestamp like the following example:
+
+            .. code-block:: text
+
+                           Datetime; Temperature
+                2020-02-07 12:00:00;        24.5
+                2020-02-08 12:00:00;        25.1
+                2020-02-09 12:00:00;        28.7
+                2020-02-10 12:00:00;        26.5
+
+
         """
         # load from csv
         df = pd.read_csv(input_file, sep=sep, usecols=[input_dtfield, input_varfield])
 
         # set data
         self.set_data(
-            input_df=df,
-            input_varfield=input_varfield,
-            input_dtfield=input_dtfield,
-            input_dtres=input_dtres,
+            input_df=df, input_varfield=input_varfield, input_dtfield=input_dtfield
         )
-        # clear
-        del df
+        # set attributes
+        self.path_input = input_file
+
         return None
 
-    def set_data(self, input_df, input_dtfield, input_varfield, input_dtres="minute"):
-        """Set the data from the incoming pandas DataFrame.
-
-        :param input_df: :class:`pandas.DataFrame`
-            Incoming DataFrame.
-        :param input_dtfield: str
-            Name of the incoming datetime field.
-        :param input_varfield: str
-            Name of the incoming variable field.
-        :param input_dtres: str
-            Datetime resolution. Options: second, minute, hour, day, month, and year.
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        This function sets the time series data from an incoming DataFrame, applying a specified datetime resolution.
-
-        **Examples:**
-
-        >>> ts.set_data(df, "timestamp", "temperature", "hour")
-        """
-        # resolution dict
-        s_std_time = "2020-01-01 12:00:00"
-        dict_res = {
-            "second": "",
-            "minute": s_std_time[-3:],  # add seconds
-            "hour": s_std_time[-6:],  # add minutes
-            "day": s_std_time[-9:],  # add standard hour
-            "month": s_std_time[-12:],  # add day
-            "year": s_std_time[-16:],  # add month
-        }
+    def set_data(self, input_df, input_dtfield, input_varfield, dropnan=True):
         # get copy
         df = input_df.copy()
 
         # drop nan values
-        df = df.dropna()
+        if dropnan:
+            df = df.dropna()
 
         # rename columns to standard format
         df = df.rename(
             columns={input_dtfield: self.dtfield, input_varfield: self.varfield}
         )
-
         # datetime standard format
-        df[self.dtfield] = pd.to_datetime(
-            df[self.dtfield] + dict_res[input_dtres], format="%Y-%m-%d %H:%M:%S"
-        )
+        df[self.dtfield] = pd.to_datetime(df[self.dtfield], format="%Y-%m-%d %H:%M:%S")
 
         # set to attribute
         self.data = df.copy()
-        self.dtres = input_dtres
-
+        self.update()
         return None
 
-    def standardize(self):
+    def set_frequency(self):
+        """Guess the datetime resolution of a time series based on the consistency of
+        timestamp components (e.g., seconds, minutes).
+
+        :return: None
+        :rtype: None
+        """
+        # handle void data
+        if self.data is None:
+            pass
+        else:
+            df = self.data.copy()
+            # Extract components of the datetime
+            df["year"] = df[self.dtfield].dt.year
+            df["month"] = df[self.dtfield].dt.month
+            df["day"] = df[self.dtfield].dt.day
+            df["hour"] = df[self.dtfield].dt.hour
+            df["minute"] = df[self.dtfield].dt.minute
+            df["second"] = df[self.dtfield].dt.second
+
+            # Check consistency within each unit of time
+            if df["second"].nunique() > 1:
+                self.dtfreq = "1min"
+            elif df["minute"].nunique() > 1:
+                self.dtfreq = "20min"
+            elif df["hour"].nunique() > 1:
+                self.dtfreq = "H"
+            elif df["day"].nunique() > 1:
+                self.dtfreq = "D"
+            elif df["month"].nunique() > 1:
+                self.dtfreq = "MS"
+            else:
+                self.dtfreq = "YS"
+        return None
+
+    def standardize(self, start=None, end=None):
         """Standardize the data based on regular datetime steps and the time resolution.
 
+        :param start: pandas.Timestamp, optional
+            The starting datetime for the standardization.
+            Defaults to the first datetime in the data.
+        :type start: pandas.Timestamp
+        :param end: pandas.Timestamp, optional
+            The ending datetime for the standardization.
+            Defaults to the last datetime in the data.
+        :type end: pandas.Timestamp
         :return: None
         :rtype: None
 
         **Notes:**
 
-        This function standardizes the time series data based on regular datetime steps and the specified time resolution.
+        - Handles missing start and end values by using the first and last datetimes in the data.
+        - Standardizes the incoming start and end datetimes to midnight of their respective days.
+        - Creates a full date range with the specified frequency for the standardization period.
+        - Groups the data by epochs (based on the frequency and datetime field), applies the specified aggregation function, and fills in missing values with left merges.
+        - Cuts off any edges with missing data.
+        - Updates internal attributes, including `self.isstandard` to indicate that the data has been standardized.
 
         **Examples:**
 
         >>> ts.standardize()
         """
         dict_freq = {
-            "second": ["20min", 15],
-            "minute": ["20min", 15],
-            "hour": ["H", 13],
-            "day": ["D", 10],
-            "month": ["MS", 7],
-            "year": ["YS", 4],
+            "1min": 16,
+            "20min": 15,
+            "H": 13,
+            "D": 10,
+            "MS": 7,
+            "YS": 4,
         }
+        # handle nones
+        if start is None:
+            start = self.start
+        if end is None:
+            end = self.end
+
+        # standardize incoming start and end
+        start = start.date()
+        end = end + pd.Timedelta(days=1)
+        end = end.date()
+
         # get a date range for all period
-        dt_index = pd.date_range(
-            start=self.data[self.dtfield].dt.date.values[0],
-            end=self.data[self.dtfield].dt.date.values[-1],
-            freq=dict_freq[self.dtres][0],
-        )
+        dt_index = pd.date_range(start=start, end=end, freq=self.dtfreq)
         # set dataframe
         df = pd.DataFrame({self.dtfield: dt_index, "StEpoch": "-"})
         # insert Epochs
         df["StEpoch"] = df[self.dtfield].astype(str)
-        df["StEpoch"] = df["StEpoch"].str.slice(0, dict_freq[self.dtres][1])
+        df["StEpoch"] = df["StEpoch"].str.slice(0, dict_freq[self.dtfreq])
 
         # insert Epochs
         df2 = self.data.copy()
         df2["StEpoch"] = df2[self.dtfield].astype(str)
-        df2["StEpoch"] = df2["StEpoch"].str.slice(0, dict_freq[self.dtres][1])
+        df2["StEpoch"] = df2["StEpoch"].str.slice(0, dict_freq[self.dtfreq])
 
         # Group by 'Epochs' and calculate agg function
         result_df = df2.groupby("StEpoch")[self.varfield].agg([self.agg]).reset_index()
@@ -328,7 +521,12 @@ class TimeSeries:
         # cut off edges
         self.cut_edges(inplace=True)
 
+        # set extra attributes
         self.isstandard = True
+
+        # update all attributes
+        self.update()
+
         return None
 
     def get_epochs(self, inplace=False):
@@ -389,10 +587,17 @@ class TimeSeries:
 
         if inplace:
             self.data = df.copy()
-            del df
             return None
         else:
             return df
+
+    def update(self):
+        self.set_frequency()
+        self.start = self.data[self.dtfield].min()
+        self.end = self.data[self.dtfield].max()
+        self.min = self.data[self.varfield].min()
+        self.max = self.data[self.varfield].max()
+        self.data_size = len(self.data)
 
     def update_epochs_stats(self):
         """Update all epochs statistics.
@@ -413,22 +618,35 @@ class TimeSeries:
             pass
         else:
             self.standardize()
+        # get epochs
         df = self.get_epochs(inplace=False)
         # remove epoch = 0
         df.drop(df[df["Epoch_Id"] == 0].index, inplace=True)
-        df = df.rename(columns={"Epoch_Id": "Id"})
         # group by
         self.epochs_stats = (
-            df.groupby("Id")
+            df.groupby("Epoch_Id")
             .agg(
-                Count=("Id", "count"),
+                Count=("Epoch_Id", "count"),
                 Start=(self.dtfield, "min"),
                 End=(self.dtfield, "max"),
             )
             .reset_index()
         )
         # get colors
-        self.epochs_stats["Color"] = get_random_colors(size=len(self.epochs_stats))
+        self.epochs_stats["Color"] = get_random_colors(
+            size=len(self.epochs_stats), cmap=self.cmap
+        )
+        # include name
+        self.epochs_stats["Name"] = self.name
+
+        # organize:
+        self.epochs_stats = self.epochs_stats[
+            ["Name", "Epoch_Id", "Count", "Start", "End", "Color"]
+        ]
+
+        # update some attributes
+        self.epochs_n = len(self.epochs_stats)
+
         return None
 
     def fill_gaps(self, method="linear", inplace=False):
@@ -650,7 +868,13 @@ class TimeSeries:
         return agg_df_new
 
     def view(
-        self, show=True, folder="./output", filename=None, dpi=300, fig_format="jpg"
+        self,
+        show=True,
+        folder="./output",
+        filename=None,
+        dpi=300,
+        fig_format="jpg",
+        suff="",
     ):
         """Visualize the time series data using a scatter plot with colored epochs.
 
@@ -696,7 +920,7 @@ class TimeSeries:
 
         >>> ts.view(show=False, folder="./output", filename="time_series_plot", dpi=300, fig_format="png")
         """
-        specs = self.view_specs
+        specs = self.view_specs.copy()
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
 
@@ -710,7 +934,7 @@ class TimeSeries:
                 )
             )
             epoch_c = self.epochs_stats["Color"].values[i]
-            epoch_id = self.epochs_stats["Id"].values[i]
+            epoch_id = self.epochs_stats["Epoch_Id"].values[i]
             plt.plot(
                 df_aux[self.dtfield],
                 df_aux[self.varfield],
@@ -722,8 +946,19 @@ class TimeSeries:
         plt.title(specs["title"])
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["xlabel"])
-        plt.xlim(self.data[self.dtfield].min(), self.data[self.dtfield].max())
-        plt.ylim(0, 1.2 * self.data[self.varfield].max())
+
+        # adjust min max
+        if specs["xmin"] is None:
+            specs["xmin"] = self.data[self.dtfield].min()
+        if specs["xmax"] is None:
+            specs["xmax"] = self.data[self.dtfield].max()
+        if specs["ymin"] is None:
+            specs["ymin"] = self.data[self.varfield].min()
+        if specs["ymax"] is None:
+            specs["ymax"] = self.data[self.varfield].max()
+
+        plt.xlim(specs["xmin"], specs["xmax"])
+        plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
 
         # Adjust layout to prevent cutoff
         plt.tight_layout()
@@ -734,13 +969,409 @@ class TimeSeries:
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varalias, self.name, suff)
-            plt.savefig(
-                "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
-            )
+            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
             plt.close(fig)
         return None
 
 
+class RainfallSeries(TimeSeries):
+    def __init__(self, name="MyRainfallSeries"):
+        # ---------------------------------------------------
+        # use superior initialization
+        super().__init__(name, varname="Rain", varfield="P", units="mm")
+        self.code = None
+        self.agg = "sum"
+        self.gapsize = 5
+        self.x = None
+        self.y = None
+
+    def get_metadata(self):
+        """Get all metadata from base_object
+
+        :return: metadata
+        :rtype: dict
+        """
+        _dict = super().get_metadata()
+        local_dict = {"Code": self.code, "X": self.x, "Y": self.y}
+        _dict.update(local_dict)
+        return _dict
+
+
+class TimeSeriesCollection(Collection):
+    def __init__(self, name="myTSCollection", base_object=None):
+        """Deploy the time series collection data structure.
+
+        :param name: str, optional
+            Name of the time series collection.
+            Default is "myTSCollection".
+        :type name: str
+
+        :param base_object: TimeSeries, optional
+            Base object for the time series collection.
+            If None, a default TimeSeries object is created.
+            Default is None.
+        :type base_object: TimeSeries or None
+        """
+        # If base_object is not provided, create a default TimeSeries object
+        if base_object is None:
+            base_object = TimeSeries()
+
+        # Call the constructor of the parent class (TimeSeries)
+        super().__init__(base_object=base_object, name=name)
+
+        # Set default field names and attributes
+        self.dtfield = "Datetime"
+        self.overfield = "Overlapping"
+
+        # Set up date fields and special attributes in the catalog
+        self.catalog["Start"] = pd.to_datetime(
+            self.catalog["Start"], format="%Y-%m-%d %H:%M:%S"
+        )
+        self.catalog["End"] = pd.to_datetime(
+            self.catalog["End"], format="%Y-%m-%d %H:%M:%S"
+        )
+
+        # Initialize start, end, min, and max attributes
+        self.start = None
+        self.end = None
+        self.min = None
+        self.max = None
+
+        # view specs
+        self._set_view_specs()
+
+    def _set_view_specs(self):
+        self.view_specs = {
+            "title": "Time Series Collection | {}".format(self.name),
+            "width": 8,
+            "height": 5,
+            "xlabel": "Date",
+            "ylabel": "%",
+            "gantt": "Gantt chart",
+            "prev": "Prevalence",
+            "over": "Overlapping",
+            "vmin": 0,
+            "vmax": None,
+            "xmin": None,
+            "xmax": None,
+        }
+        return None
+
+    def update(self, details=False):
+        """Update the time series collection.
+
+        :param details: bool, optional
+            If True, update additional details.
+            Default is False.
+        :type details: bool
+        """
+        # Call the update method of the parent class (Collection)
+        super().update(details=details)
+
+        # Update start, end, min, and max attributes based on catalog information
+        self.start = self.catalog["Start"].min()
+        self.end = self.catalog["End"].max()
+        self.min = self.catalog["Min"].min()
+        self.max = self.catalog["Max"].max()
+
+    def merge_data(self):
+        """
+        Merge data from multiple sources into a single DataFrame.
+
+        :return: DataFrame
+            A merged DataFrame with datetime and variable fields from different sources.
+        :rtype: pandas.DataFrame
+
+        **Notes:**
+        This function updates the catalog details and merges data from different sources based on the specified
+        datetime field and variable field. The merged DataFrame includes a date range covering the entire period.
+
+        **Examples:**
+        >>>merged_df = ts.merge_data()
+        """
+        # Ensure catalog is updated with details
+        self.update(details=True)
+
+        # Get start, end, and frequency from the catalog
+        start = self.start
+        end = self.end
+        freq = self.catalog["Time_res"].values[0]
+
+        # Create a date range for the entire period
+        dt_index = pd.date_range(start=start, end=end, freq=freq)
+        df = pd.DataFrame({self.dtfield: dt_index})
+
+        # Merging loop for each catalog entry
+        for i in range(len(self.catalog)):
+            # Get attributes from the catalog
+            name = self.catalog["Name"].values[i]
+            varfield = self.catalog["VarField"].values[i]
+            dtfield = self.catalog["DtField"].values[i]
+
+            # Handle datetime field and set up right DataFrame
+            b_drop = False
+            if self.dtfield == dtfield:
+                suffs = ("", "")
+                dt_right_after = dtfield
+            else:
+                suffs = ("", "_right")
+                b_drop = True
+
+            df_right = self.collection[name].data[[dtfield, varfield]].copy()
+            df_right = df_right.rename(
+                columns={varfield: "{}_{}".format(varfield, name)}
+            )
+
+            # Left join the DataFrames
+            df = pd.merge(
+                how="left",
+                left=df,
+                left_on=self.dtfield,
+                right=df_right,
+                right_on=dtfield,
+                suffixes=suffs,
+            )
+
+            # Clear the right datetime column if needed
+            if b_drop:
+                df = df.drop(columns=[dt_right_after])
+
+        return df
+
+    def merge_local_epochs(self):
+        """Merge local epochs statistics from individual time series within the collection.
+
+        :return: Merged dataframe containing epochs statistics.
+        :rtype: pandas.DataFrame
+        """
+        # Create an empty list to store individual epochs statistics dataframes
+        lst_df = list()
+
+        # Iterate through each time series in the collection
+        for name in self.collection:
+            # Update epochs statistics for the current time series
+            self.collection[name].update_epochs_stats()
+
+            # Append the epochs statistics dataframe to the list
+            lst_df.append(self.collection[name].epochs_stats.copy())
+
+        # Concatenate the list of dataframes into a single dataframe
+        df = pd.concat(lst_df).reset_index(drop=True)
+
+        return df
+
+    def get_epochs(self):
+        """
+        Calculate epochs based on the TimeSeries data.
+
+        Returns:
+        :return: DataFrame
+            A DataFrame with epoch information.
+        :rtype: pandas.DataFrame
+
+        Examples:
+        ```python
+        import pandas as pd
+
+        # Assuming ts is an instance of TimeSeries
+        epoch_df = ts.get_epochs()
+        print("Epoch DataFrame:")
+        print(epoch_df)
+        ```
+        """
+        # Merge data to create a working DataFrame
+        df = self.merge_data()
+
+        # Create a copy for nan-value calculation
+        df_nan = df.copy()
+
+        # Convert non-NaN values to 1, and NaN values to 0
+        for v in df_nan.columns[1:]:
+            df_nan[v] = df_nan[v].notna().astype(int)
+
+        # Calculate the sum of non-NaN values for each row
+        df_nan = df_nan.drop(columns=[self.dtfield])
+        df[self.overfield] = df_nan.sum(axis=1)
+        df[self.overfield] = df[self.overfield] / len(df_nan.columns)
+
+        # Extract relevant columns for epoch calculation
+        df_aux = df[[self.dtfield, self.overfield]].copy()
+
+        # Set 0 values in the overfield column to NaN
+        df_aux[self.overfield].replace(0, np.nan, inplace=True)
+
+        # Create a new TimeSeries instance for epoch calculation
+        ts_aux = TimeSeries(varfield=self.overfield)
+        ts_aux.set_data(
+            input_df=df_aux,
+            input_varfield=self.overfield,
+            input_dtfield=self.dtfield,
+            dropnan=False,
+        )
+
+        # Calculate epochs and update the original DataFrame
+        ts_aux.get_epochs(inplace=True)
+        df["Epoch_Id"] = ts_aux.data["Epoch_Id"].values
+
+        return df
+
+    def view(
+            self,
+            show=True,
+            folder="./output",
+            filename=None,
+            dpi=300,
+            fig_format="jpg",
+            suff="",
+    ):
+        """Visualize the time series collection.
+
+        :param show: bool, optional
+            If True, the plot will be displayed interactively.
+            If False, the plot will be saved to a file.
+            Default is True.
+        :type show: bool
+
+        :param folder: str, optional
+            The folder where the plot file will be saved. Used only if show is False.
+            Default is "./output".
+        :type folder: str
+
+        :param filename: str, optional
+            The base name of the plot file. Used only if show is False. If None, a default filename is generated.
+            Default is None.
+        :type filename: str or None
+
+        :param dpi: int, optional
+            The dots per inch (resolution) of the plot file. Used only if show is False.
+            Default is 300.
+        :type dpi: int
+
+        :param fig_format: str, optional
+            The format of the plot file. Used only if show is False.
+            Default is "jpg".
+        :type fig_format: str
+
+        :return: None
+            If show is True, the plot is displayed interactively.
+            If show is False, the plot is saved to a file.
+        :rtype: None
+
+        **Notes:**
+
+        This function generates a scatter plot with colored epochs based on the epochs' start and end times.
+        The plot includes data points within each epoch, and each epoch is labeled with its corresponding ID.
+
+        **Examples:**
+
+        >>> ts.view(show=True)
+
+        >>> ts.view(show=False, folder="./output", filename="time_series_plot", dpi=300, fig_format="png")
+        """
+
+        # pre-processing
+        local_epochs_df = self.merge_local_epochs()
+        # Aggregate sum based on the 'Name' field
+        agg_df = local_epochs_df.groupby('Name')['Count'].sum().reset_index()
+        agg_df = agg_df.sort_values(by="Count", ascending=True).reset_index(drop=True)
+        names = agg_df["Name"].values
+        preval = 100 * agg_df["Count"].values / agg_df["Count"].sum()
+        heights = np.linspace(0, 1, len(names) + 1)
+        heights = heights[:len(names)] + ((heights[1] - heights[0]) / 2)
+
+        # get epochs
+        epochs_df = self.get_epochs()
+
+
+
+        # Assuming date_values is a list of datetime objects
+        date_values = epochs_df[self.dtfield].values
+        # Calculate the number of ticks you want (e.g., 5)
+        num_ticks = 5
+        # Calculate the step size to evenly space the ticks
+        step_size = len(date_values) // (num_ticks - 1)
+        # Generate indices for the ticks
+        tick_indices = np.arange(0, len(date_values), step_size)
+        # Select the corresponding dates for the ticks
+        ticks = [date_values[i] for i in tick_indices]
+
+
+        # plot
+        specs = self.view_specs.copy()
+
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        gs = mpl.gridspec.GridSpec(
+            2, 6, wspace=1.5, hspace=0.5, left=0.1, bottom=0.1, top=0.85, right=0.95
+        )
+        fig.suptitle(specs["title"])
+
+        # Gantt chart
+        plt.subplot(gs[:1, :4])
+        plt.title("a. {}".format(specs["gantt"]), loc="left")
+        for i in range(len(names)):
+            name = names[i]
+            df_aux = local_epochs_df.query(f"Name == '{name}'")
+            for j in range(len(df_aux)):
+                x_time = [df_aux["Start"].values[j], df_aux["End"].values[j]]
+                y_height = [heights[i], heights[i]]
+                plt.plot(x_time, y_height, color=df_aux["Color"].values[j], linewidth=6, solid_capstyle='butt')
+        plt.ylim(0, 1)
+        plt.xlim((self.start, self.end))
+        plt.yticks(heights, names)
+        plt.xlabel(specs["xlabel"])
+        plt.xticks(ticks)
+        plt.grid(axis='y')
+
+        # overlapping chart
+        plt.subplot(gs[1:, :4])
+        plt.title("c. {}".format(specs["over"]), loc="left")
+        plt.plot(
+            epochs_df[self.dtfield],
+            100 * epochs_df[self.overfield],
+            color="tab:blue"
+        )
+        plt.fill_between(epochs_df[self.dtfield],
+            100 * epochs_df[self.overfield], color='tab:blue', alpha=0.4)
+        plt.ylim(-5, 105)
+        plt.xlim((self.start, self.end))
+        plt.xlabel(specs["xlabel"])
+        plt.xticks(ticks)
+        plt.ylabel("%")
+
+        # Prevalence chart
+        plt.subplot(gs[:1, 4:])
+        plt.title("b. {}".format(specs["prev"]), loc="left")
+        plt.barh(
+            names,
+            preval,
+            color="tab:gray",
+        )
+        # Add data values as text labels on the bars
+        for index, value in enumerate(preval):
+            plt.text(value, index, " {:.1f}%".format(value), ha='left', va='center', fontsize=10)
+        plt.xlim(0, 100)
+        plt.grid(axis='y')
+        plt.xlabel("%")
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            if filename is None:
+                filename = "{}_{}{}".format(self.varalias, self.name, suff)
+            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
+            plt.close(fig)
+        return None
+
+
+
+class RainSeriesCollection(TimeSeriesCollection):
+    def __init__(self, name="MyRSColection"):
+        super().__init__(name=name, base_object=RainfallSeries())
+
+
+# ------------------- DEPRECATED -------------------
 class DailySeries:
     """
     The basic daily time series base_object
@@ -998,6 +1629,7 @@ class DailySeries:
         return None
 
 
+# ------------------- DEPRECATED -------------------
 class PrecipSeries(DailySeries):
     """The precipitation daily time series base_object
 
@@ -2400,7 +3032,7 @@ class Raster:
             self.isaoi = False
         return None
 
-    def cut_edges(self, upper, lower, inplace= False):
+    def cut_edges(self, upper, lower, inplace=False):
         """Cutoff upper and lower values of the raster grid.
 
         :param upper: float or int

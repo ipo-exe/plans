@@ -1,10 +1,57 @@
 """
-PLANS - Planning Nature-based Solutions
+Description:
+    The ``project`` module provides project-related objects and routines of ``plans``.
 
-Module description:
-This module stores all project-related objects and routines of PLANS.
+License:
+    This software is released under the GNU General Public License v3.0 (GPL-3.0).
+    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Copyright (C) 2022 Iporã Brito Possantti
+Author:
+    Iporã Possantti
+
+Contact:
+    possantti@gmail.com
+
+
+Overview
+--------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis.
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
+
+>>> from plans import datasets
+
+Class aptent taciti sociosqu ad litora torquent per
+conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
+eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+
+Example
+-------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+.. code-block:: python
+
+    import numpy as np
+    from plans import analyst
+
+    # get data to a vector
+    data_vector = np.random.rand(1000)
+
+    # instantiate the Univar object
+    uni = analyst.Univar(data=data_vector, name="my_data")
+
+    # view data
+    uni.view()
+
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl.
 """
 import os, shutil, glob
 import pandas as pd
