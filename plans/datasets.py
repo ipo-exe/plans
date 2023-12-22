@@ -160,10 +160,12 @@ class Collection:
         :param name: The name of the collection, defaults to "myCatalog".
         :type name: str
         """
-        dct_meta = base_object.get_metadata()
+        dummy_object = base_object()
+        dct_meta = dummy_object.get_metadata()
         self.catalog = pd.DataFrame(columns=dct_meta.keys())
         self.collection = dict()
         self.name = name
+        self.baseobject = base_object
 
     def update(self, details=False):
         """Update the collection catalog
@@ -238,11 +240,13 @@ class TimeSeries:
 
     """
 
-    def __init__(self, name="MyTS", varname="Variable", varfield="V", units="units"):
+    def __init__(self, name="MyTS", alias=None, varname="Variable", varfield="V", units="units"):
         """Deploy time series object
 
         :param name: Name for the object
         :type name: str
+        :param alias: Alias for the object
+        :type alias: str
         :param varname: variable name
         :type varname: str
         :param varfield: variable field alias
@@ -251,11 +255,14 @@ class TimeSeries:
         :type units: str
         """
         self.name = name
+        if alias is None:
+            alias = name[:3]
+        self.alias = alias
         self.varname = varname
         self.varalias = varfield
         self.varfield = varfield
         self.units = units
-        self.dtfield = "Datetime"
+        self.dtfield = "DateTime"
         # --- optional info --
         self.source_data = None
         self.description = None
@@ -282,19 +289,7 @@ class TimeSeries:
         # set specs
         self._set_view_specs()
 
-    def _set_view_specs(self):
-        self.view_specs = {
-            "title": "{} | {} ({})".format(self.name, self.varname, self.varfield),
-            "width": 5 * 1.618,
-            "height": 3,
-            "xlabel": "Date",
-            "ylabel": self.units,
-            "vmin": 0,
-            "vmax": None,
-            "xmin": None,
-            "xmax": None,
-        }
-        return None
+
 
     def get_metadata(self):
         """Get metadata information from the base object.
@@ -324,8 +319,8 @@ class TimeSeries:
         """
         return {
             "Name": self.name,
+            "Alias": self.alias,
             "Variable": self.varname,
-            "VarAlias": self.varalias,
             "VarField": self.varfield,
             "DtField": self.dtfield,
             "Units": self.units,
@@ -348,7 +343,7 @@ class TimeSeries:
         self,
         input_file,
         input_varfield,
-        input_dtfield="Datetime",
+        input_dtfield="DateTime",
         sep=";",
     ):
         """Load data from file
@@ -366,13 +361,13 @@ class TimeSeries:
 
         .. warning::
 
-            The Datetime field in the incoming file must be a full timestamp
+            The DateTime field in the incoming file must be a full timestamp
             ``YYYY-mm-DD HH:MM:SS``. Even if the data is a daily time series,
             make sure to include a constant, default timestamp like the following example:
 
             .. code-block:: text
 
-                           Datetime; Temperature
+                           DateTime; Temperature
                 2020-02-07 12:00:00;        24.5
                 2020-02-08 12:00:00;        25.1
                 2020-02-09 12:00:00;        28.7
@@ -474,14 +469,20 @@ class TimeSeries:
 
         >>> ts.standardize()
         """
-        dict_freq = {
-            "1min": 16,
-            "20min": 15,
-            "H": 13,
-            "D": 10,
-            "MS": 7,
-            "YS": 4,
-        }
+
+        def insert_epochs(input_df, input_dtfield, freq):
+            input_df["StEpoch"] = pd.cut(
+                input_df[input_dtfield],
+                bins=pd.date_range(
+                    start=input_df[input_dtfield].min(),
+                    end=input_df[input_dtfield].max(),
+                    freq=freq
+                ),
+                labels=False
+            ) + 1
+            input_df["StEpoch"].values[0] = 0
+            return input_df
+
         # handle nones
         if start is None:
             start = self.start
@@ -493,18 +494,36 @@ class TimeSeries:
         end = end + pd.Timedelta(days=1)
         end = end.date()
 
-        # get a date range for all period
+        # get a standard date range for all period
         dt_index = pd.date_range(start=start, end=end, freq=self.dtfreq)
         # set dataframe
-        df = pd.DataFrame({self.dtfield: dt_index, "StEpoch": "-"})
-        # insert Epochs
+        df = pd.DataFrame({self.dtfield: dt_index})
+        # insert Epochs in standard data
+        df = insert_epochs(
+            input_df=df,
+            input_dtfield=self.dtfield,
+            freq=self.dtfreq
+        )
+        #print(df.head())
+        # old solution
+        '''
         df["StEpoch"] = df[self.dtfield].astype(str)
         df["StEpoch"] = df["StEpoch"].str.slice(0, dict_freq[self.dtfreq])
+        '''
 
-        # insert Epochs
+        # get non-standard data
         df2 = self.data.copy()
+        # insert Epochs in non-standard data
+        df2 = insert_epochs(
+            input_df=df2,
+            input_dtfield=self.dtfield,
+            freq=self.dtfreq
+        )
+        # old solution
+        '''
         df2["StEpoch"] = df2[self.dtfield].astype(str)
         df2["StEpoch"] = df2["StEpoch"].str.slice(0, dict_freq[self.dtfreq])
+        '''
 
         # Group by 'Epochs' and calculate agg function
         result_df = df2.groupby("StEpoch")[self.varfield].agg([self.agg]).reset_index()
@@ -515,6 +534,7 @@ class TimeSeries:
         df = pd.merge(
             left=df, right=result_df, left_on="StEpoch", right_on="StEpoch", how="left"
         )
+
         # clear
         self.data = df.drop(columns="StEpoch").copy()
 
@@ -649,7 +669,7 @@ class TimeSeries:
 
         return None
 
-    def fill_gaps(self, method="linear", inplace=False):
+    def interpolate_gaps(self, method="linear", inplace=False):
         """Fill gaps in a time series by interpolating missing values. If the time series is not in standard form, it will be standardized before interpolation.
 
         :param method: str, optional
@@ -674,9 +694,9 @@ class TimeSeries:
 
         **Examples:**
 
-        >>> ts.fill_gaps(method="linear", inplace=True)
+        >>> ts.interpolate_gaps(method="linear", inplace=True)
 
-        >>> interpolated_ts = ts.fill_gaps(method="linear", inplace=False)
+        >>> interpolated_ts = ts.interpolate_gaps(method="linear", inplace=False)
         """
         from scipy.interpolate import interp1d
 
@@ -838,7 +858,7 @@ class TimeSeries:
         agg_df1 = df.resample(freq)[self.varfield].agg(agg_funcs_list)
         agg_df2 = df.resample(freq)["Bad"].agg([("Bad_count", "sum")])
 
-        # Reset the index to get 'Datetime' as a regular column
+        # Reset the index to get 'DateTime' as a regular column
         agg_df1.reset_index(inplace=True)
         agg_df2.reset_index(inplace=True)
 
@@ -866,6 +886,20 @@ class TimeSeries:
         )
 
         return agg_df_new
+
+    def _set_view_specs(self):
+        self.view_specs = {
+            "title": "{} | {} ({})".format(self.name, self.varname, self.varfield),
+            "width": 5 * 1.618,
+            "height": 3,
+            "xlabel": "Date",
+            "ylabel": self.units,
+            "xmin": None,
+            "xmax": None,
+            "ymin": 0,
+            "ymax": None,
+        }
+        return None
 
     def view(
         self,
@@ -920,11 +954,14 @@ class TimeSeries:
 
         >>> ts.view(show=False, folder="./output", filename="time_series_plot", dpi=300, fig_format="png")
         """
+        # preprocessing
+        if self.epochs_stats is None:
+            self.update_epochs_stats()
+
         specs = self.view_specs.copy()
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-
-        self.update_epochs_stats()
+        # plot loop
         for i in range(len(self.epochs_stats)):
             start = self.epochs_stats["Start"].values[i]
             end = self.epochs_stats["End"].values[i]
@@ -975,10 +1012,10 @@ class TimeSeries:
 
 
 class RainfallSeries(TimeSeries):
-    def __init__(self, name="MyRainfallSeries"):
+    def __init__(self, name="MyRainfallSeries", alias=None):
         # ---------------------------------------------------
         # use superior initialization
-        super().__init__(name, varname="Rain", varfield="P", units="mm")
+        super().__init__(name, alias=alias, varname="Rain", varfield="P", units="mm")
         self.code = None
         self.agg = "sum"
         self.gapsize = 5
@@ -996,6 +1033,27 @@ class RainfallSeries(TimeSeries):
         _dict.update(local_dict)
         return _dict
 
+class StageSeries(TimeSeries):
+    def __init__(self, name="MyStageSeries", alias=None):
+        # ---------------------------------------------------
+        # use superior initialization
+        super().__init__(name, alias=None, varname="Stage", varfield="H", units="cm")
+        self.code = None
+        self.agg = "mean"
+        self.gapsize = 10
+        self.x = None
+        self.y = None
+
+    def get_metadata(self):
+        """Get all metadata from base_object
+
+        :return: metadata
+        :rtype: dict
+        """
+        _dict = super().get_metadata()
+        local_dict = {"Code": self.code, "X": self.x, "Y": self.y}
+        _dict.update(local_dict)
+        return _dict
 
 class TimeSeriesCollection(Collection):
     def __init__(self, name="myTSCollection", base_object=None):
@@ -1014,13 +1072,13 @@ class TimeSeriesCollection(Collection):
         """
         # If base_object is not provided, create a default TimeSeries object
         if base_object is None:
-            base_object = TimeSeries()
+            base_object = TimeSeries
 
         # Call the constructor of the parent class (TimeSeries)
         super().__init__(base_object=base_object, name=name)
 
         # Set default field names and attributes
-        self.dtfield = "Datetime"
+        self.dtfield = "DateTime"
         self.overfield = "Overlapping"
 
         # Set up date fields and special attributes in the catalog
@@ -1040,23 +1098,6 @@ class TimeSeriesCollection(Collection):
         # view specs
         self._set_view_specs()
 
-    def _set_view_specs(self):
-        self.view_specs = {
-            "title": "Time Series Collection | {}".format(self.name),
-            "width": 8,
-            "height": 5,
-            "xlabel": "Date",
-            "ylabel": "%",
-            "gantt": "Gantt chart",
-            "prev": "Prevalence",
-            "over": "Overlapping",
-            "vmin": 0,
-            "vmax": None,
-            "xmin": None,
-            "xmax": None,
-        }
-        return None
-
     def update(self, details=False):
         """Update the time series collection.
 
@@ -1074,9 +1115,43 @@ class TimeSeriesCollection(Collection):
         self.min = self.catalog["Min"].min()
         self.max = self.catalog["Max"].max()
 
+    def load_data(self, input_file, skip_process=False):
+        input_df = pd.read_csv(input_file, sep=";")
+        self.set_data(input_df=input_df, skip_process=skip_process)
+        return None
+
+    def set_data(self, input_df, skip_process=False):
+        for i in range(len(input_df)):
+            # create opject
+            ts = self.baseobject(
+                name=input_df["Name"].values[i]
+            )
+            ts.alias = input_df["Alias"].values[i]
+            ts.units = input_df["Units"].values[i]
+            # load data
+            ts.load_data(
+                input_file=input_df["File"].values[i],
+                input_varfield=input_df["VarField"].values[i],
+                input_dtfield=input_df["DtField"].values[i]
+            )
+            # extra attrs
+            ts.source_data = input_df["Source"].values[i]
+            ts.description = input_df["Description"].values[i]
+            ts.color = input_df["Color"].values[i]
+            # process
+            if skip_process:
+                pass
+            else:
+                ts.standardize()
+                ts.interpolate_gaps(inplace=True)
+                ts.update_epochs_stats()
+            # append
+            self.append(new_object=ts)
+        self.update(details=True)
+        return None
+
     def merge_data(self):
-        """
-        Merge data from multiple sources into a single DataFrame.
+        """Merge data from multiple sources into a single DataFrame.
 
         :return: DataFrame
             A merged DataFrame with datetime and variable fields from different sources.
@@ -1095,6 +1170,7 @@ class TimeSeriesCollection(Collection):
         # Get start, end, and frequency from the catalog
         start = self.start
         end = self.end
+        # consider the first freq
         freq = self.catalog["Time_res"].values[0]
 
         # Create a date range for the entire period
@@ -1137,6 +1213,29 @@ class TimeSeriesCollection(Collection):
                 df = df.drop(columns=[dt_right_after])
 
         return df
+
+    def standardize(self):
+        # standardize all series
+        for name in self.collection:
+            self.collection[name].standardize()
+        # merge
+        df = self.merge_data()
+        # reset data
+        for c in df.columns[1:]:
+            name = c.split("_")[1]
+            df_aux = df[[self.dtfield, c]].copy()
+            self.collection[name].set_data(
+                input_df=df_aux,
+                input_dtfield=self.dtfield,
+                input_varfield=c,
+                dropnan=False
+            )
+        # update epochs
+        for name in self.collection:
+            self.collection[name].update_epochs_stats()
+        # update catalog
+        self.update(details=True)
+        return None
 
     def merge_local_epochs(self):
         """Merge local epochs statistics from individual time series within the collection.
@@ -1215,6 +1314,27 @@ class TimeSeriesCollection(Collection):
 
         return df
 
+    def _set_view_specs(self):
+        self.view_specs = {
+            "title": "Time Series Collection | {}".format(self.name),
+            "width": 8,
+            "width_spacing": 1.5,
+            "left": 0.1,
+            "height": 5,
+            "xlabel": "Date",
+            "ylabel": "%",
+            "gantt": "Gantt chart",
+            "prev": "Prevalence",
+            "over": "Overlapping",
+            "vmin": 0,
+            "vmax": None,
+            "ymin": 0,
+            "ymax": None,
+            "xmin": None,
+            "xmax": None,
+        }
+        return None
+
     def view(
             self,
             show=True,
@@ -1223,6 +1343,7 @@ class TimeSeriesCollection(Collection):
             dpi=300,
             fig_format="jpg",
             suff="",
+            usealias=False
     ):
         """Visualize the time series collection.
 
@@ -1268,6 +1389,12 @@ class TimeSeriesCollection(Collection):
 
         >>> ts.view(show=False, folder="./output", filename="time_series_plot", dpi=300, fig_format="png")
         """
+        if usealias:
+            _names = self.catalog["Name"].values
+            _alias = self.catalog["Alias"].values
+            dict_alias = dict()
+            for i in range(len(self.catalog)):
+                dict_alias[_names[i]] = _alias[i]
 
         # pre-processing
         local_epochs_df = self.merge_local_epochs()
@@ -1275,14 +1402,14 @@ class TimeSeriesCollection(Collection):
         agg_df = local_epochs_df.groupby('Name')['Count'].sum().reset_index()
         agg_df = agg_df.sort_values(by="Count", ascending=True).reset_index(drop=True)
         names = agg_df["Name"].values
+        if usealias:
+            alias = [dict_alias[name] for name in names]
         preval = 100 * agg_df["Count"].values / agg_df["Count"].sum()
         heights = np.linspace(0, 1, len(names) + 1)
         heights = heights[:len(names)] + ((heights[1] - heights[0]) / 2)
 
         # get epochs
         epochs_df = self.get_epochs()
-
-
 
         # Assuming date_values is a list of datetime objects
         date_values = epochs_df[self.dtfield].values
@@ -1295,14 +1422,19 @@ class TimeSeriesCollection(Collection):
         # Select the corresponding dates for the ticks
         ticks = [date_values[i] for i in tick_indices]
 
-
         # plot
         specs = self.view_specs.copy()
 
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            2, 6, wspace=1.5, hspace=0.5, left=0.1, bottom=0.1, top=0.85, right=0.95
+            2, 6,
+            wspace=specs["width_spacing"],
+            hspace=0.5,
+            left=specs["left"],
+            bottom=0.1,
+            top=0.85,
+            right=0.95
         )
         fig.suptitle(specs["title"])
 
@@ -1318,7 +1450,10 @@ class TimeSeriesCollection(Collection):
                 plt.plot(x_time, y_height, color=df_aux["Color"].values[j], linewidth=6, solid_capstyle='butt')
         plt.ylim(0, 1)
         plt.xlim((self.start, self.end))
-        plt.yticks(heights, names)
+        labels = names
+        if usealias:
+            labels = alias
+        plt.yticks(heights, labels)
         plt.xlabel(specs["xlabel"])
         plt.xticks(ticks)
         plt.grid(axis='y')
@@ -1343,7 +1478,7 @@ class TimeSeriesCollection(Collection):
         plt.subplot(gs[:1, 4:])
         plt.title("b. {}".format(specs["prev"]), loc="left")
         plt.barh(
-            names,
+            labels,
             preval,
             color="tab:gray",
         )
@@ -1351,7 +1486,7 @@ class TimeSeriesCollection(Collection):
         for index, value in enumerate(preval):
             plt.text(value, index, " {:.1f}%".format(value), ha='left', va='center', fontsize=10)
         plt.xlim(0, 100)
-        plt.grid(axis='y')
+        plt.grid(axis='x')
         plt.xlabel("%")
 
         # show or save
@@ -1359,17 +1494,72 @@ class TimeSeriesCollection(Collection):
             plt.show()
         else:
             if filename is None:
-                filename = "{}_{}{}".format(self.varalias, self.name, suff)
+                filename = "{}{}".format(self.name, suff)
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
             plt.close(fig)
         return None
 
+    def export_views(self, folder, dpi=300, fig_format="jpg", suff=""):
+        self.update(details=True)
 
+        for name in self.collection:
+            self.collection[name].update_epochs_stats()
+
+        self.view(
+            show=False,
+            folder=folder,
+            dpi=dpi,
+            fig_format=fig_format,
+            suff=suff
+        )
+
+        for name in self.collection:
+            # specs
+            self.collection[name].view_specs["ymax"] = self.max
+            self.collection[name].view_specs["ymin"] = 0
+            self.collection[name].view_specs["xmax"] = self.end
+            self.collection[name].view_specs["xmin"] = self.start
+            # view
+            self.collection[name].view(
+                show=False,
+                folder=folder,
+                dpi=dpi,
+                fig_format=fig_format,
+                suff=suff
+            )
 
 class RainSeriesCollection(TimeSeriesCollection):
     def __init__(self, name="MyRSColection"):
-        super().__init__(name=name, base_object=RainfallSeries())
+        super().__init__(name=name, base_object=RainfallSeries)
 
+    def set_data(self, input_df, skip_process=False):
+        # generic part
+        super().set_data(input_df=input_df, skip_process=skip_process)
+        # custom part
+        for i in range(len(input_df)):
+            name = input_df["Name"].values[i]
+            self.collection[name].x = input_df["X"].values[i]
+            self.collection[name].y = input_df["Y"].values[i]
+            self.collection[name].code = input_df["Code"].values[i]
+        self.update(details=True)
+        return None
+
+
+class StageSeriesCollection(TimeSeriesCollection):
+    def __init__(self, name="MySSColection"):
+        super().__init__(name=name, base_object=StageSeries)
+
+    def set_data(self, input_df, skip_process=False):
+        # generic part
+        super().set_data(input_df=input_df, skip_process=skip_process)
+        # custom part
+        for i in range(len(input_df)):
+            name = input_df["Name"].values[i]
+            self.collection[name].x = input_df["X"].values[i]
+            self.collection[name].y = input_df["Y"].values[i]
+            self.collection[name].code = input_df["Code"].values[i]
+        self.update(details=True)
+        return None
 
 # ------------------- DEPRECATED -------------------
 class DailySeries:
@@ -2179,7 +2369,7 @@ class RatingCurve:
 
 class RatingCurveCollection(Collection):
     def __init__(self, name="MyRatingCurveCollection"):
-        obj_aux = RatingCurve()
+        obj_aux = RatingCurve
         super().__init__(base_object=obj_aux, name=name)
         # set up date fields and special attributes
         self.catalog["Date_Start"] = pd.to_datetime(self.catalog["Date_Start"])
@@ -5033,7 +5223,7 @@ class RasterCollection(Collection):
         :param name: name of raster collection
         :type name: str
         """
-        obj_aux = Raster()
+        obj_aux = Raster
         super().__init__(base_object=obj_aux, name=name)
         # set up date fields and special attributes
         self.catalog["Date"] = pd.to_datetime(self.catalog["Date"])
@@ -6405,7 +6595,7 @@ if __name__ == "__main__":
     ts.standardize()
     print(ts.data.head(10))
 
-    ts.fill_gaps(method="linear", inplace=True)
+    ts.interpolate_gaps(method="linear", inplace=True)
     print(ts.data.head(10))
 
     ts.view(show=True)

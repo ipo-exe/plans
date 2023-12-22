@@ -797,7 +797,6 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
         "hand": file_hand,
     }
 
-
 def get_topo(
     output_folder,
     file_main_dem,
@@ -810,7 +809,7 @@ def get_topo(
     h=10,
     hand_cells=100,
 ):
-    """Get all [topo] datasets for running PLANS.
+    """Get all ``topo`` datasets for running PLANS.
 
     :param output_folder: path to output folder to export datasets
     :type output_folder: str
@@ -1423,7 +1422,7 @@ def get_basins(
     target_crs,
     layer_stream_gauges="stream",
 ):
-    """Get all [basins] datasets for running PLANS.
+    """Get all ``basins`` datasets for running PLANS.
 
     :param output_folder: path to output folder
     :type output_folder: str
