@@ -8,7 +8,7 @@ Copyright (C) 2022 Iporã Brito Possantti
 """
 import os, time
 import numpy as np
-from tui import ok, warning, done
+from plans.tui import ok, warning, done
 
 def talker(talk, kind, message):
     dict_options = {
@@ -57,6 +57,67 @@ def DEMO(path_inputfile1, path_inputfile2, workplace, b_paramter1, suffix=None, 
     # get rundir
     dir_out = create_rundir(workplace=workplace, label=label, suffix=suffix)
     print()
+
+
+def RSCT2(path_infofile, workplace, suffix, talk=False):
+    from plans.datasets import RainSeriesCollection
+    start_start = time.time()
+    # define label
+    label = RSCT2.__name__
+    # get rundir
+    dir_out = create_rundir(workplace=workplace, label=label, suffix=suffix)
+
+    # Record the start time
+    print("loading...")
+    # LOAD
+    start_time = time.time()
+    rsc = RainSeriesCollection(name=suffix)
+    rsc.load_data(
+        input_file=path_infofile,
+        #filter_dates=["2005-01-01 00:00:00", "2012-01-01 00:00:00"],
+    )
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Time: {elapsed_time} seconds\n")
+
+    # PROCESS DATA
+    print("processing...")
+    start_time = time.time()
+    rsc.standardize()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Time: {elapsed_time} seconds\n")
+
+
+
+    # EXPORT DATA
+    print("exporting data...")
+    start_time = time.time()
+
+    for name in rsc.collection:
+        alias = rsc.collection[name].alias
+        rsc.collection[name].data.to_csv(
+            "{}/P_{}.csv".format(dir_out, alias),
+            sep=";",
+            index=False
+        )
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Time: {elapsed_time} seconds\n")
+
+    # EXPORT views
+    print("exporting views...")
+    start_time = time.time()
+    rsc.export_views(folder=dir_out)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Time: {elapsed_time} seconds\n")
+
+    end_end = time.time()
+    elapsed_time = end_end - start_start
+    print(f"TOTAL Elapsed Time: {elapsed_time} seconds\n")
+    return 0
+
 
 def DTO(path_ldd, workplace, suffix=None, talk=False):
     from datasets import Raster, LDD, DTO

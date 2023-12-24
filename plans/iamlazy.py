@@ -62,6 +62,8 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
+import glob
+
 import processing
 from osgeo import gdal
 from qgis.core import QgsCoordinateReferenceSystem
@@ -1258,16 +1260,19 @@ def get_lulc(
 
 def get_rain(
     output_folder,
+    src_folder,
     input_db,
     target_file,
     target_crs,
     layer_aoi="aoi",
     layer_rain_gauges="rain",
 ):
-    """Get [rain] datasets for running PLANS.
+    """Get ``rain`` datasets for running PLANS.
 
     ::param output_folder: path to output folder
     :type output_folder: str
+    ::param src_folder: path to source folder for all csv series files. Files must be named by rain_<alias>.csv
+    :type src_folder: str
     :param input_db: path to geopackage database with rain gauge layer
     :type input_db: str
     :param target_file: file path to target raster (e.g., the DEM raster)
@@ -1276,7 +1281,7 @@ def get_rain(
     :type target_crs: str
     :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
     :type layer_aoi: str
-    :param layer_rain_gauges: layer name of rain gauges layer
+    :param layer_rain_gauges: layer name of rain gauges layer. It is expected to have at least fields: Id, Name, Alias, Source, Description, Code
     :type layer_rain_gauges: str
     :return: None
     :rtype: None
@@ -1291,6 +1296,7 @@ def get_rain(
         # call function
         iamlazy.get_rain(
             output_folder="path/to/rain",
+            src_folder="path/to/src",
             target_file="path/to/dem.asc",
             target_crs="31982",
             input_db="path/to/my_db.gpkg",
@@ -1299,6 +1305,7 @@ def get_rain(
         )
 
     """
+    from plans import datasets
     def calculate_buffer_ratios(box_small, box_large):
         delta_x_small = abs(box_small["xmax"] - box_small["xmin"])
         lower_x = abs(box_small["xmin"] - box_large["xmin"])
@@ -1321,11 +1328,34 @@ def get_rain(
         os.mkdir(output_folder_interm)
 
     print("get info...")
+
+    # ---------------- RAIN SERIES ----------------
+
+    lst_files = glob.glob("{}/P_*.csv".format(src_folder))
+    for f in lst_files:
+        shutil.copy(src=f, dst=output_folder)
+
     # load table
-    rain_gdf = gpd.read_file(input_db, layer=layer_rain_gauges, ignore_geometry=True)
+    rain_gdf = gpd.read_file(input_db, layer=layer_rain_gauges)
+
+    # fill attributes
+    rain_gdf["Units"] = "mm"
+    # The VarField is expected to be P_{}_mm
+    rain_gdf["VarField"] = ["P_{}_mm".format(a) for a in rain_gdf["Alias"].values]
+    rain_gdf["DtField"] = "DateTime"
+    rain_gdf["X"] = rain_gdf.geometry.x
+    rain_gdf["Y"] = rain_gdf.geometry.y
+    rain_gdf["Color"] = datasets.get_random_colors(size=len(rain_gdf))
+    rain_gdf["File"] = ["{}/P_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values]
+    # Drop the geometry column
+    rain_gdf = rain_gdf.drop(columns=['geometry'])
+
     # export csv file
-    rain_gdf.to_csv("{}/rain_info.csv".format(output_folder), sep=";", index=False)
+    rain_info_file = "{}/rain_info.csv".format(output_folder)
+    rain_gdf.to_csv(rain_info_file, sep=";", index=False)
     # print(rain_gdf.to_string())
+
+    # ---------------- RAIN ZONES ----------------
 
     # first check number of features
     n_rain_gauges = get_feature_count(input_db=input_db, layer_name=layer_rain_gauges)
@@ -1369,12 +1399,13 @@ def get_rain(
         )
         print("get voronoi polygons...")
         # run function
+        zones_shp = "{}/zones.shp".format(output_folder_interm)
         processing.run(
             "qgis:voronoipolygons",
             {
                 "INPUT": "{}|layername={}".format(input_db, layer_rain_gauges_2),
                 "BUFFER": n_buffer,
-                "OUTPUT": "{}/zones.shp".format(output_folder_interm),
+                "OUTPUT": zones_shp,
             },
         )
     print("get zones raster...")
@@ -1389,8 +1420,8 @@ def get_rain(
         processing.run(
             "gdal:rasterize_over",
             {
-                "INPUT": "{}/zones.shp".format(output_folder_interm),
-                "INPUT_RASTER": "{}/rain_zones.tif".format(output_folder_interm),
+                "INPUT": zones_shp,
+                "INPUT_RASTER": zones_raster ,
                 "FIELD": "Id",
                 "ADD": False,
                 "EXTRA": "",
@@ -1401,14 +1432,14 @@ def get_rain(
     processing.run(
         "gdal:translate",
         {
-            "INPUT": "{}/rain_zones.tif".format(output_folder_interm),
+            "INPUT": zones_raster,
             "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
             "NODATA": 0,
             "COPY_SUBDATASETS": False,
             "OPTIONS": "",
             "EXTRA": "",
             "DATA_TYPE": 1,
-            "OUTPUT": "{}/rain_zones.asc".format(output_folder),
+            "OUTPUT": "{}/zones.asc".format(output_folder),
         },
     )
     print("end")

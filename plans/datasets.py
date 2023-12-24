@@ -325,7 +325,10 @@ class TimeSeries:
         # --- optional info --
         self.source_data = None
         self.description = None
-        self.color = None
+        self.color = "tab:blue"
+        self.code = None
+        self.x = None
+        self.y = None
 
         # --- auto update info
         self.data = None
@@ -341,7 +344,7 @@ class TimeSeries:
         self.epochs_stats = None
         self.epochs_n = None
         self.gapsize = 7
-        self.path_input = None
+        self.file_input = None
 
         # hack attributes
         self.cmap = "tab20b"
@@ -352,31 +355,6 @@ class TimeSeries:
     def get_metadata(self):
         """Get metadata information from the base object.
 
-        Returns:
-            dict: A dictionary containing the following metadata:
-
-            - "Name" (str): Name of the timeseries.
-            - "Alias" (str): Alias for the timeseries.
-            - "Variable" (str): Variable name.
-            - "VarField" (str): Variable field.
-            - "DtField" (str): Datetime field.
-            - "Units" (str): Measurement units.
-            - "Size" (int): Size of the data.
-            - "Epochs" (int): Number of epochs.
-            - "Start" (str): Start date.
-            - "End" (str): End date.
-            - "Min" (float): Minimal value.
-            - "Max" (float): Maximal value.
-            - "Time_res" (str): Time resolution.
-            - "IsStandard" (bool): Indicates if the data follows a standard format.
-            - "Fill_gap" (int): Gap size allowed for filling missing data.
-            - "Color" (str): Color associated with the timeseries.
-            - "Source" (str): Data source.
-            - "Description" (str): Description of the timeseries.
-            - "Path_input" (str): File path to the input file.
-
-        Example:
-            >>> metadata = get_metadata()
         """
         # Prepare and return metadata as a dictionary
         return {
@@ -391,14 +369,17 @@ class TimeSeries:
             "Start": self.start,
             "End": self.end,
             "Min": self.var_min,
-            "Max": self.var_min,
+            "Max": self.var_max,
             "Time_res": self.dtfreq,
             "IsStandard": self.isstandard,
-            "Fill_gap": self.gapsize,
+            "GapSize": self.gapsize,
             "Color": self.color,
             "Source": self.source_data,
             "Description": self.description,
-            "Path_input": self.path_input,
+            "Code": self.code,
+            "X": self.x,
+            "Y": self.y,
+            "File": self.file_input,
         }
 
     # docs: ok
@@ -408,6 +389,7 @@ class TimeSeries:
         input_varfield,
         input_dtfield="DateTime",
         sep=";",
+        filter_dates=None
     ):
         """Load data from file.
 
@@ -457,18 +439,20 @@ class TimeSeries:
         df = pd.read_csv(input_file, sep=sep, usecols=[input_dtfield, input_varfield])
 
         # Set data
-
         self.set_data(
-            input_df=df, input_varfield=input_varfield, input_dtfield=input_dtfield
+            input_df=df,
+            input_varfield=input_varfield,
+            input_dtfield=input_dtfield,
+            filter_dates=filter_dates
         )
 
         # Set attributes
-        self.path_input = input_file
+        self.file_input = input_file
 
         return None
 
     # docs: OK
-    def set_data(self, input_df, input_dtfield, input_varfield, dropnan=True):
+    def set_data(self, input_df, input_dtfield, input_varfield, filter_dates=None, dropnan=True):
         """Set time series data from an input DataFrame.
 
         :param input_df: pandas DataFrame
@@ -482,6 +466,10 @@ class TimeSeries:
         :param input_varfield: str
             Name of the variable field in the input DataFrame.
         :type input_varfield: str
+
+        :param filter_dates: list, optional
+            List of [Start, End] used for filtering date range.
+        :type dropnan: list
 
         :param dropnan: bool, optional
             If True, drop NaN values from the DataFrame. Default is True.
@@ -520,8 +508,15 @@ class TimeSeries:
         # Convert datetime column to standard format
         df[self.dtfield] = pd.to_datetime(df[self.dtfield], format="%Y-%m-%d %H:%M:%S")
 
+        if filter_dates is None:
+            pass
+        else:
+            df = df.query("{} >= '{}' and {} < '{}'".format(
+                self.dtfield, filter_dates[0], self.dtfield, filter_dates[1]))
+
         # Set the data attribute
         self.data = df.copy()
+        # update all
         self.update()
 
         return None
@@ -790,9 +785,12 @@ class TimeSeries:
         **Examples:**
 
         >>> ts.update_epochs_stats()
+
         """
+
         # Ensure data is standardized
         if not self.isstandard:
+            print("heeyyy")
             self.standardize()
 
         # Get epochs
@@ -903,6 +901,7 @@ class TimeSeries:
 
         if inplace:
             self.data[self.varfield] = df_new["{}_interp".format(self.varfield)].values
+            self.update()
             return None
         else:
             return df_new
@@ -1090,6 +1089,7 @@ class TimeSeries:
         dpi=300,
         fig_format="jpg",
         suff="",
+        raw=False
     ):
         """Visualize the time series data using a scatter plot with colored epochs.
 
@@ -1119,6 +1119,11 @@ class TimeSeries:
             Default is "jpg".
         :type fig_format: str
 
+        :param raw: bool, optional
+            Option for considering a raw data series. No epochs analysis.
+            Default is False.
+        :type fig_format: str
+
         :return: None
             If show is True, the plot is displayed interactively.
             If show is False, the plot is saved to a file.
@@ -1135,32 +1140,42 @@ class TimeSeries:
 
         >>> ts.view(show=False, folder="./output", filename="time_series_plot", dpi=300, fig_format="png")
         """
-        # preprocessing
-        if self.epochs_stats is None:
-            self.update_epochs_stats()
-        print(self.epochs_stats.to_string())
         specs = self.view_specs.copy()
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        # plot loop
-        for i in range(len(self.epochs_stats)):
-            start = self.epochs_stats["Start"].values[i]
-            end = self.epochs_stats["End"].values[i]
-            df_aux = self.data.query(
-                "{} >= '{}' and {} < '{}'".format(
-                    self.dtfield, start, self.dtfield, end
-                )
-            )
-            epoch_c = self.epochs_stats["Color"].values[i]
-            epoch_id = self.epochs_stats["Epoch_Id"].values[i]
+        if raw:
             plt.plot(
-                df_aux[self.dtfield],
-                df_aux[self.varfield],
+                self.data[self.dtfield],
+                self.data[self.varfield],
                 ".",
-                color=epoch_c,
-                label=f"Epoch_{epoch_id}",
+                color=self.color,
             )
-        plt.legend(frameon=True, ncol=2)
+        else:
+            # preprocessing
+            if self.epochs_stats is None:
+                self.update_epochs_stats()
+
+            # plot loop
+            for i in range(len(self.epochs_stats)):
+                start = self.epochs_stats["Start"].values[i]
+                end = self.epochs_stats["End"].values[i]
+                df_aux = self.data.query(
+                    "{} >= '{}' and {} < '{}'".format(
+                        self.dtfield, start, self.dtfield, end
+                    )
+                )
+                epoch_c = self.epochs_stats["Color"].values[i]
+                epoch_id = self.epochs_stats["Epoch_Id"].values[i]
+                plt.plot(
+                    df_aux[self.dtfield],
+                    df_aux[self.varfield],
+                    ".",
+                    color=epoch_c,
+                    label=f"Epoch_{epoch_id}",
+                )
+            if self.epochs_n <=10:
+                plt.legend(frameon=True, ncol=2)
+        # basic plot stuff
         plt.title(specs["title"])
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["xlabel"])
@@ -1186,19 +1201,6 @@ class RainfallSeries(TimeSeries):
 
     The `RainfallSeries` class extends the `TimeSeries` class and focuses on handling rainfall data.
 
-    **Attributes:**
-
-    - `name` (str): Name of the rainfall series.
-    - `alias` (str): Alias for the rainfall series.
-    - `varname` (str): Variable name, set to "Rain".
-    - `varfield` (str): Variable field, set to "P".
-    - `units` (str): Measurement units, set to "mm".
-    - `code` (str or None): Custom code associated with the rainfall series. Default is None.
-    - `agg` (str): Aggregation method, set to "sum" by default.
-    - `gapsize` (int): Maximum gap size allowed for data interpolation, set to 5.
-    - `x`: X-coordinate information associated with the rainfall series. Default is None.
-    - `y`: Y-coordinate information associated with the rainfall series. Default is None.
-
     **Examples:**
 
     >>> rainfall_data = RainfallSeries(name="Monsoon2022", alias="MS2022")
@@ -1219,44 +1221,9 @@ class RainfallSeries(TimeSeries):
         """
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(name, alias=alias, varname="Rain", varfield="P", units="mm")
-        # Additional attributes specific to RainfallSeries
-        self.code = None  # Custom code associated with the rainfall series
+        # Overwrite attributes specific to RainfallSeries
         self.agg = "sum"  # Aggregation method, set to "sum" by default
         self.gapsize = 5  # Maximum gap size allowed for data interpolation
-        self.x = None  # X-coordinate information associated with the rainfall series
-        self.y = None  # Y-coordinate information associated with the rainfall series
-
-    def get_metadata(self):
-        """Get all metadata from the base object.
-
-        :return: metadata
-        :rtype: dict
-
-        **Notes:**
-
-        - Metadata includes information from the base class (TimeSeries) and additional RainfallSeries-specific attributes.
-        - The returned dictionary contains key-value pairs with metadata information.
-
-        **Examples:**
-
-        >>> metadata = rainfall_data.get_metadata()
-        >>> print(metadata)
-
-        """
-        # Get metadata from the base class (TimeSeries)
-        base_metadata = super().get_metadata()
-        # Additional RainfallSeries-specific metadata
-        rainfall_metadata = {
-            "Code": self.code,
-            "Agg": self.agg,
-            "GapSize": self.gapsize,
-            "X": self.x,
-            "Y": self.y,
-        }
-        # Combine both base and specific metadata
-        base_metadata.update(rainfall_metadata)
-        return base_metadata
-
 
 class StageSeries(TimeSeries):
     """A class for representing and working with river stage time series data.
@@ -1296,12 +1263,11 @@ class StageSeries(TimeSeries):
         """
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(name, alias=alias, varname="Stage", varfield="H", units="cm")
-        # Additional attributes specific to StageSeries
-        self.code = None  # Custom code associated with the river stage series
+        # Overwrite attributes specific to StageSeries
         self.agg = "mean"  # Aggregation method, set to "mean" by default
         self.gapsize = 10  # Maximum gap size allowed for data interpolation
-        self.x = None  # X-coordinate information associated with the river stage series
-        self.y = None  # Y-coordinate information associated with the river stage series
+        # Extra attributes specific to StageSeries
+        self.upstream_area = None
 
     def get_metadata(self):
         """Get all metadata from the base object.
@@ -1311,29 +1277,24 @@ class StageSeries(TimeSeries):
 
         **Notes:**
 
-        - Metadata includes information from the base class (TimeSeries) and additional StageSeries-specific attributes.
+        - Metadata includes information from the base class (TimeSeries) and additional TemperatureSeries-specific attributes.
         - The returned dictionary contains key-value pairs with metadata information.
 
         **Examples:**
 
-        >>> metadata = river_stage_data.get_metadata()
+        >>> metadata = stage_data.get_metadata()
         >>> print(metadata)
 
         """
         # Get metadata from the base class (TimeSeries)
         base_metadata = super().get_metadata()
-        # Additional StageSeries-specific metadata
-        stage_metadata = {
-            "Code": self.code,
-            "Agg": self.agg,
-            "GapSize": self.gapsize,
-            "X": self.x,
-            "Y": self.y,
+        # Additional TimeSeries-specific metadata
+        extra_metadata = {
+            "UpstreamArea": self.upstream_area,
         }
         # Combine both base and specific metadata
-        base_metadata.update(stage_metadata)
+        base_metadata.update(extra_metadata)
         return base_metadata
-
 
 class TemperatureSeries(TimeSeries):
     """A class for representing and working with temperature time series data.
@@ -1375,44 +1336,9 @@ class TemperatureSeries(TimeSeries):
         super().__init__(
             name, alias=alias, varname="Temperature", varfield="T", units="Celsius"
         )
-        # Additional attributes specific to TemperatureSeries
-        self.code = None  # Custom code associated with the temperature series
+        # Overwrite attributes specific to TemperatureSeries
         self.agg = "mean"  # Aggregation method, set to "mean" by default
         self.gapsize = 10  # Maximum gap size allowed for data interpolation
-        self.x = None  # X-coordinate information associated with the temperature series
-        self.y = None  # Y-coordinate information associated with the temperature series
-
-    def get_metadata(self):
-        """Get all metadata from the base object.
-
-        :return: metadata
-        :rtype: dict
-
-        **Notes:**
-
-        - Metadata includes information from the base class (TimeSeries) and additional TemperatureSeries-specific attributes.
-        - The returned dictionary contains key-value pairs with metadata information.
-
-        **Examples:**
-
-        >>> metadata = temperature_data.get_metadata()
-        >>> print(metadata)
-
-        """
-        # Get metadata from the base class (TimeSeries)
-        base_metadata = super().get_metadata()
-        # Additional TemperatureSeries-specific metadata
-        temperature_metadata = {
-            "Code": self.code,
-            "Agg": self.agg,
-            "GapSize": self.gapsize,
-            "X": self.x,
-            "Y": self.y,
-        }
-        # Combine both base and specific metadata
-        base_metadata.update(temperature_metadata)
-        return base_metadata
-
 
 class TimeSeriesCollection(Collection):
     """A collection of time series objects with associated metadata.
@@ -1474,6 +1400,11 @@ class TimeSeriesCollection(Collection):
         # view specs
         self._set_view_specs()
 
+
+    def __str__(self):
+        return self.catalog.to_string(index=False)
+
+
     # docs: ok
     def update(self, details=False):
         """Update the time series collection.
@@ -1497,32 +1428,28 @@ class TimeSeriesCollection(Collection):
         self.var_max = self.catalog["Max"].max()
 
     # docs: ok
-    def load_data(self, input_file, skip_process=False):
+    def load_data(self, input_file, filter_dates=None):
         """Load data from an input file into the time series collection.
 
         :param input_file: str
             Path to the input file.
         :type input_file: str
 
-        :param skip_process: bool, optional
-            If True, skip data processing steps.
-            Default is False.
-        :type skip_process: bool
-
         **Examples:**
 
-        >>> ts_collection.load_data(input_file="data.csv", skip_process=False)
+        >>> ts_collection.load_data(input_file="data.csv")
         """
         input_df = pd.read_csv(input_file, sep=";")
-        self.set_data(input_df=input_df, skip_process=skip_process)
+        self.set_data(input_df=input_df, filter_dates=filter_dates)
         return None
 
     # docs: ok
-    def set_data(self, input_df, skip_process=False):
-        """Set data for the time series collection from a DataFrame.
+    def set_data(self, input_df, filter_dates=None):
+        """Set data for the time series collection from a info DataFrame.
 
         :param input_df: class:`pandas.DataFrame`
             DataFrame containing metadata for the time series collection.
+            This DataFrame is expected to have matching fields to the metadata keys
         :type input_df: class:`pandas.DataFrame`
 
         :param skip_process: bool, optional
@@ -1539,9 +1466,11 @@ class TimeSeriesCollection(Collection):
         **Examples:**
 
         >>> input_df = pd.read_csv("metadata.csv", sep=";")
-        >>> ts_collection.set_data(input_df=input_df, skip_process=True)
+        >>> ts_collection.set_data(input_df=input_df)
+
         """
         for i in range(len(input_df)):
+
             # create object
             ts = self.baseobject(name=input_df["Name"].values[i])
             ts.alias = input_df["Alias"].values[i]
@@ -1551,18 +1480,24 @@ class TimeSeriesCollection(Collection):
                 input_file=input_df["File"].values[i],
                 input_varfield=input_df["VarField"].values[i],
                 input_dtfield=input_df["DtField"].values[i],
+                filter_dates=filter_dates,
             )
             # extra attrs
+            ts.x = input_df["X"].values[i]
+            ts.y = input_df["Y"].values[i]
+            ts.code = input_df["Code"].values[i]
             ts.source_data = input_df["Source"].values[i]
             ts.description = input_df["Description"].values[i]
             ts.color = input_df["Color"].values[i]
+            '''
             # process
             if skip_process:
                 pass
             else:
                 ts.standardize()
-                ts.interpolate_gaps(inplace=True)
+                # ts.interpolate_gaps(inplace=True) # this is causing problems 
                 ts.update_epochs_stats()
+            '''
             # append
             self.append(new_object=ts)
         self.update(details=True)
@@ -1665,6 +1600,7 @@ class TimeSeriesCollection(Collection):
         # Standardize all series [overwrite]
         for name in self.collection:
             self.collection[name].standardize()
+            self.collection[name].interpolate_gaps(inplace=True)
 
         # Merge data
         df = self.merge_data()
@@ -1682,11 +1618,12 @@ class TimeSeriesCollection(Collection):
                 input_varfield=c,
                 dropnan=False,
             )
-
+        '''
         # Update epochs statistics for each time series
         for name in self.collection:
             self.collection[name].update_epochs_stats()
-
+        '''
+        self.collection["P34"].view()
         # Update the collection catalog with details
         self.update(details=True)
 
@@ -1696,13 +1633,25 @@ class TimeSeriesCollection(Collection):
         return None
 
     # docs todo
-    def get_weigths(self, list_names, method="average"):
+    def get_weigths(self, name, list_names, method="average"):
         w = np.ones(len(list_names))
-        if method == "average":
-            w = np.ones(len(list_names))
+        if method.lower() == "average":
+            return w
+        elif method.lower() == "idw":
+            # Get x,y
+            x = self.collection[name].x
+            y = self.collection[name].y
+            # Get distances
+            x_i = np.array([self.collection[_].x for _ in list_names])
+            y_i = np.array([self.collection[_].y for _ in list_names])
+            d_i = np.sqrt(np.square(x - x_i) + np.square(y - y_i))
+            # Compute IDW
+            idw_i = 1 / (d_i + (np.mean(d_i)/10000))  # handle zero distance
+            # Normaliza to [0-100] range
+            w = 100 * idw_i / np.sum(idw_i)
+            return w
         else:
-            w = np.ones(len(list_names))
-        return w
+            return w
 
     # docs ok
     def regionalize(self, method="average"):
@@ -1754,10 +1703,10 @@ class TimeSeriesCollection(Collection):
                 "{}_{}".format(src_vars[i], src_names[i])
                 for i in range(len(df_src_catalog))
             ]
-            df_src = df[src_columns].copy()
+            df_src = df[src_columns].copy() # ensure name order
 
             # Set up weights
-            vct_w = self.get_weigths(list_names=list(src_names), method=method)
+            vct_w = self.get_weigths(name=name, list_names=list(src_names), method=method)
 
             w_v = vct_w * ~np.isnan(df_src.values)
             # weights sum
@@ -1770,7 +1719,9 @@ class TimeSeriesCollection(Collection):
 
             # set destination column inplace
             self.collection[name].data[varfield] = np.where(dst_mask == 1, o, dst_vct)
+            self.collection[name].update()
             self.collection[name].update_epochs_stats()
+
 
         # Update the collection catalog with details
         self.update(details=True)
@@ -2133,313 +2084,46 @@ class TimeSeriesCollection(Collection):
             )
         return None
 
-
+# docs todo
 class RainSeriesCollection(TimeSeriesCollection):
     def __init__(self, name="MyRSColection"):
         super().__init__(name=name, base_object=RainfallSeries)
 
-    def set_data(self, input_df, skip_process=False):
-        # generic part
-        super().set_data(input_df=input_df, skip_process=skip_process)
-        # custom part
-        for i in range(len(input_df)):
-            name = input_df["Name"].values[i]
-            self.collection[name].x = input_df["X"].values[i]
-            self.collection[name].y = input_df["Y"].values[i]
-            self.collection[name].code = input_df["Code"].values[i]
-        self.update(details=True)
-        return None
 
-
+# docs todo
 class StageSeriesCollection(TimeSeriesCollection):
     def __init__(self, name="MySSColection"):
         super().__init__(name=name, base_object=StageSeries)
 
+    # docs ok
     def set_data(self, input_df, skip_process=False):
+        """Set time series data and additional metadata from an input DataFrame.
+
+        :param input_df: pandas.DataFrame
+            The input DataFrame containing time series data and metadata.
+        :type input_df: pandas.DataFrame
+
+        :param skip_process: bool, optional
+            If True, skip the processing steps (standardization, interpolation, etc.), default is False.
+        :type skip_process: bool
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - Calls the `set_data` method of the parent class to set generic time series data and metadata.
+        - Sets custom metadata for each time series in the collection, such as upstream area.
+
+        """
         # generic part
         super().set_data(input_df=input_df, skip_process=skip_process)
         # custom part
         for i in range(len(input_df)):
             name = input_df["Name"].values[i]
-            self.collection[name].x = input_df["X"].values[i]
-            self.collection[name].y = input_df["Y"].values[i]
-            self.collection[name].code = input_df["Code"].values[i]
+            self.collection[name].upstream_area = input_df["UpstreamArea"].values[i]
         self.update(details=True)
         return None
-
-
-# ------------------- DEPRECATED -------------------
-class DailySeries:
-    """
-    The basic daily time series base_object
-
-    """
-
-    def __init__(
-        self,
-        name,
-        varname,
-    ):
-        """Deploy daily series base dataset
-
-        :param name: name of series
-        :type name: str
-        :param varname: name of variable
-        :type varname: str
-        """
-        # -------------------------------------
-        # set basic attributes
-        self.data = None  # start with no data
-        self.name = name
-        self.varname = varname
-        self.datefield = "Date"
-        self.file = None
-
-    def set_data(self, dataframe, varfield, datefield="Date"):
-        """Set the data from incoming class:`pandas.DataFrame`.
-
-        :param dataframe: incoming :class:`pandas.DataFrame` base_object
-        :type dataframe: :class:`pandas.DataFrame`
-        :param varfield: name of variable field in the incoming :class:`pandas.DataFrame`
-        :type varfield: str
-        :param datefield: name of date field in the incoming :class:`pandas.DataFrame`
-        :type datefield: str
-        """
-        # slice only interest fields
-        df_aux = dataframe[[datefield, varfield]].copy()
-        self.data = df_aux.rename(
-            columns={datefield: self.datefield, varfield: self.varname}
-        )
-        # ensure datetime fig_format
-        self.data[self.datefield] = pd.to_datetime(self.data[self.datefield])
-        self.data = self.data.sort_values(by=self.datefield).reset_index(drop=True)
-
-    def load_data(self, file, varfield, datefield="Date"):
-        """Load data from ``csv`` file.
-
-        :param file: path_main to ``csv`` file
-        :type file:
-        :param varfield:
-        :type varfield:
-        :param datefield:
-        :type datefield:
-        :return:
-        :rtype:
-        """
-
-        self.file = file
-        # -------------------------------------
-        # import data
-        df_aux = pd.read_csv(self.file, sep=";", parse_dates=[self.datefield])
-        # set data
-        self.set_data(dataframe=df_aux, varfield=varfield, datefield=datefield)
-
-    def export_data(self, folder):
-        """Export dataset to ``csv`` file
-
-        :param folder: path_main to output directory
-        :type folder: str
-        :return: file path_main
-        :rtype: str
-        """
-        s_filepath = "{}/{}_{}.txt".format(folder, self.varname, self.name)
-        self.data.to_csv(s_filepath, sep=";", index=False)
-        return s_filepath
-
-    def resample_sum(self, period="MS"):
-        """Resampler method for daily time series using the .sum() function
-
-        :param period: pandas standard period code
-
-        * `W-MON` -- weekly starting on mondays
-        * `MS` --  monthly on start of month
-        * `QS` -- quarterly on start of quarter
-        * `YS` -- yearly on start of year
-
-        :type period: str
-        :return: resampled time series
-        :rtype: :class:`pandas.DataFrame`
-        """
-        df_aux = self.data.set_index(self.datefield)
-        df_aux = df_aux.resample(period).sum()[self.varname]
-        df_aux = df_aux.reset_index()
-        return df_aux
-
-    def resample_mean(self, period="MS"):
-        """Resampler method for daily time series using the .mean() function
-
-        :param period: pandas standard period code
-
-        * `W-MON` -- weekly starting on mondays
-        * `MS` --  monthly on start of month
-        * `QS` -- quarterly on start of quarter
-        * `YS` -- yearly on start of year
-
-        :type period: str
-        :return: resampled time series
-        :rtype: :class:`pandas.DataFrame`
-        """
-        df_aux = self.data.set_index(self.datefield)
-        df_aux = df_aux.resample(period).mean()[self.varname]
-        df_aux = df_aux.reset_index()
-        return df_aux
-
-    def view(
-        self,
-        show=True,
-        folder="C:/data",
-        filename=None,
-        specs=None,
-        dpi=150,
-        fig_format="jpg",
-    ):
-        """Plot series basic view
-
-        :type show: option to display plot. Default False
-        :type show: bool
-        :param folder: output folder
-        :type folder: str
-        :param filename: image file name
-        :type filename: str
-        :param specs: specification dictionary
-        :type specs: dict
-        :param dpi: image resolution (default = 96)
-        :type dpi: int
-        :param fig_format: image fig_format (ex: png or jpg). Default jpg
-        :type fig_format: str
-        """
-        import matplotlib.ticker as mtick
-        from plans.analyst import Univar
-
-        # get univar base_object
-        uni = Univar(data=self.data[self.varname].values)
-
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "suptitle": "Series Overview",
-            "a_title": "Series",
-            "b_title": "Histogram",
-            "c_title": "CFC",
-            "width": 5 * 1.618,
-            "height": 5,
-            "ylabel": "units",
-            "ylim": (np.min(uni.data), np.max(uni.data)),
-            "a_xlabel": "Date",
-            "b_xlabel": "Frequency",
-            "c_xlabel": "Probability",
-            "a_data_label": "Data Series",
-            "skip mavg": False,
-            "a_mavg_label": "Moving Average",
-            "mavg period": 10,
-            "mavg color": "tab:blue",
-            "nbins": uni.nbins_fd(),
-            "series marker": "o",
-            "series linestyle": "-",
-            "series alpha": 1.0,
-        }
-        # handle input specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
-
-        # Deploy figure
-        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        gs = mpl.gridspec.GridSpec(
-            4, 5, wspace=0.5, hspace=0.9, left=0.075, bottom=0.1, top=0.9, right=0.95
-        )
-        fig.suptitle(specs["suptitle"])
-
-        # plot Series
-        plt.subplot(gs[0:3, :3])
-        plt.title("a. {}".format(specs["a_title"]), loc="left")
-        plt.plot(
-            self.data[self.datefield],
-            self.data[self.varname],
-            linestyle=specs["series linestyle"],
-            marker=specs["series marker"],
-            label="Data Series",
-            color=specs["color"],
-            alpha=specs["series alpha"],
-        )
-        if specs["skip mavg"]:
-            pass
-        else:
-            plt.plot(
-                self.data[self.datefield],
-                self.data[self.varname]
-                .rolling(specs["mavg period"], min_periods=2)
-                .mean(),
-                label=specs["a_mavg_label"],
-                color=specs["mavg color"],
-            )
-        plt.ylim(specs["ylim"])
-        plt.xlim(self.data[self.datefield].min(), self.data[self.datefield].max())
-        plt.ylabel(specs["ylabel"])
-        plt.xlabel(specs["a_xlabel"])
-        plt.legend(frameon=True, loc=(0.0, -0.35), ncol=1)
-
-        # plot Hist
-        plt.subplot(gs[0:3, 3:4])
-        plt.title("b. {}".format(specs["b_title"]), loc="left")
-        plt.hist(
-            x=self.data[self.varname],
-            bins=specs["nbins"],
-            orientation="horizontal",
-            color=specs["color"],
-            weights=np.ones(len(self.data)) / len(self.data),
-        )
-        plt.ylim(specs["ylim"])
-        # plt.ylabel(specs["ylabel"])
-        plt.xlabel(specs["b_xlabel"])
-
-        # Set the x-axis formatter as percentages
-        xticks = mtick.PercentFormatter(xmax=1, decimals=1, symbol="%", is_latex=False)
-        ax = plt.gca()
-        ax.xaxis.set_major_formatter(xticks)
-
-        # plot CFC
-        df_freq = uni.assess_frequency()
-        plt.subplot(gs[0:3, 4:5])
-        plt.title("c. {}".format(specs["c_title"]), loc="left")
-        plt.plot(df_freq["Exceedance"] / 100, df_freq["Values"])
-        plt.ylim(specs["ylim"])
-        # plt.ylabel(specs["ylabel"])
-        plt.xlabel(specs["c_xlabel"])
-        plt.xlim(0, 1)
-        # Set the x-axis formatter as percentages
-        xticks = mtick.PercentFormatter(xmax=1, decimals=0, symbol="%", is_latex=False)
-        ax = plt.gca()
-        ax.xaxis.set_major_formatter(xticks)
-
-        # show or save
-        if show:
-            plt.show()
-        else:
-            if filename is None:
-                filename = self.name
-            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
-            plt.close(fig)
-        return None
-
-
-# ------------------- DEPRECATED -------------------
-class PrecipSeries(DailySeries):
-    """The precipitation daily time series base_object
-
-    Example of using this base_object:
-
-    """
-
-    def __init__(self, name, file, varfield, datefield, location):
-        # ---------------------------------------------------
-        # use superior initialization
-        super().__init__(name, file, "P", varfield, datefield, location)
-        # override varfield
-        self.data = self.data.rename(columns={varfield: "P"})
 
 
 class RatingCurve:
@@ -3077,23 +2761,6 @@ class RatingCurveCollection(Collection):
         return None
 
 
-class Streamflow:
-    """
-    The Streamflow (Discharge) base_object
-    """
-
-    def __init__(self, name, code):
-        # -------------------------------------
-        # set basic attributes
-        self.name = name
-        self.code = code
-        self.source_data = None
-        self.latitude = None
-        self.longitude = None
-        self.stage_series = None
-        self.rating_curves = None
-
-    # todo implement StreamFlow
 
 
 # -----------------------------------------

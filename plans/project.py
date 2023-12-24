@@ -161,8 +161,12 @@ class Project:
                 "ndvi":{
                     "ndvi_*": datasets.NDVI
                 },
-                "stream":{
-                    "stream_*": datasets.Streamflow
+                "basins":{
+                    "stage_*": None,
+                    "rc_*": None,
+                    "basins": None,
+                    "outlets": None,
+                    "basins_info": None
                 },
                 "rain": {
                     "obs": {
@@ -175,6 +179,9 @@ class Project:
                 "temp": {
                     "obs":{
                         "temp_*": None
+                    },
+                    "bau": {
+                        "rain_*": None
                     }
                 },
                 "model":{

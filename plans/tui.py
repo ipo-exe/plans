@@ -3,7 +3,7 @@ import pandas as pd
 import time
 import tkinter as tk
 from tkinter import filedialog
-import project
+from plans import project
 
 
 def the_prompt():
@@ -114,7 +114,7 @@ def new_project():
         "set project name": [set_new_project, None],
     }
 
-    m2 = Menu(dict_actions=dict_menu, name="new project", message=get_location)
+    m2 = Menu(dict_actions=dict_menu, name="new project", message=get_location(place=root))
     m2.loop()
 
 def import_file():
