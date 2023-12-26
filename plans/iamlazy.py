@@ -1,4 +1,6 @@
 """
+Pre-processing routines for QGIS 3.x Python console
+
 Description:
     The ``iamlazy`` module provides useful template routines for pre-processing input data
     in QGIS 3.x Python console.
@@ -63,7 +65,6 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
 import glob
-
 import processing
 from osgeo import gdal
 from qgis.core import QgsCoordinateReferenceSystem
@@ -1319,8 +1320,8 @@ def get_rain(
 
         return (x_ratio, y_ratio)
 
-    print("folder setup...")
     # folders and file setup
+    print("folder setup...")
     output_folder_interm = "{}/intermediate".format(output_folder)
     if os.path.isdir(output_folder_interm):
         pass
@@ -1331,7 +1332,7 @@ def get_rain(
 
     # ---------------- RAIN SERIES ----------------
 
-    lst_files = glob.glob("{}/P_*.csv".format(src_folder))
+    lst_files = glob.glob("{}/rain_*.csv".format(src_folder))
     for f in lst_files:
         shutil.copy(src=f, dst=output_folder)
 
@@ -1346,7 +1347,7 @@ def get_rain(
     rain_gdf["X"] = rain_gdf.geometry.x
     rain_gdf["Y"] = rain_gdf.geometry.y
     rain_gdf["Color"] = datasets.get_random_colors(size=len(rain_gdf))
-    rain_gdf["File"] = ["{}/P_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values]
+    rain_gdf["File"] = ["{}/rain_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values]
     # Drop the geometry column
     rain_gdf = rain_gdf.drop(columns=['geometry'])
 
@@ -1399,7 +1400,7 @@ def get_rain(
         )
         print("get voronoi polygons...")
         # run function
-        zones_shp = "{}/zones.shp".format(output_folder_interm)
+        zones_shp = "{}/rain_zones.shp".format(output_folder_interm)
         processing.run(
             "qgis:voronoipolygons",
             {
@@ -1409,7 +1410,7 @@ def get_rain(
             },
         )
     print("get zones raster...")
-    zones_raster = "{}/zones.tif".format(output_folder_interm)
+    zones_raster = "{}/rain_zones.tif".format(output_folder_interm)
     # >> create constant raster layer
     get_blank_raster(
         file_input=target_file, file_output=zones_raster, blank_value=dict_blank[s_type]
@@ -1439,7 +1440,7 @@ def get_rain(
             "OPTIONS": "",
             "EXTRA": "",
             "DATA_TYPE": 1,
-            "OUTPUT": "{}/zones.asc".format(output_folder),
+            "OUTPUT": "{}/rain_zones.asc".format(output_folder),
         },
     )
     print("end")

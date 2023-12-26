@@ -13,5 +13,7 @@
 ``project``
     The ``project`` module provides project-related objects and routines of ``plans``.
 
+``tools``
+    The ``tools`` module provides objects to handle all ``plans`` input-output processes.
 
 """

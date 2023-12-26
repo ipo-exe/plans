@@ -1,4 +1,6 @@
 """
+Project-related objects and routines
+
 Description:
     The ``project`` module provides project-related objects and routines of ``plans``.
 
@@ -16,6 +18,7 @@ Contact:
 Overview
 --------
 
+todo
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis.
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
@@ -31,6 +34,7 @@ eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
 Example
 -------
 
+todo
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.

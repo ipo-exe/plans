@@ -40,4 +40,9 @@ Modules
 .. autosummary::
    :toctree: generated
 
+   plans.tools
+
+.. autosummary::
+   :toctree: generated
+
    plans.iamlazy

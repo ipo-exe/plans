@@ -1,19 +1,66 @@
-import os, shutil
+import os, shutil, logging
 import pandas as pd
 import time
 import tkinter as tk
 from tkinter import filedialog
 from plans import project
 
+root_name = "plans"
+project_name = ""
+my_project = None
+
+# ---------------------------------- LOGGER ----------------------------------
+def logger_setup(logger_name="plans", streamhandler=True, filehandler=False, logfile=None):
+    # ---------------------- LOGGER ----------------------
+    # Basic logging config
+    logging.basicConfig(level=logging.INFO)
+    # Create a logger with a specific name
+    logger = logging.getLogger(logger_name)
+    logger.propagate = False
+
+    # ---------------------- CONSOLE ----------------------
+    # Create a console handler and set its level
+    if streamhandler:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)  # Set the handler level
+
+    # ---------------------- FILE ----------------------
+    if filehandler:
+        # Create a file handler and set its level
+        if logfile is None:
+            logfile = "plans.log"
+        file_handler = logging.FileHandler(logfile)
+        file_handler.setLevel(logging.INFO)  # Set the handler level
+
+    # ---------------------- FORMAT ----------------------
+    # Create a formatter and set it for both handlers
+    formatter = logging.Formatter(
+        "%(asctime)s  %(levelname)8s >>> %(message)s ",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    if streamhandler:
+        console_handler.setFormatter(formatter)
+    if filehandler:
+        file_handler.setFormatter(formatter)
+
+    # ---------------------- ADD ----------------------
+    if streamhandler:
+        logger.addHandler(console_handler)
+    if filehandler:
+        logger.addHandler(file_handler)
+    return logger
 
 def the_prompt():
     global projet_name, root_name
     str_aux = root_name[:]
-    if projet_name is None:
+    if project_name == "":
         pass
     else:
-        str_aux = str_aux + "@" + projet_name[:]
-    return "{} >>>:".format(str_aux)
+        str_aux = str_aux + "@" + projet_name
+    return "{}:".format(str_aux)
+
+def sleeper():
+    time.sleep(0.5)
 
 def get_location(place):
     global my_project, root
@@ -22,17 +69,22 @@ def get_location(place):
     return "location: {}\n".format(place)
 
 def warning(message):
-    return "{} warning! {}".format(the_prompt(), message)
+    logger.warning(msg="{} {}".format(the_prompt(), message))
+    return None
 
 def done(message=None):
     if message is None:
-        print("{} done.".format(the_prompt()))
+        logger.info(msg="{} done.".format(the_prompt()))
     else:
-        print("{} done. {}".format(the_prompt()), message)
-    time.sleep(0.75)
+        logger.info(msg="{} done. {}".format(the_prompt(), message))
+    sleeper()
+    return None
 
-def ok(message):
-    return "{} OK. {}".format(the_prompt(), message)
+def ok(message=None):
+    if message is None:
+        message=""
+    logger.info(msg="{} OK. {}".format(the_prompt(), message))
+    return None
 
 def proceed(message=None):
     if message is None:
@@ -88,13 +140,13 @@ def new_project():
         while True:
             str_name = input("{} enter new project name: ".format(the_prompt())).strip()
             if str_name in os.listdir(root):
-                print(warning("project already exists"))
+                warning("project already exists")
                 break
             elif any(char.isspace() for char in str_name):
-                print(warning("blank spaces in name not allowed"))
+                warning("blank spaces in name not allowed")
                 break
             elif len(str_name) > 20:
-                print(warning("name too long (max 20 characters)"))
+                warning("name too long (max 20 characters)")
                 break
             else:
                 str_confirm = confirm(prefix_message="new name: {}".format(str_name))
@@ -102,10 +154,10 @@ def new_project():
                     pass
                 else:
                     # create new project
-                    print(ok(message="creating new project {}...".format(str_name)))
+                    ok(message="creating new project {}...".format(str_name))
                     my_project = project.Project(name=str_name, root=root)
                     my_project = None
-                    time.sleep(0.5)
+                    sleeper()
                     done()
                 break
         return 0
@@ -174,7 +226,8 @@ def data_mgmt():
 
 
 def project_session():
-    global my_project
+    global my_project, project_name
+    project_name = my_project.name
 
     dict_menu = {
         "data management": [data_mgmt, None],
@@ -198,7 +251,7 @@ def open_project():
         project_session()
         # reset global variables
         my_project = None
-        projet_name = None
+        projet_name = ""
         return 0
 
     list_projects = os.listdir(root)
@@ -215,7 +268,7 @@ class Menu:
     """
 
     def __init__(
-        self, dict_actions, name="Menu", exit_key="e", prompt_name="plans", message=None
+        self, dict_actions, name="Menu", exit_key="e", message=None
     ):
         """Instantiate the Menu object
 
@@ -225,8 +278,6 @@ class Menu:
         :type name: str
         :param exit_key: exite key
         :type exit_key: str
-        :param prompt_name: prompt name
-        :type prompt_name: str
         """
         self.header_size = 80
         self.header_char = "*"
@@ -292,14 +343,16 @@ class Menu:
 
     def validade(self, str_answer):
         if str_answer in self.list_keys:
-            print(ok(message="selected: {} >> {}".format(str_answer, self.dict_labels[str_answer])))
-            time.sleep(0.5)
+            ok(message="selected: {} >>> {}".format(str_answer, self.dict_labels[str_answer]))
+            sleeper()
             return True
         else:
-            print(warning(message="<{}> key not found. options available: {}".format(
+            warning(
+                message="<{}> key not found. options available: {}".format(
                 str_answer, self.list_keys
-            )))
-            time.sleep(0.5)
+                )
+            )
+            sleeper()
             return False
 
     def loop(self, skip_confirmation=True):
@@ -308,6 +361,8 @@ class Menu:
             str_answer = self.ask()
             b_valid = self.validade(str_answer=str_answer)
             if str_answer == self.exit:
+                logger.info("exiting")
+                sleeper()
                 break
             else:
                 if b_valid:
@@ -331,22 +386,24 @@ class Menu:
                         if output == 0:
                             break
 
-
-if __name__ == "__main__":
+def main():
+    global root, logger
     # define root
     root_name = "plans"
     root = "C:/" + root_name
+    # project
+    my_project = None
+
     # handle root
     if os.path.isdir(root):
         pass
     else:
         os.mkdir(root)
-    # define prompt
-    prompt_name = "plans"
 
-    # project
-    projet_name = None
-    my_project = None
+    logger = logger_setup(streamhandler=True, filehandler=False)
+    logger.info(msg="{} {}".format(the_prompt(), "starting new session"))
+    sleeper()
+
     #
     dict_menu = {
         "open project": [open_project, None],
@@ -356,8 +413,11 @@ if __name__ == "__main__":
     m = Menu(
         dict_actions=dict_menu,
         name="plans - Home",
-        prompt_name=prompt_name,
         message=get_location(place=root),
     )
     # loop
     m.loop()
+
+if __name__ == "__main__":
+    main()
+
