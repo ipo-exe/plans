@@ -16,4 +16,7 @@
 ``tools``
     The ``tools`` module provides objects to handle all ``plans`` input-output processes.
 
+``geo``
+    The ``geo`` module provides custom geoprocessing routines.
+
 """

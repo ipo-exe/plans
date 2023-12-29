@@ -210,7 +210,7 @@ class Collection:
     def append(self, new_object):
         """Append a new object to the test_collection.
 
-        The object is expected to have a `.get_metadata()` method that returns a dictionary.
+        The object is expected to have a ``.get_metadata()`` method that returns a dictionary.
 
         :param new_object: Object to append.
         :type new_object: object
@@ -300,11 +300,11 @@ class TimeSeries:
 
         **Notes:**
 
-        - The `alias` parameter defaults to the first three characters of the `name` parameter if not provided.
-        - Various attributes related to optional and auto-update information are initialized to `None` or default values.
-        - The `dtfield` attribute is set to "DateTime" as the default datetime field.
-        - The `cmap` attribute is set to "tab20b" as a default colormap.
-        - The method `_set_view_specs` is called to set additional specifications.
+        - The ``alias`` parameter defaults to the first three characters of the ``name`` parameter if not provided.
+        - Various attributes related to optional and auto-update information are initialized to ``None`` or default values.
+        - The ``dtfield`` attribute is set to "DateTime" as the default datetime field.
+        - The ``cmap`` attribute is set to "tab20b" as a default colormap.
+        - The method ``_set_view_specs`` is called to set additional specifications.
 
         **Examples:**
 
@@ -349,22 +349,21 @@ class TimeSeries:
         self.var_min = None
         self.var_max = None
         self.isstandard = False
-        self.agg = "sum"
+        self.agg = "mean"
         self.epochs_stats = None
         self.epochs_n = None
-        self.gapsize = 7
+        self.smallgaps_n = None
+        self.gapsize = 2
         self.file_input = None
 
         # hack attributes
-        self.cmap = "tab20b"
+        self.cmap = "Dark2"
 
         # set specs
         self._set_view_specs()
 
     def get_metadata(self):
-        """Get metadata information from the base object.
-
-        """
+        """Get metadata information from the base object."""
         # Prepare and return metadata as a dictionary
         return {
             "Name": self.name,
@@ -399,12 +398,12 @@ class TimeSeries:
         input_varfield,
         input_dtfield="DateTime",
         sep=";",
-        filter_dates=None
+        filter_dates=None,
     ):
         """Load data from file.
 
         :param input_file: str
-            Path to the `csv` input file.
+            Path to the ``csv`` input file.
         :type input_file: str
 
         :param input_varfield: str
@@ -416,7 +415,7 @@ class TimeSeries:
         :type input_dtfield: str
 
         :param sep: str, optional
-            String separator. Default is `;`.
+            String separator. Default is ``;`.
         :type sep: str
 
         :return: None
@@ -453,7 +452,7 @@ class TimeSeries:
             input_df=df,
             input_varfield=input_varfield,
             input_dtfield=input_dtfield,
-            filter_dates=filter_dates
+            filter_dates=filter_dates,
         )
 
         # Set attributes
@@ -462,7 +461,9 @@ class TimeSeries:
         return None
 
     # docs: OK
-    def set_data(self, input_df, input_dtfield, input_varfield, filter_dates=None, dropnan=True):
+    def set_data(
+        self, input_df, input_dtfield, input_varfield, filter_dates=None, dropnan=True
+    ):
         """Set time series data from an input DataFrame.
 
         :param input_df: pandas DataFrame
@@ -491,7 +492,7 @@ class TimeSeries:
         **Notes:**
 
         - Assumes the input DataFrame has a datetime column in the format "YYYY-mm-DD HH:MM:SS".
-        - Renames columns to standard format (datetime: `self.dtfield`, variable: `self.varfield`).
+        - Renames columns to standard format (datetime: ``self.dtfield``, variable: ``self.varfield``).
         - Converts the datetime column to standard format.
 
         **Examples:**
@@ -548,7 +549,9 @@ class TimeSeries:
         if self.data is not None:
             self.data.to_csv("{}/{}.csv".format(folder, filename), index=False, sep=";")
         if self.epochs_stats is not None:
-            self.epochs_stats.to_csv("{}/{}_epochs.csv".format(folder, filename), index=False, sep=";")
+            self.epochs_stats.to_csv(
+                "{}/{}_epochs.csv".format(folder, filename), index=False, sep=";"
+            )
         return None
 
     # docs: ok
@@ -575,7 +578,7 @@ class TimeSeries:
         - Creates a full date range with the specified frequency for the standardization period.
         - Groups the data by epochs (based on the frequency and datetime field), applies the specified aggregation function, and fills in missing values with left merges.
         - Cuts off any edges with missing data.
-        - Updates internal attributes, including `self.isstandard` to indicate that the data has been standardized.
+        - Updates internal attributes, including ``self.isstandard`` to indicate that the data has been standardized.
 
         **Examples:**
 
@@ -583,7 +586,7 @@ class TimeSeries:
 
         .. warning::
 
-            The 'standardize' method modifies the internal data representation. Ensure to review the data after standardization.
+            The ``standardize`` method modifies the internal data representation. Ensure to review the data after standardization.
 
         """
 
@@ -658,9 +661,9 @@ class TimeSeries:
         :param inplace: bool, optional
             Option to set Epochs inplace. Default is False.
         :type inplace: bool
-        :return: :class:`pandas.DataFrame` or None
+        :return: :class:`pandas.DataFrame``` or None
             A DataFrame if inplace is False or None.
-        :rtype: :class:`pandas.DataFrame`, None
+        :rtype: :class:`pandas.DataFrame``, None
 
         **Notes:**
 
@@ -723,12 +726,12 @@ class TimeSeries:
 
         **Notes:**
 
-        - Calls the 'set_frequency' method to update the datetime frequency attribute.
-        - Updates the 'start' attribute with the minimum datetime value in the data.
-        - Updates the 'end' attribute with the maximum datetime value in the data.
-        - Updates the 'var_min' attribute with the minimum value of the variable field in the data.
-        - Updates the 'var_max' attribute with the maximum value of the variable field in the data.
-        - Updates the 'data_size' attribute with the length of the data.
+        - Calls the ``set_frequency`` method to update the datetime frequency attribute.
+        - Updates the ``start`` attribute with the minimum datetime value in the data.
+        - Updates the ``end`` attribute with the maximum datetime value in the data.
+        - Updates the ``var_min`` attribute with the minimum value of the variable field in the data.
+        - Updates the ``var_max`` attribute with the maximum value of the variable field in the data.
+        - Updates the ``data_size`` attribute with the length of the data.
 
         **Examples:**
 
@@ -753,13 +756,13 @@ class TimeSeries:
         **Notes:**
 
         - This function updates statistics for all epochs in the time series.
-        - Ensures that the data is standardized by calling the `standardize` method if it's not already standardized.
+        - Ensures that the data is standardized by calling the ``standardize`` method if it's not already standardized.
         - Removes epoch 0 from the statistics since it typically represents non-standardized or invalid data.
-        - Groups the data by 'Epoch_Id' and calculates statistics such as count, start, and end timestamps for each epoch.
-        - Generates random colors for each epoch using the `get_random_colors` function with a specified colormap (`cmap` attribute).
+        - Groups the data by ``Epoch_Id`` and calculates statistics such as count, start, and end timestamps for each epoch.
+        - Generates random colors for each epoch using the ``get_random_colors`` function with a specified colormap (`cmap`` attribute).
         - Includes the time series name in the statistics for identification.
-        - Organizes the statistics DataFrame to include relevant columns: 'Name', 'Epoch_Id', 'Count', 'Start', 'End', and 'Color'.
-        - Updates the attribute 'epochs_n' with the number of epochs in the statistics.
+        - Organizes the statistics DataFrame to include relevant columns: ``Name``, ``Epoch_Id``, ``Count``, ``Start``, ``End``, and ``Color``.
+        - Updates the attribute ``epochs_n`` with the number of epochs in the statistics.
 
         **Examples:**
 
@@ -776,6 +779,7 @@ class TimeSeries:
 
         # Remove epoch = 0
         df.drop(df[df["Epoch_Id"] == 0].index, inplace=True)
+        df["Gap"] = 1 * df[self.varfield].isna().values
 
         # Group by
         self.epochs_stats = (
@@ -784,6 +788,7 @@ class TimeSeries:
                 Count=("Epoch_Id", "count"),
                 Start=(self.dtfield, "min"),
                 End=(self.dtfield, "max"),
+                Gaps=("Gap", "sum")
             )
             .reset_index()
         )
@@ -798,11 +803,12 @@ class TimeSeries:
 
         # Organize
         self.epochs_stats = self.epochs_stats[
-            ["Name", "Epoch_Id", "Count", "Start", "End", "Color"]
+            ["Name", "Epoch_Id", "Count", "Gaps", "Start", "End", "Color"]
         ]
 
         # Update attributes
-        self.epochs_n = len(self.epochs_stats) - 1
+        self.epochs_n = len(self.epochs_stats)
+        self.smallgaps_n = self.epochs_stats["Gaps"].sum()
 
         return None
 
@@ -811,14 +817,14 @@ class TimeSeries:
         """Fill gaps in a time series by interpolating missing values. If the time series is not in standard form, it will be standardized before interpolation.
 
         :param method: str, optional
-            Specifies the interpolation method. Default is `linear`.
-            Other supported methods include `constant`, `nearest`, `zero`, `slinear`, `quadratic`, `cubic`, etc.
-            The `constant` method applies a constant value to gaps.
+            Specifies the interpolation method. Default is ``linear`.
+            Other supported methods include ``constant``, ``nearest``, ``zero``, ``slinear``, ``quadratic``, ``cubic``, etc.
+            The ``constant`` method applies a constant value to gaps.
             Refer to the documentation of scipy.interpolate.interp1d for more options.
         :type method: str
 
         :param constant: float, optional
-            Value used if the case of `constant` method. Default is 0.
+            Value used if the case of ``constant`` method. Default is 0.
         :type constant: float
 
         :param inplace: bool, optional
@@ -827,17 +833,17 @@ class TimeSeries:
             Default is False.
         :type inplace: bool
 
-        :return: :class:`pandas.DataFrame` or None
+        :return: :class:`pandas.DataFrame``` or None
             If inplace is False, a new DataFrame with interpolated values.
             If inplace is True, returns None, and the original data is modified in-place.
-        :rtype: :class:`pandas.DataFrame` or None
+        :rtype: :class:`pandas.DataFrame``` or None
 
         **Notes:**
 
         - The interpolation is performed for each unique epoch in the time series.
-        - The `method` parameter determines the interpolation technique. Common options include `constant`, `linear`, `nearest`, `zero`, `slinear`, `quadratic`, and `cubic`. See the documentation of scipy.interpolate.interp1d for additional methods and details.
-        - If `linear` is chosen, the interpolation is a linear interpolation. For `nearest`, it uses the value of the nearest data point. `zero` uses zero-order interpolation (nearest-neighbor). `slinear` and `quadratic` are spline interpolations of first and second order, respectively. `cubic` is a cubic spline interpolation.
-        - If the method is `linear`, the fill_value parameter is set to `extrapolate` to allow extrapolation beyond the data range.
+        - The ``method`` parameter determines the interpolation technique. Common options include ``constant``, ``linear``, ``nearest``, ``zero``, ``slinear``, ``quadratic``, and ``cubic`. See the documentation of scipy.interpolate.interp1d for additional methods and details.
+        - If ``linear`` is chosen, the interpolation is a linear interpolation. For ``nearest``, it uses the value of the nearest data point. ``zero`` uses zero-order interpolation (nearest-neighbor). ``slinear`` and ``quadratic`` are spline interpolations of first and second order, respectively. ``cubic`` is a cubic spline interpolation.
+        - If the method is ``linear``, the fill_value parameter is set to ``extrapolate`` to allow extrapolation beyond the data range.
 
         **Examples:**
 
@@ -848,6 +854,7 @@ class TimeSeries:
         >>> interpolated_ts = ts.interpolate_gaps(method="constant", constant=1, inplace=False)
         """
         from scipy.interpolate import interp1d
+
         # Ensure data is standardized
         if not self.isstandard:
             self.standardize()
@@ -864,9 +871,11 @@ class TimeSeries:
             else:
                 if method == "constant":
                     df_aux1["{}_interp".format(self.varfield)] = np.where(
-                        df_aux1[self.varfield].isna(), constant, df_aux1[self.varfield].values
+                        df_aux1[self.varfield].isna(),
+                        constant,
+                        df_aux1[self.varfield].values,
                     )
-                else: # use scipy methods
+                else:  # use scipy methods
                     # clear from nan values
                     df_aux2 = df_aux1.dropna().copy()
                     # Create an interpolation function
@@ -902,10 +911,10 @@ class TimeSeries:
             Default is False.
         :type inplace: bool
 
-        :return: :class:`pandas.DataFrame` or None
+        :return: :class:`pandas.DataFrame``` or None
             If inplace is False, a new DataFrame with cut edges.
             If inplace is True, returns None, and the original data is modified in-place.
-        :rtype: :class:`pandas.DataFrame` or None
+        :rtype: :class:`pandas.DataFrame``` or None
 
         **Notes:**
 
@@ -966,30 +975,31 @@ class TimeSeries:
             return df
 
     # docs: ok
-    def aggregate(self, freq, agg_funcs=None, bad_max=7):
+    def aggregate(self, freq, bad_max, agg_funcs=None):
         """ "Aggregate the time series data based on a specified frequency using various aggregation functions.
 
         :param freq: str
             Pandas-like alias frequency at which to aggregate the time series data. Common options include:
-            - `D` for daily frequency
-            - `W` for weekly frequency
-            - `MS` for monthly/start frequency
-            - `QS` for quarterly/start frequency
-            - `YS` for yearly/start frequency
+            - ``H`` for hourly frequency
+            - ``D`` for daily frequency
+            - ``W`` for weekly frequency
+            - ``MS`` for monthly/start frequency
+            - ``QS`` for quarterly/start frequency
+            - ``YS`` for yearly/start frequency
             More options and details can be found in the Pandas documentation:
             https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases.
         :type freq: str
+
+        :param bad_max: int
+            The maximum number of ``Bad`` records allowed in a time window for aggregation. Records with more ``Bad`` entries
+            will be excluded from the aggregated result.
+            Default is 7.
+        :type bad_max: int
 
         :param agg_funcs: dict, optional
             A dictionary specifying customized aggregation functions for each variable.
             Default is None, which uses standard aggregation functions (sum, mean, median, min, max, std, var, percentiles).
         :type agg_funcs: dict
-
-        :param bad_max: int, optional
-            The maximum number of `Bad` records allowed in a time window for aggregation. Records with more `Bad` entries
-            will be excluded from the aggregated result.
-            Default is 7.
-        :type bad_max: int
 
         :return: :class:`pandas.DataFrame`
             A new :class:`pandas.DataFrame` with aggregated values based on the specified frequency.
@@ -999,7 +1009,7 @@ class TimeSeries:
 
         - Resamples the time series data to the specified frequency using Pandas-like alias strings.
         - Aggregates the values using the specified aggregation functions.
-        - Counts the number of `Bad` records in each time window and excludes time windows with more `Bad` entries
+        - Counts the number of ``Bad`` records in each time window and excludes time windows with more ``Bad`` entries
           than the specified threshold.
 
         **Examples:**
@@ -1019,10 +1029,12 @@ class TimeSeries:
                 "std": "std",
                 "var": "var",
             }
+            '''
             # Add custom percentiles to the dictionary
             percentiles_to_compute = [1, 5, 10, 25, 50, 75, 90, 95, 99]
             for p in percentiles_to_compute:
                 agg_funcs[f"p{p}"] = lambda x, p=p: np.percentile(x, p)
+            '''
 
         # set list of tuples
         agg_funcs_list = [
@@ -1068,7 +1080,12 @@ class TimeSeries:
 
         return agg_df_new
 
-        # docs: ok
+    def upscale(self, freq, bad_max):
+        # todo docstring
+        df_upscale = self.aggregate(freq=freq, bad_max=bad_max, agg_funcs={self.agg: self.agg})
+        df_upscale = df_upscale.rename(columns={"{}_{}".format(self.varfield, self.agg): self.varfield})
+        return df_upscale
+
     def _set_frequency(self):
         """Guess the datetime resolution of a time series based on the consistency of
         timestamp components (e.g., seconds, minutes).
@@ -1143,6 +1160,80 @@ class TimeSeries:
         }
         return None
 
+
+    def view_epochs(self,
+        show=True,
+        folder="./output",
+        filename=None,
+        dpi=300,
+        fig_format="jpg",
+        suff="",
+        ):
+        # todo docstring
+        specs = self.view_specs.copy()
+        # Deploy figure
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+
+        # preprocessing
+        if self.epochs_stats is None:
+            self.update_epochs_stats()
+
+        gaps_c = "tab:red"
+        gaps_a = 0.6
+        # plot loop
+        for i in range(len(self.epochs_stats)):
+            start = self.epochs_stats["Start"].values[i]
+            end = self.epochs_stats["End"].values[i]
+            df_aux = self.data.query(
+                "{} >= '{}' and {} < '{}'".format(
+                    self.dtfield, start, self.dtfield, end
+                )
+            )
+            epoch_c = self.epochs_stats["Color"].values[i]
+            epoch_id = self.epochs_stats["Epoch_Id"].values[i]
+            plt.plot(
+                df_aux[self.dtfield],
+                df_aux[self.varfield],
+                ".",
+                color=epoch_c,
+                label=f"Epoch_{epoch_id}",
+            )
+            # Fill the space where there are missing values
+            plt.fill_between(
+                df_aux[self.dtfield],
+                y1=0,
+                y2=1.2 * specs["ymax"],
+                where=df_aux[self.varfield].isna(),
+                color=gaps_c,
+                alpha=gaps_a,
+            )
+        # Create a dummy plot for missing data symbol
+        plt.plot([], [], color=gaps_c, alpha=gaps_a, label='Gaps')
+        if self.epochs_n <= 12:
+            plt.legend(frameon=True, ncol=3)
+
+        # basic plot stuff
+        plt.title(specs["title"] + " | Gap Size: {} | Epochs: {}".format(self.gapsize, self.epochs_n))
+        plt.ylabel(specs["ylabel"])
+        plt.xlabel(specs["xlabel"])
+        plt.xlim(specs["xmin"], specs["xmax"])
+        plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
+
+        # Adjust layout to prevent cutoff
+        plt.tight_layout()
+
+        # show or save
+        if show:
+            plt.show()
+            return None
+        else:
+            if filename is None:
+                filename = "{}_{}{}_epochs".format(self.varname.lower(), self.alias, suff)
+            file_path = "{}/{}.{}".format(folder, filename, fig_format)
+            plt.savefig(file_path, dpi=dpi)
+            plt.close(fig)
+            return file_path
+
     # docs: OK
     def view(
         self,
@@ -1152,7 +1243,6 @@ class TimeSeries:
         dpi=300,
         fig_format="jpg",
         suff="",
-        raw=False
     ):
         """Visualize the time series data using a scatter plot with colored epochs.
 
@@ -1206,37 +1296,14 @@ class TimeSeries:
         specs = self.view_specs.copy()
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        if raw:
-            plt.plot(
-                self.data[self.dtfield],
-                self.data[self.varfield],
-                ".",
-                color=self.rawcolor,
-            )
-        else:
-            # preprocessing
-            if self.epochs_stats is None:
-                self.update_epochs_stats()
-            # plot loop
-            for i in range(len(self.epochs_stats)):
-                start = self.epochs_stats["Start"].values[i]
-                end = self.epochs_stats["End"].values[i]
-                df_aux = self.data.query(
-                    "{} >= '{}' and {} < '{}'".format(
-                        self.dtfield, start, self.dtfield, end
-                    )
-                )
-                epoch_c = self.epochs_stats["Color"].values[i]
-                epoch_id = self.epochs_stats["Epoch_Id"].values[i]
-                plt.plot(
-                    df_aux[self.dtfield],
-                    df_aux[self.varfield],
-                    ".",
-                    color=epoch_c,
-                    label=f"Epoch_{epoch_id}",
-                )
-            if self.epochs_n <=12:
-                plt.legend(frameon=True, ncol=3)
+
+        plt.plot(
+            self.data[self.dtfield],
+            self.data[self.varfield],
+            ".",
+            color=self.rawcolor,
+        )
+
         # basic plot stuff
         plt.title(specs["title"])
         plt.ylabel(specs["ylabel"])
@@ -1250,31 +1317,30 @@ class TimeSeries:
         # show or save
         if show:
             plt.show()
+            return None
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varname.lower(), self.alias, suff)
-            if raw:
-                filename = filename + "_raw"
-            else:
-                filename = filename + "_epochs"
-            plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
+            file_path = "{}/{}.{}".format(folder, filename, fig_format)
+            plt.savefig(file_path, dpi=dpi)
             plt.close(fig)
-        return None
+            return file_path
 
 
-class RainfallSeries(TimeSeries):
+
+class RainSeries(TimeSeries):
     """A class for representing and working with rainfall time series data.
 
-    The `RainfallSeries` class extends the `TimeSeries` class and focuses on handling rainfall data.
+    The ``RainSeries`` class extends the ``TimeSeries`` class and focuses on handling rainfall data.
 
     **Examples:**
 
-    >>> rainfall_data = RainfallSeries(name="Monsoon2022", alias="MS2022")
+    >>> rainfall_data = RainSeries(name="Monsoon2022", alias="MS2022")
 
     """
 
     def __init__(self, name="MyRainfallSeries", alias=None):
-        """Initialize a RainfallSeries object.
+        """Initialize a RainSeries object.
 
         :param name: str, optional
             Name of the rainfall series. Default is "MyRainfallSeries".
@@ -1287,14 +1353,14 @@ class RainfallSeries(TimeSeries):
         """
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(name, alias=alias, varname="rain", varfield="P", units="mm")
-        # Overwrite attributes specific to RainfallSeries
+        # Overwrite attributes specific to RainSeries
         self.name_object = "Rainfall Time Series"
         self.agg = "sum"  # Aggregation method, set to "sum" by default
-        self.gapsize = 7 * 72  # Maximum gap size of 1 week
+        self.gapsize = 7 * 72  # Maximum gap size of 1 week assuming measure device turns off when is not raining
         self.outlier_min = 0
-        self.rawcolor = "tab:gray"
+        self.rawcolor = "darkgray"
 
-    def interpolate_gaps(self, inplace=False):
+    def interpolate_gaps(self, inplace=False, method=None,):
         # overwrite interpolation method with constant=0
         super().interpolate_gaps(method="constant", constant=0, inplace=inplace)
 
@@ -1304,7 +1370,7 @@ class RainfallSeries(TimeSeries):
         dict_gaps = {
             "second": int(7 * 24 * 60 * 60),
             "minute": int(7 * 24 * 3),
-            "hour": int(7 * 24 ),
+            "hour": int(7 * 24),
             "day": int(7),
             "month": 1,
             "year": 1,
@@ -1313,24 +1379,23 @@ class RainfallSeries(TimeSeries):
         return None
 
 
-
 class StageSeries(TimeSeries):
     """A class for representing and working with river stage time series data.
 
-    The `StageSeries` class extends the `TimeSeries` class and focuses on handling river stage data.
+    The ``StageSeries`` class extends the ``TimeSeries`` class and focuses on handling river stage data.
 
     **Attributes:**
 
-    - `name` (str): Name of the river stage series.
-    - `alias` (str): Alias for the river stage series.
-    - `varname` (str): Variable name, set to "Stage".
-    - `varfield` (str): Variable field, set to "H".
-    - `units` (str): Measurement units, set to "cm".
-    - `code` (str or None): Custom code associated with the river stage series. Default is None.
-    - `agg` (str): Aggregation method, set to "mean" by default.
-    - `gapsize` (int): Maximum gap size allowed for data interpolation, set to 10.
-    - `x`: X-coordinate information associated with the river stage series. Default is None.
-    - `y`: Y-coordinate information associated with the river stage series. Default is None.
+    - ``name`` (str): Name of the river stage series.
+    - ``alias`` (str): Alias for the river stage series.
+    - ``varname`` (str): Variable name, set to "Stage".
+    - ``varfield`` (str): Variable field, set to "H".
+    - ``units`` (str): Measurement units, set to "cm".
+    - ``code`` (str or None): Custom code associated with the river stage series. Default is None.
+    - ``agg`` (str): Aggregation method, set to "mean" by default.
+    - ``gapsize`` (int): Maximum gap size allowed for data interpolation, set to 10.
+    - ``x`: X-coordinate information associated with the river stage series. Default is None.
+    - ``y`: Y-coordinate information associated with the river stage series. Default is None.
 
     **Examples:**
 
@@ -1368,7 +1433,7 @@ class StageSeries(TimeSeries):
 
         **Notes:**
 
-        - Metadata includes information from the base class (TimeSeries) and additional TemperatureSeries-specific attributes.
+        - Metadata includes information from the base class (TimeSeries) and additional TempSeries-specific attributes.
         - The returned dictionary contains key-value pairs with metadata information.
 
         **Examples:**
@@ -1387,32 +1452,33 @@ class StageSeries(TimeSeries):
         base_metadata.update(extra_metadata)
         return base_metadata
 
-class TemperatureSeries(TimeSeries):
+
+class TempSeries(TimeSeries):
     """A class for representing and working with temperature time series data.
 
-    The `TemperatureSeries` class extends the `TimeSeries` class and focuses on handling temperature data.
+    The ``TemperatureSeries`` class extends the ``TimeSeries`` class and focuses on handling temperature data.
 
     **Attributes:**
 
-    - `name` (str): Name of the temperature series.
-    - `alias` (str): Alias for the temperature series.
-    - `varname` (str): Variable name, set to "Temperature".
-    - `varfield` (str): Variable field, set to "T".
-    - `units` (str): Measurement units, set to "Celsius".
-    - `code` (str or None): Custom code associated with the temperature series. Default is None.
-    - `agg` (str): Aggregation method, set to "mean" by default.
-    - `gapsize` (int): Maximum gap size allowed for data interpolation, set to 10.
-    - `x`: X-coordinate information associated with the temperature series. Default is None.
-    - `y`: Y-coordinate information associated with the temperature series. Default is None.
+    - ``name`` (str): Name of the temperature series.
+    - ``alias`` (str): Alias for the temperature series.
+    - ``varname`` (str): Variable name, set to "Temperature".
+    - ``varfield`` (str): Variable field, set to "T".
+    - ``units`` (str): Measurement units, set to "Celsius".
+    - ``code`` (str or None): Custom code associated with the temperature series. Default is None.
+    - ``agg`` (str): Aggregation method, set to "mean" by default.
+    - ``gapsize`` (int): Maximum gap size allowed for data interpolation, set to 10.
+    - ``x`: X-coordinate information associated with the temperature series. Default is None.
+    - ``y`: Y-coordinate information associated with the temperature series. Default is None.
 
     **Examples:**
 
-    >>> temperature_data = TemperatureSeries(name="Temperature2022", alias="Temp2022")
+    >>> temperature_data = TempSeries(name="Temperature2022", alias="Temp2022")
 
     """
 
     def __init__(self, name="MyTemperatureSeries", alias=None):
-        """Initialize a TemperatureSeries object.
+        """Initialize a TempSeries object.
 
         :param name: str, optional
             Name of the temperature series. Default is "MyTemperatureSeries".
@@ -1427,14 +1493,15 @@ class TemperatureSeries(TimeSeries):
         super().__init__(
             name, alias=alias, varname="Temperature", varfield="T", units="Celsius"
         )
-        # Overwrite attributes specific to TemperatureSeries
+        # Overwrite attributes specific to TempSeries
         self.agg = "mean"  # Aggregation method, set to "mean" by default
         self.gapsize = 10  # Maximum gap size allowed for data interpolation
+
 
 class TimeSeriesCollection(Collection):
     """A collection of time series objects with associated metadata.
 
-    The `TimeSeriesCollection` class extends the `Collection` class and is designed to handle time series data.
+    The ``TimeSeriesCollection`` or simply TSC class extends the ``Collection`` class and is designed to handle time series data.
 
     """
 
@@ -1455,7 +1522,7 @@ class TimeSeriesCollection(Collection):
 
         **Notes:**
 
-        - If `base_object` is not provided, a default `TimeSeries` object is created.
+        - If ``base_object`` is not provided, a default ``TimeSeries`` object is created.
 
         **Examples:**
 
@@ -1469,11 +1536,6 @@ class TimeSeriesCollection(Collection):
 
         # Call the constructor of the parent class (TimeSeries)
         super().__init__(base_object=base_object, name=name)
-        self.name_object = "Time Series Collection"
-
-        # Set default field names and attributes
-        self.dtfield = "DateTime"
-        self.overfield = "Overlapping"
 
         # Set up date fields and special attributes in the catalog
         self.catalog["Start"] = pd.to_datetime(
@@ -1483,7 +1545,7 @@ class TimeSeriesCollection(Collection):
             self.catalog["End"], format="%Y-%m-%d %H:%M:%S"
         )
 
-        # Initialize start, end, min, and max attributes
+        # Set auto attributes
         self.start = None
         self.end = None
         self.var_min = None
@@ -1492,13 +1554,16 @@ class TimeSeriesCollection(Collection):
         self.datarange_min = None
         self.datarange_max = None
 
-        # view specs
+        # load view specs
         self._set_view_specs()
 
+        # Set specific attributes
+        self.name_object = "Time Series Collection"
+        self.dtfield = "DateTime"
+        self.overfield = "Overlapping"
 
     def __str__(self):
         return self.catalog.to_string(index=False)
-
 
     # docs: ok
     def update(self, details=False):
@@ -1534,11 +1599,12 @@ class TimeSeriesCollection(Collection):
         >>> ts_collection.load_data(input_file="data.csv")
         """
         input_df = pd.read_csv(input_file, sep=";")
-        self.set_data(input_df=input_df, filter_dates=filter_dates)
+        input_dir = os.path.dirname(input_file)
+        self.set_data(input_df=input_df, input_dir=input_dir, filter_dates=filter_dates)
         return None
 
     # docs: ok
-    def set_data(self, input_df, filter_dates=None):
+    def set_data(self, input_df, input_dir=None, filter_dates=None):
         """Set data for the time series collection from a info DataFrame.
 
         :param input_df: class:`pandas.DataFrame`
@@ -1553,9 +1619,9 @@ class TimeSeriesCollection(Collection):
 
         **Notes:**
 
-        - The `set_data` method populates the time series collection with data based on the provided DataFrame.
+        - The ``set_data`` method populates the time series collection with data based on the provided DataFrame.
         - It creates time series objects, loads data, and performs additional processing steps.
-        - Adjust `skip_process` according to your data processing needs.
+        - Adjust ``skip_process`` according to your data processing needs.
 
         **Examples:**
 
@@ -1564,14 +1630,26 @@ class TimeSeriesCollection(Collection):
 
         """
         for i in range(len(input_df)):
-
             # create object
             ts = self.baseobject(name=input_df["Name"].values[i])
             ts.alias = input_df["Alias"].values[i]
             ts.units = input_df["Units"].values[i]
+
+            # handle input file
+            input_file = input_df["File"].values[i]
+            print(input_file)
+            # if is a path:
+            if os.path.exists(input_file):
+                pass
+            else:
+                # assume file name only and concat
+                if input_dir is not None:
+                    input_file = "{}/{}".format(input_dir, input_file)
+
+            print(input_file)
             # load data
             ts.load_data(
-                input_file=input_df["File"].values[i],
+                input_file=input_file,
                 input_varfield=input_df["VarField"].values[i],
                 input_dtfield=input_df["DtField"].values[i],
                 filter_dates=filter_dates,
@@ -1583,23 +1661,15 @@ class TimeSeriesCollection(Collection):
             ts.source_data = input_df["Source"].values[i]
             ts.description = input_df["Description"].values[i]
             ts.color = input_df["Color"].values[i]
-            '''
-            # process
-            if skip_process:
-                pass
-            else:
-                ts.standardize()
-                # ts.interpolate_gaps(inplace=True) # this is causing problems 
-                ts.update_epochs_stats()
-            '''
             # append
+            print(type(ts))
             self.append(new_object=ts)
         self.update(details=True)
         return None
 
     # docs: ok
     def clear_outliers(self):
-        """Clear outliers in the collection based on the `datarange_min` and `datarange_max` attributes.
+        """Clear outliers in the collection based on the ``datarange_min`` and ``datarange_max`` attributes.
 
         :return: None
         :rtype: None
@@ -1634,6 +1704,8 @@ class TimeSeriesCollection(Collection):
         # Get start, end, and frequency from the catalog
         start = self.start
         end = self.end
+
+        # todo handle this issue on the first freq
         # consider the first freq
         freq = self.catalog["DT_freq"].values[0]
 
@@ -1717,7 +1789,6 @@ class TimeSeriesCollection(Collection):
 
         # Reset data for each time series
         for c in df.columns[1:]:
-
             # filter merged dataframe
             df_aux = df[[self.dtfield, c]].copy()
 
@@ -1743,113 +1814,18 @@ class TimeSeriesCollection(Collection):
 
         return None
 
-    # docs todo
-    def get_weigths(self, name, list_names, method="average"):
-        w = np.ones(len(list_names))
-        if method.lower() == "average":
-            return w
-        elif method.lower() == "idw":
-            # Get x,y
-            x = self.collection[name].x
-            y = self.collection[name].y
-            # Get distances
-            x_i = np.array([self.collection[_].x for _ in list_names])
-            y_i = np.array([self.collection[_].y for _ in list_names])
-            d_i = np.sqrt(np.square(x - x_i) + np.square(y - y_i))
-            # Compute IDW
-            idw_i = 1 / (d_i + (np.mean(d_i)/10000))  # handle zero distance
-            # Normaliza to [0-100] range
-            w = 100 * idw_i / np.sum(idw_i)
-            return w
-        else:
-            return w
-
-    # docs ok
-    def regionalize(self, method="average"):
-        """Regionalize the time series data using a specified method.
-
-        :param method: str, optional
-            Method for regionalization, default is "average".
-        :type method: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - This method handles standardization. If the time series data is not standardized, it applies standardization.
-        - Computes epochs for the time series data.
-        - Iterates through each time series in the collection and performs regionalization.
-        - For each time series, sets up source and destination vectors, computes weights, and calculates regionalized values.
-        - Updates the destination column in-place with the regionalized values and updates epochs statistics.
-        - Updates the collection catalog with details.
-
-        **Examples:**
-
-        >>> ts_instance = YourTimeSeriesClass()
-        >>> ts_instance.regionalize(method="average")
-
-        """
-        # Handle stardardization
-        if self.isstandard:
-            pass
-        else:
-            self.standardize()
-        # Compute Epochs
-        df = self.get_epochs()
-
-        for i in range(len(self.catalog)):
-            varfield = self.catalog["VarField"].values[i]
-            name = self.catalog["Name"].values[i]
-            df_src_catalog = self.catalog.query("Name != '{}'".format(name))
-
-            # Get destination vector
-            dst_vct = self.collection[name].data[varfield].values
-            dst_mask = 1 * np.isnan(dst_vct)
-
-            # Set up source
-            src_vars = df_src_catalog["VarField"].values
-            src_names = df_src_catalog["Name"].values
-            src_alias = df_src_catalog["Alias"].values
-            src_columns = [
-                "{}_{}".format(src_vars[i], src_alias[i])
-                for i in range(len(df_src_catalog))
-            ]
-            df_src = df[src_columns].copy() # ensure name order
-
-            # Set up weights
-            vct_w = self.get_weigths(name=name, list_names=list(src_names), method=method)
-
-            # get product w * values
-            w_v = vct_w * ~np.isnan(df_src.values)
-            # horizontal weights sum
-            w_sum = np.sum(w_v, axis=1)
-            w_sum = np.where(w_sum == 0, np.nan, w_sum)
-            # output sum
-            o_sum = np.nansum(df_src.values * w_v, axis=1)
-            # output average
-            o = o_sum / w_sum
-
-            # set destination column inplace
-            self.collection[name].data[varfield] = np.where(dst_mask == 1, o, dst_vct)
-            self.collection[name].update()
-            self.collection[name].update_epochs_stats()
-
-        # Update the collection catalog with details
-        self.update(details=True)
-
     # docs: ok
     def merge_local_epochs(self):
         """Merge local epochs statistics from individual time series within the collection.
 
-        :return: Merged :class:`pandas.DataFrame` containing epochs statistics.
+        :return: Merged :class:`pandas.DataFrame``` containing epochs statistics.
         :rtype: :class:`pandas.DataFrame`
 
         **Notes:**
 
         - This method creates an empty list to store individual epochs statistics dataframes.
         - It iterates through each time series in the collection.
-        - For each time series, it updates the local epochs statistics using the :meth:`update_epochs_stats` method.
+        - For each time series, it updates the local epochs statistics using the :meth:``update_epochs_stats`` method.
         - The local epochs statistics dataframes are then appended to the list.
         - Finally, the list of dataframes is concatenated into a single dataframe.
 
@@ -1889,9 +1865,9 @@ class TimeSeriesCollection(Collection):
         - Converts non-NaN values to 1 and NaN values to 0.
         - Calculates the sum of non-NaN values for each row and updates the DataFrame with the result.
         - Extracts relevant columns for epoch calculation.
-        - Sets 0 values in the specified `overfield` column to NaN.
-        - Creates a new :class:`TimeSeries` instance for epoch calculation using the `overfield` values.
-        - Calculates epochs using the :meth:`get_epochs` method of the new :class:`TimeSeries` instance.
+        - Sets 0 values in the specified ``overfield`` column to NaN.
+        - Creates a new :class:`TimeSeries`` instance for epoch calculation using the ``overfield`` values.
+        - Calculates epochs using the :meth:``get_epochs`` method of the new :class:`TimeSeries`` instance.
         - Updates the original DataFrame with the calculated epochs.
 
         **Examples:**
@@ -2144,7 +2120,9 @@ class TimeSeriesCollection(Collection):
         return None
 
     # docs: ok
-    def export_views(self, folder, dpi=300, fig_format="jpg", suff="", skip_main=False, raw=False):
+    def export_views(
+        self, folder, dpi=300, fig_format="jpg", suff="", skip_main=False, raw=False
+    ):
         """Export views of time series data and individual time series within the collection.
 
         :param folder: str
@@ -2178,7 +2156,7 @@ class TimeSeriesCollection(Collection):
         **Notes:**
 
         - Updates the collection details and epoch statistics.
-        - Calls the `view` method for the entire collection and individual time series with specified parameters.
+        - Calls the ``view`` method for the entire collection and individual time series with specified parameters.
         - Sets view specifications for individual time series, such as y-axis limits and time range.
 
         **Examples:**
@@ -2194,7 +2172,9 @@ class TimeSeriesCollection(Collection):
         if skip_main:
             pass
         else:
-            self.view(show=False, folder=folder, dpi=dpi, fig_format=fig_format, suff=suff)
+            self.view(
+                show=False, folder=folder, dpi=dpi, fig_format=fig_format, suff=suff
+            )
 
         for name in self.collection:
             # specs
@@ -2204,7 +2184,12 @@ class TimeSeriesCollection(Collection):
             self.collection[name].view_specs["xmin"] = self.start
             # view
             self.collection[name].view(
-                show=False, folder=folder, dpi=dpi, fig_format=fig_format, suff=suff, raw=raw
+                show=False,
+                folder=folder,
+                dpi=dpi,
+                fig_format=fig_format,
+                suff=suff,
+                raw=raw,
             )
         return None
 
@@ -2222,60 +2207,319 @@ class TimeSeriesCollection(Collection):
                 df = self.collection[name].export(folder=folder)
 
 
+class TimeSeriesCluster(TimeSeriesCollection):
+    # todo docstring
+    """
+    The ``TimeSeriesCluster`` instance is desgined for holding a collection
+    of same variable time series. That is, no miscellaneus data is allowed.
 
-# docs todo
-class RainSeriesCollection(TimeSeriesCollection):
-    def __init__(self, name="MyRSColection"):
-        super().__init__(name=name, base_object=RainfallSeries)
-        # overwrite parent attributes
-        self.name_object = "Rainfall Series Collection"
-        self._set_view_specs()
+    """
 
-# docs todo
-class TemperatureSeriesCollection(TimeSeriesCollection):
-    def __init__(self, name="MyTempSColection"):
-        super().__init__(name=name, base_object=TemperatureSeries)
-        # overwrite parent attributes
-        self.name_object = "Temperature Series Collection"
-        self._set_view_specs()
+    def __init__(self, name="myTimeSeriesCluster", base_object=None):
+        # todo docstring
+        # initialize parent
+        super().__init__(name=name, base_object=base_object)
 
-# docs todo
-class StageSeriesCollection(TimeSeriesCollection):
+        # Set extra specific attributes
+        self.varname = base_object().varname
+        self.varalias = base_object().varalias
+
+        # Overwrite parent attributes
+        self.name_object = "Time Series Cluster"
+
+    '''
+    def append(self, new_object):
+        # todo docstring
+        # only append if new object is the same of the base
+        print(type(new_object))
+        print(type(self.baseobject))
+        if type(new_object) != type(self.baseobject):
+            raise ValueError("new object is not instances of the same class.")
+        super().append(new_object=new_object)
+        return None
+    '''
+
+class StageSeriesCollection(TimeSeriesCluster):
+    # todo docstring
     def __init__(self, name="MySSColection"):
+        # todo docstring
         super().__init__(name=name, base_object=StageSeries)
         # overwrite parent attributes
         self.name_object = "Stage Series Collection"
         self._set_view_specs()
 
-    # docs ok
-    def set_data(self, input_df, skip_process=False):
-        """Set time series data and additional metadata from an input DataFrame.
-
-        :param input_df: pandas.DataFrame
-            The input DataFrame containing time series data and metadata.
-        :type input_df: pandas.DataFrame
-
-        :param skip_process: bool, optional
-            If True, skip the processing steps (standardization, interpolation, etc.), default is False.
-        :type skip_process: bool
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - Calls the `set_data` method of the parent class to set generic time series data and metadata.
-        - Sets custom metadata for each time series in the collection, such as upstream area.
-
-        """
+    def set_data(self, input_df, filter_dates=None):
+        # todo docstring
         # generic part
-        super().set_data(input_df=input_df, skip_process=skip_process)
+        super().set_data(input_df=input_df, filter_dates=filter_dates)
         # custom part
         for i in range(len(input_df)):
             name = input_df["Name"].values[i]
             self.collection[name].upstream_area = input_df["UpstreamArea"].values[i]
         self.update(details=True)
         return None
+
+
+class TimeSeriesSamples(TimeSeriesCluster):
+    # todo docstring
+    """
+    The ``TimeSeriesSamples`` instance is desgined for holding a collection
+    of same variable time series arising from the same underlying process.
+    This means that all elements in the collection are statistical samples.
+
+    This instance allows for the ``reducer()`` method.
+
+    """
+
+    def __init__(self, name="myTimeSeriesSamples", base_object=None):
+        # todo docstring
+        # initialize parent
+        super().__init__(name=name, base_object=base_object)
+        # Overwrite parent attributes
+        self.name_object = "Time Series Samples"
+
+    # todo reducer
+    def reducer(self, reducer_funcs=None, stepwise=False):
+        # todo docstring
+
+        df_merged = self.merge_data()
+
+        # set up output dict
+        dict_out = {self.dtfield: df_merged[self.dtfield].values}
+
+        # get grid
+        grd_data = df_merged[df_merged.columns[1:]].values
+
+        for funcname in reducer_funcs:
+            # set array
+            vct_red = np.zeros(len(df_merged))
+            # row loop options
+            args = reducer_funcs[funcname]["Args"]
+            if args is None:
+                if stepwise:
+                    for i in range(len(vct_red)):
+                        vct_red[i] = reducer_funcs[funcname]["Func"](grd_data[i])
+                else:
+                    vct_red = reducer_funcs[funcname]["Func"](grd_data, axis=1)
+            else:
+                if stepwise:
+                    for i in range(len(vct_red)):
+                        vct_red[i] = reducer_funcs[funcname]["Func"](grd_data[i], args)
+                else:
+                    vct_red = reducer_funcs[funcname]["Func"](grd_data, args, axis=1)
+            # append to dict
+            dict_out["{}_{}".format(self.varalias, funcname)] = vct_red[:]
+
+        # set dataframe
+        df = pd.DataFrame(dict_out)
+
+        return df
+
+    def mean(self):
+        # todo docstring
+        df = self.reducer(reducer_funcs={"mean": {"Func": np.mean, "Args": None}})
+        return df
+
+    def rng(self):
+        # todo docstring
+        df = self.reducer(reducer_funcs={"rng": {"Func": np.r, "Args": None}})
+        return df
+
+    def std(self):
+        # todo docstring
+        df = self.reducer(reducer_funcs={"std": {"Func": np.std, "Args": None}})
+        return df
+
+    def min(self):
+        # todo docstring
+        df = self.reducer(reducer_funcs={"min": {"Func": np.min, "Args": None}})
+        return df
+
+    def max(self):
+        # todo docstring
+        df = self.reducer(reducer_funcs={"max": {"Func": np.max, "Args": None}})
+        return df
+
+    def percentile(self, p=90):
+        # todo docstring
+        df = self.reducer(reducer_funcs={"max": {"Func": np.percentile, "Args": p}})
+        return df
+
+    def percentiles(self, values=None):
+        # todo docstring
+        if values is None:
+            values = [1, 5, 10, 25, 50, 75, 90, 95, 99]
+        dict_funcs = {}
+        for v in values:
+            if v < 10:
+                dict_funcs["p0{}".format(v)] = {"Func": np.percentile, "Args": v}
+            else:
+                dict_funcs["p0{}".format(v)] = {"Func": np.percentile, "Args": v}
+
+        df = self.reducer(reducer_funcs=dict_funcs)
+        return df
+
+    def stats(self, basic=False):
+        # todo docstring
+        df_stats = self.reducer(
+            reducer_funcs={
+                "sum": {"Func": np.sum, "Args": None},
+                "mean": {"Func": np.mean, "Args": None},
+                "std": {"Func": np.max, "Args": None},
+                "min": {"Func": np.min, "Args": None},
+                "max": {"Func": np.max, "Args": None},
+            }
+        )
+        if basic:
+            values = [25, 50, 75]
+        # get percentiles
+        df_per = self.percentiles(values=None)
+        # join dataframes
+        df = pd.merge(left=df_stats, right=df_per, on=self.dtfield)
+
+        return df
+
+
+class TimeSeriesSpatialSamples(TimeSeriesSamples):
+    # todo docstring
+    """
+    The ``TimeSeriesSpatialSamples`` instance is desgined for holding a collection
+    of same variable time series arising from the same underlying process in space.
+    This means that all elements in the collection are statistical samples in space.
+
+    This instance allows for the ``regionalization()`` method.
+
+    """
+
+    def __init__(self, name="myTimeSeriesSpatialSample", base_object=None):
+        # todo docstring
+        # initialize parent
+        super().__init__(name=name, base_object=base_object)
+        # Overwrite parent attributes
+        self.name_object = "Time Series Spatial"
+
+    def get_weights_by_name(self, name, method="average"):
+        # todo docstring
+
+        # remaining names
+        df_remain = self.catalog.query("Name != '{}'".format(name))
+        list_names = list(df_remain["Name"].values)
+
+        # w array
+        w = np.ones(len(list_names))
+
+        # handle methods
+        if method.lower() == "average":
+            return w
+        elif method.lower() == "idw":
+            # Get x,y
+            x = self.collection[name].x
+            y = self.collection[name].y
+            # Get distances
+            x_i = np.array([self.collection[_].x for _ in list_names])
+            y_i = np.array([self.collection[_].y for _ in list_names])
+            d_i = np.sqrt(np.square(x - x_i) + np.square(y - y_i))
+            # Compute IDW
+            idw_i = 1 / (d_i + (np.mean(d_i) / 10000))  # handle zero distance
+            # Normaliza to [0-100] range
+            w = 100 * idw_i / np.sum(idw_i)
+            return w
+        else:
+            return w
+
+    # docs ok
+    def regionalize(self, method="average"):
+        """Regionalize the time series data using a specified method.
+
+        :param method: str, optional
+            Method for regionalization, default is "average".
+        :type method: str
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - This method handles standardization. If the time series data is not standardized, it applies standardization.
+        - Computes epochs for the time series data.
+        - Iterates through each time series in the collection and performs regionalization.
+        - For each time series, sets up source and destination vectors, computes weights, and calculates regionalized values.
+        - Updates the destination column in-place with the regionalized values and updates epochs statistics.
+        - Updates the collection catalog with details.
+
+        **Examples:**
+
+        >>> ts_instance = YourTimeSeriesClass()
+        >>> ts_instance.regionalize(method="average")
+
+        """
+        # Handle stardardization
+        if self.isstandard:
+            pass
+        else:
+            self.standardize()
+        # Compute Epochs
+        df = self.get_epochs()
+
+        for i in range(len(self.catalog)):
+            varfield = self.catalog["VarField"].values[i]
+            name = self.catalog["Name"].values[i]
+            df_src_catalog = self.catalog.query("Name != '{}'".format(name))
+
+            # Get destination vector
+            dst_vct = self.collection[name].data[varfield].values
+            dst_mask = 1 * np.isnan(dst_vct)
+
+            # Set up source
+            src_vars = df_src_catalog["VarField"].values
+            src_names = df_src_catalog["Name"].values
+            src_alias = df_src_catalog["Alias"].values
+            src_columns = [
+                "{}_{}".format(src_vars[i], src_alias[i])
+                for i in range(len(df_src_catalog))
+            ]
+            df_src = df[src_columns].copy()  # ensure name order
+
+            # Set up weights
+            vct_w = self.get_weights_by_name(name=name, method=method)
+
+            # get product w * values
+            w_v = vct_w * ~np.isnan(df_src.values)
+            # horizontal weights sum
+            w_sum = np.sum(w_v, axis=1)
+            w_sum = np.where(w_sum == 0, np.nan, w_sum)
+            # output sum
+            o_sum = np.nansum(df_src.values * w_v, axis=1)
+            # output average
+            o = o_sum / w_sum
+
+            # set destination column inplace
+            self.collection[name].data[varfield] = np.where(dst_mask == 1, o, dst_vct)
+            self.collection[name].update()
+            self.collection[name].update_epochs_stats()
+
+        # Update the collection catalog with details
+        self.update(details=True)
+
+
+class RainSeriesSamples(TimeSeriesSpatialSamples):
+    # todo docstring
+    def __init__(self, name="MyRSColection"):
+        # todo docstring
+        super().__init__(name=name, base_object=RainSeries)
+        # overwrite parent attributes
+        self.name_object = "Rainfall Series Samples"
+        self._set_view_specs()
+
+
+class TempSeriesSamples(TimeSeriesSpatialSamples):
+    # todo docstring
+    def __init__(self, name="MyTempSColection"):
+        # todo docstring
+        super().__init__(name=name, base_object=TempSeries)
+        # overwrite parent attributes
+        self.name_object = "Temperature Series Sample"
+        self._set_view_specs()
 
 
 class RatingCurve:
@@ -2336,9 +2580,9 @@ class RatingCurve:
         """Run the model Q = a * (H - h0)^b
 
         :param h: vector of H
-        :type h: :class:`numpy.ndarray` or float
+        :type h: :class:`numpy.ndarray`` or float
         :return: computed Q
-        :rtype: :class:`numpy.ndarray` or float
+        :rtype: :class:`numpy.ndarray`` or float
         """
         return self.a * (np.power((h - self.h0), self.b))
 
@@ -2913,8 +3157,6 @@ class RatingCurveCollection(Collection):
         return None
 
 
-
-
 # -----------------------------------------
 # Base raster data structures
 
@@ -2934,25 +3176,25 @@ class Raster:
 
         **Attributes:**
 
-        - `grid` (None): Main grid of the raster.
-        - `backup_grid` (None): Backup grid for AOI operations.
-        - `isaoi` (False): Flag indicating whether an AOI mask is applied.
-        - `asc_metadata` (dict): Metadata dictionary with keys: ncols, nrows, xllcorner, yllcorner, cellsize, NODATA_value.
-        - `nodatavalue` (None): NODATA value from asc_metadata.
-        - `cellsize` (None): Cell size from asc_metadata.
-        - `name` (str): Name of the raster map.
-        - `dtype` (str): Data type of raster cells.
-        - `cmap` ("jet"): Default color map for visualization.
-        - `varname` ("Unknown variable"): Variable name associated with the raster.
-        - `varalias` ("Var"): Variable alias.
-        - `description` (None): Description of the raster map.
-        - `units` ("units"): Measurement units of the raster values.
-        - `date` (None): Date associated with the raster map.
-        - `source_data` (None): Source data information.
-        - `prj` (None): Projection information.
-        - `path_ascfile` (None): Path to the .asc raster file.
-        - `path_prjfile` (None): Path to the .prj projection file.
-        - `view_specs` (None): View specifications for visualization.
+        - ``grid`` (None): Main grid of the raster.
+        - ``backup_grid`` (None): Backup grid for AOI operations.
+        - ``isaoi`` (False): Flag indicating whether an AOI mask is applied.
+        - ``asc_metadata`` (dict): Metadata dictionary with keys: ncols, nrows, xllcorner, yllcorner, cellsize, NODATA_value.
+        - ``nodatavalue`` (None): NODATA value from asc_metadata.
+        - ``cellsize`` (None): Cell size from asc_metadata.
+        - ``name`` (str): Name of the raster map.
+        - ``dtype`` (str): Data type of raster cells.
+        - ``cmap`` ("jet"): Default color map for visualization.
+        - ``varname`` ("Unknown variable"): Variable name associated with the raster.
+        - ``varalias`` ("Var"): Variable alias.
+        - ``description`` (None): Description of the raster map.
+        - ``units`` ("units"): Measurement units of the raster values.
+        - ``date`` (None): Date associated with the raster map.
+        - ``source_data`` (None): Source data information.
+        - ``prj`` (None): Projection information.
+        - ``path_ascfile`` (None): Path to the .asc raster file.
+        - ``path_prjfile`` (None): Path to the .prj projection file.
+        - ``view_specs`` (None): View specifications for visualization.
 
         **Examples:**
 
@@ -3035,7 +3277,7 @@ class Raster:
         This function allows setting metadata for the raster object from an incoming metadata dictionary. The metadata should include information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
 
         :param metadata: dict
-            A dictionary containing metadata for the raster. Example metadata for a '.asc' file raster:
+            A dictionary containing metadata for the raster. Example metadata for a ``.asc`` file raster:
 
             .. code-block:: python
 
@@ -3072,14 +3314,14 @@ class Raster:
     def load(self, asc_file, prj_file=None):
         """Load data from files to the raster object.
 
-        This function loads data from '.asc' raster and '.prj' projection files into the raster object.
+        This function loads data from ``.asc`` raster and '.prj' projection files into the raster object.
 
         :param asc_file: str
-            The path to the '.asc' raster file.
+            The path to the ``.asc`` raster file.
         :type asc_file: str
 
         :param prj_file: str, optional
-            The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the '.asc' file with the '.prj' extension.
+            The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the ``.asc`` file with the '.prj' extension.
         :type prj_file: str
 
         :return: None
@@ -3087,9 +3329,9 @@ class Raster:
 
         **Notes:**
 
-        - The function first loads the raster data from the '.asc' file using the `load_asc_raster` method.
-        - If a '.prj' file is not explicitly provided, the function attempts to use a '.prj' file with the same path and name as the '.asc' file.
-        - The function then loads the projection information from the '.prj' file using the `load_prj_file` method.
+        - The function first loads the raster data from the ``.asc`` file using the ``load_asc_raster`` method.
+        - If a '.prj' file is not explicitly provided, the function attempts to use a '.prj' file with the same path and name as the ``.asc`` file.
+        - The function then loads the projection information from the '.prj' file using the ``load_prj_file`` method.
 
         **Examples:**
 
@@ -3125,7 +3367,7 @@ class Raster:
 
         - The function uses the Pillow (PIL) library to open the '.tif' file and converts it to a NumPy array.
         - Metadata may need to be provided separately, as this function focuses on loading raster data.
-        - The loaded data grid is set using the `set_grid` method of the raster object.
+        - The loaded data grid is set using the ``set_grid`` method of the raster object.
 
         **Examples:**
 
@@ -3143,12 +3385,12 @@ class Raster:
         return None
 
     def load_asc_raster(self, file):
-        """Load data and metadata from '.asc' raster files.
+        """Load data and metadata from ``.asc`` raster files.
 
-        This function loads both data and metadata from '.asc' raster files into the raster object.
+        This function loads both data and metadata from ``.asc`` raster files into the raster object.
 
         :param file: str
-            The file path to the '.asc' raster file.
+            The file path to the ``.asc`` raster file.
         :type file: str
 
         :return: None
@@ -3156,15 +3398,15 @@ class Raster:
 
         **Notes:**
 
-        - The function reads the content of the '.asc' file, extracts metadata, and constructs the data grid.
+        - The function reads the content of the ``.asc`` file, extracts metadata, and constructs the data grid.
         - The metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
-        - The data grid is constructed from the array information provided in the '.asc' file.
-        - The function depends on the existence of a properly formatted '.asc' file.
+        - The data grid is constructed from the array information provided in the ``.asc`` file.
+        - The function depends on the existence of a properly formatted ``.asc`` file.
         - No additional dependencies beyond standard Python libraries are required.
 
         **Examples:**
 
-        >>> # Example of loading data and metadata from a '.asc' file
+        >>> # Example of loading data and metadata from a ``.asc`` file
         >>> raster.load_asc_raster(file="path/to/raster.asc")
         """
         # get file
@@ -3206,12 +3448,12 @@ class Raster:
         return None
 
     def load_asc_metadata(self, file):
-        """Load only metadata from '.asc' raster files.
+        """Load only metadata from ``.asc`` raster files.
 
-        This function extracts metadata from '.asc' raster files and sets it as attributes in the raster object.
+        This function extracts metadata from ``.asc`` raster files and sets it as attributes in the raster object.
 
         :param file: str
-            The file path to the '.asc' raster file.
+            The file path to the ``.asc`` raster file.
         :type file: str
 
         :return: None
@@ -3219,14 +3461,14 @@ class Raster:
 
         **Notes:**
 
-        - The function reads the first six lines of the '.asc' file to extract metadata.
+        - The function reads the first six lines of the ``.asc`` file to extract metadata.
         - Metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
-        - The function sets the metadata as attributes in the raster object using the `set_asc_metadata` method.
+        - The function sets the metadata as attributes in the raster object using the ``set_asc_metadata`` method.
         - This function is useful when only metadata needs to be loaded without the entire data grid.
 
         **Examples:**
 
-        >>> # Example of loading metadata from a '.asc' file
+        >>> # Example of loading metadata from a ``.asc`` file
         >>> raster.load_asc_metadata(file="path/to/raster.asc")
         """
         with open(file) as f:
@@ -3326,7 +3568,7 @@ class Raster:
     def export(self, folder, filename=None):
         """Export raster data to a folder.
 
-        This function exports raster data, including the '.asc' raster file and '.prj' projection file, to the specified folder.
+        This function exports raster data, including the ``.asc`` raster file and '.prj' projection file, to the specified folder.
 
         :param folder: str
             The directory path to export the raster data.
@@ -3341,9 +3583,9 @@ class Raster:
 
         **Notes:**
 
-        - The function exports the raster data to the specified folder, creating '.asc' and '.prj' files.
+        - The function exports the raster data to the specified folder, creating ``.asc`` and '.prj' files.
         - If a filename is not provided, the function uses the name of the raster object.
-        - The exported files will have the same filename with different extensions ('.asc' and '.prj').
+        - The exported files will have the same filename with different extensions (``.asc`` and '.prj').
         - This function is useful for saving raster data to a specified directory.
 
         **Examples:**
@@ -3358,12 +3600,12 @@ class Raster:
         return None
 
     def export_asc_raster(self, folder, filename=None):
-        """Export an '.asc' raster file.
+        """Export an ``.asc`` raster file.
 
-        This function exports the raster data as an '.asc' file to the specified folder.
+        This function exports the raster data as an ``.asc`` file to the specified folder.
 
         :param folder: str
-            The directory path to export the '.asc' raster file.
+            The directory path to export the ``.asc`` raster file.
         :type folder: str
 
         :param filename: str, optional
@@ -3371,19 +3613,19 @@ class Raster:
         :type filename: str
 
         :return: str
-            The full file name (path and extension) of the exported '.asc' raster file.
+            The full file name (path and extension) of the exported ``.asc`` raster file.
         :rtype: str
 
         **Notes:**
 
-        - The function exports the raster data to an '.asc' file in the specified folder.
+        - The function exports the raster data to an ``.asc`` file in the specified folder.
         - If a filename is not provided, the function uses the name of the raster object.
-        - The exported '.asc' file contains metadata and data information.
+        - The exported ``.asc`` file contains metadata and data information.
         - This function is useful for saving raster data in ASCII format.
 
         **Examples:**
 
-        >>> # Example of exporting an '.asc' raster file to a folder
+        >>> # Example of exporting an ``.asc`` raster file to a folder
         >>> raster.export_asc_raster(folder="path/to/export_folder", filename="exported_raster")
         """
         if self.grid is None or self.asc_metadata is None:
@@ -3535,10 +3777,10 @@ class Raster:
             Interpolation method for rebasing the grid. Options include "linear_model," "nearest," and "cubic." Default is "linear_model."
         :type method: str
 
-        :return: :class:`numpy.ndarray` or None
+        :return: :class:`numpy.ndarray`` or None
             If inplace is False, a new rebased grid as a NumPy array.
             If inplace is True, returns None, and the original raster's grid is modified in-place.
-        :rtype: :class:`numpy.ndarray` or None
+        :rtype: :class:`numpy.ndarray`` or None
 
         **Notes:**
 
@@ -3664,7 +3906,7 @@ class Raster:
             Default is False.
         :type inplace: bool
 
-        :return: :class:`numpy.ndarray` or None
+        :return: :class:`numpy.ndarray`` or None
             The processed grid if inplace is False. If inplace is True, returns None.
         :rtype: Union[None, np.ndarray]
 
@@ -3764,7 +4006,7 @@ class Raster:
         :type drop_nan: bool
 
         :return: DataFrame of x, y, and z fields.
-        :rtype: :class:`pandas.DataFrame` or None
+        :rtype: :class:`pandas.DataFrame``` or None
             If the grid is None, returns None.
 
         **Notes:**
@@ -3832,7 +4074,7 @@ class Raster:
         """Get flat and cleared grid data.
 
         :return: 1D vector of cleared data.
-        :rtype: :class:`numpy.ndarray` or None
+        :rtype: :class:`numpy.ndarray`` or None
             If the grid is None, returns None.
 
         **Notes:**
@@ -3862,7 +4104,7 @@ class Raster:
         """Get basic statistics from flat and cleared data.
 
         :return: DataFrame of basic statistics.
-        :rtype: :class:`pandas.DataFrame` or None
+        :rtype: :class:`pandas.DataFrame``` or None
             If the grid is None, returns None.
 
         **Notes:**
@@ -3892,7 +4134,7 @@ class Raster:
         :type by_value_hi: float
 
         :return: AOI map.
-        :rtype: :class:`AOI` object
+        :rtype: :class:`AOI`` object
 
         **Notes:**
 
@@ -4561,9 +4803,9 @@ class QualiRaster(Raster):
     Basic qualitative raster map dataset.
 
     Attributes dataframe must at least have:
-    * :class:`Id` field
-    * :class:`Name` field
-    * :class:`Alias` field
+    * :class:`Id`` field
+    * :class:`Name`` field
+    * :class:`Alias`` field
 
     """
 
@@ -4868,7 +5110,7 @@ class QualiRaster(Raster):
         :param by_value_id: category id value
         :type by_value_id: int
         :return: AOI map
-        :rtype: :class:`AOI` object
+        :rtype: :class:`AOI`` object
         """
         map_aoi = AOI(name="{} {}".format(self.varname, by_value_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
@@ -5156,7 +5398,7 @@ class LULC(QualiRaster):
     """
 
     def __init__(self, name, date):
-        """Initialize :class:`LULC` map
+        """Initialize :class:`LULC`` map
 
         :param name: name of map
         :type name: str
@@ -5178,7 +5420,7 @@ class LULCChange(QualiRaster):
     """
 
     def __init__(self, name, date_start, date_end, name_lulc):
-        """Initialize :class:`LULCChange` map
+        """Initialize :class:`LULCChange`` map
 
         :param name: name of map
         :type name: str
@@ -5219,7 +5461,7 @@ class Lithology(QualiRaster):
     """
 
     def __init__(self, name="LitoMap"):
-        """Initialize :class:`Lithology` map
+        """Initialize :class:`Lithology`` map
 
         :param name:
         :type name:
@@ -5565,7 +5807,7 @@ class Zones(QualiRaster):
         :param zone_id: number of zone ID
         :type zone_id: int
         :return: AOI map
-        :rtype: :class:`AOI` object
+        :rtype: :class:`AOI`` object
         """
         map_aoi = AOI(name="{} {}".format(self.varname, zone_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
@@ -5640,7 +5882,7 @@ class Zones(QualiRaster):
 class RasterCollection(Collection):
     """
     The raster test_collection base dataset.
-    This data strucute is designed for holding and comparing :class:`Raster` objects.
+    This data strucute is designed for holding and comparing :class:`Raster`` objects.
     """
 
     def __init__(self, name="myRasterCollection"):
@@ -5666,19 +5908,19 @@ class RasterCollection(Collection):
         dtype="float32",
         skip_grid=False,
     ):
-        """Load a :class:`Raster` base_object from a ``.asc`` raster file.
+        """Load a :class:`Raster`` base_object from a ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
-        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :param varname: :class:`Raster.varname`` variable name attribute, defaults to None
         :type varname: str
-        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :param varalias: :class:`Raster.varalias`` variable alias attribute, defaults to None
         :type varalias: str
-        :param units: :class:`Raster.units` units attribute, defaults to None
+        :param units: :class:`Raster.units`` units attribute, defaults to None
         :type units: str
-        :param date: :class:`Raster.date` date attribute, defaults to None
+        :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
         :param skip_grid: option for loading only the metadata
         :type skip_grid: bool
@@ -5716,7 +5958,7 @@ class RasterCollection(Collection):
 
     def reducer(
         self,
-        reducer_function,
+        reducer_func,
         reduction_name,
         extra_arg=None,
         skip_nan=False,
@@ -5724,8 +5966,8 @@ class RasterCollection(Collection):
     ):
         """This method reduces the test_collection by applying a numpy broadcasting function (example: np.mean)
 
-        :param reducer_function: reducer numpy function (example: np.mean)
-        :type reducer_function: numpy function
+        :param reducer_func: reducer numpy function (example: np.mean)
+        :type reducer_func: numpy function
         :param reduction_name: name for the output raster
         :type reduction_name: str
         :param extra_arg: extra argument for function (example: np.percentiles) - Default: None
@@ -5771,9 +6013,9 @@ class RasterCollection(Collection):
                     if len(_vct) == 0:
                         _vct = np.nan
                 if extra_arg is None:
-                    vct_stats[i] = reducer_function(_vct)
+                    vct_stats[i] = reducer_func(_vct)
                 else:
-                    vct_stats[i] = reducer_function(_vct, extra_arg)
+                    vct_stats[i] = reducer_func(_vct, extra_arg)
 
             # reshape
             grd_stats = np.reshape(
@@ -5800,7 +6042,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.mean,
+            reducer_func=np.mean,
             reduction_name="{} Mean".format(self.name),
             skip_nan=skip_nan,
             talk=talk,
@@ -5818,7 +6060,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.std,
+            reducer_func=np.std,
             reduction_name="{} SD".format(self.name),
             skip_nan=skip_nan,
             talk=talk,
@@ -5836,7 +6078,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.min,
+            reducer_func=np.min,
             reduction_name="{} Min".format(self.name),
             skip_nan=skip_nan,
             talk=talk,
@@ -5854,7 +6096,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.max,
+            reducer_func=np.max,
             reduction_name="{} Max".format(self.name),
             skip_nan=skip_nan,
             talk=talk,
@@ -5872,7 +6114,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.sum,
+            reducer_func=np.sum,
             reduction_name="{} Sum".format(self.name),
             skip_nan=skip_nan,
             talk=talk,
@@ -5892,7 +6134,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.percentile,
+            reducer_func=np.percentile,
             reduction_name="{} {}th percentile".format(self.name, str(percentile)),
             skip_nan=skip_nan,
             talk=talk,
@@ -5911,7 +6153,7 @@ class RasterCollection(Collection):
         :rtype: :class:`Raster`
         """
         output_raster = self.reducer(
-            reducer_function=np.median,
+            reducer_func=np.median,
             reduction_name="{} Median".format(self.name),
             skip_nan=skip_nan,
             talk=talk,
@@ -6075,25 +6317,25 @@ class QualiRasterCollection(RasterCollection):
     """
     The raster test_collection base dataset.
 
-    This data strucute is designed for holding and comparing :class:`QualiRaster` objects.
+    This data strucute is designed for holding and comparing :class:`QualiRaster`` objects.
     """
 
     def __init__(self, name):
         """Deploy Qualitative Raster Series
 
-        :param name: :class:`RasterSeries.name` name attribute
+        :param name: :class:`RasterSeries.name`` name attribute
         :type name: str
-        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :param varname: :class:`Raster.varname`` variable name attribute, defaults to None
         :type varname: str
-        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :param varalias: :class:`Raster.varalias`` variable alias attribute, defaults to None
         :type varalias: str
         """
         super().__init__(name=name)
 
     def load(self, name, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`QualiRaster` base_object from ``.asc`` raster file.
+        """Load a :class:`QualiRaster`` base_object from ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
@@ -6124,20 +6366,20 @@ class QualiRasterCollection(RasterCollection):
 
 
 class RasterSeries(RasterCollection):
-    """A :class:`RasterCollection` where date matters and all maps in collections are
+    """A :class:`RasterCollection`` where date matters and all maps in collections are
     expected to be the same variable, same projection and same grid.
     """
 
     def __init__(self, name, varname, varalias, units, dtype="float32"):
         """Deploy RasterSeries
 
-        :param name: :class:`RasterSeries.name` name attribute
+        :param name: :class:`RasterSeries.name`` name attribute
         :type name: str
-        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :param varname: :class:`Raster.varname`` variable name attribute, defaults to None
         :type varname: str
-        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :param varalias: :class:`Raster.varalias`` variable alias attribute, defaults to None
         :type varalias: str
-        :param units: :class:`Raster.units` units attribute, defaults to None
+        :param units: :class:`Raster.units`` units attribute, defaults to None
         :type units: str
         """
         super().__init__(name=name)
@@ -6147,11 +6389,11 @@ class RasterSeries(RasterCollection):
         self.dtype = dtype
 
     def load(self, name, date, asc_file, prj_file=None):
-        """Load a :class:`Raster` base_object from a ``.asc`` raster file.
+        """Load a :class:`Raster`` base_object from a ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute, defaults to None
+        :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
@@ -6397,11 +6639,11 @@ class NDVISeries(RasterSeries):
         del rst_aux
 
     def load(self, name, date, asc_file, prj_file):
-        """Load a :class:`NDVI` base_object from a ``.asc`` raster file.
+        """Load a :class:`NDVI`` base_object from a ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute, defaults to None
+        :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
@@ -6438,11 +6680,11 @@ class ETSeries(RasterSeries):
         del rst_aux
 
     def load(self, name, date, asc_file, prj_file):
-        """Load a :class:`ET24h` base_object from a ``.asc`` raster file.
+        """Load a :class:`ET24h`` base_object from a ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute, defaults to None
+        :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
@@ -6465,18 +6707,18 @@ class ETSeries(RasterSeries):
 
 
 class QualiRasterSeries(RasterSeries):
-    """A :class:`RasterSeries` where date matters and all maps in collections are
-    expected to be :class:`QualiRaster` with the same variable, same projection and same grid.
+    """A :class:`RasterSeries`` where date matters and all maps in collections are
+    expected to be :class:`QualiRaster`` with the same variable, same projection and same grid.
     """
 
     def __init__(self, name, varname, varalias, dtype="uint8"):
         """Deploy Qualitative Raster Series
 
-        :param name: :class:`RasterSeries.name` name attribute
+        :param name: :class:`RasterSeries.name`` name attribute
         :type name: str
-        :param varname: :class:`Raster.varname` variable name attribute, defaults to None
+        :param varname: :class:`Raster.varname`` variable name attribute, defaults to None
         :type varname: str
-        :param varalias: :class:`Raster.varalias` variable alias attribute, defaults to None
+        :param varalias: :class:`Raster.varalias`` variable alias attribute, defaults to None
         :type varalias: str
         """
         super().__init__(
@@ -6512,9 +6754,9 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def append(self, raster):
-        """Append a :class:`Raster` base_object to test_collection. Pre-existing objects with the same :class:`Raster.name` attribute are replaced
+        """Append a :class:`Raster`` base_object to test_collection. Pre-existing objects with the same :class:`Raster.name`` attribute are replaced
 
-        :param raster: incoming :class:`Raster` to append
+        :param raster: incoming :class:`Raster`` to append
         :type raster: :class:`Raster`
         """
         super().append(new_object=raster)
@@ -6522,11 +6764,11 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def load(self, name, date, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`QualiRaster` base_object from ``.asc`` raster file.
+        """Load a :class:`QualiRaster`` base_object from ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute
+        :param date: :class:`Raster.date`` date attribute
         :type date: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
@@ -6771,7 +7013,7 @@ class QualiRasterSeries(RasterSeries):
 
 class LULCSeries(QualiRasterSeries):
     """
-    A :class:`QualiRasterSeries` for holding Land Use and Land Cover maps
+    A :class:`QualiRasterSeries`` for holding Land Use and Land Cover maps
     """
 
     def __init__(self, name):
@@ -6787,11 +7029,11 @@ class LULCSeries(QualiRasterSeries):
         del rst_aux
 
     def load(self, name, date, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`LULCRaster` base_object from ``.asc`` raster file.
+        """Load a :class:`LULCRaster`` base_object from ``.asc`` raster file.
 
-        :param name: :class:`Raster.name` name attribute
+        :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param date: :class:`Raster.date` date attribute
+        :param date: :class:`Raster.date`` date attribute
         :type date: str
         :param asc_file: path_main to ``.asc`` raster file
         :type asc_file: str
@@ -6823,7 +7065,7 @@ class LULCSeries(QualiRasterSeries):
         return None
 
     def get_lulcc(self, date_start, date_end, by_lulc_id):
-        """Get the :class:`LULCChange` of a given time interval and LULC class Id
+        """Get the :class:`LULCChange`` of a given time interval and LULC class Id
 
         :param date_start: start date of time interval
         :type date_start: str
@@ -6875,7 +7117,7 @@ class LULCSeries(QualiRasterSeries):
         return map_lulc_change
 
     def get_lulcc_series(self, by_lulc_id):
-        """Get the :class:`QualiRasterSeries` of LULC Change for the entire LULC series for a given LULC Id
+        """Get the :class:`QualiRasterSeries`` of LULC Change for the entire LULC series for a given LULC Id
 
         :param by_lulc_id: LULC class Id
         :type by_lulc_id: int

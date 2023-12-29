@@ -33,7 +33,7 @@ def logger_setup(logger_name="plans", streamhandler=True, filehandler=False, log
         file_handler.setLevel(logging.INFO)  # Set the handler level
 
     # ---------------------- FORMAT ----------------------
-    # Create a formatter and set it for both handlers
+    # Create a formatter and set it for both parsers
     formatter = logging.Formatter(
         "%(asctime)s  %(levelname)8s >>> %(message)s ",
         datefmt="%Y-%m-%d %H:%M:%S",

@@ -1,23 +1,91 @@
 """
-PLANS - Planning Nature-based Solutions
+Custom geoprocessing routines
 
-Module description:
-This module stores all native geoprocessing functions of PLANS.
+Description:
+    The ``geo`` module provides custom geoprocessing routines.
 
-Copyright (C) 2022 Iporã Brito Possantti
+License:
+    This software is released under the GNU General Public License v3.0 (GPL-3.0).
+    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+
+Author:
+    Iporã Possantti
+
+Contact:
+    possantti@gmail.com
+
+
+Overview
+--------
+
+todo overview
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
+
+>>> from plans import iamlazy
+
+Class aptent taciti sociosqu ad litora torquent per
+conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
+eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+
+Example
+-------
+
+todo examples
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+.. code-block:: python
+
+    import numpy as np
+    from plans import analyst
+
+    # get data to a vector
+    data_vector = np.random.rand(1000)
+
+    # instantiate the Univar object
+    uni = analyst.Univar(data=data_vector, name="my_data")
+
+    # view data
+    uni.view()
+
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl.
 """
 import numpy as np
 
+# docs ok
 def slope(dem, cellsize, degree=True):
-    """Slope algorithm based on gradient built in functions of numpy
-    :param dem: 2d numpy array of dem
+    """Calculate slope using gradient-based algorithms on a 2D numpy array.
+
+    :param dem: :class:`numpy.ndarray`
+        2D numpy array representing the Digital Elevation Model (``DEM``).
     :type dem: :class:`numpy.ndarray`
-    :param cellsize: float value of cellsize (delta x = delta y)
+
+    :param cellsize: float
+        The size of a grid cell in the ``DEM`` (both in x and y directions).
     :type cellsize: float
-    :param degree: boolean to control output units. Default = True. If False output units are in radians
+
+    :param degree: bool, optional
+        If True (default), the output slope values are in degrees. If False, output units are in radians.
     :type degree: bool
-    :return: 2d numpy array of slope
+
+    :return: :class:`numpy.ndarray`
+        2D numpy array representing the slope values.
     :rtype: :class:`numpy.ndarray`
+
+    **Notes:**
+
+    - The slope is calculated based on the gradient using the built-in functions of numpy.
+
+    **Examples:**
+
+    >>> dem_array = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    >>> slope_result = slope(dem=dem_array, cellsize=1.0, degree=True)
+
     """
     grad = np.gradient(dem)
     gradx = grad[0] / cellsize
@@ -28,80 +96,194 @@ def slope(dem, cellsize, degree=True):
         slope_array = slope_array * 360 / (2 * np.pi)
     return slope_array
 
+# docs ok
 def euclidean_distance(grd_input):
-    """Calculate the euclidean distance from pixels=1
+    """Calculate the Euclidean distance from pixels with value 1.
 
-    :param grd_input: pseudo-boolean 2d numpy array
+    :param grd_input: :class:`numpy.ndarray`
+        Pseudo-boolean 2D numpy array where pixels with value 1 represent the foreground.
     :type grd_input: :class:`numpy.ndarray`
-    :return: 2d numpy array of euclidean distance
+
+    :return: :class:`numpy.ndarray`
+        2D numpy array representing the Euclidean distance.
     :rtype: :class:`numpy.ndarray`
+
+    **Notes:**
+
+    - The function uses the `distance_transform_edt` from `scipy.ndimage` to compute the Euclidean distance.
+    - The input array is treated as a binary mask, and the distance is calculated from foreground pixels (value 1).
+
+    **Examples:**
+
+    >>> binary_mask = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
+    >>> distance_result = euclidean_distance(grd_input=binary_mask)
+
     """
     from scipy.ndimage import distance_transform_edt
     grd_input = 1 * (grd_input == 0) # reverse foreground values
     # Calculate the distance map
     return distance_transform_edt(grd_input)
 
+# docs ok
 def twi(slope, flowacc, cellsize):
+    """Calculate the Topographic Wetness Index (``TWI``).
+
+    :param slope: :class:`numpy.ndarray`
+        2D numpy array representing the slope.
+    :type slope: :class:`numpy.ndarray`
+
+    :param flowacc: :class:`numpy.ndarray`
+        2D numpy array representing the flow accumulation.
+    :type flowacc: :class:`numpy.ndarray`
+
+    :param cellsize: float
+        The size of a grid cell (delta x = delta y).
+    :type cellsize: float
+
+    :return: :class:`numpy.ndarray`
+        2D numpy array representing the Topographic Wetness Index.
+    :rtype: :class:`numpy.ndarray`
+
+    **Notes:**
+
+    - The function uses the formula: TWI = ln( A / c tan(S)), where A is flow accumulation, c is the cell resolution and S is slope in radians.
+    - The input arrays `slope` and `flowacc` should have the same dimensions.
+    - The formula includes a small value (0.01) to prevent issues with tangent calculations for non-NaN values.
+
+    **Examples:**
+
+    >>> slope_data = np.array([[10, 15, 20], [8, 12, 18], [5, 10, 15]])
+    >>> flowacc_data = np.array([[100, 150, 200], [80, 120, 180], [50, 100, 150]])
+    >>> cell_size = 10.0
+    >>> twi_result = twi(slope=slope_data, flowacc=flowacc_data, cellsize=cell_size)
+
+    """
     # +0.01 is a hack for non-nan values
     return np.log((flowacc / cellsize)/ (np.tan((slope * np.pi / 180) + 0.01)))
 
+# docs ok
 def rivers_wedge(grd_rivers, w=3, h=3):
-    """Get a wedge-like trench along the river lines
+    """Generate a wedge-like trench along the river lines.
 
-    :param grd_rivers: pseudo-boolean grid of rivers
+    :param grd_rivers: :class:`numpy.ndarray`
+        Pseudo-boolean grid indicating the presence of rivers.
     :type grd_rivers: :class:`numpy.ndarray`
-    :param w: width (single sided) in pixels
+
+    :param w: int, optional
+        Width (single-sided) in pixels. Default is 3.
     :type w: int
-    :param h: height in meters
+
+    :param h: float, optional
+        Height in meters. Default is 3.
     :type h: float
-    :return: grid of wedge (positive)
+
+    :return: :class:`numpy.ndarray`
+        Grid of the wedge (positive).
     :rtype: :class:`numpy.ndarray`
+
+    **Notes:**
+
+    - The function generates a wedge-like trench along the river lines based on distance transform.
+    - The input array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
+    - The width `w` controls the width of the trench, and `h` controls its height.
+
+    **Examples:**
+
+    >>> rivers_grid = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+    >>> wedge_result = rivers_wedge(grd_rivers=rivers_grid, w=3, h=5)
+
     """
     grd_dist = euclidean_distance(grd_input=grd_rivers)
     return (((-h/w) * grd_dist) + h) * (grd_dist <= w)
 
-
+# docs ok
 def burn_dem(grd_dem, grd_rivers, w=3, h=10):
-    """burn a dem map with rivers lines
+    """Burn a ``DEM`` map with river lines.
 
-    :param grd_dem: dem map
+    :param grd_dem: :class:`numpy.ndarray`
+        DEM map.
     :type grd_dem: :class:`numpy.ndarray`
-    :param grd_rivers: rivers maps (pseudo-boolean)
-    :type grd_rivers: :class:`numpy.ndarray`
-    :param w: width parameter in pixels
+
+    :param grd_rivers: :class:`numpy.ndarray`
+        River map (pseudo-boolean).
+
+    :param w: int, optional
+        Width parameter in pixels. Default is 3.
     :type w: int
-    :param h: heigth parameter
+
+    :param h: float, optional
+        Height parameter. Default is 10.
     :type h: float
-    :return: burned dem
+
+    :return: :class:`numpy.ndarray`
+        Burned ``DEM``.
     :rtype: :class:`numpy.ndarray`
+
+    **Notes:**
+
+    - The function burns a ``DEM`` map with river lines, creating a wedge-like trench along the rivers.
+    - The input array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
+    - The width `w` controls the width of the trench, and `h` controls its height.
+
+    **Examples:**
+
+    >>> dem = np.array([[10, 20, 30], [15, 25, 35], [5, 15, 25]])
+    >>> rivers_grid = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+    >>> burned_dem = burn_dem(grd_dem=dem, grd_rivers=rivers_grid, w=3, h=10)
+
     """
     grd_wedge = rivers_wedge(grd_rivers, w=w, h=h)
     return (grd_dem + h) - grd_wedge
 
-
+# docs ok
 def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
-    """Compute i and j donwstream cell coordinates based on cell flow direction
+    """Compute i and j downstream cell coordinates based on cell flow direction.
 
-    d8 - Direction convention:
+    D8 - Direction convention:
 
-    4   3   2
-    5   0   1
-    6   7   8
+    .. code-block:: text
 
-    ldd - Direction convention:
+        4   3   2
+        5   0   1
+        6   7   8
 
-    7   8   9
-    4   5   6
-    1   2   3
+    LDD - Direction convention:
 
-    di is VERTICAL, DESCENDING direction
-    dj is HORIZONTAL, ASCENDING direction
+    .. code-block:: text
 
-    :param n_dir: int flow direction code
-    :param i: int i (row) array index
-    :param j: int j (column) array index
-    :param s_convention: string of flow dir covention. Options: 'ldd' and 'd8'
-    :return: dict of downstream i, j and distance factor
+        7   8   9
+        4   5   6
+        1   2   3
+
+    :param n_dir: int
+        Flow direction code.
+
+    :param i: int
+        i (row) array index.
+
+    :param j: int
+        j (column) array index.
+
+    :param s_convention: str, optional
+        String of flow direction convention. Options: 'ldd' and 'd8'. Default is 'ldd'.
+
+    :return: dict
+        Dictionary of downstream i, j, and distance factor.
+
+    **Notes:**
+
+    - Assumes a specific flow direction convention ('ldd' or 'd8').
+    - The output dictionary contains keys 'i', 'j', and 'distance'.
+    - The 'i' and 'j' values represent downstream cell coordinates.
+    - The 'distance' value is the Euclidean distance to the downstream cell.
+
+    **Examples:**
+
+    >>> downstream_coordinates(n_dir=2, i=3, j=4, s_convention='ldd')
+    {'i': 4, 'j': 5, 'distance': 1.4142135623730951}
+
+    >>> downstream_coordinates(n_dir=5, i=10, j=15, s_convention='d8')
+    {'i': 10, 'j': 14, 'distance': 1.0}
     """
     # directions dictionaries
     dct_dirs = {
@@ -140,15 +322,32 @@ def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
     }
     return dct_output
 
-def outlet_distance(grd_ldd, n_res=30, s_convention='ldd', b_tui=True):
-    """Compute the outlet distance raster of a given basin
-
-    Note: distance is set to 0 outside the basin area
+# docs ok
+def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
+    """Compute the distance to outlet ``DTO`` raster of a given basin.
 
     :param grd_ldd: 2d numpy array of flow direction LDD
-    :param s_convention: string of flow dir covention. Options: 'ldd' and 'd8'
-    :param b_tui: boolean for tui display
+    :type grd_ldd: :class:`numpy.ndarray`
+
+    :param n_res: int, optional
+        Resolution factor for the output distance raster. Default is 30.
+    :type n_res: int
+
+    :param s_convention: str, optional
+        String of flow direction convention. Options: 'ldd' and 'd8'. Default is 'ldd'.
+    :type s_convention: str
+
     :return: 2d numpy array distance
+    :rtype: :class:`numpy.ndarray`
+
+    **Notes:**
+
+    - The distance is set to 0 outside the basin area.
+
+    **Examples:**
+
+    >>> out_distance = outlet_distance(grd_ldd, n_res=30, s_convention='ldd')
+
     """
 
     def is_offgrid(i, j):
@@ -205,7 +404,6 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd', b_tui=True):
                         i=i_current,
                         j=j_current,
                         s_convention=s_convention)
-                    # print(dct_out)
                     i_next = dct_out['i']
                     j_next = dct_out['j']
                     n_dist = dct_out['distance']

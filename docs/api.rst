@@ -40,9 +40,19 @@ Modules
 .. autosummary::
    :toctree: generated
 
+   plans.geo
+
+.. autosummary::
+   :toctree: generated
+
    plans.tools
 
 .. autosummary::
    :toctree: generated
 
    plans.iamlazy
+
+.. autosummary::
+   :toctree: generated
+
+   plans.parsers.inmet

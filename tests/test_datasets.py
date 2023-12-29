@@ -116,6 +116,9 @@ class TestTimeSeries(unittest.TestCase):
         self.ts = None
 
 
+# --------------------- TEST OBJECTS ---------------------- #
+
+
 if __name__ == '__main__':
     unittest.main()
 

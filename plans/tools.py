@@ -64,10 +64,33 @@ import numpy as np
 from plans.tui import logger_setup
 
 # ------------------------------ UTILS ------------------------------
-# docs todo
+# docs ok
 def nowsep(sep="-"):
-    import datetime
+    """Generate a timestamp string with the current date and time separated by the specified separator.
 
+    :param sep: str, optional
+        Separator to use between date and time components, default is '-'.
+    :type sep: str
+
+    :return: str
+        Timestamp string formatted as 'YYYY-MM-DD-HH-MM-SS'.
+    :rtype: str
+
+    **Notes:**
+
+    - Uses the current date and time to generate a timestamp string.
+    - The default separator is '-'.
+
+    **Examples:**
+
+    >>> nowsep()
+    '2023-12-23-14-30-45'
+
+    >>> nowsep(sep='_')
+    '2023_12_23_14_30_45'
+
+    """
+    import datetime
     def_now = datetime.datetime.now()
     yr = def_now.strftime("%Y")
     mth = def_now.strftime("%m")
@@ -79,8 +102,43 @@ def nowsep(sep="-"):
     def_s = str(sep.join(def_lst))
     return def_s
 
-# docs todo
+# docs ok
 def create_rundir(workplace, label="", suffix=None, b_time=True):
+    """Create a directory for a run with an optional label, suffix, and timestamp.
+
+    :param workplace: str
+        The base directory where the run directory will be created.
+    :type workplace: str
+
+    :param label: str, optional
+        The label to be included in the run directory name.
+    :type label: str
+
+    :param suffix: str, optional
+        The suffix to be added to the label for further customization.
+    :type suffix: str
+
+    :param b_time: bool, optional
+        Whether to include a timestamp in the run directory name, default is True.
+    :type b_time: bool
+
+    :return: str
+        Path to the created run directory.
+    :rtype: str
+
+    **Notes:**
+
+    - Creates a directory with the specified label, suffix, and timestamp (if enabled).
+
+    **Examples:**
+
+    >>> create_rundir(workplace='/path/to/base', label='experiment', suffix='run1', b_time=True)
+    '/path/to/base/experiment_run1_2023-12-23-14-30-45'
+
+    >>> create_rundir(workplace='/path/to/base', label='test', suffix=None, b_time=False)
+    '/path/to/base/test'
+
+    """
     # define label
     if suffix is None:
         pass
@@ -215,7 +273,7 @@ def TSC(
     filter_date_end=None,
 
 ):
-    """Process and analyze time series data.
+    """Process and analyze ``TSC`` (time series collection) data.
 
     :param kind: str
         Type of time series data ('rain', 'stage', 'temperature', etc.).
@@ -344,7 +402,7 @@ def TSC(
 
     # Naming Setup
     if kind == "rain":
-        tsc = datasets.RainSeriesCollection(name=kind + "_" + project_name)
+        tsc = datasets.RainSeriesSamples(name=kind + "_" + project_name)
         method = "idw"
     elif kind == "stage":
         tsc = datasets.StageSeriesCollection(name=kind + "_" + project_name)
@@ -352,7 +410,7 @@ def TSC(
         tsc = datasets.StageSeriesCollection(name=kind + "_" + project_name)
         method = "average"
     else:
-        tsc = datasets.RainSeriesCollection(name=kind + "_" + project_name)
+        tsc = datasets.RainSeriesSamples(name=kind + "_" + project_name)
         method = "idw"
 
     # load from info table
