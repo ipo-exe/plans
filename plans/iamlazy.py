@@ -199,6 +199,42 @@ def get_feature_count(input_db, layer_name):
     return int(layer.featureCount())
 
 
+def get_basins_areas(file_basins, basins_ids):
+    # -------------------------------------------------------------------------
+    # LOAD BASINS
+
+    # Open the raster file using gdal
+    raster_input = gdal.Open(file_basins)
+
+    # Get the raster band
+    band_input = raster_input.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grid_basins = band_input.ReadAsArray()
+    # truncate to byte integer
+    grid_basins = grid_basins.astype(np.uint8)
+
+    # get the cell sizes
+    raster_geotransform = raster_input.GetGeoTransform()
+    cellsize = raster_geotransform[1]
+
+    # -- Close the raster
+    raster_input = None
+
+    # -------------------------------------------------------------------------
+    # PROCESS
+    basin_areas = []
+    for i in basins_ids:
+        grid_basin = 1 * (grid_basins == i)
+        area_sqkm = cellsize * cellsize * np.sum(grid_basin) / (1000 * 1000)
+        basin_areas.append(area_sqkm)
+
+    # -------------------------------------------------------------------------
+    # RETURN
+    return {"Id": basins_ids, "UpstreamArea": basin_areas}
+
+
+
 def get_cellsize(file_input):
     """Get the cell size in map units (degrees or meters)
 
@@ -1270,20 +1306,41 @@ def get_rain(
 ):
     """Get ``rain`` datasets for running PLANS.
 
-    ::param output_folder: path to output folder
+    :param output_folder: path to output folder
     :type output_folder: str
-    ::param src_folder: path to source folder for all csv series files. Files must be named by rain_<alias>.csv
+
+    :param src_folder: path to source folder for all csv series files. Files must be named by rain_<alias>.csv
     :type src_folder: str
+
     :param input_db: path to geopackage database with rain gauge layer
     :type input_db: str
-    :param target_file: file path to target raster (e.g., the DEM raster)
+
+    :param target_file: file path to target raster (e.g., the ``DEM`` raster)
     :type target_file: str
-    ::param target_crs: EPSG code (number only) for the target CRS
+
+    :param target_crs: EPSG code (number only) for the target CRS
     :type target_crs: str
+
     :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
     :type layer_aoi: str
-    :param layer_rain_gauges: layer name of rain gauges layer. It is expected to have at least fields: Id, Name, Alias, Source, Description, Code
+
+    :param layer_rain_gauges:
+        layer name of rain gauges layer.
+        Required fields in layer:
+
+            - ``Id``: int, required. Unique number id.
+            - ``Name``: str, required. Simple name.
+            - ``Alias``: str, required. Short nickname.
+            - ``Rain_File``: str, required. Path to data time series ``csv`` source file.
+            - ``X``: float, optional. Recomputed from layer. Longitude in WGS 84 Datum (EPSG4326).
+            - ``Y``: float, optional. Recomputed from layer. Latitude in WGS 84 Datum (EPSG4326).
+            - ``Code``: str, op
+            - ``Source``: str, required
+            - ``Description``: str, required
+            - ``Color``: str, optional
+
     :type layer_rain_gauges: str
+
     :return: None
     :rtype: None
 
@@ -1327,29 +1384,46 @@ def get_rain(
         pass
     else:
         os.mkdir(output_folder_interm)
-
     print("get info...")
 
     # ---------------- RAIN SERIES ----------------
-
-    lst_files = glob.glob("{}/rain_*.csv".format(src_folder))
-    for f in lst_files:
-        shutil.copy(src=f, dst=output_folder)
-
     # load table
     rain_gdf = gpd.read_file(input_db, layer=layer_rain_gauges)
 
-    # fill attributes
-    rain_gdf["Units"] = "mm"
-    # The VarField is expected to be P_{}_mm
-    rain_gdf["VarField"] = ["P_{}_mm".format(a) for a in rain_gdf["Alias"].values]
-    rain_gdf["DtField"] = "DateTime"
+    # overwrite
+    rain_gdf["Rain_Units"] = "mm"
+    rain_gdf["Rain_DtField"] = "DateTime"
+    rain_gdf["Rain_VarField"] = "P"
+
+    # compute X and Y
     rain_gdf["X"] = rain_gdf.geometry.x
     rain_gdf["Y"] = rain_gdf.geometry.y
-    rain_gdf["Color"] = datasets.get_random_colors(size=len(rain_gdf))
-    rain_gdf["File"] = ["{}/rain_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values]
+    if "Color" not in rain_gdf.columns:
+        rain_gdf["Color"] = datasets.get_random_colors(size=len(rain_gdf))
+
+    # rename files and copy
+    lst_files_src = rain_gdf["Rain_File"].values
+    lst_files_dst = ["{}/rain_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values]
+    lst_new_files = []
+    for i in range(len(rain_gdf)):
+        if os.path.isfile(lst_files_src[i]):
+            shutil.copy(src=lst_files_src[i], dst=lst_files_dst[i])
+            new_file_name = "rain_{}.csv".format(rain_gdf["Alias"].values[i])
+        else:
+            new_file_name = ""
+        lst_new_files.append(new_file_name)
+    # reset File
+    rain_gdf["Rain_File"] = lst_new_files
+
     # Drop the geometry column
     rain_gdf = rain_gdf.drop(columns=['geometry'])
+
+    # organize columns
+    rain_gdf = rain_gdf[[
+        "Id", "Name", "Alias", "X", "Y",
+        "Source", "Code", "Description", "Color",
+        "Rain_Units", "Rain_VarField", "Rain_DtField", "Rain_File",
+    ]]
 
     # export csv file
     rain_info_file = "{}/rain_info.csv".format(output_folder)
@@ -1465,6 +1539,20 @@ def get_basins(
     :param target_crs: EPSG code (number only) for the target CRS
     :type target_crs: str
     :param layer_stream_gauges: layer name of streamflow gauges layer
+        Required fields in layer:
+
+            - ``Id``: int, required. Unique number id.
+            - ``Name``: str, required. Simple name.
+            - ``Alias``: str, required. Short nickname.
+            - ``X``: float, optional. Recomputed from layer. Longitude in WGS 84 Datum (EPSG4326).
+            - ``Y``: float, optional. Recomputed from layer. Latitude in WGS 84 Datum (EPSG4326).
+            - ``Code``: str, op
+            - ``Source``: str, required
+            - ``Description``: str, required
+            - ``Color``: str, optional
+            - ``Stage_File``: str, required. Path to data time series ``csv`` source file.
+            - ``Flow_File``: str, required. Path to data time series ``csv`` source file.
+
     :type layer_stream_gauges: str
     :return: None
     :rtype: None
@@ -1486,6 +1574,7 @@ def get_basins(
         )
 
     """
+    from plans import datasets
     print("folder setup...")
     # folders and file setup
     output_folder_interm = "{}/intermediate".format(output_folder)
@@ -1500,6 +1589,8 @@ def get_basins(
         pass
     else:
         os.mkdir(output_folder_gdal)
+
+    # ------------------- BASIN MAPS ------------------- #
 
     # PCRASTER folder
     output_folder_pcraster = "{}/pcraster".format(output_folder_interm)
@@ -1580,20 +1671,90 @@ def get_basins(
             "OUTPUT": basins_raster,
         },
     )
+
+    # ------------------- BASINS INFO ------------------- #
     # load table
     basins_gdf = gpd.read_file(
-        input_db, layer=layer_stream_gauges, ignore_geometry=True
+        input_db, layer=layer_stream_gauges
     )
+
+    print("handle file series")
+
+    # compute X and Y
+    basins_gdf["X"] = basins_gdf.geometry.x
+    basins_gdf["Y"] = basins_gdf.geometry.y
+
+    if "Color" not in basins_gdf.columns:
+        basins_gdf["Color"] = datasets.get_random_colors(size=len(basins_gdf))
+
+    # fill attributes
+    lst_aux = ["Units", "VarField", "DtField"]
+    dct_vals = {
+        "Stage": ["cm", "H", "DateTime"],
+        "Flow": ["m3/s", "Q", "DateTime"],
+    }
+    # Iterate over the items in dct_vals
+    for key, values in dct_vals.items():
+        # Create the column name by combining the key and the first item in values
+        for i in range(len(lst_aux)):
+            column_name = f"{key}_{lst_aux[i]}"
+            # Set the values in the GeoDataFrame
+            basins_gdf[column_name] = values[i]
+
+    lst_aux = ["Stage", "Flow"]
+    for l in lst_aux:
+        # rename files and copy
+        print("{} files...".format(l))
+        lst_files_src = basins_gdf["{}_File".format(l)].values
+        lst_files_dst = ["{}/{}_{}.csv".format(output_folder, l.lower(), a) for a in basins_gdf["Alias"].values]
+        lst_new_files = []
+        for i in range(len(basins_gdf)):
+            if os.path.isfile(lst_files_src[i]):
+                shutil.copy(src=lst_files_src[i], dst=lst_files_dst[i])
+                new_file_name = "{}_{}.csv".format(l.lower(), basins_gdf["Alias"].values[i])
+            else:
+                new_file_name = ""
+            lst_new_files.append(new_file_name)
+        # reset File
+        basins_gdf["{}_File".format(l)] = lst_new_files
+
+    # Drop the geometry column
+    basins_gdf = basins_gdf.drop(columns=['geometry'])
+
     print("compute basin topology")
 
+    # This appends a "Downstream_Id" field
     dict_aux = get_downstream_ids(
         file_ldd=ldd_file, file_basins=basins_raster, file_outlets=outlets_raster
     )
-
     aux_gdf = gpd.GeoDataFrame.from_dict(dict_aux, geometry=None)
-    merged_gdf = basins_gdf.merge(aux_gdf, on="Id")
+    basins_gdf = basins_gdf.merge(aux_gdf, on="Id")
+
+    # GET UPSTREAM AREAS
+    dict_aux = get_basins_areas(file_basins=basins_raster, basins_ids=list(basins_gdf["Id"]))
+    aux_gdf = gpd.GeoDataFrame.from_dict(dict_aux, geometry=None)
+    basins_gdf = basins_gdf.merge(aux_gdf, on="Id")
+
+    # HOW to organize columns? Base attribute first, Stage and Flow last
+    column_order = [
+        # Base attributes
+        "Id", "Name", "Alias",
+        # Geo Attributes
+        "X", "Y", "Downstream_Id", "UpstreamArea",
+        # Extra Attributes
+        "Code", "Source", "Description", "Color",
+        # Stage attributes
+        "Stage_Units", "Stage_VarField", "Stage_DtField", "Stage_File",
+        # Flow attributes
+        "Flow_Units", "Flow_VarField", "Flow_DtField", "Flow_File"
+    ]
+
+    # Reorder the columns
+    basins_gdf = basins_gdf[column_order]
+
     # export csv file
-    merged_gdf.to_csv("{}/basins_info.csv".format(output_folder), sep=";", index=False)
+    basins_gdf.to_csv("{}/basins_info.csv".format(output_folder), sep=";", index=False)
+
 
     print("end")
     return None

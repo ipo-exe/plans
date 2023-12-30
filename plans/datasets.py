@@ -1086,6 +1086,18 @@ class TimeSeries:
         df_upscale = df_upscale.rename(columns={"{}_{}".format(self.varfield, self.agg): self.varfield})
         return df_upscale
 
+    def downscale(self, freq):
+        # todo dosctring
+        # 0) update
+        self.update()
+        # 1) get new index
+        dt_index = pd.date_range(start=self.start, end=self.end, freq=freq)
+        print(dt_index[:5])
+        # 2) factor
+        factor_downscale = len(dt_index) / self.data_size
+        print(factor_downscale)
+
+
     def _set_frequency(self):
         """Guess the datetime resolution of a time series based on the consistency of
         timestamp components (e.g., seconds, minutes).
@@ -1352,7 +1364,7 @@ class RainSeries(TimeSeries):
 
         """
         # Use the superior initialization from the parent class (TimeSeries)
-        super().__init__(name, alias=alias, varname="rain", varfield="P", units="mm")
+        super().__init__(name, alias=alias, varname="Rain", varfield="P", units="mm")
         # Overwrite attributes specific to RainSeries
         self.name_object = "Rainfall Time Series"
         self.agg = "sum"  # Aggregation method, set to "sum" by default
@@ -1417,7 +1429,7 @@ class StageSeries(TimeSeries):
         """
 
         # Use the superior initialization from the parent class (TimeSeries)
-        super().__init__(name, alias=alias, varname="stage", varfield="H", units="cm")
+        super().__init__(name, alias=alias, varname="Stage", varfield="H", units="cm")
         # Overwrite attributes specific to StageSeries
         self.name_object = "Stage Time Series"
         self.agg = "mean"  # Aggregation method, set to "mean" by default
@@ -1458,25 +1470,11 @@ class TempSeries(TimeSeries):
 
     The ``TemperatureSeries`` class extends the ``TimeSeries`` class and focuses on handling temperature data.
 
-    **Attributes:**
-
-    - ``name`` (str): Name of the temperature series.
-    - ``alias`` (str): Alias for the temperature series.
-    - ``varname`` (str): Variable name, set to "Temperature".
-    - ``varfield`` (str): Variable field, set to "T".
-    - ``units`` (str): Measurement units, set to "Celsius".
-    - ``code`` (str or None): Custom code associated with the temperature series. Default is None.
-    - ``agg`` (str): Aggregation method, set to "mean" by default.
-    - ``gapsize`` (int): Maximum gap size allowed for data interpolation, set to 10.
-    - ``x`: X-coordinate information associated with the temperature series. Default is None.
-    - ``y`: Y-coordinate information associated with the temperature series. Default is None.
-
     **Examples:**
 
     >>> temperature_data = TempSeries(name="Temperature2022", alias="Temp2022")
 
     """
-
     def __init__(self, name="MyTemperatureSeries", alias=None):
         """Initialize a TempSeries object.
 
@@ -1491,11 +1489,16 @@ class TempSeries(TimeSeries):
         """
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(
-            name, alias=alias, varname="Temperature", varfield="T", units="Celsius"
+            name, alias=alias, varname="Temperature", varfield="Temp", units="Celsius"
         )
-        # Overwrite attributes specific to TempSeries
-        self.agg = "mean"  # Aggregation method, set to "mean" by default
-        self.gapsize = 10  # Maximum gap size allowed for data interpolation
+        # Overwrite attributes specific
+        self.name_object = "Temp Time Series"
+        self.agg = "mean"  # Aggregation method, set to "sum" by default
+        self.gapsize = 6  # Maximum gap size of 6 hours assuming hourly Temperature
+        self.datarange_max = 50
+        self.datarange_min = -20
+        self.rawcolor = "orange"
+
 
 
 class TimeSeriesCollection(Collection):
@@ -1587,35 +1590,74 @@ class TimeSeriesCollection(Collection):
         self.var_max = self.catalog["Max"].max()
 
     # docs: ok
-    def load_data(self, input_file, filter_dates=None):
-        """Load data from an input file into the time series collection.
+    def load_data(self, table_file, filter_dates=None):
+        """Load data from table file (information table) into the time series collection.
 
-        :param input_file: str
-            Path to the input file.
-        :type input_file: str
+        :param table_file: str
+            Path to file. Expected to be a ``csv`` table.
+
+            todo place this in IO files docs
+            Required columns:
+
+            - ``Id``: int, required. Unique number id.
+            - ``Name``: str, required. Simple name.
+            - ``Alias``: str, required. Short nickname.
+            - ``X``: float, required. Longitude in WGS 84 Datum (EPSG4326).
+            - ``Y``: float, required. Latitude in WGS 84 Datum (EPSG4326).
+            - ``Code``: str, required.
+            - ``Source``: str, required.
+            - ``Description``: str, required.
+            - ``Color``: str, required.
+            - ``Units`` or ``<Varname>_Units``: str, required. Units of data.
+            - ``VarField``or ``<Varname>_VarField``: str, required. Variable column in data file.
+            - ``DtField``or ``<Varname>_DtField``: str, required. Date-time column in data file
+            - ``File``or ``<Varname>_File``: str, required. Name or path to data time series ``csv`` file.
+
+        :type table_file: str
 
         **Examples:**
 
-        >>> ts_collection.load_data(input_file="data.csv")
+        >>> ts_collection.load_data(table_file="data.csv")
         """
-        input_df = pd.read_csv(input_file, sep=";")
-        input_dir = os.path.dirname(input_file)
-        self.set_data(input_df=input_df, input_dir=input_dir, filter_dates=filter_dates)
+        input_df = pd.read_csv(table_file, sep=";")
+        input_dir = os.path.dirname(table_file)
+        self.set_data(df_info=input_df, src_dir=input_dir, filter_dates=filter_dates)
         return None
 
     # docs: ok
-    def set_data(self, input_df, input_dir=None, filter_dates=None):
+    def set_data(self, df_info, src_dir=None, filter_dates=None):
         """Set data for the time series collection from a info DataFrame.
 
-        :param input_df: class:`pandas.DataFrame`
-            DataFrame containing metadata for the time series collection.
-            This DataFrame is expected to have matching fields to the metadata keys
-        :type input_df: class:`pandas.DataFrame`
+        :param df_info: class:`pandas.DataFrame`
+            DataFrame containing metadata information for the time series collection.
+            This DataFrame is expected to have matching fields to the metadata keys.
 
-        :param skip_process: bool, optional
-            If True, skip data processing steps of standardization, interpolation and local epochs.
-            Default is False.
-        :type skip_process: bool
+            Required fields:
+
+            - ``Id``: int, required. Unique number id.
+            - ``Name``: str, required. Simple name.
+            - ``Alias``: str, required. Short nickname.
+            - ``X``: float, required. Longitude in WGS 84 Datum (EPSG4326).
+            - ``Y``: float, required. Latitude in WGS 84 Datum (EPSG4326).
+            - ``Code``: str, required
+            - ``Source``: str, required
+            - ``Description``: str, required
+            - ``Color``: str, optional
+            - ``Units`` or ``<Varname>_Units``: str, required. Units of data.
+            - ``VarField``or ``<Varname>_VarField``: str, required. Variable column in data file.
+            - ``DtField``or ``<Varname>_DtField``: str, required. Date-time column in data file
+            - ``File``or ``<Varname>_File``: str, required. Name or path to data time series ``csv`` file.
+
+
+        :type df_info: class:`pandas.DataFrame`
+
+        :param src_dir: str, optional
+            Path for input directory in the case for only file names in ``File`` column.
+        :type src_dir: str
+
+        :param filter_dates: list, optional
+            List of Start and End dates for filter data
+        :type filter_dates: str
 
         **Notes:**
 
@@ -1625,44 +1667,50 @@ class TimeSeriesCollection(Collection):
 
         **Examples:**
 
-        >>> input_df = pd.read_csv("metadata.csv", sep=";")
-        >>> ts_collection.set_data(input_df=input_df)
+        >>> ts_collection.set_data(df, "path/to/data", filter_dates=["2020-01-01 00:00:00", "2020-03-12 00:00:00"])
 
         """
-        for i in range(len(input_df)):
-            # create object
-            ts = self.baseobject(name=input_df["Name"].values[i])
-            ts.alias = input_df["Alias"].values[i]
-            ts.units = input_df["Units"].values[i]
 
+        # handle mutable fields
+        str_varname = self.baseobject().varname
+        list_mutables = ["Units", "DtField", "VarField", "File"]
+        dict_m_fields = {}
+        for m in list_mutables:
+            if m in df_info.columns:
+                # assume <Varname>_ prefix:
+                dict_m_fields[m] = m
+            else:
+                dict_m_fields[m] = "{}_{}".format(str_varname, m)
+
+        for i in range(len(df_info)):
+            # create object
+            ts = self.baseobject(name=df_info["Name"].values[i])
+            ts.alias = df_info["Alias"].values[i]
+            ts.units = df_info[dict_m_fields["Units"]].values[i]
             # handle input file
-            input_file = input_df["File"].values[i]
-            print(input_file)
+            input_file = df_info[dict_m_fields["File"]].values[i]
             # if is a path:
             if os.path.exists(input_file):
                 pass
             else:
                 # assume file name only and concat
-                if input_dir is not None:
-                    input_file = "{}/{}".format(input_dir, input_file)
-
-            print(input_file)
+                if src_dir is not None:
+                    input_file = "{}/{}".format(src_dir, input_file)
             # load data
             ts.load_data(
-                input_file=input_file,
-                input_varfield=input_df["VarField"].values[i],
-                input_dtfield=input_df["DtField"].values[i],
+                table_file=input_file,
+                input_varfield=df_info[dict_m_fields["VarField"]].values[i],
+                input_dtfield=df_info[dict_m_fields["DtField"]].values[i],
                 filter_dates=filter_dates,
             )
             # extra attrs
-            ts.x = input_df["X"].values[i]
-            ts.y = input_df["Y"].values[i]
-            ts.code = input_df["Code"].values[i]
-            ts.source_data = input_df["Source"].values[i]
-            ts.description = input_df["Description"].values[i]
-            ts.color = input_df["Color"].values[i]
+            ts.x = df_info["X"].values[i]
+            ts.y = df_info["Y"].values[i]
+            ts.code = df_info["Code"].values[i]
+            ts.source_data = df_info["Source"].values[i]
+            ts.description = df_info["Description"].values[i]
+            ts.color = df_info["Color"].values[i]
             # append
-            print(type(ts))
             self.append(new_object=ts)
         self.update(details=True)
         return None
@@ -1796,7 +1844,7 @@ class TimeSeriesCollection(Collection):
             name = dict_names[alias]
             # set data
             self.collection[name].set_data(
-                input_df=df_aux,
+                df_info=df_aux,
                 input_dtfield=self.dtfield,
                 input_varfield=c,
                 dropnan=False,
@@ -2248,14 +2296,59 @@ class StageSeriesCollection(TimeSeriesCluster):
         self.name_object = "Stage Series Collection"
         self._set_view_specs()
 
-    def set_data(self, input_df, filter_dates=None):
+    def set_data(self, df_info, src_dir=None, filter_dates=None):
         # todo docstring
+        """Set data for the time series collection from a info DataFrame.
+
+        :param df_info: class:`pandas.DataFrame`
+            DataFrame containing metadata information for the time series collection.
+            This DataFrame is expected to have matching fields to the metadata keys.
+
+            Required fields:
+
+            - ``Id``: int, required. Unique number id.
+            - ``Name``: str, required. Simple name.
+            - ``Alias``: str, required. Short nickname.
+            - ``Units``: str, required. Units of data.
+            - ``VarField``: str, required. Variable column in data file.
+            - ``DtField``: str, required. Date-time column in data file
+            - ``File``: str, required. Name or path to data time series ``csv`` file.
+            - ``X``: float, required. Longitude in WGS 84 Datum (EPSG4326).
+            - ``Y``: float, required. Latitude in WGS 84 Datum (EPSG4326).
+            - ``Code``: str, required
+            - ``Source``: str, required
+            - ``Description``: str, required
+            - ``Color``: str, required
+            - ``UpstreamArea``: float, required
+
+
+        :type df_info: class:`pandas.DataFrame`
+
+        :param src_dir: str, optional
+            Path for source directory in the case for only file names in ``File`` column.
+        :type src_dir: str
+
+        :param filter_dates: list, optional
+            List of Start and End dates for filter data
+        :type filter_dates: str
+
+        **Notes:**
+
+        - The ``set_data`` method populates the time series collection with data based on the provided DataFrame.
+        - It creates time series objects, loads data, and performs additional processing steps.
+        - Adjust ``skip_process`` according to your data processing needs.
+
+        **Examples:**
+
+        >>> ts_collection.set_data(df, "path/to/data", filter_dates=["2020-01-01 00:00:00", "2020-03-12 00:00:00"])
+
+        """
         # generic part
-        super().set_data(input_df=input_df, filter_dates=filter_dates)
+        super().set_data(df_info=df_info, filter_dates=filter_dates)
         # custom part
-        for i in range(len(input_df)):
-            name = input_df["Name"].values[i]
-            self.collection[name].upstream_area = input_df["UpstreamArea"].values[i]
+        for i in range(len(df_info)):
+            name = df_info["Name"].values[i]
+            self.collection[name].upstream_area = df_info["UpstreamArea"].values[i]
         self.update(details=True)
         return None
 
@@ -4416,6 +4509,7 @@ class Raster:
 class Elevation(Raster):
     """
     Elevation (DEM) raster map dataset.
+
     """
 
     def __init__(self, name="DEM"):

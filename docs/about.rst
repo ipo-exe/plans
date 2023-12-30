@@ -12,8 +12,6 @@ About
 The ``plans`` **tool** is a software designed to help watershed restoration projects.
 Below is some key ideas about the project.
 
-.. toctree::
-    about
 
 Origins
 ********************************************

@@ -415,7 +415,7 @@ def TSC(
 
     # load from info table
     tsc.load_data(
-        input_file=file_infotable,
+        table_file=file_infotable,
         filter_dates=[filter_date_start, filter_date_end]
     )
     tsc.datarange_min = datarange_min

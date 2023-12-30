@@ -5,14 +5,14 @@ from plans import datasets
 from tests import core
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-v0_8")
-
-
 # Ignore all DeprecationWarnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+# --------------------- SETUP INTERACTIVE TESTING ---------------------- #
+
 talk = True
 export_files = True
-datafolder = "../docs/datasets"
+datafolder = "C:/plans/docs/datasets" #"../docs/datasets"
 
 
 # --------------------- REUSABLE TS TESTS ---------------------- #
@@ -84,6 +84,11 @@ def test_ts_upscale(ts, freq, bad_max):
         ts2.set_data(input_df=df, input_varfield="{}".format(ts.varfield), input_dtfield=ts.dtfield)
         ts2.dtfreq = freq
         ts2.view()
+
+def test_ts_downscale(ts, freq):
+    ts.downscale(freq=freq)
+
+
 
 def test_ts_gapsize(ts, n_gap, n_epochs_expected):
     # set gap
@@ -195,6 +200,9 @@ class TestTimeSeries(unittest.TestCase):
     def test_upscale_1d(self):
         test_ts_upscale(ts=self.ts, freq="D", bad_max=24)
 
+    def test_downscale(self):
+        test_ts_downscale(ts=self.ts, freq="20min")
+
     def tearDown(self):
         # Clean up any resources created in the setUp method
         self.ts = None
@@ -204,9 +212,9 @@ class TestRainSeries(TestTimeSeries):
 
     def setUp(self):
         # Initialize any necessary objects or data for the tests
-        self.prefix = "rain_hourly"
+        self.prefix = "rain_minutely"
         self.test_src_file = "rain_IPH41.csv"
-        self.dir_out = "{}/rain".format(datafolder, )
+        self.dir_out = "{}/rain/obs".format(datafolder, )
         self.testfile_path = "{}/{}".format(self.dir_out, self.test_src_file)
         self.method_interpolation = "constant"
 
@@ -228,56 +236,43 @@ class TestRainSeries(TestTimeSeries):
         # load data
         self.ts.load_data(
             input_file=self.testfile_path,
-            input_varfield="P_IPH41_mm",
+            input_varfield="P",
             input_dtfield="DateTime"
         )
 
-    def test_talk(self):
-        test_ts_talk(ts=self.ts)
 
-    def test_load_data(self):
-        test_ts_data(ts=self.ts)
+class TestTempSeries(TestTimeSeries):
 
-    def test_export_view(self):
-        test_ts_view(
-            ts=self.ts,
-            folder=self.dir_out,
-            filename=self.prefix
+    def setUp(self):
+        # Initialize any necessary objects or data for the tests
+        self.prefix = "temp_hourly"
+        self.test_src_file = "inmet_auto_A805.csv"
+        self.dir_out = "{}/src".format(datafolder, )
+        self.testfile_path = "{}/{}".format(self.dir_out, self.test_src_file)
+        self.method_interpolation = "cubic"
+
+        # set --- expected parameters
+        # raw gaps - epochs
+        self.dict_gaps_epochs = {
+            7 * 72 : 2,  # Gapsize -> Expected epochs
+            3*12: 3
+        }
+
+        # create instance
+        self.ts = datasets.TempSeries(
+            name="INMET A802",
+            alias="A802",
+        )
+        # set attributes
+        self.ts.gapsize = 6
+
+        # load data
+        self.ts.load_data(
+            input_file=self.testfile_path,
+            input_varfield="TempDB",
+            input_dtfield="DateTime"
         )
 
-    def test_export_view_epochs(self):
-        test_ts_view_epochs(
-            ts=self.ts,
-            folder=self.dir_out,
-            filename=self.prefix + "_epochs"
-        )
-
-    def test_gaps(self):
-        for k in self.dict_gaps_epochs:
-            test_ts_gapsize(ts=self.ts, n_gap=k, n_epochs_expected=self.dict_gaps_epochs[k])
-
-    def test_interpolation(self):
-        test_ts_interpolate(ts=self.ts, method=self.method_interpolation)
-
-    def test_aggregate_3h(self):
-        test_ts_aggregate(
-            ts=self.ts, freq="3H", bad_max=3, agg_funcs=None
-        )
-
-    def test_aggregate_1d(self):
-        test_ts_aggregate(
-            ts=self.ts, freq="D", bad_max=24, agg_funcs=None
-        )
-
-    def test_upscale_3h(self):
-        test_ts_upscale(ts=self.ts, freq="3H", bad_max=9)
-
-    def test_upscale_1d(self):
-        test_ts_upscale(ts=self.ts, freq="D", bad_max=24)
-
-    def tearDown(self):
-        # Clean up any resources created in the setUp method
-        self.ts = None
 
 if __name__ == '__main__':
     unittest.main()
