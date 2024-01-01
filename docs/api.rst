@@ -49,7 +49,28 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
+   plans.root
+
+.. autosummary::
+   :toctree: generated
+
+   plans.ds
+
+
+.. autosummary::
+   :toctree: generated
+
    plans.datasets
+
+.. autosummary::
+   :toctree: generated
+
+   plans.datasets.core
+
+.. autosummary::
+   :toctree: generated
+
+   plans.datasets.chrono
 
 .. autosummary::
    :toctree: generated

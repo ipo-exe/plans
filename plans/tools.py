@@ -25,7 +25,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import datasets
+>>> from plans import ds
 
 Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
@@ -366,7 +366,7 @@ def TSC(
 
 
     """
-    from plans import datasets
+    from plans import ds
     from plans.geo import outlet_distance
 
     # ---------------------- START ----------------------
@@ -582,7 +582,7 @@ def DTO(
 
 
     """
-    from plans.datasets import Raster, LDD, DTO
+    from plans.ds import Raster, LDD, DTO
     from plans.geo import outlet_distance
 
     # ---------------------- START ----------------------

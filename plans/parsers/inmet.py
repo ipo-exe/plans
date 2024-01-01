@@ -60,7 +60,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-v0_8")
 
-from plans.datasets import get_random_colors
+from plans.ds import get_random_colors
 
 # todo docstrings
 class _StationINMET_:

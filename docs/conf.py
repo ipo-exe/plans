@@ -7,8 +7,8 @@
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path_main here. If the directory is relative to the
-# documentation root, use os.path_main.abspath to make it absolute, like shown here.
+# add these directories to sys.folder_main here. If the directory is relative to the
+# documentation root, use os.folder_main.abspath to make it absolute, like shown here.
 # mask here
 import os
 import sys

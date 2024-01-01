@@ -11,8 +11,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 # --------------------- SETUP INTERACTIVE TESTING ---------------------- #
 
 talk = True
-export_files = True
-datafolder = "C:/plans/docs/datasets" #"../docs/datasets"
+export_files = False
+datafolder ="../docs/datasets"# "C:/plans/docs/datasets" #"../docs/datasets"#
 
 
 # --------------------- REUSABLE TS TESTS ---------------------- #

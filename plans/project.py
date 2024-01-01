@@ -25,7 +25,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import datasets
+>>> from plans import ds
 
 Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
@@ -59,7 +59,8 @@ In a lacinia nisl.
 """
 import os, shutil, glob
 import pandas as pd
-from plans import datasets
+from plans import ds
+from plans.root import FileSys
 
 def get_file_size_mb(file_path):
     """Util for getting the file size in MB
@@ -113,107 +114,29 @@ def fill_dir_strucuture(dict_struct, local_root):
             pass
     return None
 
-class Project:
+class Project(FileSys):
 
-    def __init__(self, name, root):
+    def __init__(self, name, folder_base, alias=None):
         """Initiate a project
 
-        :param name: name of project
+        :param name: unique object name
         :type name: str
-        :param root: path to root folder
-        :type root: str
+
+        :param alias: unique object alias.
+            If None, it takes the first and last characters from ``name``
+        :type alias: str
+
+        :param folder_base: path to base folder
+        :type name: str
         """
-        self.name = name
-        self.root = root
-        self.path_main = "{}/{}".format(root, name)
-        # make main dir
-        make_dir(str_path=self.path_main)
+        # ---------- call super -----------#
+        super().__init__(name=name, folder_base=folder_base, alias=alias)
 
-        #
-        # struture of the project
-        self.structure = {
-            "datasets": {
-                "topo":{
-                    "dem": datasets.Elevation,
-                    "slope": datasets.Slope,
-                    "twi": datasets.TWI,
-                    "hand": datasets.HAND,
-                    "accflux": datasets.Raster,
-                    "ldd": datasets.LDD
-                },
-                "lulc":{
-                    "obs":{
-                        "lulc_*": datasets.LULC,
-                    },
-                    "bau":{
-                        "lulc_*": datasets.LULC,
-                    },
-                    "base": {
-                        "lulc_*": datasets.LULC,
-                    },
-                    "nbs": {
-                        "lulc_*": datasets.LULC,
-                    },
-                },
-                "soil":{
-                    "soils": datasets.Soils,
-                    "lito": datasets.Lithology
-                },
-                "et":{
-                    "et_*": datasets.ET24h
-                },
-                "ndvi":{
-                    "ndvi_*": datasets.NDVI
-                },
-                "basins":{
-                    "stage_*": None,
-                    "rc_*": None,
-                    "basins": None,
-                    "outlets": None,
-                    "basins_info": None
-                },
-                "rain": {
-                    "obs": {
-                        "rain_*": None
-                    },
-                    "bau": {
-                        "rain_*": None
-                    }
-                },
-                "temp": {
-                    "obs":{
-                        "temp_*": None
-                    },
-                    "bau": {
-                        "rain_*": None
-                    }
-                },
-                "model":{
-                    "hist": None
-                }
-            },
-            "outputs": {
-                "simulation": {
-                    "sim_*": None
-                },
-                "assessment": {
-                    "asm_*": None
-                },
-                "uncertainty": {
-                    "unc_*": None
-                },
-                "sensitivity": {
-                    "sal_*": None
-                }
-            }
-        }
+        # overwrite struture of the project
+        self.structure = self.get_structure()
 
-        # fill folders
-        self.fill()
-        #
-        #
         self.topo_status = None
-        self.update_status_topo()
+        #self.update_status_topo()
 
         self.topo = None
         self.soil = None
@@ -221,13 +144,80 @@ class Project:
         self.et = None
         self.ndvi = None
 
-    def fill(self):
-        fill_dir_strucuture(
-            dict_struct=self.structure,
-            local_root=self.path_main
-        )
-        return None
 
+    def get_structure(self):
+        """Get FileSys strucute dictionary. Expected to overwrite superior methods
+
+        :return: structure dictionary
+        :rtype: dict
+        """
+
+        scenarios_clim = {
+            "obs": {},
+            "bau": {},
+        }
+
+        scenarios_lulc = {
+            "obs": {},
+            "bau": {},
+            "bas": {},
+            "nbs": {},
+        }
+
+        raster_defaults = ["_.asc", "_.prj"]
+        qraster_defaults = ["_.asc", "_.prj", "_.csv"]
+
+        dict_struct = {
+            "datasets": {
+                "topo": {
+                    "dem": raster_defaults,
+                    "slope": raster_defaults,  # expected default files
+                    "twi": raster_defaults,
+                    "hand": raster_defaults,
+                    "accflux": raster_defaults,
+                    "ldd": raster_defaults
+                },
+                "lulc": {
+                    "lulc_info": "lulc_info.csv",
+                    "obs": {}, # todo think series option
+                    "bau": {},
+                    "bas": {},
+                    "nbs": {},
+                },
+                "soil": {
+                    "soils": qraster_defaults,
+                    "lito": qraster_defaults
+                },
+                "et": {"obs": {}},
+                "ndvi": {"obs": {}},
+                "basins": {
+                    # "stage_*": None,
+                    # "flow_": None, # todo think collection option
+                    "outlets": raster_defaults,
+                    "basins": qraster_defaults
+                },
+                "rain": {
+                    "obs": {}, # todo think collection option
+                    "bau": {}, # todo think collection option
+                },
+                "temp": {
+                    "obs": {}, # todo think collection option
+                    "bau": {} # todo think collection option
+                },
+                "model": {}
+            },
+            "outputs": {
+                "simulation": {},
+                "assessment": {},
+                "uncertainty": {},
+                "sensitivity": {}
+            }
+        }
+
+        return dict_struct
+
+
+    # TODO deprecated
     def update_status_topo(self):
         str_path = self.path_main + "/datasets/topo"
         list_names = list(self.structure["datasets"]["topo"].keys())
@@ -330,9 +320,8 @@ if __name__ == "__main__":
     #import matplotlib.pyplot as plt
     #plt.style.use("seaborn-v0_8")
 
-    p = Project(
-        name="nimes",
-        root="C:/plans"
-    )
 
-    print(p.topo_status.to_string())
+    p = Project(name="arles", folder_base="C:/data")
+
+    print(p)
+    p.setup()

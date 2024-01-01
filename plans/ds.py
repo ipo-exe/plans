@@ -25,7 +25,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import datasets
+>>> from plans import ds
 
 Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
@@ -116,14 +116,13 @@ def get_random_colors(size=10, cmap="tab20"):
 # Series data structures
 
 
-# docs: OK
 class Collection:
-    """A test_collection of primitive objects with associated metadata.
+    """A collection of primitive objects with associated metadata.
 
     Attributes:
         - catalog (:class:`pandas.DataFrame`): A catalog containing metadata of the objects in the test_collection.
         - test_collection (dict): A dictionary containing the objects in the test_collection.
-        - name (str): The name of the test_collection.
+        - name (str): The name of the ``Collection``.
         - baseobject: The class of the base object used to initialize the test_collection.
 
     Methods:
@@ -261,7 +260,6 @@ class Collection:
         return None
 
 
-# docs: todo
 class TimeSeries:
     """
     The primitive time series object
@@ -2811,7 +2809,7 @@ class RatingCurve:
     ):
         """Load data from CSV file
 
-        :param table_file: path_main to CSV file
+        :param table_file: folder_main to CSV file
         :type table_file: str
         :param hobs_field: name of observed Stage field
         :type hobs_field: str
@@ -3032,7 +3030,7 @@ class RatingCurve:
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -3085,7 +3083,7 @@ class RatingCurve:
         :type transform: bool
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -4976,11 +4974,11 @@ class QualiRaster(Raster):
     def load(self, asc_file, prj_file, table_file):
         """
         Load data from files to raster
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
-        :param table_file: path_main to ``.txt`` table file
+        :param table_file: folder_main to ``.txt`` table file
         :type table_file: str
         :return: None
         :rtype: None
@@ -4992,7 +4990,7 @@ class QualiRaster(Raster):
     def load_table(self, file):
         """Load attributes dataframe from ``csv`` ``.txt`` file (separator must be ;).
 
-        :param file: path_main to file
+        :param file: folder_main to file
         :type file: str
         """
         self.path_csvfile = file
@@ -5005,7 +5003,7 @@ class QualiRaster(Raster):
     def export(self, folder, filename=None):
         """
         Export raster data
-        param folder: string of directory path_main,
+        param folder: string of directory folder_main,
         :type folder: str
         :param filename: string of file without extension, defaults to None
         :type filename: str
@@ -5019,11 +5017,11 @@ class QualiRaster(Raster):
     def export_table(self, folder, filename=None):
         """Export a CSV ``.txt``  file.
 
-        :param folder: string of directory path_main
+        :param folder: string of directory folder_main
         :type folder: str
         :param filename: string of file without extension
         :type filename: str
-        :return: full file name (path_main and extension) string
+        :return: full file name (folder_main and extension) string
         :rtype: str
         """
         if filename is None:
@@ -5291,7 +5289,7 @@ class QualiRaster(Raster):
 
         :param show: option to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -5672,9 +5670,9 @@ class QualiHard(QualiRaster):
     def load(self, asc_file, prj_file=None):
         """Load data from files to raster
 
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
         :return: None
         :rtype: None
@@ -5726,7 +5724,7 @@ class AOI(QualiHard):
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -5884,9 +5882,9 @@ class Zones(QualiRaster):
     def load(self, asc_file, prj_file):
         """
         Load data from files to raster
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
         :return: None
         :rtype: None
@@ -5925,7 +5923,7 @@ class Zones(QualiRaster):
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -6006,7 +6004,7 @@ class RasterCollection(Collection):
 
         :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
         :param varname: :class:`Raster.varname`` variable name attribute, defaults to None
         :type varname: str
@@ -6284,7 +6282,7 @@ class RasterCollection(Collection):
 
         :param show: boolean to show plot instead of saving,
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param dpi: image resolution, defaults to 96
         :type dpi: int
@@ -6325,7 +6323,7 @@ class RasterCollection(Collection):
         :type datapoints: bool
         :param show: option to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -6431,11 +6429,11 @@ class QualiRasterCollection(RasterCollection):
 
         :param name: :class:`Raster.name`` name attribute
         :type name: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
-        :param table_file: path_main to ``.txt`` table file
+        :param table_file: folder_main to ``.txt`` table file
         :type table_file: str
         """
         # create raster
@@ -6489,9 +6487,9 @@ class RasterSeries(RasterCollection):
         :type name: str
         :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
         :return: None
         :rtype: None
@@ -6519,7 +6517,7 @@ class RasterSeries(RasterCollection):
     def load_folder(self, folder, name_pattern="map_*", talk=False):
         """Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
 
-        :param folder: path_main to folder
+        :param folder: folder_main to folder
         :type folder: str
         :param name_pattern: name pattern. example map_*
         :type name_pattern: str
@@ -6617,7 +6615,7 @@ class RasterSeries(RasterCollection):
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param view_specs: specifications dictionary, defaults to None
         :type view_specs: dict
@@ -6679,7 +6677,7 @@ class RasterSeries(RasterCollection):
         :type statistic: str
         :param show: option to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -6739,9 +6737,9 @@ class NDVISeries(RasterSeries):
         :type name: str
         :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
         :return: None
         :rtype: None
@@ -6780,9 +6778,9 @@ class ETSeries(RasterSeries):
         :type name: str
         :param date: :class:`Raster.date`` date attribute, defaults to None
         :type date: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
         :return: None
         :rtype: None
@@ -6864,11 +6862,11 @@ class QualiRasterSeries(RasterSeries):
         :type name: str
         :param date: :class:`Raster.date`` date attribute
         :type date: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
-        :param table_file: path_main to ``.txt`` table file
+        :param table_file: folder_main to ``.txt`` table file
         :type table_file: str
         """
         # create raster
@@ -6895,9 +6893,9 @@ class QualiRasterSeries(RasterSeries):
     def load_folder(self, folder, table_file, name_pattern="map_*", talk=False):
         """Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
 
-        :param folder: path_main to folder
+        :param folder: folder_main to folder
         :type folder: str
-        :param table_file: path_main to table file
+        :param table_file: folder_main to table file
         :type table_file: str
         :param name_pattern: name pattern. example map_*
         :type name_pattern: str
@@ -6968,7 +6966,7 @@ class QualiRasterSeries(RasterSeries):
         :type specs: dict
         :param show: option to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -7066,7 +7064,7 @@ class QualiRasterSeries(RasterSeries):
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: path_main to output folder, defaults to ``./output``
+        :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param view_specs: specifications dictionary, defaults to None
         :type view_specs: dict
@@ -7129,11 +7127,11 @@ class LULCSeries(QualiRasterSeries):
         :type name: str
         :param date: :class:`Raster.date`` date attribute
         :type date: str
-        :param asc_file: path_main to ``.asc`` raster file
+        :param asc_file: folder_main to ``.asc`` raster file
         :type asc_file: str
-        :param prj_file: path_main to ``.prj`` projection file
+        :param prj_file: folder_main to ``.prj`` projection file
         :type prj_file: str
-        :param table_file: path_main to ``.txt`` table file
+        :param table_file: folder_main to ``.txt`` table file
         :type table_file: str
         :return: None
         :rtype: None
