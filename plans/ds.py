@@ -3427,10 +3427,10 @@ class Raster:
         **Examples:**
 
         >>> # Example of loading data
-        >>> raster.load(asc_file="path/to/raster.asc")
+        >>> raster.boot(asc_file="path/to/raster.asc")
 
         >>> # Example of loading data with a specified projection file
-        >>> raster.load(asc_file="path/to/raster.asc", prj_file="path/to/raster.prj")
+        >>> raster.boot(asc_file="path/to/raster.asc", prj_file="path/to/raster.prj")
         """
         self.load_asc_raster(file=asc_file)
         if prj_file is None:

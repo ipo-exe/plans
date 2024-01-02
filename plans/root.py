@@ -1,5 +1,5 @@
 import glob
-import os, copy, shutil
+import os, copy, shutil, datetime
 import pandas as pd
 
 
@@ -46,8 +46,8 @@ class MbaE:
         self._set_fields()
 
         # ------------ set mutables ----------- #
-        self.file_table_info = None
-        self.folder_src = "./"  # start in the local place
+        self.bootfile = None
+        self.folder_bootfile = "./"  # start in the local place
 
         # ... continues in downstream objects ... #
 
@@ -127,10 +127,10 @@ class MbaE:
 
         # ... continues in downstream objects ... #
 
-    def load(self, file_table_info):
-        """Load attributes from ``csv`` table.
+    def boot(self, bootfile):
+        """Boot fundamental attributes from a ``csv`` table.
 
-        :param file_table_info: file path to ``csv`` table with metadata information.
+        :param bootfile: file path to ``csv`` table with metadata information.
             Expected format:
 
             .. code-block:: text
@@ -139,20 +139,20 @@ class MbaE:
                 Name;ResTia
                 Alias;Ra
 
-        :type file_table_info: str
+        :type bootfile: str
 
         :return:
         :rtype: str
         """
         # ---------- update file attributes ---------- #
-        self.file_table_info = file_table_info[:]
-        self.folder_src = os.path.dirname(file_table_info)
+        self.bootfile = bootfile[:]
+        self.folder_bootfile = os.path.dirname(bootfile)
 
         # get expected fields
         list_columns = [self.mdata_attr_field, self.mdata_val_field]
 
         # read info table from ``csv`` file. metadata keys are the expected fields
-        df_info_table = pd.read_csv(file_table_info, sep=";", usecols=list_columns)
+        df_info_table = pd.read_csv(bootfile, sep=";", usecols=list_columns)
 
         # setter loop
         dict_setter = {}
@@ -433,6 +433,7 @@ class DataSet(MbaE):
 
         # ------------ set mutables ----------- #
         self.file_data = None
+        self.folder_data = None
         self.data = None
         self.size = None
 
@@ -442,7 +443,10 @@ class DataSet(MbaE):
 
         # ------------ set defaults ----------- #
         self.color = "blue"
-        self._set_view_specs()
+        self.file_data_sep = ";"
+
+        # UPDATE
+        self.update()
 
         # ... continues in downstream objects ... #
 
@@ -457,7 +461,7 @@ class DataSet(MbaE):
             str_df_data = "None"
             str_out = "{}\nData:\n{}\n".format(str_super, str_df_data)
         else:
-            # print the first 5 rows
+            # first 5 rows
             str_df_data_head = self.data.head().to_string(index=False)
             str_df_data_tail = self.data.tail().to_string(index=False)
             str_out = "{}\nData:\n{}\n ... \n{}\n".format(
@@ -466,13 +470,12 @@ class DataSet(MbaE):
         return str_out
 
     def _set_fields(self):
-        """
-        Set fields names. Expected to increment superior methods.
+        """Set fields names.
+        Expected to increment superior methods.
 
         """
         # ------------ call super ----------- #
         super()._set_fields()
-
         # Attribute fields
         self.filedata_field = "File_Data"
         self.size_field = "Size"
@@ -490,7 +493,7 @@ class DataSet(MbaE):
         :rtype: None
         """
         self.view_specs = {
-            "folder": self.folder_src,
+            "folder": self.folder_data,
             "filename": self.name,
             "fig_format": "jpg",
             "dpi": 300,
@@ -536,6 +539,35 @@ class DataSet(MbaE):
         dict_meta.update(dict_meta_local)
         return dict_meta
 
+    def update(self):
+        """Refresh all mutable attributes based on data (includins paths).
+        Base method. Expected to be incremented downstrem.
+
+        :return: None
+        :rtype: None
+        """
+        # refresh all mutable attributes
+
+        # set fields
+        self._set_fields()
+
+        if self.data is not None:
+            # data size (rows)
+            self.size = len(self.data)
+
+        # update data folder
+        if self.file_data is not None:
+            # set folder
+            self.folder_data = os.path.abspath(os.path.dirname(self.file_data))
+        else:
+            self.folder_data = None
+
+        # view specs at the end
+        self._set_view_specs()
+
+        # ... continues in downstream objects ... #
+        return None
+
     def set(self, dict_setter, load_data=True):
         """Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
@@ -550,23 +582,28 @@ class DataSet(MbaE):
         super().set(dict_setter=dict_setter)
 
         # ---------- settable attributes --------- #
+
+        # COLOR
         self.color = dict_setter[self.color_field]
 
-        # handle filename only
+        # DATA: FILE AND FOLDER
+        # handle if only filename is provided
         if os.path.isfile(dict_setter[self.filedata_field]):
-            self.file_data = dict_setter[self.filedata_field][:]
+            file_data = dict_setter[self.filedata_field][:]
         else:
-            # assumes file is in the source folder
-            self.file_data = os.path.join(
-                self.folder_src, dict_setter[self.filedata_field][:]
+            # assumes file is in the same folder as the boot-file
+            file_data = os.path.join(
+                self.folder_bootfile, dict_setter[self.filedata_field][:]
             )
+        self.file_data = os.path.abspath(file_data)
 
         # -------------- set data logic here -------------- #
         if load_data:
             self.load_data(file_data=self.file_data)
 
-        # set view specs
-        self._set_view_specs()
+        # -------------- update other mutables -------------- #
+        self.update()
+
         # ... continues in downstream objects ... #
 
     def load_data(self, file_data):
@@ -591,21 +628,13 @@ class DataSet(MbaE):
         # -------------- call loading function -------------- #
         self.data = pd.read_csv(
             file_data,
-            sep=";",
+            sep=self.file_data_sep,
             dtype=default_columns,
             usecols=list(default_columns.keys()),
         )
 
         # -------------- post-loading logic -------------- #
         self.data.dropna(inplace=True)
-
-        # ------------ update related attributes ------------ #
-        self.file_data = file_data[:]
-        self.folder_src = os.path.dirname(self.file_data)
-        # view specs -- folder setup
-        self._set_view_specs()
-        # data size (rows_
-        self.size = len(self.data)
 
         return None
 
@@ -693,6 +722,522 @@ class DataSet(MbaE):
             return file_path
 
 
+class RecordTable(DataSet):
+
+    def __init__(self, name="MyRecordTable", alias="RcT"):
+        # prior attributes
+
+        # ------------ call super ----------- #
+        super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "FS"
+
+        # --------- defaults --------- #
+        self.id_size = 4 # for zfill
+
+        # --------- customizations --------- #
+        self._set_base_columns()
+        self._set_data_columns()
+        self._set_operator()
+        # UPDATE
+        self.update()
+
+
+    def _set_fields(self):
+        """Set fields names.
+        Expected to increment superior methods.
+
+        """
+        # ------------ call super ----------- #
+        super()._set_fields()
+        # base columns fields
+        self.recid_field = "RecId"
+        self.rectable_field = "RecTable"
+        self.rectimest_field = "RecTimestamp"
+        self.recstatus_field = "RecStatus"
+        # ... continues in downstream objects ... #
+
+    def _set_base_columns(self):
+        """Set base columns names.
+        Base Method. Expected to be incremented in superior methods.
+
+        """
+        self.columns_base = [
+            self.recid_field,
+            self.rectable_field,
+            self.rectimest_field,
+            self.recstatus_field
+        ]
+        # ... continues in downstream objects ... #
+
+    def _set_data_columns(self):
+        """Set specifics data columns names.
+        Base Dummy Method. Expected to be incremented in superior methods.
+
+        """
+        #
+        self.columns_data = [
+            "Kind",
+            "Value",
+            "Category",
+            "File_NF",
+            "File_Invoice"
+        ]
+        # ... continues in downstream objects ... #
+
+
+    def timer(self, dt_index, freq="M"):
+        print()
+
+    @staticmethod
+    def timedelta_disagg(timedelta): # todo docstring
+        days = timedelta.days
+        years, days = divmod(days, 365)
+        months, days = divmod(days, 30)
+        hours, remainder = divmod(timedelta.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return {
+            "Years": years,
+            "Months": months,
+            "Days": days,
+            "Hours": hours,
+            "Minutes": minutes,
+            "Seconds": seconds
+        }
+
+    @staticmethod
+    def timedelta_to_str(timedelta, dct_struct): # todo docstring
+        dct_td = RecordTable.timedelta_disagg(timedelta=timedelta)
+        parts = []
+        for k in dct_struct:
+            parts.append("{}: {}".format(dct_struct[k], dct_td[k]))
+        return ", ".join(parts)
+
+    @staticmethod
+    def running_time(start_datetimes, kind="raw"): # todo docstring
+        # Convert 'start_datetimes' to datetime format
+        start_datetimes = pd.to_datetime(start_datetimes)
+        # Calculate the running time as a timedelta
+        current_datetime = pd.to_datetime('now')
+        running_time = current_datetime - start_datetimes
+        # Apply the custom function to create a new column
+        if kind == "raw":
+            running_time = running_time.tolist()
+        elif kind == "human":
+            dct_str = {
+                "Years": "yr",
+                "Months": "mth"
+            }
+            running_time = running_time.apply(RecordTable.timedelta_to_str, args=(dct_str,))
+        elif kind == "age":
+            running_time = [int(e.days / 365) for e in running_time]
+
+        return running_time
+
+    def _set_operator(self): # todo docstring
+        """
+
+        :return:
+        :rtype:
+        """
+
+        # ------------- define sub routines here ------------- #
+
+        def func_file_status():
+            return FileSys.check_file_status(files=self.data["File"].values)
+
+        def func_sum():
+            return self.data["Value1"].values + self.data["Value2"].values
+
+        def func_age():
+            return RecordTable.running_time(
+                start_datetimes=self.data["Date_Birth"],
+                kind="human"
+            )
+        # todo implement
+        # ---------------- the operator ---------------- #
+
+        self.operator = {
+            "Sum": func_sum,
+            "Age": func_age,
+            "File_Status": func_file_status
+        }
+
+
+    def _get_organized_columns(self): # todo docstring
+        # built filter list
+        list_new_cols = self.columns_base[:]
+        for c in self.columns_data:
+            list_new_cols.append(c)
+        return list_new_cols
+
+    def _next_recid(self):
+        """Get the next record id string based on the existing ids.
+
+        :return: next record id
+        :rtype: str
+        """
+        df = self.data.sort_values(by=self.recid_field, ascending=True)
+        last_id_int = int(df[self.recid_field].values[-1].replace("Rec", ""))
+        next_id = "Rec" + str(last_id_int + 1).zfill(self.id_size)
+        return next_id
+
+    def _filter_dict_rec(self, input_dict):
+        """Filter input record dictionary based on the expected table data columns.
+
+        :param input_dict: input record dictionary
+        :type input_dict: dict
+        :return: filtered record dictionary
+        :rtype: dict
+        """
+        # ------ parse expected fields ------- #
+        # filter expected columns
+        dict_rec_filter = {}
+        for k in self.columns_data:
+            if k in input_dict:
+                dict_rec_filter[k] = input_dict[k]
+        return dict_rec_filter
+
+    def update(self):
+        super().update()
+        # ... continues in downstream objects ... #
+        return None
+
+    def save(self):
+        """Save the data to the sourced file data.
+
+        .. danger::
+
+            This method **overwrites** the sourced data file.
+
+
+        :return: integer denoting succesfull save (0) or file not found (1)
+        :rtype: int
+        """
+        if self.file_data is not None:
+            # handle filename
+            filename = os.path.basename(self.file_data).split(".")[0]
+            # handle folder
+            self.export(
+                folder_export=os.path.dirname(self.file_data),
+                filename=filename
+            )
+            return 0
+        else:
+            return 1
+
+    def export(self, folder_export=None, filename=None, filter_archive=False):
+        """Export the ``RecordTable`` data.
+
+        :param folder_export: folder to export
+        :type folder_export: str
+        :param filename: file name (name alone, without file extension)
+        :type filename: str
+        :param filter_archive: option for exporting only records with ``RecStatus`` = ``On``
+        :type filter_archive: bool
+        :return: file path is export is successfull (1 otherwise)
+        :rtype: str or int
+        """
+        if filename is None:
+            filename = self.name
+        # append extension
+        filename = filename + ".csv"
+        if self.data is not None:
+            # handle folders
+            if folder_export is not None:
+                filepath = os.path.join(folder_export, filename)
+            else:
+                filepath = os.path.join(self.folder_data, filename)
+            # handle archived records
+            if filter_archive:
+                df = self.data.query("RecStatus == 'On'")
+            else:
+                df = self.data.copy()
+            df.to_csv(
+                filepath, sep=self.file_data_sep, index=False
+            )
+            return filepath
+        else:
+            return 1
+
+    def set(self, dict_setter, load_data=True):
+        """Set selected attributes based on an incoming dictionary.
+        Expected to increment superior methods.
+
+        :param dict_setter: incoming dictionary with attribute values
+        :type dict_setter: dict
+
+        :param load_data: option for loading data from incoming file. Default is True.
+        :type load_data: bool
+
+        """
+        # ignore color
+        dict_setter[self.color_field] = None
+        super().set(dict_setter=dict_setter, load_data=False)
+
+        # ---------- set basic attributes --------- #
+
+        # -------------- set data logic here -------------- #
+        if load_data:
+            self.load_data(file_data=self.file_data)
+            self.refresh_data()
+
+        # -------------- update other mutables -------------- #
+        self.update()
+        # ... continues in downstream objects ... #
+
+    def refresh_data(self):
+        for c in self.operator:
+            self.data[c] = self.operator[c]()
+
+    def load_data(self, file_data):
+        """Load data from file.
+        Expected to overwrite superior methods.
+
+        :param file_data: file path to data.
+        :type file_data: str
+        :return: None
+        :rtype: None
+        """
+        # -------------- overwrite relative path input -------------- #
+        file_data = os.path.abspath(file_data)
+        # -------------- implement loading logic -------------- #
+
+        # -------------- call loading function -------------- #
+        df = pd.read_csv(
+            file_data,
+            sep=self.file_data_sep
+        )
+
+        # -------------- post-loading logic -------------- #
+        self.set_data(input_df=df)
+
+        return None
+
+    def set_data(self, input_df):
+        """Set RecordTable data from incoming dataframe.
+
+        :param input_df: incoming dataframe
+        :type input_df: dataframe
+        :return: None
+        :rtype: None
+        """
+
+        list_input_cols = list(input_df.columns)
+
+        # overwrite RecTable column
+        input_df[self.rectable_field] = self.name  # todo formalize field naming
+
+        # handle RecId
+        if self.recid_field not in list_input_cols:
+            # enforce Id based on index
+            input_df[self.recid_field] = ["Rec" + str(_ + 1).zfill(self.id_size) for _ in input_df.index]
+        else:
+            # remove incoming duplicates
+            input_df.drop_duplicates(subset=self.recid_field, inplace=True)
+
+        # handle timestamp
+        if self.rectimest_field not in list_input_cols:
+            input_df[self.rectimest_field] = "1900-01-01 00:00:00"
+
+        # handle timestamp
+        if self.recstatus_field not in list_input_cols:
+            input_df[self.recstatus_field] = "On"
+
+        # concat to template dataframe
+        # built filter list
+        list_cols = self._get_organized_columns()
+
+        # create empty template dataframe
+        dct_template = {c: [] for c in list_cols}
+        df_template = pd.DataFrame(dct_template)
+
+        # merge
+        df_merged = pd.concat([df_template, input_df])
+        # filter
+        df_merged = df_merged[list_cols]
+
+        # pass copy
+        self.data = df_merged.copy()
+
+        return None
+
+    def insert_record(self, dict_rec):
+        """Insert a record in the RT
+
+        :param dict_rec: input record dictionary
+        :type dict_rec: dict
+        :return: None
+        :rtype: None
+        """
+
+        # ------ parse expected fields ------- #
+        # filter expected columns
+        dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
+
+        # ------ set default fields ------- #
+        # set table field
+        dict_rec_filter[self.rectable_field] = self.name
+        # create index
+        dict_rec_filter[self.recid_field] = self._next_recid()
+        # compute timestamp
+        _now = datetime.datetime.now()
+        dict_rec_filter[self.rectimest_field] = _now.strftime("%Y-%m-%d %H:%M:%S")
+        # set active
+        dict_rec_filter[self.recstatus_field] = "On"
+
+        # ------ merge ------- #
+        # create single-row dataframe
+        df = pd.DataFrame({k: [dict_rec_filter[k]] for k in dict_rec_filter})
+        # concat to data
+        self.data = pd.concat([self.data, df]).reset_index(drop=True)
+
+        self.update()
+        return None
+
+    def edit_record(self, rec_id, dict_rec):
+        """Edit RT record
+
+        :param rec_id: record id
+        :type rec_id: str
+        :param dict_rec: incoming record dictionary
+        :type dict_rec: dict
+        :return: None
+        :rtype: None
+        """
+        # input dict rec data
+        dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
+
+        # include timestamp for edit operation
+        _now = datetime.datetime.now()
+        dict_rec_filter[self.rectimest_field] = _now.strftime("%Y-%m-%d %H:%M:%S")
+
+        # get data
+        df = self.data.copy()
+        # set index
+        df = df.set_index(self.recid_field)
+        # get filter series by rec id
+        sr = df.loc[rec_id].copy()
+
+        # update edits
+        for k in dict_rec_filter:
+            sr[k] = dict_rec_filter[k]
+
+        # set in row
+        df.loc[rec_id] = sr
+        # restore index
+        df.reset_index(inplace=True)
+        self.data = df.copy()
+
+        return None
+
+    def archive_record(self, rec_id):
+        """Archive a record in the RT, that is ``RecStatus`` = ``Off``
+
+        :param rec_id: record id
+        :type rec_id: str
+        :return: None
+        :rtype: None
+        """
+        dict_rec = {
+            self.recstatus_field: "Off"
+        }
+        self.edit_record(rec_id=rec_id, dict_rec=dict_rec)
+        return None
+
+
+    def get_record(self, rec_id):
+        """Get a record dictionary
+
+        :param rec_id: record id
+        :type rec_id: str
+        :return: record dictionary
+        :rtype: dict
+        """
+        # set index
+        df = self.data.set_index(self.recid_field)
+
+        # locate series by index and convert to dict
+        dict_rec = {self.recid_field: rec_id}
+        dict_rec.update(dict(df.loc[rec_id].copy()))
+        return dict_rec
+
+    def get_record_df(self, rec_id):
+        """Get a record dataframe
+
+        :param rec_id: record id
+        :type rec_id: str
+        :return: record dictionary
+        :rtype: dict
+        """
+        # get dict
+        dict_rec = self.get_record(rec_id=rec_id)
+        # convert in vertical dataframe
+        dict_df = {
+            "Field": [k for k in dict_rec],
+            "Value": [dict_rec[k] for k in dict_rec],
+        }
+        return pd.DataFrame(dict_df)
+
+    def load_record_data(self, file_record_data, input_field="Field", input_value="Value"):
+        """Load record data from a ``csv`` file.
+
+        .. note::
+
+            This method **does not insert** the record data to the ``RecordTable``.
+
+
+        :param file_record_data: file path to ``csv`` file.
+        :type file_record_data: str
+        :param input_field: Name of ``Field`` column in the file.
+        :type input_field:
+        :param input_value: Name of ``Value`` column in the file.
+        :type input_value:
+        :return: record dictionary
+        :rtype: dict
+        """
+        # load record from file
+        df = pd.read_csv(
+            file_record_data,
+            sep=self.file_data_sep,
+            usecols=[input_field, input_value]
+        )
+        # convert into a dict
+        dict_rec_raw = {df[input_field].values[i]: df[input_value].values[i] for i in range(len(df))}
+
+        # filter for expected data columns
+        dict_rec = {}
+        for c in self.columns_data:
+            if c in dict_rec_raw:
+                dict_rec[c] = dict_rec_raw[c]
+
+        return dict_rec
+
+    def export_record(self, rec_id, filename=None, folder_export=None):
+        """Export a record to a csv file.
+
+        :param rec_id: record id
+        :type rec_id: str
+        :param filename: file name (name alone, without file extension)
+        :type filename: str
+        :param folder_export: folder to export
+        :type folder_export: str
+        :return: path to exported file
+        :rtype: str
+        """
+        # retrieve dataframe
+        df = self.get_record_df(rec_id=rec_id)
+        # handle filename and folder
+        if filename is None:
+            filename = self.name + "_" + rec_id
+        if folder_export is None:
+            folder_export = self.folder_data
+        filepath = os.path.join(folder_export, filename + ".csv")
+        # save
+        df.to_csv(filepath, sep=self.file_data_sep, index=False)
+        return filepath
+
+
 class FileSys(DataSet):
     """
     The core ``FileSys`` base/demo object. File System object.
@@ -749,15 +1294,15 @@ class FileSys(DataSet):
         :return: None
         :rtype: None
         """
-        self.view_specs = {
-            "folder": self.folder_src,
+        self.view_specs = { # todo modify here
+            "folder": self.folder_data,
             "filename": self.name,
             "fig_format": "jpg",
             "dpi": 300,
             "title": self.name,
             "width": 5 * 1.618,
             "height": 5 * 1.618,
-            # todo modify here
+
         }
         return None
 
@@ -791,6 +1336,23 @@ class FileSys(DataSet):
         return dict_extensions
 
     @staticmethod
+    def check_file_status(files):
+        """Static method for file existing checkup
+
+        :param files: iterable with file paths
+        :type files: list
+        :return: list status ('ok' or 'missing')
+        :rtype: list
+        """
+        list_status = []
+        for f in files:
+            str_status = "missing"
+            if os.path.isfile(f):
+                str_status = "ok"
+            list_status.append(str_status)
+        return list_status
+
+    @staticmethod
     def make_dir(str_path):
         """Util function for making a diretory
 
@@ -806,8 +1368,7 @@ class FileSys(DataSet):
         return None
 
     @staticmethod
-    def copy_batch(dst_pattern, src_pattern):
-        # todo docstring
+    def copy_batch(dst_pattern, src_pattern): # todo docstring
         # handle destination variables
         dst_basename = os.path.basename(dst_pattern).split(".")[0].replace("*", "")  # k
         dst_folder = os.path.dirname(dst_pattern)  # folder
@@ -844,8 +1405,8 @@ class FileSys(DataSet):
         :rtype: None
         """
 
-        def handle_file(dst_name, lst_specs, dst_folder):
-            # todo doctring
+        def handle_file(dst_name, lst_specs, dst_folder): # todo doctring
+
             dict_exts = FileSys.get_extensions()
             lst_exts = dict_exts[lst_specs[0]]
             src_name = lst_specs[1]
@@ -950,6 +1511,12 @@ class FileSys(DataSet):
                 ]
         return dict_structure
 
+    def update(self):
+        super().update()
+        # set main folder
+        self.folder_main = os.path.join(self.folder_base, self.name)
+        # ... continues in downstream objects ... #
+
     def set(self, dict_setter, load_data=True):
         """Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
@@ -961,23 +1528,25 @@ class FileSys(DataSet):
         :type load_data: bool
 
         """
-        # overwrite color
+        # ignore color
         dict_setter[self.color_field] = None
 
-        super().set(dict_setter=dict_setter)
+        # -------------- super -------------- #
+        super().set(dict_setter=dict_setter, load_data=False)
 
         # ---------- set basic attributes --------- #
+        # set base folder
         self.folder_base = dict_setter[self.folder_base_field]
 
-        # set main folder
-        self.folder_main = os.path.join(self.folder_base, self.name)
 
         # -------------- set data logic here -------------- #
         if load_data:
             self.load_data(file_data=self.file_data)
 
-        # set view specs
-        self._set_view_specs()
+
+        # -------------- update other mutables -------------- #
+        self.update()
+
         # ... continues in downstream objects ... #
 
     def load_data(self, file_data):
@@ -994,17 +1563,13 @@ class FileSys(DataSet):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        self.data = pd.read_csv(file_data, sep=";")
+        self.data = pd.read_csv(
+            file_data,
+            sep=self.file_data_sep
+        )
 
         # -------------- post-loading logic -------------- #
 
-        # ------------ update related attributes ------------ #
-        self.file_data = file_data[:]
-        self.folder_src = os.path.dirname(self.file_data)
-        # view specs -- folder setup
-        self._set_view_specs()
-        # data size (rows)
-        self.size = len(self.data)
         return None
 
     def setup(self):
@@ -1025,7 +1590,7 @@ class FileSys(DataSet):
         # fill structure
         FileSys.fill(dict_struct=self.structure, folder=self.folder_main)
 
-    def view(self, show=True):
+    def view(self, show=True): # todo implement
         """Get a basic visualization.
         Expected to overwrite superior methods.
 
@@ -1058,7 +1623,7 @@ class FileSys(DataSet):
         >>> ds.view(show=False)
 
         """
-        # todo implement
+
         # get specs
         specs = self.view_specs.copy()
 
@@ -1089,9 +1654,37 @@ class FileSys(DataSet):
 
 
 if __name__ == "__main__":
-    folder = "C:\data"
+    #from plans.root import RecordTable
+    f = "./tests/data/load_rt.csv"
+    rt = RecordTable()
 
-    fs = FileSys(folder_base=folder)
-    fs.load(file_table_info="../tests/data/core2.csv")
-    print(fs.data.to_string())
-    fs.setup()
+    rt.columns_data = [
+        "Value1", "Value2", "Sum", "Date_Birth", "Age", "File", "File_Status"
+    ]
+    rt.update()
+    rt.boot(bootfile=f)
+    print(rt.data.to_string())
+    dct = {
+        "Value1": 1000,
+        "Value2": 5,
+        "Date_Birth": "2021-05-01",
+        "File": r"C:\data\cd_b.csv"
+    }
+    rt.insert_record(dict_rec=dct)
+    rt.refresh_data()
+    print(rt.data.to_string())
+    rt.save()
+    '''
+    
+    
+    dct = {
+        "Kind": "Expense",
+        "Value": 10000,
+        "File_Data": "C:\data"
+    }
+    #rt.insert_record(dict_rec=dct)
+    print(rt.data.to_string())
+    print(rt.file_data)
+
+    #rt.save()
+    '''
