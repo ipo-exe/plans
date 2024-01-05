@@ -739,6 +739,7 @@ class RecordTable(DataSet):
         self._set_base_columns()
         self._set_data_columns()
         self._set_operator()
+
         # UPDATE
         self.update()
 
@@ -775,64 +776,24 @@ class RecordTable(DataSet):
         Base Dummy Method. Expected to be incremented in superior methods.
 
         """
-        #
-        self.columns_data = [
+        # Main data columns
+        self.columns_data_main = [
             "Kind",
             "Value",
+        ]
+        # Extra data columns
+        self.columns_data_extra = [
             "Category",
+        ]
+        # File-related columns
+        self.columns_data_files = [
             "File_NF",
             "File_Invoice"
         ]
+        # concat all lists
+        self.columns_data = self.columns_data_main + self.columns_data_extra + self.columns_data_files
         # ... continues in downstream objects ... #
 
-
-    def timer(self, dt_index, freq="M"):
-        print()
-
-    @staticmethod
-    def timedelta_disagg(timedelta): # todo docstring
-        days = timedelta.days
-        years, days = divmod(days, 365)
-        months, days = divmod(days, 30)
-        hours, remainder = divmod(timedelta.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return {
-            "Years": years,
-            "Months": months,
-            "Days": days,
-            "Hours": hours,
-            "Minutes": minutes,
-            "Seconds": seconds
-        }
-
-    @staticmethod
-    def timedelta_to_str(timedelta, dct_struct): # todo docstring
-        dct_td = RecordTable.timedelta_disagg(timedelta=timedelta)
-        parts = []
-        for k in dct_struct:
-            parts.append("{}: {}".format(dct_struct[k], dct_td[k]))
-        return ", ".join(parts)
-
-    @staticmethod
-    def running_time(start_datetimes, kind="raw"): # todo docstring
-        # Convert 'start_datetimes' to datetime format
-        start_datetimes = pd.to_datetime(start_datetimes)
-        # Calculate the running time as a timedelta
-        current_datetime = pd.to_datetime('now')
-        running_time = current_datetime - start_datetimes
-        # Apply the custom function to create a new column
-        if kind == "raw":
-            running_time = running_time.tolist()
-        elif kind == "human":
-            dct_str = {
-                "Years": "yr",
-                "Months": "mth"
-            }
-            running_time = running_time.apply(RecordTable.timedelta_to_str, args=(dct_str,))
-        elif kind == "age":
-            running_time = [int(e.days / 365) for e in running_time]
-
-        return running_time
 
     def _set_operator(self): # todo docstring
         """
@@ -847,29 +808,39 @@ class RecordTable(DataSet):
             return FileSys.check_file_status(files=self.data["File"].values)
 
         def func_sum():
-            return self.data["Value1"].values + self.data["Value2"].values
+            return None
 
         def func_age():
             return RecordTable.running_time(
                 start_datetimes=self.data["Date_Birth"],
                 kind="human"
             )
+
         # todo implement
         # ---------------- the operator ---------------- #
-
         self.operator = {
             "Sum": func_sum,
             "Age": func_age,
             "File_Status": func_file_status
         }
+        # remove here
+        self.operator = None
+        return None
 
 
     def _get_organized_columns(self): # todo docstring
-        # built filter list
-        list_new_cols = self.columns_base[:]
-        for c in self.columns_data:
-            list_new_cols.append(c)
-        return list_new_cols
+        return self.columns_base + self.columns_data
+    def _get_timestamp(self):  # todo docstring
+        # compute timestamp
+        _now = datetime.datetime.now()
+        return str(_now.strftime("%Y-%m-%d %H:%M:%S"))
+
+    def _last_id_int(self): # todo docstring
+        if self.data is None:
+            return 0
+        else:
+            df = self.data.sort_values(by=self.recid_field, ascending=True)
+            return int(df[self.recid_field].values[-1].replace("Rec", ""))
 
     def _next_recid(self):
         """Get the next record id string based on the existing ids.
@@ -877,8 +848,7 @@ class RecordTable(DataSet):
         :return: next record id
         :rtype: str
         """
-        df = self.data.sort_values(by=self.recid_field, ascending=True)
-        last_id_int = int(df[self.recid_field].values[-1].replace("Rec", ""))
+        last_id_int = self._last_id_int()
         next_id = "Rec" + str(last_id_int + 1).zfill(self.id_size)
         return next_id
 
@@ -953,6 +923,8 @@ class RecordTable(DataSet):
                 df = self.data.query("RecStatus == 'On'")
             else:
                 df = self.data.copy()
+            # filter default columns:
+            df = df[self._get_organized_columns()]
             df.to_csv(
                 filepath, sep=self.file_data_sep, index=False
             )
@@ -984,11 +956,15 @@ class RecordTable(DataSet):
 
         # -------------- update other mutables -------------- #
         self.update()
+
         # ... continues in downstream objects ... #
 
     def refresh_data(self):
-        for c in self.operator:
-            self.data[c] = self.operator[c]()
+        if self.operator is not None:
+            for c in self.operator:
+                self.data[c] = self.operator[c]()
+        # update object
+        self.update()
 
     def load_data(self, file_data):
         """Load data from file.
@@ -1014,53 +990,63 @@ class RecordTable(DataSet):
 
         return None
 
-    def set_data(self, input_df):
+    def set_data(self, input_df, append=True, inplace=True):
         """Set RecordTable data from incoming dataframe.
+        Base Method. Expected to be incremented downstream.
 
         :param input_df: incoming dataframe
         :type input_df: dataframe
+
+        :param append: option for appending the dataframe to existing data. Default True
+        :type append: bool
+
+        :param inplace: option for overwrite data. Else return dataframe. Default True
+        :type inplace: bool
+
         :return: None
         :rtype: None
         """
-
         list_input_cols = list(input_df.columns)
 
         # overwrite RecTable column
-        input_df[self.rectable_field] = self.name  # todo formalize field naming
+        input_df[self.rectable_field] = self.name
 
         # handle RecId
         if self.recid_field not in list_input_cols:
             # enforce Id based on index
-            input_df[self.recid_field] = ["Rec" + str(_ + 1).zfill(self.id_size) for _ in input_df.index]
+            n_last_id = self._last_id_int()
+            n_incr = n_last_id + 1
+            input_df[self.recid_field] = ["Rec" + str(_ + n_incr).zfill(self.id_size) for _ in input_df.index]
         else:
             # remove incoming duplicates
             input_df.drop_duplicates(subset=self.recid_field, inplace=True)
 
         # handle timestamp
         if self.rectimest_field not in list_input_cols:
-            input_df[self.rectimest_field] = "1900-01-01 00:00:00"
+            input_df[self.rectimest_field] = self._get_timestamp()
 
         # handle timestamp
         if self.recstatus_field not in list_input_cols:
             input_df[self.recstatus_field] = "On"
 
-        # concat to template dataframe
-        # built filter list
-        list_cols = self._get_organized_columns()
+        # Add missing columns with default values
+        for column in self._get_organized_columns():
+            if column not in input_df.columns:
+                input_df[column] = ""
+        df_merged = input_df[self._get_organized_columns()]
 
-        # create empty template dataframe
-        dct_template = {c: [] for c in list_cols}
-        df_template = pd.DataFrame(dct_template)
+        # concatenate dataframes
+        if append:
+            if self.data is not None:
+                df_merged = pd.concat([self.data, df_merged], ignore_index=True)
 
-        # merge
-        df_merged = pd.concat([df_template, input_df])
-        # filter
-        df_merged = df_merged[list_cols]
+        if inplace:
+            # pass copy
+            self.data = df_merged.copy()
+            return None
+        else:
+            return df_merged
 
-        # pass copy
-        self.data = df_merged.copy()
-
-        return None
 
     def insert_record(self, dict_rec):
         """Insert a record in the RT
@@ -1074,15 +1060,13 @@ class RecordTable(DataSet):
         # ------ parse expected fields ------- #
         # filter expected columns
         dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
-
         # ------ set default fields ------- #
         # set table field
         dict_rec_filter[self.rectable_field] = self.name
         # create index
         dict_rec_filter[self.recid_field] = self._next_recid()
         # compute timestamp
-        _now = datetime.datetime.now()
-        dict_rec_filter[self.rectimest_field] = _now.strftime("%Y-%m-%d %H:%M:%S")
+        dict_rec_filter[self.rectimest_field] = self._get_timestamp()
         # set active
         dict_rec_filter[self.recstatus_field] = "On"
 
@@ -1095,7 +1079,7 @@ class RecordTable(DataSet):
         self.update()
         return None
 
-    def edit_record(self, rec_id, dict_rec):
+    def edit_record(self, rec_id, dict_rec, filter_dict=True):
         """Edit RT record
 
         :param rec_id: record id
@@ -1106,11 +1090,12 @@ class RecordTable(DataSet):
         :rtype: None
         """
         # input dict rec data
-        dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
-
+        if filter_dict:
+            dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
+        else:
+            dict_rec_filter = dict_rec
         # include timestamp for edit operation
-        _now = datetime.datetime.now()
-        dict_rec_filter[self.rectimest_field] = _now.strftime("%Y-%m-%d %H:%M:%S")
+        dict_rec_filter[self.rectimest_field] = self._get_timestamp()
 
         # get data
         df = self.data.copy()
@@ -1142,7 +1127,7 @@ class RecordTable(DataSet):
         dict_rec = {
             self.recstatus_field: "Off"
         }
-        self.edit_record(rec_id=rec_id, dict_rec=dict_rec)
+        self.edit_record(rec_id=rec_id, dict_rec=dict_rec, filter_dict=False)
         return None
 
 
@@ -1237,6 +1222,232 @@ class RecordTable(DataSet):
         df.to_csv(filepath, sep=self.file_data_sep, index=False)
         return filepath
 
+    # ----------------- STATIC METHODS ----------------- #
+    @staticmethod
+    def timedelta_disagg(timedelta): # todo docstring
+        days = timedelta.days
+        years, days = divmod(days, 365)
+        months, days = divmod(days, 30)
+        hours, remainder = divmod(timedelta.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return {
+            "Years": years,
+            "Months": months,
+            "Days": days,
+            "Hours": hours,
+            "Minutes": minutes,
+            "Seconds": seconds
+        }
+
+    @staticmethod
+    def timedelta_to_str(timedelta, dct_struct): # todo docstring
+        dct_td = RecordTable.timedelta_disagg(timedelta=timedelta)
+        parts = []
+        for k in dct_struct:
+            parts.append("{}: {}".format(dct_struct[k], dct_td[k]))
+        return ", ".join(parts)
+
+    @staticmethod
+    def running_time(start_datetimes, kind="raw"): # todo docstring
+        # Convert 'start_datetimes' to datetime format
+        start_datetimes = pd.to_datetime(start_datetimes)
+        # Calculate the running time as a timedelta
+        current_datetime = pd.to_datetime('now')
+        running_time = current_datetime - start_datetimes
+        # Apply the custom function to create a new column
+        if kind == "raw":
+            running_time = running_time.tolist()
+        elif kind == "human":
+            dct_str = {
+                "Years": "yr",
+                "Months": "mth"
+            }
+            running_time = running_time.apply(RecordTable.timedelta_to_str, args=(dct_str,))
+        elif kind == "age":
+            running_time = [int(e.days / 365) for e in running_time]
+
+        return running_time
+
+
+class Budget(RecordTable):
+
+    def __init__(self, name="MyBudget", alias="Bud"):
+        super().__init__(name=name, alias=alias)
+
+        # ------------- specifics attributes ------------- #
+        self.total_revenue = None
+        self.total_expenses = None
+        self.total_net = None
+        self.summary_ascend = False
+
+    def _set_fields(self):
+        """Set fields names.
+        Expected to increment superior methods.
+
+        """
+        # ------------ call super ----------- #
+        super()._set_fields()
+        # set temporary util fields
+        self.sign_field = "Sign"
+        self.value_signed = "Value_Signed"
+        # ... continues in downstream objects ... #
+
+    def _set_data_columns(self):
+        """Set specifics data columns names.
+        Base Dummy Method. Expected to be incremented in superior methods.
+
+        """
+        # Main data columns
+        self.columns_data_main = [
+            "Type",
+            "Status",
+            "Contract",
+            "Name",
+            "Value",
+        ]
+        # Extra data columns
+        self.columns_data_extra = [
+            # Status extra
+            "Date_Due",
+            "Date_Exe",
+
+            # Name extra
+            # tags
+            "Tags",
+
+            # Values extra
+            # Payment details
+            "Method",
+            "Protocol",
+        ]
+        # File columns
+        self.columns_data_files = [
+            "File_Receipt", "File_Invoice", "File_NF",
+        ]
+        # concat all lists
+        self.columns_data = self.columns_data_main + self.columns_data_extra + self.columns_data_files
+
+        # variations
+        self.columns_data_status = self.columns_data_main + [
+            self.columns_data_extra[0],
+            self.columns_data_extra[1],
+        ]
+
+        # ... continues in downstream objects ... #
+
+    def _set_operator(self): # todo docstring
+        """
+
+        :return:
+        :rtype:
+        """
+
+        # ------------- define sub routines here ------------- #
+        def func_file_status():
+            return FileSys.check_file_status(files=self.data["File"].values)
+
+        def func_update_status():
+            # filter relevante data
+            df = self.data[["Status", "Method", "Date_Due"]].copy()
+            # Convert 'Date_Due' to datetime format
+            df['Date_Due'] = pd.to_datetime(self.data['Date_Due'])
+            # Get the current date
+            current_dt = datetime.datetime.now()
+
+            # Update 'Status' for records with 'Automatic' method and 'Expected' status based on the condition
+            condition = (df['Method'] == 'Automatic') & (df['Status'] == 'Expected') & (df['Date_Due'] <= current_dt)
+            df.loc[condition, 'Status'] = 'Executed'
+
+            # return values
+            return df["Status"].values
+
+        def func_age():
+            return RecordTable.running_time(
+                start_datetimes=self.data["Date_Birth"],
+                kind="human"
+            )
+        # todo implement
+        # ---------------- the operator ---------------- #
+
+        self.operator = {
+            "Status": func_update_status,
+        }
+
+    def _get_total_expenses(self, filter=True):
+        filtered_df = self._filter_prospected_cancelled() if filter else self.data
+        _n = filtered_df[filtered_df["Type"] == "Expense"]["Value_Signed"].sum()
+        return round(_n, 3)
+
+    def _get_total_revenue(self, filter=True):
+        filtered_df = self._filter_prospected_cancelled() if filter else self.data
+        _n = filtered_df[filtered_df["Type"] == "Revenue"]["Value_Signed"].sum()
+        return round(_n, 3)
+
+    def _filter_prospected_cancelled(self):
+        return self.data[(self.data['Status'] != 'Prospected') & (self.data['Status'] != 'Cancelled')]
+
+    def update(self):
+        super().update()
+        if self.data is not None:
+            self.total_revenue = self._get_total_revenue(filter=True)
+            self.total_expenses = self._get_total_expenses(filter=True)
+            self.total_net = self.total_revenue + self.total_expenses
+            if self.total_net > 0:
+                self.summary_ascend = False
+            else:
+                self.summary_ascend = True
+
+        # ... continues in downstream objects ... #
+        return None
+
+    def set_data(self, input_df):
+        """Set RecordTable data from incoming dataframe.
+        Expected to be incremented downstream.
+
+        :param input_df: incoming dataframe
+        :type input_df: dataframe
+        :return: None
+        :rtype: None
+        """
+        super().set_data(input_df=input_df)
+        # convert to numeric
+        self.data["Value"] = pd.to_numeric(self.data["Value"])
+        # compute temporary field
+
+        # sign and value_signed
+        self.data["Sign"] = self.data["Type"].apply(lambda x: 1 if x == "Revenue" else -1)
+        self.data["Value_Signed"] = self.data["Sign"] * self.data["Value"]
+
+
+    def parse_annual_budget(self, annual_budget_df, freq_field="Freq"):
+        print("hi")
+
+    def get_summary_by_type(self):
+        summary = pd.DataFrame({
+            "Total_Expenses": [self.total_expenses],
+            "Total_Revenue": [self.total_revenue],
+            "Total_Net": [self.total_net]
+        })
+        summary = summary.apply(lambda x: x.sort_values(ascending=self.summary_ascend), axis=1)
+        return summary
+
+    def get_summary_by_status(self, filter=True):
+        filtered_df = self._filter_prospected_cancelled() if filter else self.data
+        return filtered_df.groupby("Status")["Value_Signed"].sum().sort_values(ascending=self.summary_ascend)
+
+    def get_summary_by_contract(self, filter=True):
+        filtered_df = self._filter_prospected_cancelled() if filter else self.data
+        return filtered_df.groupby("Contract")["Value_Signed"].sum().sort_values(ascending=self.summary_ascend)
+
+    def get_summary_by_tags(self, filter=True):
+        filtered_df = self._filter_prospected_cancelled() if filter else self.data
+        tags_summary = filtered_df.groupby("Tags")["Value_Signed"].sum().sort_values(ascending=self.summary_ascend)
+        tags_summary = tags_summary.sort()
+        separate_tags_summary = filtered_df["Tags"].str.split(expand=True).stack().value_counts()
+        print(type(separate_tags_summary))
+        return tags_summary, separate_tags_summary
+
+
 
 class FileSys(DataSet):
     """
@@ -1306,153 +1517,7 @@ class FileSys(DataSet):
         }
         return None
 
-    @staticmethod
-    def get_extensions():
-        list_basics = [
-            "pdf",
-            "docx",
-            "xlsx",
-            "bib",
-            "tex",
-            "svg",
-            "png",
-            "jpg",
-            "txt",
-            "csv",
-            "qml",
-            "tif",
-            "gpkg",
-        ]
-        dict_extensions = {e: [e] for e in list_basics}
-        dict_aliases = {
-            "table": ["csv"],
-            "raster": ["asc", "prj", "qml"],
-            "qraster": ["asc", "prj", "csv", "qml"],
-            "fig": ["jpg"],
-            "vfig": ["svg"],
-            "receipt": ["pdf", "jpg"],
-        }
-        dict_extensions.update(dict_aliases)
-        return dict_extensions
-
-    @staticmethod
-    def check_file_status(files):
-        """Static method for file existing checkup
-
-        :param files: iterable with file paths
-        :type files: list
-        :return: list status ('ok' or 'missing')
-        :rtype: list
-        """
-        list_status = []
-        for f in files:
-            str_status = "missing"
-            if os.path.isfile(f):
-                str_status = "ok"
-            list_status.append(str_status)
-        return list_status
-
-    @staticmethod
-    def make_dir(str_path):
-        """Util function for making a diretory
-
-        :param str_path: path to dir
-        :type str_path: str
-        :return: None
-        :rtype: None
-        """
-        if os.path.isdir(str_path):
-            pass
-        else:
-            os.mkdir(str_path)
-        return None
-
-    @staticmethod
-    def copy_batch(dst_pattern, src_pattern): # todo docstring
-        # handle destination variables
-        dst_basename = os.path.basename(dst_pattern).split(".")[0].replace("*", "")  # k
-        dst_folder = os.path.dirname(dst_pattern)  # folder
-
-        # handle sourced variables
-        src_folder = os.path.dirname(dst_folder)
-        src_extension = os.path.basename(src_pattern).split(".")[1]
-        src_prefix = os.path.basename(src_pattern).split(".")[0].replace("*", "")
-
-        # get the list of sourced files
-        list_files = glob.glob(src_pattern)
-        # copy loop
-        if len(list_files) != 0:
-            for _f in list_files:
-                _full = os.path.basename(_f).split(".")[0]
-                _suffix = _full[len(src_prefix) :]
-                _dst = os.path.join(
-                    dst_folder, dst_basename + _suffix + "." + src_extension
-                )
-                shutil.copy(_f, _dst)
-        return None
-
-    @staticmethod
-    def fill(dict_struct, folder, handle_files=True):
-        """Recursive function for filling the ``FileSys`` structure
-
-        :param dict_struct: dicitonary of directory structure
-        :type dict_struct: dict
-
-        :param folder: path to local folder
-        :type folder: str
-
-        :return: None
-        :rtype: None
-        """
-
-        def handle_file(dst_name, lst_specs, dst_folder): # todo doctring
-
-            dict_exts = FileSys.get_extensions()
-            lst_exts = dict_exts[lst_specs[0]]
-            src_name = lst_specs[1]
-            src_dir = lst_specs[2]
-
-            # there is a sourcing directory
-            if os.path.isdir(src_dir):
-                # extension loop:
-                for extension in lst_exts:
-                    # source
-                    src_file = src_name + "." + extension
-                    src_filepath = os.path.join(src_dir, src_file)
-                    # destination
-                    dst_file = dst_name + "." + extension
-                    dst_filepath = os.path.join(dst_folder, dst_file)
-                    #
-                    # there might be a sourced file
-                    if os.path.isfile(src_filepath):
-                        shutil.copy(src=src_filepath, dst=dst_filepath)
-                    elif "*" in src_name:
-                        # is a pattern file
-                        FileSys.copy_batch(
-                            src_pattern=src_filepath, dst_pattern=dst_filepath
-                        )
-                    else:
-                        pass
-
-        # structure loop:
-        for k in dict_struct:
-            # get current folder or file
-            _d = folder + "/" + k
-
-            # [case 1] bottom is a folder
-            if isinstance(dict_struct[k], dict):
-                # make a dir
-                FileSys.make_dir(str_path=_d)
-                # now move down:
-                FileSys.fill(dict_struct=dict_struct[k], folder=_d)
-
-            # bottom is an expected file
-            else:
-                if handle_files:
-                    handle_file(dst_name=k, lst_specs=dict_struct[k], dst_folder=folder)
-
-        return None
-
+    #
     def get_metadata(self):
         """Get a dictionary with object metadata.
         Expected to increment superior methods.
@@ -1652,39 +1717,169 @@ class FileSys(DataSet):
             plt.close(fig)
             return file_path
 
+    # ----------------- STATIC METHODS ----------------- #
+    @staticmethod
+    def get_extensions():
+        list_basics = [
+            "pdf",
+            "docx",
+            "xlsx",
+            "bib",
+            "tex",
+            "svg",
+            "png",
+            "jpg",
+            "txt",
+            "csv",
+            "qml",
+            "tif",
+            "gpkg",
+        ]
+        dict_extensions = {e: [e] for e in list_basics}
+        dict_aliases = {
+            "table": ["csv"],
+            "raster": ["asc", "prj", "qml"],
+            "qraster": ["asc", "prj", "csv", "qml"],
+            "fig": ["jpg"],
+            "vfig": ["svg"],
+            "receipt": ["pdf", "jpg"],
+        }
+        dict_extensions.update(dict_aliases)
+        return dict_extensions
+
+    @staticmethod
+    def check_file_status(files):
+        """Static method for file existing checkup
+
+        :param files: iterable with file paths
+        :type files: list
+        :return: list status ('ok' or 'missing')
+        :rtype: list
+        """
+        list_status = []
+        for f in files:
+            str_status = "missing"
+            if os.path.isfile(f):
+                str_status = "ok"
+            list_status.append(str_status)
+        return list_status
+
+    @staticmethod
+    def make_dir(str_path):
+        """Util function for making a diretory
+
+        :param str_path: path to dir
+        :type str_path: str
+        :return: None
+        :rtype: None
+        """
+        if os.path.isdir(str_path):
+            pass
+        else:
+            os.mkdir(str_path)
+        return None
+
+    @staticmethod
+    def copy_batch(dst_pattern, src_pattern):  # todo docstring
+        # handle destination variables
+        dst_basename = os.path.basename(dst_pattern).split(".")[0].replace("*", "")  # k
+        dst_folder = os.path.dirname(dst_pattern)  # folder
+
+        # handle sourced variables
+        src_folder = os.path.dirname(dst_folder)
+        src_extension = os.path.basename(src_pattern).split(".")[1]
+        src_prefix = os.path.basename(src_pattern).split(".")[0].replace("*", "")
+
+        # get the list of sourced files
+        list_files = glob.glob(src_pattern)
+        # copy loop
+        if len(list_files) != 0:
+            for _f in list_files:
+                _full = os.path.basename(_f).split(".")[0]
+                _suffix = _full[len(src_prefix):]
+                _dst = os.path.join(
+                    dst_folder, dst_basename + _suffix + "." + src_extension
+                )
+                shutil.copy(_f, _dst)
+        return None
+
+    @staticmethod
+    def fill(dict_struct, folder, handle_files=True):
+        """Recursive function for filling the ``FileSys`` structure
+
+        :param dict_struct: dicitonary of directory structure
+        :type dict_struct: dict
+
+        :param folder: path to local folder
+        :type folder: str
+
+        :return: None
+        :rtype: None
+        """
+
+        def handle_file(dst_name, lst_specs, dst_folder):  # todo doctring
+
+            dict_exts = FileSys.get_extensions()
+            lst_exts = dict_exts[lst_specs[0]]
+            src_name = lst_specs[1]
+            src_dir = lst_specs[2]
+
+            # there is a sourcing directory
+            if os.path.isdir(src_dir):
+                # extension loop:
+                for extension in lst_exts:
+                    # source
+                    src_file = src_name + "." + extension
+                    src_filepath = os.path.join(src_dir, src_file)
+                    # destination
+                    dst_file = dst_name + "." + extension
+                    dst_filepath = os.path.join(dst_folder, dst_file)
+                    #
+                    # there might be a sourced file
+                    if os.path.isfile(src_filepath):
+                        shutil.copy(src=src_filepath, dst=dst_filepath)
+                    elif "*" in src_name:
+                        # is a pattern file
+                        FileSys.copy_batch(
+                            src_pattern=src_filepath, dst_pattern=dst_filepath
+                        )
+                    else:
+                        pass
+
+        # structure loop:
+        for k in dict_struct:
+            # get current folder or file
+            _d = folder + "/" + k
+
+            # [case 1] bottom is a folder
+            if isinstance(dict_struct[k], dict):
+                # make a dir
+                FileSys.make_dir(str_path=_d)
+                # now move down:
+                FileSys.fill(dict_struct=dict_struct[k], folder=_d)
+
+            # bottom is an expected file
+            else:
+                if handle_files:
+                    handle_file(dst_name=k, lst_specs=dict_struct[k], dst_folder=folder)
+
+        return None
+
 
 if __name__ == "__main__":
-    #from plans.root import RecordTable
-    f = "./tests/data/load_rt.csv"
     rt = RecordTable()
-
-    rt.columns_data = [
-        "Value1", "Value2", "Sum", "Date_Birth", "Age", "File", "File_Status"
-    ]
-    rt.update()
-    rt.boot(bootfile=f)
+    rt.boot(bootfile="./tests/data/load_rt.csv")
     print(rt.data.to_string())
-    dct = {
-        "Value1": 1000,
-        "Value2": 5,
-        "Date_Birth": "2021-05-01",
-        "File": r"C:\data\cd_b.csv"
-    }
-    rt.insert_record(dict_rec=dct)
-    rt.refresh_data()
+    print()
+    rt2 = RecordTable()
+    rt2.boot(bootfile="./tests/data/load_rt2.csv")
+    print(rt2.data.to_string())
+    print()
+    df = rt2.data[rt2.columns_data_main].copy()
+    rt.set_data(input_df=df, append=True)
     print(rt.data.to_string())
-    rt.save()
-    '''
-    
-    
-    dct = {
-        "Kind": "Expense",
-        "Value": 10000,
-        "File_Data": "C:\data"
-    }
-    #rt.insert_record(dict_rec=dct)
+    print()
+    df = rt2.data[rt2.columns_data_main].copy()
+    rt.set_data(input_df=df, append=True)
     print(rt.data.to_string())
-    print(rt.file_data)
-
-    #rt.save()
-    '''
+    print()
