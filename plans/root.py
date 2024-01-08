@@ -171,6 +171,8 @@ class MbaE:
 class Collection(MbaE):
     """
     A collection of primitive ``MbaE`` objects with associated metadata.
+    Useful for large scale manipulations in ``MbaE``-based objects.
+    Expected to have custom methods and attributes downstream.
 
     Attributes:
 
@@ -411,6 +413,8 @@ class DataSet(MbaE):
     """
     The core ``DataSet`` base/demo object.
     Expected to hold one :class:`pandas.DataFrame`.
+    This is a Base and Dummy object. Expected to be implemented downstream for
+    custom applications.
 
     """
 
@@ -723,6 +727,12 @@ class DataSet(MbaE):
 
 
 class RecordTable(DataSet):
+    """
+    The core object for Record Tables. A Record is expected to keep adding stamped records
+    in order to keep track of large inventories, catalogs, etc.
+    All records are expected to have a unique Id. It is considered to be a relational table.
+
+    """
 
     def __init__(self, name="MyRecordTable", alias="RcT"):
         # prior attributes
@@ -795,11 +805,12 @@ class RecordTable(DataSet):
         # ... continues in downstream objects ... #
 
 
-    def _set_operator(self): # todo docstring
-        """
+    def _set_operator(self):
+        """Set the builtin operator for automatic column calculations.
+        This is a Base and Dummy method. It is expected to be overwrited and implemented downstream.
 
-        :return:
-        :rtype:
+        :return: None
+        :rtype:None
         """
 
         # ------------- define sub routines here ------------- #
@@ -816,7 +827,6 @@ class RecordTable(DataSet):
                 kind="human"
             )
 
-        # todo implement
         # ---------------- the operator ---------------- #
         self.operator = {
             "Sum": func_sum,
@@ -828,14 +838,30 @@ class RecordTable(DataSet):
         return None
 
 
-    def _get_organized_columns(self): # todo docstring
+    def _get_organized_columns(self):
+        """Return the organized columns (base + data columns)
+
+        :return: organized columns (base + data columns)
+        :rtype:list
+        """
         return self.columns_base + self.columns_data
-    def _get_timestamp(self):  # todo docstring
+
+    def _get_timestamp(self):
+        """Return a string timestamp
+
+        :return: full timestamp text %Y-%m-%d %H:%M:%S
+        :rtype:str
+        """
         # compute timestamp
         _now = datetime.datetime.now()
         return str(_now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    def _last_id_int(self): # todo docstring
+    def _last_id_int(self):
+        """Compute the last ID integer in the record data table.
+
+        :return: last Id integer from the record data table.
+        :rtype: int
+        """
         if self.data is None:
             return 0
         else:
@@ -1224,7 +1250,14 @@ class RecordTable(DataSet):
 
     # ----------------- STATIC METHODS ----------------- #
     @staticmethod
-    def timedelta_disagg(timedelta): # todo docstring
+    def timedelta_disagg(timedelta):
+        """Util static method for dissaggregation of time delta
+
+        :param timedelta: TimeDelta object from pandas
+        :type timedelta: :class:`pandas.TimeDelta`
+        :return: dictionary of time delta
+        :rtype: dict
+        """
         days = timedelta.days
         years, days = divmod(days, 365)
         months, days = divmod(days, 30)
@@ -1240,7 +1273,16 @@ class RecordTable(DataSet):
         }
 
     @staticmethod
-    def timedelta_to_str(timedelta, dct_struct): # todo docstring
+    def timedelta_to_str(timedelta, dct_struct):
+        """Util static method for string conversion of timedelta
+
+        :param timedelta: TimeDelta object from pandas
+        :type timedelta: :class:`pandas.TimeDelta`
+        :param dct_struct: Dictionary of string strucuture. Ex: {'Expected days': 'Days'}
+        :type dct_struct: dict
+        :return: text of time delta
+        :rtype: str
+        """
         dct_td = RecordTable.timedelta_disagg(timedelta=timedelta)
         parts = []
         for k in dct_struct:
@@ -1248,7 +1290,16 @@ class RecordTable(DataSet):
         return ", ".join(parts)
 
     @staticmethod
-    def running_time(start_datetimes, kind="raw"): # todo docstring
+    def running_time(start_datetimes, kind="raw"):
+        """Util static method for computing the runnning time for a list of starting dates
+
+        :param start_datetimes: List of starting dates
+        :type start_datetimes: list
+        :param kind: mode for output format ('raw', 'human' or 'age')
+        :type kind: str
+        :return: list of running time
+        :rtype: list
+        """
         # Convert 'start_datetimes' to datetime format
         start_datetimes = pd.to_datetime(start_datetimes)
         # Calculate the running time as a timedelta
@@ -1335,11 +1386,11 @@ class Budget(RecordTable):
 
         # ... continues in downstream objects ... #
 
-    def _set_operator(self): # todo docstring
-        """
+    def _set_operator(self):
+        """Private method for Budget operator
 
-        :return:
-        :rtype:
+        :return: None
+        :rtype: None
         """
 
         # ------------- define sub routines here ------------- #
@@ -1361,12 +1412,7 @@ class Budget(RecordTable):
             # return values
             return df["Status"].values
 
-        def func_age():
-            return RecordTable.running_time(
-                start_datetimes=self.data["Date_Birth"],
-                kind="human"
-            )
-        # todo implement
+        # todo implement all operations
         # ---------------- the operator ---------------- #
 
         self.operator = {
@@ -1452,6 +1498,10 @@ class Budget(RecordTable):
 class FileSys(DataSet):
     """
     The core ``FileSys`` base/demo object. File System object.
+    Useful for complex folder structure setups and controlling the status
+    of expected file.
+    This is a Base and Dummy object. Expected to be implemented downstream for
+    custom applications.
 
     """
 
@@ -1505,7 +1555,7 @@ class FileSys(DataSet):
         :return: None
         :rtype: None
         """
-        self.view_specs = { # todo modify here
+        self.view_specs = {
             "folder": self.folder_data,
             "filename": self.name,
             "fig_format": "jpg",
@@ -1513,7 +1563,7 @@ class FileSys(DataSet):
             "title": self.name,
             "width": 5 * 1.618,
             "height": 5 * 1.618,
-
+            # todo include more view specs
         }
         return None
 
@@ -1780,13 +1830,25 @@ class FileSys(DataSet):
         return None
 
     @staticmethod
-    def copy_batch(dst_pattern, src_pattern):  # todo docstring
+    def copy_batch(dst_pattern, src_pattern):
+        """Util static method for batch-copying pattern-based files.
+
+        .. note::
+
+            Pattern is expected to be a prefix prior to ``*`` suffix.
+
+        :param dst_pattern: destination path with file pattern. Example: path/to/dst_file_*.csv
+        :type dst_pattern: str
+        :param src_pattern: source path with file pattern. Example: path/to/src_file_*.csv
+        :type src_pattern: str
+        :return: None
+        :rtype: None
+        """
         # handle destination variables
         dst_basename = os.path.basename(dst_pattern).split(".")[0].replace("*", "")  # k
         dst_folder = os.path.dirname(dst_pattern)  # folder
 
         # handle sourced variables
-        src_folder = os.path.dirname(dst_folder)
         src_extension = os.path.basename(src_pattern).split(".")[1]
         src_prefix = os.path.basename(src_pattern).split(".")[0].replace("*", "")
 
@@ -1817,8 +1879,18 @@ class FileSys(DataSet):
         :rtype: None
         """
 
-        def handle_file(dst_name, lst_specs, dst_folder):  # todo doctring
+        def handle_file(dst_name, lst_specs, dst_folder):
+            """Sub routine for handling expected files in the FileSys structure.
 
+            :param dst_name: destination filename
+            :type dst_name: str
+            :param lst_specs: list for expected file specifications
+            :type lst_specs: list
+            :param dst_folder: destination folder
+            :type dst_folder: str
+            :return: None
+            :rtype: None
+            """
             dict_exts = FileSys.get_extensions()
             lst_exts = dict_exts[lst_specs[0]]
             src_name = lst_specs[1]
@@ -1845,6 +1917,8 @@ class FileSys(DataSet):
                         )
                     else:
                         pass
+
+            return None
 
         # structure loop:
         for k in dict_struct:
