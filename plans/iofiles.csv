@@ -1,21 +1,41 @@
-file,description,structure,io,type,no-data value,mandatory fields,optional fields
-dem.asc,Digital Elevation Model,raster,input,32-bit floating point,-1,..,..
-slope.asc,Slope map (degrees),raster,input,32-bit floating point,-1,..,..
-hand.asc,Height Above the Nearest Drainage,raster,input,32-bit floating point,-1,..,..
-twi.asc,Topographic Wetness Index,raster,input,32-bit floating point,-1,..,..
-ldd.asc,Local Drain Direction,raster,input,8-bit unsigned integer,255,..,..
-flowacc.asc,Flow accumulation,raster,input,32-bit floating point,0,..,..
-lulc_<yyyy-mm-dd>.asc,"Land Use and Land Cover map at date encoded by yyyy-mm-dd (year, month, day)",quali-raster,input,8-bit unsigned integer,0,..,..
-ndvi_<yyyy-mm-dd>.asc,"NDVI map at date encoded by yyyy-mm-dd (year, month, day)",raster,input,32-bit floating point,-9999,..,..
-et_<yyyy-mm-dd>.asc,Evapotranspiration map (remote sensing),raster,input,32-bit floating point,-1,..,..
-lito.asc,Lithology map,quali-raster,input,8-bit unsigned integer,0,..,..
-soils.asc,Soils map,quali-raster,input,32-bit floating point,-1,..,..
-flu_basin_<name>.asc,Basin of Streamflow gauge station,raster,input,8-bit unsigned integer,,|Prec: positive real: daily precipitation in mm|,..
-lulc_params.csv,Land Use and Land Cover attributes,attribute table,input,,,|Stage: positive real: daily level stage in m|,..
-soils_params.csv,Soils attributes,attribute table,input,,,|Temp: positive real: daily temperature in Celcius degrees|,..
-plu_zones.asc,Rain gauge stations zones,raster,intermediate,16-bit unsigned integer,,|Stage: positive real: daily level stage in m| Qobs: positive real: daily streamflow in m3/s|,..
-flu_zones.asc,Streamflow gauge stations basins,raster,intermediate,16-bit unsigned integer,,|Id: non-zero positive integer: unique identification number for LULC classes. Must match values in all LULC maps |Name: text: name of LULC class| Alias: text: alias (short unique nickname) for LULC class| Color: text: matplotlib color name or hexcode|,..
-plu_series_<name>.csv,Rain gauge station time series,time series,input,,,..,..
-flu_series_<name>.csv,Streamflow gauge station time series,time series,input,,,|Id: non-zero positive integer: Unique identification number for Soil types. Must match values in all LULC maps |Name: text: name of LULC Soil types| Alias: text: alias (short unique nickname) for Soil types| Color: text: matplotlib color name or hexcode|,..
-flu_rcurves_<name>.csv,Streamflow rating curves,time series,input,,,..,..
-flu_info_<name>.csv,Streamflow gauge station information
+io;Folder;File;Format;Structure;Description;Map Units;Suffix;Fields;Note;Warning;File_Source;Folder_Source
+-;datasets;;;-;-;;-;-;-;-;;
+-;datasets/model;;;-;-;;-;-;-;-;;
+input;datasets/soil;litho;qraster;Qualitative Raster map;Map of lithological classes;Id code;-;-;-;-;;
+input;datasets/soil;soils;qraster;Qualitative Raster map;Map of soil types;Id code;-;-;-;-;;
+input;datasets/topo;dem;raster;Raster map;Map of elevation (digital elevation model);meters;-;-;-;-;;
+input;datasets/topo;acc;raster;Raster map;Map of accumulated drainage area;sq. meters;-;-;-;-;;
+input;datasets/topo;slope;raster;Raster map;Map of slope;degrees;-;-;-;-;;
+input;datasets/topo;ldd;raster;Raster map;Map of local drain direction (PC raster convention);Id code;-;-;-;-;;
+input;datasets/topo;twi;raster;Raster map;Map of Topographical Wetness Index;Index;-;-;-;-;;
+input;datasets/topo;hand;raster;Raster map;Map of Height Above the Nearest Drainage;meters;-;-;-;-;;
+input;datasets/basins;basins;qraster;Qualitative Raster map;Map of modelled basins;Id code;-;-;This map can include ungauged basins;-;;
+input;datasets/basins;outlets;qraster;Qualitative Raster map;Map of basin outlets;Id code;-;-;The outlet is only one pixel per basin;This map must be consistend with the ``acc`` map;;
+input;datasets/basins;stage_*;table;Time series;Time series of river stage;-;Alias of stream gauge;H: river stage (cm) & Q: rive flow (m3/s);-;-;;
+input;datasets/basins;basins_info;table;Attribute table;Relational table for basins;-;-;X: longitude coorditate (m) & Y: latitude coordinate (m) & Downstream_Id: code Id of downstream basin & UpstreamArea: basin drainage area (sq. m) & Code: field code of basin & Source: source of stream gauge data & Description: basin description;-;-;;
+;datasets/rain;;;-;-;-;-;-;-;-;;
+input;datasets/rain/bau;rain_zones;qraster;Qualitative Raster map;Map of rain gauge zones;Id code;-;-;-;-;;
+input;datasets/rain/bau;rain_*;table;Time series;Time series of rainfall;-;Alias of rain gauge;P: rainfall (mm);-;-;;
+input;datasets/rain/bau;rain_info;table;Attribute table;Relational table for rain gauges;-;-;X: longitude coorditate (m) & Y: latitude coordinate (m) & Code: field code of rain gauge & Source: source of rain gauge data & Description: rain gauge description;-;-;;
+input;datasets/rain/obs;rain_zones;qraster;Qualitative Raster map;Map of rain gauge zones;Id code;-;-;-;-;;
+input;datasets/rain/obs;rain_*;table;Time series;Time series of rainfall;-;Alias of rain gauge;P: rainfall (mm);-;-;;
+input;datasets/rain/obs;rain_info;table;Attribute table;Relational table for rain gauges;-;-;X: longitude coorditate (m) & Y: latitude coordinate (m) & Code: field code of rain gauge & Source: source of rain gauge data & Description: rain gauge description;-;-;;
+-;datasets/lulc;lulc_params;table;Attribute table;Parameter table of LULC classes;-;-;P1: parameter 1 (mm) & P2: parameter 2 (mm);-;-;;
+input;datasets/lulc/bas;lulc_*;qraster;Qualitative Raster map;Map of Land Use and Land Cover classes;Id code;Date in the format YYYY-MM-DD;;-;-;;
+input;datasets/lulc/bau;lulc_*;qraster;Qualitative Raster map;Map of Land Use and Land Cover classes;Id code;Date in the format YYYY-MM-DD;;-;-;;
+input;datasets/lulc/nbs;lulc_*;qraster;Qualitative Raster map;Map of Land Use and Land Cover classes;Id code;Date in the format YYYY-MM-DD;;-;-;;
+input;datasets/lulc/obs;lulc_*;qraster;Qualitative Raster map;Map of Land Use and Land Cover classes;Id code;Date in the format YYYY-MM-DD;;-;-;;
+-;datasets/clim;;;-;-;-;-;-;-;-;;
+input;datasets/clim/bau;clim_*;table;Time series;Time series of climatic variables;-;-;T: temperature (Celcius) & Ws: wind speed (m/s);-;-;;
+input;datasets/clim/bau;clim_info;table;Attribute table;Relational table for climatic stations;-;-;X: longitude coorditate (m) & Y: latitude coordinate (m) & Code: field code of climatic station & Source: source of climatic station data & Description: climatic station description;-;-;;
+input;datasets/clim/obs;clim_*;table;Time series;Time series of climatic variables;-;-;-;-;-;;
+input;datasets/clim/obs;clim_info;table;Attribute table;Relational table for climatic stations;-;-;X: longitude coorditate (m) & Y: latitude coordinate (m) & Code: field code of climatic station & Source: source of climatic station data & Description: climatic station description;-;-;;
+-;datasets/rs;;;-;-;-;-;-;-;-;;
+input;datasets/rs/et;et_*;raster;Raster map;Map of evapotranspiration estimated by remote-sensing;mm;Date in the format YYYY-MM-DD;;-;-;;
+input;datasets/rs/ndvi;ndvi_*;raster;Raster map;Map of the NDVI vegetation index;index;Date in the format YYYY-MM-DD;;-;-;;
+-;outputs;;;;;;;;;;;
+-;outputs/assessment;;;;;;;;;;;
+-;outputs/simulation;;;;;;;;;;;
+-;outputs/sensitivity;;;;;;;;;;;
+-;outputs/uncertainty;;;;;;;;;;;
+-;outputs/optimization;;;;;;;;;;;

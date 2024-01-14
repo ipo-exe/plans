@@ -1,132 +1,238 @@
-``map_aoi.asc``
+``acc``
 ------------------------------------------------------------
-[`raster map`_] Map of the Area Of Interest (AOI). Expected to be a boolean map (1 and 0 values only). I can be a copy of the main basin map..
+[`io-raster`_] Map of accumulated drainage area
 
- - Data type: 8-bit unsigned integer
- - No-data value: 0
+ - Map Units: sq. meters
+ - Expected in folder(s): ``datasets/topo``.
 
 
-``map_basin_<station alias>.asc``
+``basins``
 ------------------------------------------------------------
-[`raster map`_] Map of the basin related to a given flow station. Alias (unique nickname) of station is expected ate the end of file name. Example: ``map_basin_Reach1.asc``.
+[`io-qualiraster`_] Map of modelled basins
 
- - Data type: 8-bit unsigned integer
- - No-data value: 0
+ - Map Units: Id code
+ - Expected in folder(s): ``datasets/basins``.
 
 
-``map_et_<date>.asc``
+.. note::
+
+	This map can include ungauged basins
+
+
+
+``dem``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-raster`_] Map of elevation (digital elevation model)
 
- - Data type: 32-bit floating point
- - No-data value: -1
+ - Map Units: meters
+ - Expected in folder(s): ``datasets/topo``.
 
 
-``map_hand.asc``
+``et_*``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-raster`_] Map of evapotranspiration estimated by remote-sensing
 
- - Data type: 32-bit floating point
- - No-data value: -1
+ - Map Units: mm
+ - Suffix: Date in the format YYYY-MM-DD
+ - Expected in folder(s): ``datasets/rs/et``.
 
 
-``map_lst_<date>.asc``
+``hand``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-raster`_] Map of Height Above the Nearest Drainage
 
- - Data type: 32-bit floating point
- - No-data value: 0
+ - Map Units: meters
+ - Expected in folder(s): ``datasets/topo``.
 
 
-``map_lulc_<date>.asc``
+``ldd``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-raster`_] Map of local drain direction (PC raster convention)
 
- - Data type: 8-bit unsigned integer
- - No-data value: 0
+ - Map Units: Id code
+ - Expected in folder(s): ``datasets/topo``.
 
 
-``map_ndvi_<date>.asc``
+``litho``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-qualiraster`_] Map of lithological classes
 
- - Data type: 32-bit floating point
- - No-data value: -9999
+ - Map Units: Id code
+ - Expected in folder(s): ``datasets/soil``.
 
 
-``map_slope.asc``
+``lulc_*``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-qualiraster`_] Map of Land Use and Land Cover classes
 
- - Data type: 32-bit floating point
- - No-data value: -1
+ - Map Units: Id code
+ - Suffix: Date in the format YYYY-MM-DD
+ - Expected in folder(s): ``datasets/lulc/bas``; ``datasets/lulc/bau``; ``datasets/lulc/nbs``; ``datasets/lulc/obs``.
 
 
-``map_soils.asc``
+``ndvi_*``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-raster`_] Map of the NDVI vegetation index
 
- - Data type: 8-bit unsigned integer
- - No-data value: 0
+ - Map Units: index
+ - Suffix: Date in the format YYYY-MM-DD
+ - Expected in folder(s): ``datasets/rs/ndvi``.
 
 
-``map_twi.asc``
+``outlets``
 ------------------------------------------------------------
-[`raster map`_] Description text.
+[`io-qualiraster`_] Map of basin outlets
 
- - Data type: 32-bit floating point
- - No-data value: -1
+ - Map Units: Id code
+ - Expected in folder(s): ``datasets/basins``.
 
 
-``series_prec_<station alias>.txt``
+.. note::
+
+	The outlet is only one pixel per basin
+
+
+
+.. warning::
+
+	This map must be consistend with the ``acc`` map
+
+
+
+``rain_zones``
 ------------------------------------------------------------
-[`daily time series`_] Description text.
+[`io-qualiraster`_] Map of rain gauge zones
+
+ - Map Units: Id code
+ - Expected in folder(s): ``datasets/rain/bau``; ``datasets/rain/obs``.
 
 
-
-``series_stage_<station alias>.txt``
+``slope``
 ------------------------------------------------------------
-[`daily time series`_] Description text.
+[`io-raster`_] Map of slope
+
+ - Map Units: degrees
+ - Expected in folder(s): ``datasets/topo``.
 
 
-
-``series_temp_<station alias>.txt``
+``soils``
 ------------------------------------------------------------
-[`daily time series`_] Description text.
+[`io-qualiraster`_] Map of soil types
+
+ - Map Units: Id code
+ - Expected in folder(s): ``datasets/soil``.
 
 
-
-``series_curve_<station alias>.txt``
+``twi``
 ------------------------------------------------------------
-[`time series`_] Description text.
+[`io-raster`_] Map of Topographical Wetness Index
+
+ - Map Units: Index
+ - Expected in folder(s): ``datasets/topo``.
 
 
-
-``table_lulc.txt``
+``basins_info``
 ------------------------------------------------------------
-[`table`_] Description text.
+[`io-attribute`_] Relational table for basins
+
+ - Basic Fields:
+	 - ``Id``: Unique Id number (integer)
+	 - ``Name``: Unique name
+	 - ``Alias``: Unique short name
+	 - ``Color``: Unique color code
+
+ - Extra Fields:
+	 - ``X``: longitude coorditate (m)
+	 - ``Y``: latitude coordinate (m)
+	 - ``Downstream_Id``: code Id of downstream basin
+	 - ``UpstreamArea``: basin drainage area (sq. m)
+	 - ``Code``: field code of basin
+	 - ``Source``: source of stream gauge data
+	 - ``Description``: basin description
+
+ - Expected in folder(s): ``datasets/basins``.
 
 
-
-``table_parameters.txt``
+``clim_*``
 ------------------------------------------------------------
-[`table`_] Description text.
+[`io-timeseries`_] Time series of climatic variables
+
+ - Basic Fields:
+	 - ``Datetime``: Timestamp in the format YYYY-MM-DD HH
+
+ - Extra Fields:
+	 - ``T``: temperature (Celcius)
+	 - ``Ws``: wind speed (m/s)
+
+ - Expected in folder(s): ``datasets/clim/bau``; ``datasets/clim/obs``.
 
 
-
-``table_soils.txt``
+``clim_info``
 ------------------------------------------------------------
-[`table`_] Description text.
+[`io-attribute`_] Relational table for climatic stations
+
+ - Basic Fields:
+	 - ``Id``: Unique Id number (integer)
+	 - ``Name``: Unique name
+	 - ``Alias``: Unique short name
+	 - ``Color``: Unique color code
+
+ - Extra Fields:
+	 - ``X``: longitude coorditate (m)
+	 - ``Y``: latitude coordinate (m)
+	 - ``Code``: field code of climatic station
+	 - ``Source``: source of climatic station data
+	 - ``Description``: climatic station description
+
+ - Expected in folder(s): ``datasets/clim/bau``; ``datasets/clim/obs``.
 
 
-
-``table_stations.txt``
+``rain_*``
 ------------------------------------------------------------
-[`table`_] Description text.
+[`io-timeseries`_] Time series of rainfall
+
+ - Basic Fields:
+	 - ``Datetime``: Timestamp in the format YYYY-MM-DD HH
+
+ - Extra Fields:
+	 - ``P``: rainfall (mm)
+
+ - Suffix: Alias of rain gauge
+ - Expected in folder(s): ``datasets/rain/bau``; ``datasets/rain/obs``.
 
 
+``rain_info``
+------------------------------------------------------------
+[`io-attribute`_] Relational table for rain gauges
 
-.. _raster map: https://plans-docs.readthedocs.io/en/latest/iofiles.html#raster-maps
-.. _table: https://plans-docs.readthedocs.io/en/latest/iofiles.html#tables
-.. _time series: https://plans-docs.readthedocs.io/en/latest/iofiles.html#time-series
-.. _daily time series: https://plans-docs.readthedocs.io/en/latest/iofiles.html#daily-time-series
+ - Basic Fields:
+	 - ``Id``: Unique Id number (integer)
+	 - ``Name``: Unique name
+	 - ``Alias``: Unique short name
+	 - ``Color``: Unique color code
+
+ - Extra Fields:
+	 - ``X``: longitude coorditate (m)
+	 - ``Y``: latitude coordinate (m)
+	 - ``Code``: field code of rain gauge
+	 - ``Source``: source of rain gauge data
+	 - ``Description``: rain gauge description
+
+ - Expected in folder(s): ``datasets/rain/bau``; ``datasets/rain/obs``.
+
+
+``stage_*``
+------------------------------------------------------------
+[`io-timeseries`_] Time series of river stage
+
+ - Basic Fields:
+	 - ``Datetime``: Timestamp in the format YYYY-MM-DD HH
+
+ - Extra Fields:
+	 - ``H``: river stage (cm)
+	 - ``Q``: rive flow (m3/s)
+
+ - Suffix: Alias of stream gauge
+ - Expected in folder(s): ``datasets/basins``.
+
+

@@ -1587,6 +1587,9 @@ class FileSys(DataSet):
 
         # update
         dict_meta.update(dict_meta_local)
+
+        # removals
+
         # remove color
         dict_meta.pop(self.color_field)
         # remove source
@@ -1625,6 +1628,47 @@ class FileSys(DataSet):
                     row["Folder_Source"] if pd.notna(row["Folder_Source"]) else "",
                 ]
         return dict_structure
+
+    def get_status(self, folder_name): # todo dosctring
+        dict_status = {}
+        # get full folder path
+        folder = self.folder_main + "/" + folder_name
+        # filter expected files
+        df = self.data.copy()
+        df = df.query("Folder == '{}'".format(folder_name))
+        df = df.dropna(subset=["File"])
+        if len(df) == 0:
+            return None
+        else:
+            dict_status["Folder"] = df.copy()
+            dict_status["Files"] = {}
+            dict_files = {}
+            for i in range(len(df)):
+                # get file name
+                lcl_file_name = df["File"].values[i]
+                dict_files[lcl_file_name] = {}
+                # get file format
+                lcl_file_format = df["Format"].values[i]
+                # get extensions:
+                dict_extensions = self.get_extensions()
+                #
+                list_lcl_extensions = dict_extensions[lcl_file_format]
+                #print(list_lcl_extensions)
+                for ext in list_lcl_extensions:
+                    lcl_path = os.path.join(folder, lcl_file_name + "." + ext)
+                    list_files = glob.glob(lcl_path)
+                    lst_filenames_found = [os.path.basename(f) for f in list_files]
+                    dict_files[lcl_file_name][ext] = lst_filenames_found
+            for k in dict_files:
+                # Convert each list in the dictionary to a pandas Series and then create a DataFrame
+                _df = pd.DataFrame({key: pd.Series(value) for key, value in dict_files[k].items()})
+                if len(_df) == 0:
+                    for c in _df.columns:
+                        _df[c] = [None]
+                _df = _df.fillna("missing")
+                dict_status["Files"][k] = _df.copy()
+
+            return dict_status
 
     def update(self):
         super().update()
@@ -1941,19 +1985,18 @@ class FileSys(DataSet):
 
 
 if __name__ == "__main__":
-    rt = RecordTable()
-    rt.boot(bootfile="./tests/data/load_rt.csv")
-    print(rt.data.to_string())
-    print()
-    rt2 = RecordTable()
-    rt2.boot(bootfile="./tests/data/load_rt2.csv")
-    print(rt2.data.to_string())
-    print()
-    df = rt2.data[rt2.columns_data_main].copy()
-    rt.set_data(input_df=df, append=True)
-    print(rt.data.to_string())
-    print()
-    df = rt2.data[rt2.columns_data_main].copy()
-    rt.set_data(input_df=df, append=True)
-    print(rt.data.to_string())
-    print()
+    fs = FileSys(folder_base="C:/data", name="MyPlans", alias="MPlans")
+    fs.load_data(file_data="./iofiles.csv")
+    print(fs.folder_main)
+    fs.data  = fs.data[["Folder", "File", "Format", "Description", "File_Source", "Folder_Source"]].copy()
+    #fs.setup()
+
+    d = fs.get_status(folder_name=r"datasets\\topo")
+    if d is None:
+        print("Not found expected files")
+    else:
+        print(d["Folder"][["Folder", "File", "Format", "Description"]].to_string(index=False))
+        for f in d["Files"]:
+            print("*"*40)
+            print(f)
+            print(d["Files"][f].to_string(index=False))

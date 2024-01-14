@@ -225,17 +225,15 @@ class TempSeries(TimeSeries):
 
 class RainSeriesSamples(TimeSeriesSpatialSamples):
     # todo docstring
-    def __init__(self, name="MyRSColection"):
-        # todo docstring
+    def __init__(self, name="MyRSColection"): # todo docstring
+
         super().__init__(name=name, base_object=RainSeries)
         # overwrite parent attributes
         self.name_object = "Rainfall Series Samples"
         self._set_view_specs()
 
-class TempSeriesSamples(TimeSeriesSpatialSamples):
-    # todo docstring
-    def __init__(self, name="MyTempSColection"):
-        # todo docstring
+class TempSeriesSamples(TimeSeriesSpatialSamples):  # todo docstring
+    def __init__(self, name="MyTempSColection"): # todo docstring
         super().__init__(name=name, base_object=TempSeries)
         # overwrite parent attributes
         self.name_object = "Temperature Series Sample"

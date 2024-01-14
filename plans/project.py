@@ -114,7 +114,39 @@ def fill_dir_strucuture(dict_struct, local_root):
             pass
     return None
 
+
 class Project(FileSys):
+
+    def __init__(self, root, name):
+        super().__init__(folder_base=root, name=name, alias=None)
+        # load standard data
+        self.load_data()
+
+    def load_data(self):
+        """Load data from file. Expected to overwrite superior methods.
+
+        :param file_data: file path to data.
+        :type file_data: str
+        :return: None
+        :rtype: None
+        """
+        # -------------- overwrite relative path input -------------- #
+        file_data = os.path.abspath("./plans/iofiles.csv")
+
+        # -------------- implement loading logic -------------- #
+
+        # -------------- call loading function -------------- #
+        self.data = pd.read_csv(
+            file_data,
+            sep=self.file_data_sep
+        )
+
+        # -------------- post-loading logic -------------- #
+        self.data = self.data[["Folder","File","Format","File_Source",'Folder_Source']].copy()
+
+        return None
+
+class Project_(FileSys):
 
     def __init__(self, name, folder_base, alias=None):
         """Initiate a project
@@ -144,126 +176,6 @@ class Project(FileSys):
         self.et = None
         self.ndvi = None
 
-
-    def get_structure(self):
-        """Get FileSys strucute dictionary. Expected to overwrite superior methods
-
-        :return: structure dictionary
-        :rtype: dict
-        """
-
-        scenarios_clim = {
-            "obs": {},
-            "bau": {},
-        }
-
-        scenarios_lulc = {
-            "obs": {},
-            "bau": {},
-            "bas": {},
-            "nbs": {},
-        }
-
-        raster_defaults = ["_.asc", "_.prj"]
-        qraster_defaults = ["_.asc", "_.prj", "_.csv"]
-
-        dict_struct = {
-            "datasets": {
-                "topo": {
-                    "dem": raster_defaults,
-                    "slope": raster_defaults,  # expected default files
-                    "twi": raster_defaults,
-                    "hand": raster_defaults,
-                    "accflux": raster_defaults,
-                    "ldd": raster_defaults
-                },
-                "lulc": {
-                    "lulc_info": "lulc_info.csv",
-                    "obs": {}, # todo think series option
-                    "bau": {},
-                    "bas": {},
-                    "nbs": {},
-                },
-                "soil": {
-                    "soils": qraster_defaults,
-                    "lito": qraster_defaults
-                },
-                "et": {"obs": {}},
-                "ndvi": {"obs": {}},
-                "basins": {
-                    # "stage_*": None,
-                    # "flow_": None, # todo think collection option
-                    "outlets": raster_defaults,
-                    "basins": qraster_defaults
-                },
-                "rain": {
-                    "obs": {}, # todo think collection option
-                    "bau": {}, # todo think collection option
-                },
-                "temp": {
-                    "obs": {}, # todo think collection option
-                    "bau": {} # todo think collection option
-                },
-                "model": {}
-            },
-            "outputs": {
-                "simulation": {},
-                "assessment": {},
-                "uncertainty": {},
-                "sensitivity": {}
-            }
-        }
-
-        return dict_struct
-
-
-    # TODO deprecated
-    def update_status_topo(self):
-        str_path = self.path_main + "/datasets/topo"
-        list_names = list(self.structure["datasets"]["topo"].keys())
-        dict_lists = {
-            "Name": list_names,
-            "File": ["{}.asc".format(f) for f in list_names],
-        }
-        dict_lists["Path"] = ["{}/{}".format(str_path, f) for f in dict_lists["File"]]
-        dict_lists["Status"] = ["missing" for i in dict_lists["Name"]]
-        dict_lists["Size"] = ["" for i in dict_lists["Name"]]
-        dict_lists["Shape"] = ["" for i in dict_lists["Name"]]
-        dict_lists["Cellsize"] = ["" for i in dict_lists["Name"]]
-        dict_lists["Nodata"] = ["" for i in dict_lists["Name"]]
-        dict_lists["Origin"] = ["" for i in dict_lists["Name"]]
-
-        # Set up
-        for i in range(len(dict_lists["Path"])):
-            f = dict_lists["Path"][i]
-            name = dict_lists["Name"][i]
-            if os.path.isfile(f):
-                dict_lists["Status"][i] = "available"
-                dict_lists["Size"][i] = "{:.1f} MB".format(get_file_size_mb(f))
-                rst_aux = self.structure["datasets"]["topo"][name](name=name)
-                rst_aux.load_asc_metadata(file=f)
-                dict_meta = rst_aux.asc_metadata
-                dict_lists["Shape"][i] = "{} x {}".format(
-                    dict_meta["nrows"],
-                    dict_meta["ncols"]
-                )
-                dict_lists["Cellsize"][i] = "{} m".format(dict_meta["cellsize"])
-                dict_lists["Nodata"][i] = "{}".format(dict_meta["NODATA_value"])
-                dict_lists["Origin"][i] = "({}, {})".format(
-                    dict_meta["xllcorner"],
-                    dict_meta["yllcorner"]
-                )
-
-        str_liner = "="
-        for k in dict_lists:
-            list_maxs = [len(dict_lists[k][e]) + 2 for e in range(len(dict_lists[k]))]
-            n_max = max(list_maxs)
-            dict_lists[k].insert(0, str_liner*n_max)
-
-
-        # Set attribute
-        self.topo_status = pd.DataFrame(dict_lists)
-        return None
 
     def download_datasets(self, zip_url):
         """Download datasets from a URL. The download is expected to be a ZIP file. Note: requests library is required

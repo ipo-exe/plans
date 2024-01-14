@@ -155,7 +155,10 @@ def new_project():
                 else:
                     # create new project
                     ok(message="creating new project {}...".format(str_name))
+                    # create project
                     my_project = project.Project(name=str_name, root=root)
+                    # set up project
+                    my_project.setup()
                     my_project = None
                     sleeper()
                     done()
@@ -187,18 +190,14 @@ def data_mgmt_topo():
         submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=place)
         submenu.loop()
 
-    my_project.update_status_topo()
+    place = my_project.folder_main + "/datasets/topo"
 
-    place = my_project.path_main + "/datasets/topo"
+    dct_status = my_project.get_status(folder_name="datasets/topo")
 
-    df_status = my_project.topo_status
-    df_status = df_status.drop(columns=["Name", "Path"])
-
-    str_df_status = df_status.to_string(index=False)
-    str_message = "{}\n{}\n".format(get_location(place), str_df_status)
+    str_message = dct_status["Folder"][["Folder", "File", "Format"]].to_string(index=False) + "\n"
 
     dict_menu = {
-        "import map": [import_topo, None],
+        "import map": [func_b, None],
         "view map": [func_b, None],
         "run diagnostics": [func_b, None],
     }
@@ -214,12 +213,12 @@ def data_mgmt():
         "topographic maps [topo]": [data_mgmt_topo, None],
         "soil and lithology [soils]": [func_b, None],
         "land use land cover [lulc]": [func_b, None],
-        "rainfall data [plu]": [func_b, None],
-        "streamflow data [flu]": [func_b, None],
-        "vegetation index [ndvi]": [func_b, None],
+        "rainfall data [rain]": [func_b, None],
+        "basins and streamflow [basins]": [func_b, None],
+        "remote sensing [rs]": [func_b, None],
         "model data [model]": [func_b, None],
     }
-    place = my_project.path_main + "/datasets"
+    place = my_project.folder_main + "/datasets"
     submenu_name = "{} - datasets".format(my_project.name)
     submenu = Menu(dict_actions=dict_menu, name=submenu_name, message=get_location(place))
     submenu.loop()
@@ -235,7 +234,7 @@ def project_session():
         "assessment tools": [func_a, None],
         "model diagnostics": [func_a, None],
     }
-    place = my_project.path_main
+    place = my_project.folder_main
     submenu = Menu(dict_actions=dict_menu, name=my_project.name, message=get_location(place))
     submenu.loop()
 
