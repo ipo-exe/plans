@@ -887,6 +887,8 @@ class Bivar:
                 -1.5 * self.models[model_type]["Data"]["e_Mean"].max(),
                 1.5 * self.models[model_type]["Data"]["e_Mean"].max()
             ],
+            "alpha_xy": 0.75,
+            "alpha_e": 0.75
         }
         # handle input specs
         if specs is None:
@@ -904,7 +906,7 @@ class Bivar:
             4, 4, wspace=0.3, hspace=0.45, left=0.12, bottom=0.1, top=0.90, right=0.95
         )  # nrows, ncols
 
-        # ----------------- main plot -----------------
+        # ----------------- XY plot -----------------
         ax = fig.add_subplot(gs[:2, :2])
 
         plt.scatter(
@@ -912,7 +914,7 @@ class Bivar:
             self.data[self.yname],
             marker=".",
             color=specs["color_scatter"],
-            alpha=0.7,
+            alpha=specs["alpha_xy"],
             zorder=1,
         )
         plt.plot(
@@ -920,6 +922,7 @@ class Bivar:
             self.models[model_type]["Data"]["{}_Mean".format(self.yname)],
             color=specs["color_model"],
             zorder=2,
+            linestyle="--"
         )
         plt.xlabel(self.xname)
         plt.ylabel(self.yname)
@@ -934,7 +937,7 @@ class Bivar:
             self.models[model_type]["Data"][self.xname],
             self.models[model_type]["Data"]["e_Mean"].values,
             marker=".",
-            alpha=0.75,
+            alpha=specs["alpha_e"],
             color=specs["color"],
         )
         plt.xlabel(self.xname)
@@ -962,7 +965,7 @@ class Bivar:
             x=df_qq["T-Quantiles"],
             y=df_qq["Data"],
             marker=".",
-            alpha=0.75,
+            alpha=specs["alpha_e"],
             color=specs["color"],
         )
         plt.ylim(specs["elim"])
@@ -1153,6 +1156,17 @@ class Bivar:
             "Bands": df_bands
         }
 
+    @staticmethod
+    def bias(pred, obs):
+        return 100 * np.sum(pred - obs) / np.sum(obs)
+
+    @staticmethod
+    def rmse(pred, obs):
+        return  np.sqrt(np.power(np.sum(pred - obs), 2)) / len(pred)
+
+    @staticmethod
+    def rsq(pred, obs):
+        return 1 - (np.sum(np.power(pred - obs, 2)) / np.sum(np.power(pred - np.mean(obs), 2)))
 
 class Bayes:
     """

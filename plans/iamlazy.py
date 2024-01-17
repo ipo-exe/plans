@@ -1399,7 +1399,7 @@ def get_rain(
     rain_gdf["X"] = rain_gdf.geometry.x
     rain_gdf["Y"] = rain_gdf.geometry.y
     if "Color" not in rain_gdf.columns:
-        rain_gdf["Color"] = datasets.get_random_colors(size=len(rain_gdf))
+        rain_gdf["Color"] = datasets.get_colors(size=len(rain_gdf))
 
     # rename files and copy
     lst_files_src = rain_gdf["Rain_File"].values
@@ -1685,7 +1685,7 @@ def get_basins(
     basins_gdf["Y"] = basins_gdf.geometry.y
 
     if "Color" not in basins_gdf.columns:
-        basins_gdf["Color"] = datasets.get_random_colors(size=len(basins_gdf))
+        basins_gdf["Color"] = datasets.get_colors(size=len(basins_gdf))
 
     # fill attributes
     lst_aux = ["Units", "VarField", "DtField"]

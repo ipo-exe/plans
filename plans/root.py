@@ -1464,9 +1464,25 @@ class Budget(RecordTable):
         self.data["Sign"] = self.data["Type"].apply(lambda x: 1 if x == "Revenue" else -1)
         self.data["Value_Signed"] = self.data["Sign"] * self.data["Value"]
 
+    @staticmethod
+    def parse_annual_budget(self, year, budget_df, freq_field="Freq"):
+        start_date = "{}-01-01".format(year)
+        end_date = "{}-01-01".format(int(year) + 1)
 
-    def parse_annual_budget(self, annual_budget_df, freq_field="Freq"):
-        print("hi")
+        annual_budget = pd.DataFrame()
+
+        for _, row in budget_df.iterrows():
+            # Generate date range based on frequency
+            dates = pd.date_range(start=start_date, end=end_date, freq=row['Freq'])
+
+            # Replicate the row for each date
+            replicated_data = pd.DataFrame({col: [row[col]] * len(dates) for col in df.columns})
+            replicated_data['Date'] = dates
+
+            # Append to the expanded budget
+            annual_budget = pd.concat([annual_budget, replicated_data], ignore_index=True)
+
+        return annual_budget
 
     def get_summary_by_type(self):
         summary = pd.DataFrame({
@@ -1749,6 +1765,11 @@ class FileSys(DataSet):
         # fill structure
         FileSys.fill(dict_struct=self.structure, folder=self.folder_main)
 
+    def backup(self, location_dir,  version_id="v-0-0",):  # todo docstring
+        dst_dir = os.path.join(location_dir, self.name + "_" + version_id)
+        FileSys.archive(src_dir=self.folder_main, dst_dir=dst_dir)
+        return None
+
     def view(self, show=True): # todo implement
         """Get a basic visualization.
         Expected to overwrite superior methods.
@@ -1812,6 +1833,12 @@ class FileSys(DataSet):
             return file_path
 
     # ----------------- STATIC METHODS ----------------- #
+    @staticmethod
+    def archive(src_dir, dst_dir):
+        # Create a zip archive from the directory
+        shutil.make_archive(dst_dir, 'zip', src_dir)
+        return None
+
     @staticmethod
     def get_extensions():
         list_basics = [

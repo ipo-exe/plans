@@ -67,7 +67,7 @@ import warnings
 from plans.root import Collection, DataSet
 
 
-def get_random_colors(size=10, cmap="tab20"):
+def get_colors(size=10, cmap="tab20", randomize=True):
     """Utility function to get a list of random colors
 
     :param size: Size of list of colors
@@ -78,13 +78,15 @@ def get_random_colors(size=10, cmap="tab20"):
     :rtype: list
     """
     import matplotlib.colors as mcolors
-
     # Choose a colormap from matplotlib
     _cmap = plt.get_cmap(cmap)
     # Generate a list of random numbers between 0 and 1
-    _lst_rand_vals = np.random.rand(size)
+    if randomize:
+        _lst_vals = np.random.rand(size)
+    else:
+        _lst_vals = np.linspace(0, 1, num=size)
     # Use the colormap to convert the random numbers to colors
-    _lst_colors = [mcolors.to_hex(_cmap(x)) for x in _lst_rand_vals]
+    _lst_colors = [mcolors.to_hex(_cmap(x)) for x in _lst_vals]
     return _lst_colors
 
 
@@ -357,13 +359,14 @@ class TimeSeries(DataSet):
 
         >>> ts.update()
         """
-        self._set_frequency()
-        self.start = self.data[self.dtfield].min()
-        self.end = self.data[self.dtfield].max()
-        self.var_min = self.data[self.varfield].min()
-        self.var_max = self.data[self.varfield].max()
-        self.size = len(self.data)
-        self._set_view_specs()
+        if self.data is not None:
+            self._set_frequency()
+            self.start = self.data[self.dtfield].min()
+            self.end = self.data[self.dtfield].max()
+            self.var_min = self.data[self.varfield].min()
+            self.var_max = self.data[self.varfield].max()
+            self.size = len(self.data)
+            self._set_view_specs()
         return None
 
     def set(self, dict_setter, load_data=True):
@@ -474,7 +477,7 @@ class TimeSeries(DataSet):
             sep=in_sep,
             dtype={input_dtfield: str, input_varfield: float},
             usecols=[input_dtfield, input_varfield],
-            parse_dates=[self.dtfield]
+            parse_dates=[self.file_data_dtfield]
         )
 
         # -------------- post-loading logic -------------- #
@@ -786,7 +789,7 @@ class TimeSeries(DataSet):
         )
 
         # Get colors
-        self.epochs_stats[self.color_field] = get_random_colors(
+        self.epochs_stats[self.color_field] = get_colors(
             size=len(self.epochs_stats), cmap=self.cmap
         )
 
@@ -1769,7 +1772,7 @@ class _TimeSeries:
         )
 
         # Get colors
-        self.epochs_stats["Color"] = get_random_colors(
+        self.epochs_stats["Color"] = get_colors(
             size=len(self.epochs_stats), cmap=self.cmap
         )
 
@@ -4826,7 +4829,7 @@ class QualiRaster(Raster):
         if self.table is None:
             pass
         else:
-            self.table[self.colorfield] = get_random_colors(
+            self.table[self.colorfield] = get_colors(
                 size=len(self.table), cmap=self.cmap
             )
             # reaload table for reset viewspecs
@@ -5806,7 +5809,7 @@ class RasterCollection(Collection):
         # get colors
         lst_colors = colors
         if colors is None:
-            lst_colors = get_random_colors(size=len(self.catalog))
+            lst_colors = get_colors(size=len(self.catalog))
         # colect names and bboxes
         lst_x_values = list()
         lst_y_values = list()
