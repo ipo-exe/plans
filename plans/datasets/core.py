@@ -66,6 +66,25 @@ import matplotlib as mpl
 import warnings
 from plans.root import Collection, DataSet
 
+def dataframe_prepro(dataframe):
+    """Utility function for dataframe pre-processing.
+
+    :param dataframe: incoming dataframe
+    :type dataframe: :class:`pandas.DataFrame`
+    :return: prepared dataframe
+    :rtype: :class:`pandas.DataFrame`
+    """
+    # fix headings
+    dataframe.columns = dataframe.columns.str.strip()
+    # strip string fields
+    for i in range(len(dataframe.columns)):
+        # if data type is string
+        if str(dataframe.dtypes.iloc[i]) == "base_object":
+            # strip all data
+            dataframe[dataframe.columns[i]] = dataframe[
+                dataframe.columns[i]
+            ].str.strip()
+    return dataframe
 
 def get_colors(size=10, cmap="tab20", randomize=True):
     """Utility function to get a list of random colors
@@ -4449,6 +4468,7 @@ class Raster:
         self,
         accum=True,
         show=True,
+        stats=True,
         folder="./output",
         filename=None,
         dpi=300,
@@ -4460,6 +4480,8 @@ class Raster:
         :type accum: bool
         :param show: boolean to show the plot instead of saving, defaults to True
         :type show: bool
+        :param stats: boolean to include stats, defaults to True
+        :type stats: bool
         :param folder: path to the output folder, defaults to "./output"
         :type folder: str
         :param filename: name of the file, defaults to None
@@ -4543,9 +4565,9 @@ class Raster:
             # label="mean ({:.2f})".fig_format(n_mean)
         )
         plt.text(
-            x=n_mean - 32 * (specs["vmax"] - specs["vmin"]) / 100,
+            x=n_mean - 20 * (specs["vmax"] - specs["vmin"]) / 100,
             y=0.9 * specs["hist_vmax"],
-            s="{:.2f} (mean)".format(n_mean),
+            s="$\mu$={:.2f}".format(n_mean),
         )
 
         plt.ylim(0, specs["hist_vmax"])
@@ -4608,55 +4630,61 @@ class Raster:
                 transform=fig.transFigure,
             )
 
-        # stats
-        n_y_base = 0.25
-        n_x = 0.62
-        plt.text(
-            x=n_x,
-            y=n_y_base,
-            s="d. {}".format(specs["d_title"]),
-            fontsize=12,
-            transform=fig.transFigure,
-        )
-        n_y = n_y_base - 0.01
-        n_step = 0.025
-        for i in range(7):
-            s_head = df_stats["Statistic"].values[i]
-            s_value = df_stats["Value"].values[i]
-            s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
-            n_y = n_y - n_step
+        # plot stats
+        if stats:
+            n_y_base = 0.25
+            n_x = 0.62
             plt.text(
                 x=n_x,
-                y=n_y,
-                s=s_line,
-                fontsize=9,
-                fontdict={"family": "monospace"},
+                y=n_y_base,
+                s="d. {}".format(specs["d_title"]),
+                fontsize=12,
                 transform=fig.transFigure,
             )
-        n_y = n_y_base - 0.01
-        for i in range(7, len(df_stats)):
-            s_head = df_stats["Statistic"].values[i]
-            s_value = df_stats["Value"].values[i]
-            s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
-            n_y = n_y - n_step
-            plt.text(
-                x=n_x + 0.15,
-                y=n_y,
-                s=s_line,
-                fontsize=9,
-                fontdict={"family": "monospace"},
-                transform=fig.transFigure,
-            )
+            n_y = n_y_base - 0.01
+            n_step = 0.025
+            for i in range(7):
+                s_head = df_stats["Statistic"].values[i]
+                s_value = df_stats["Value"].values[i]
+                s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
+                n_y = n_y - n_step
+                plt.text(
+                    x=n_x,
+                    y=n_y,
+                    s=s_line,
+                    fontsize=9,
+                    fontdict={"family": "monospace"},
+                    transform=fig.transFigure,
+                )
+            n_y = n_y_base - 0.01
+            for i in range(7, len(df_stats)):
+                s_head = df_stats["Statistic"].values[i]
+                s_value = df_stats["Value"].values[i]
+                s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
+                n_y = n_y - n_step
+                plt.text(
+                    x=n_x + 0.15,
+                    y=n_y,
+                    s=s_line,
+                    fontsize=9,
+                    fontdict={"family": "monospace"},
+                    transform=fig.transFigure,
+                )
+
         # show or save
         if show:
             plt.show()
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varalias, self.name, suff)
+            # save figure
             plt.savefig(
                 "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
             )
             plt.close(fig)
+            # save stats:
+            if stats:
+                df_stats.to_csv("{}/{}{}.csv".format(folder, filename, suff), sep=";", index=False)
         return None
 
 class QualiRaster(Raster):
@@ -4837,11 +4865,11 @@ class QualiRaster(Raster):
         return None
 
     def get_areas(self, merge=False):
-        """Get areas in map of each category in table.
+        """Get export_areas in map of each category in table.
 
         :param merge: option to merge data with raster table
         :type merge: bool, defaults to False
-        :return: areas dataframe
+        :return: export_areas dataframe
         :rtype: :class:`pandas.DataFrame`
         """
         if self.table is None or self.grid is None or self.prj is None:
@@ -5047,6 +5075,7 @@ class QualiRaster(Raster):
     def view(
         self,
         show=True,
+        export_areas=True,
         folder="./output",
         filename=None,
         dpi=300,
@@ -5058,6 +5087,8 @@ class QualiRaster(Raster):
 
         :param show: option to show plot instead of saving, defaults to False
         :type show: bool
+        :param export_areas: option to export areas table, defaults to True
+        :type export_areas: bool
         :param folder: folder_main to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
@@ -5084,11 +5115,12 @@ class QualiRaster(Raster):
             suff = "_{}".format(specs["project_name"])
 
         # -----------------------------------------------
-        # ensure areas are computed
-        df_aux = pd.merge(
+        # ensure export_areas are computed
+        df_areas = pd.merge(
             self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
         )
-        df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield), ascending=True)
+        # new aux
+        df_aux = df_areas.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         if filter:
             if len(df_aux) > n_filter:
                 n_limit = df_aux["{}_m2".format(self.areafield)].values[-n_filter]
@@ -5171,7 +5203,7 @@ class QualiRaster(Raster):
         )
 
         # -----------------------------------------------
-        # plot horizontal bar of areas
+        # plot horizontal bar of export_areas
         plt.subplot(gs[: specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         if specs["bars_alias"]:
@@ -5246,10 +5278,14 @@ class QualiRaster(Raster):
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varalias, self.name, suff)
+            # save fig
             plt.savefig(
                 "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
             )
             plt.close(fig)
+            # save areas
+            if export_areas:
+                df_areas.to_csv("{}/{}{}.csv".format(folder, filename, suff), sep=";", index=False)
         return None
 
 class QualiHard(QualiRaster):
@@ -5437,6 +5473,9 @@ class Zones(QualiRaster):
         )
         del map_zones_aux
         return None
+
+
+
 
 # -----------------------------------------
 # Raster Collection data structures
@@ -6275,7 +6314,84 @@ class QualiRasterSeries(RasterSeries):
         # delete aux
         del rst_aux
 
-    def load_folder(self, folder, table_file, name_pattern="map_*", talk=False):
+    def w_load_file(self, file_info):
+        """Worker function to load a single file."""
+        s_name, s_date_map, asc_file, prj_file, table_file = file_info
+        self.load(
+            name=s_name,
+            date=s_date_map,
+            asc_file=asc_file,
+            prj_file=prj_file,
+            table_file=table_file,
+        )
+
+    def load_folder(self, folder, table_file, name_pattern="map_*", talk=False, use_parallel=False, num_threads=None):
+        """
+        Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
+        Supports both serial and parallel processing using threads.
+
+        :param folder: folder_main to folder
+        :type folder: str
+        :param table_file: folder_main to table file
+        :type table_file: str
+        :param name_pattern: name pattern. example map_*
+        :type name_pattern: str
+        :param talk: option for printing messages
+        :type talk: bool
+        :param use_parallel: flag to use parallel processing
+        :type use_parallel: bool
+        :param num_threads: number of threads to use
+        :type num_threads: int, optional
+        :return: None
+        :rtype: None
+        """
+        lst_maps = glob.glob(f"{folder}/{name_pattern}.asc")
+        lst_prjs = glob.glob(f"{folder}/{name_pattern}.prj")
+
+        if talk:
+            print("loading folder...")
+
+        if use_parallel:
+            import threading
+            # Prepare data for parallel processing
+            file_info_list = [(os.path.basename(asc_file).split(".")[0],
+                               asc_file.split("_")[-1].split(".")[0],
+                               asc_file,
+                               prj_file,
+                               table_file)
+                              for asc_file, prj_file in zip(lst_maps, lst_prjs)]
+
+            threads = []
+            for file_info in file_info_list:
+                print(file_info)
+                thread = threading.Thread(target=self.w_load_file, args=(file_info,))
+                threads.append(thread)
+                thread.start()
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
+        else:
+            # serial processing
+            for i in range(len(lst_maps)):
+                asc_file = lst_maps[i]
+                # print(asc_file)
+                prj_file = lst_prjs[i]
+                # get name
+                s_name = os.path.basename(asc_file).split(".")[0]
+                # get dates
+                s_date_map = asc_file.split("_")[-1].split(".")[0]
+                s_date_prj = prj_file.split("_")[-1].split(".")[0]
+                # load
+                self.load(
+                    name=s_name,
+                    date=s_date_map,
+                    asc_file=asc_file,
+                    prj_file=prj_file,
+                    table_file=table_file,
+                )
+
+    def _load_folder(self, folder, table_file, name_pattern="map_*", talk=False):
         """Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
 
         :param folder: folder_main to folder
@@ -6296,6 +6412,7 @@ class QualiRasterSeries(RasterSeries):
             print("loading folder...")
         for i in range(len(lst_maps)):
             asc_file = lst_maps[i]
+            #print(asc_file)
             prj_file = lst_prjs[i]
             # get name
             s_name = os.path.basename(asc_file).split(".")[0]
@@ -6313,12 +6430,12 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def get_series_areas(self):
-        """Get areas prevalance for all series
+        """Get export_areas prevalance for all series
 
-        :return: dataframe of series areas
+        :return: dataframe of series export_areas
         :rtype: :class:`pandas.DataFrame`
         """
-        # compute areas for each raster
+        # compute export_areas for each raster
         for i in range(len(self.catalog)):
             s_raster_name = self.catalog["Name"].values[i]
             s_raster_date = self.catalog["Date"].values[i]
@@ -6340,9 +6457,10 @@ class QualiRasterSeries(RasterSeries):
         self,
         specs=None,
         show=True,
+        export_areas=True,
         folder="./output",
         filename=None,
-        dpi=150,
+        dpi=300,
         fig_format="jpg",
     ):
         """View series areas
@@ -6383,7 +6501,7 @@ class QualiRasterSeries(RasterSeries):
                 default_specs[k] = specs[k]
         specs = default_specs
 
-        # compute areas
+        # compute export_areas
         df_areas = self.get_series_areas()
 
         # Deploy figure
@@ -6430,13 +6548,18 @@ class QualiRasterSeries(RasterSeries):
         else:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
+            # save fig
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
+            # save areas
+            if export_areas:
+                df_areas.to_csv("{}/{}.csv".format(folder, filename), sep=";", index=False)
         plt.close(fig)
         return None
 
     def get_views(
         self,
         show=True,
+        export_areas=True,
         filter=False,
         n_filter=6,
         folder="./output",
@@ -6478,6 +6601,7 @@ class QualiRasterSeries(RasterSeries):
             # plot
             rst_lcl.view(
                 show=show,
+                export_areas=export_areas,
                 folder=folder,
                 filename=s_name,
                 dpi=dpi,

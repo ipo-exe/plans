@@ -65,6 +65,8 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
 import glob
+
+import pandas as pd
 import processing
 from osgeo import gdal
 from qgis.core import QgsCoordinateReferenceSystem
@@ -1105,6 +1107,7 @@ def get_topo(
 def get_lulc(
     list_main_files,
     list_dates,
+    lulc_table,
     output_folder,
     target_file,
     target_crs,
@@ -1120,6 +1123,8 @@ def get_lulc(
     :type list_main_files: list
     :param list_dates: list of dates (YYYY-MM-DD) for each main raster
     :type list_dates: list
+    :param lulc_table: path to parameter table file. Expected columns: Id, Name, Alias and Color
+    :type lulc_table: str
     :param output_folder: path to output folder
     :type output_folder: str
     :param target_file: file path to target raster (e.g., the DEM raster)
@@ -1286,11 +1291,26 @@ def get_lulc(
                 "OUTPUT": "{}/{}.asc".format(output_folder, filename),
             },
         )
+
         # Handle style
         if qml_file is None:
             pass
         else:
             shutil.copy(src=qml_file, dst="{}/{}.qml".format(output_folder, filename))
+
+    # Handle table
+    print("table...")
+    df_table = pd.read_csv(lulc_table, sep=";")
+    df_roads = pd.DataFrame(
+        {
+            "Id": [254, 255],
+            "Name": ["Paved roads", "Dirty roads"],
+            "Alias": ["RdP", "RdD"],
+            "Color": ["#611d1d", "#976d3f"]
+        }
+    )
+    df_table = pd.concat([df_table, df_roads], ignore_index=True)
+    df_table.to_csv(os.path.join(output_folder, "lulc_info.csv"), sep=";", index=False)
 
     return None
 

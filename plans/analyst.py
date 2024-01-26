@@ -464,9 +464,9 @@ class Univar:
         }
 
         if p > (1 - clevel):
-            dct_out["Is {}".format(distr)] = True
+            dct_out["is_{}".format(distr.lower())] = True
         else:
-            dct_out["Is {}".format(distr)] = False
+            dct_out["is_{}".format(distr.lower())] = False
 
         return dct_out
 
@@ -553,13 +553,13 @@ class Univar:
             lst_stats.append(e["Statistic"])
             lst_p.append(e["p-value"])
             lst_clvl.append(e["Confidence"])
-            lst_is.append(e["Is normal"])
+            lst_is.append(e["is_normal"])
         df_result = pd.DataFrame(
             {
                 "Test": lst_names,
                 "Statistic": lst_stats,
-                "P-value": lst_p,
-                "Is Normal": lst_is,
+                "p-value": lst_p,
+                "is_normal": lst_is,
                 "Confidence": lst_clvl,
             }
         )
@@ -898,6 +898,12 @@ class Bivar:
                 default_specs[k] = specs[k]
         specs = default_specs
 
+        # get some ranges
+        e_range = specs["elim"][1] - specs["elim"][0]
+        e_range_10 = e_range / 20
+        x_range = specs["xlim"][1] - specs["xlim"][0]
+        x_range_10 = x_range / 10
+
         # -------------- start plot
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         plt.suptitle(specs["title"])
@@ -931,6 +937,8 @@ class Bivar:
 
         # ----------------- error -----------------
         e_uni = Univar(data=self.models[model_type]["Data"]["e_Mean"].values)
+        # get mean
+        e_mean = np.mean(e_uni.data)
 
         ax = fig.add_subplot(gs[2, :2])
         plt.scatter(
@@ -939,6 +947,20 @@ class Bivar:
             marker=".",
             alpha=specs["alpha_e"],
             color=specs["color"],
+        )
+        # mean line
+        plt.hlines(
+            y=e_mean,
+            xmin=specs["xlim"][0],
+            xmax=specs["xlim"][1],
+            color="tab:red",
+            alpha=0.4
+        )
+        plt.text(
+            y=e_mean + e_range_10,
+            x=specs["xlim"][1] - (3 * x_range_10),
+            s="$\mu$: " + str(round(e_mean, 2)),
+            color="tab:red"
         )
         plt.xlabel(self.xname)
         plt.ylabel("$\epsilon$")
@@ -955,6 +977,14 @@ class Bivar:
             orientation="horizontal",
             weights=np.ones(len(self.data)) / len(self.data),
         )
+        # mean line
+        plt.hlines(
+            y=e_mean,
+            xmin=0,
+            xmax=0.15,
+            color="tab:red",
+            alpha=0.4
+        )
         plt.ylim(specs["elim"])
         plt.xlabel("p($\epsilon$)")
 
@@ -968,6 +998,14 @@ class Bivar:
             alpha=specs["alpha_e"],
             color=specs["color"],
         )
+        # mean line
+        plt.hlines(
+            y=e_mean,
+            xmin=df_qq["T-Quantiles"].min(),
+            xmax=df_qq["T-Quantiles"].max(),
+            color="tab:red",
+            alpha=0.4
+        )
         plt.ylim(specs["elim"])
         plt.xlabel("normal quantiles")
 
@@ -979,6 +1017,7 @@ class Bivar:
             vct_var,
             color=specs["color_variance"],
         )
+
         plt.xlabel(self.xname)
         plt.ylabel("$\sigma^2$")
         plt.xlim(specs["xlim"])
@@ -1155,6 +1194,13 @@ class Bivar:
             "Predictions": df_preds,
             "Bands": df_bands
         }
+
+    def assess_error_normality(self, model_type="Linear",clevel=0.95):
+        self.updata_model_data(model_type=model_type)
+        vct_e = self.models[model_type]["Data"]["e_Mean"].values
+        uni = Univar(data=vct_e, name=self.name)
+        df = uni.assess_normality(clevel=clevel)
+        return df
 
     @staticmethod
     def bias(pred, obs):

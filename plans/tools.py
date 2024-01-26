@@ -25,8 +25,6 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import ds
-
 Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
 eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
@@ -58,10 +56,12 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+import glob
 import logging
 import os, time, shutil
 import numpy as np
 from plans.tui import logger_setup
+import plans.datasets.spatial as sp
 
 # ------------------------------ UTILS ------------------------------
 # docs ok
@@ -155,6 +155,21 @@ def create_rundir(workplace, label="", suffix=None, b_time=True):
         os.mkdir(dir_path)
     return dir_path
 
+# ------------------------------ UTILS - DRY TOOLS ------------------------------
+
+def _get_dict_basins(folder_basins):
+    m_basins = sp.Basins(name="Basins")
+    m_basins.load(
+        asc_file=os.path.join(folder_basins, "basins.asc"),
+        prj_file=os.path.join(folder_basins, "basins.prj"),
+        table_file=os.path.join(folder_basins, "basins_info.csv")
+    )
+    basins_dct = {}
+    for i in range(len(m_basins.table)):
+        basins_id = m_basins.table["Id"].values[i]
+        basins_dct[basins_id] = m_basins.get_basin_aoi(basin_id=basins_id)
+
+    return basins_dct
 # ------------------------------ TOOLS ------------------------------
 def DEMO(
     project_name,
@@ -254,6 +269,210 @@ def DEMO(
         "{} total elapsed time: {} seconds".format(prompt, round(elapsed_time, 3))
     )
     return 0
+
+def VTOPO(
+    project_name,
+    datasets_dir,
+    outdir,
+    by_basins=True,
+    workplace=True,
+    talk=False,
+):
+
+    # ---------------------- START ----------------------
+    start_start = time.time()
+    # define label
+    toolname = VTOPO.__name__
+    prompt = "{}@{}: [{}]".format("plans", project_name, toolname)
+
+    # ---------------------- RUN DIR ----------------------
+    if workplace:
+        outdir = create_rundir(workplace=outdir, label=toolname, suffix=project_name)
+
+    # ---------------------- LOGGER ----------------------
+    logger = logger_setup(
+        logger_name=toolname,
+        streamhandler=talk,
+        filehandler=True,
+        logfile="{}/logs.log".format(outdir),
+    )
+    logger.info("{} start".format(prompt))
+    logger.info("{} run folder at {}".format(prompt, outdir))
+
+    # ---------------------- LOAD ----------------------
+    s_step = "loading"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    # folder setup
+    folder_topo = os.path.join(datasets_dir, "topo")
+    folder_basins = os.path.join(datasets_dir, "basins")
+
+    # get basins aois
+    if by_basins:
+        basins_dct = _get_dict_basins(folder_basins=folder_basins)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- PROCESSING ----------------------
+    s_step = "processing"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    # dem
+    dct_topo = {
+        "dem": sp.Elevation,
+        "twi": sp.TWI,
+        "hand": sp.HAND,
+        "slope": sp.Slope,
+        "ldd": sp.LDD,
+        "accflux": sp.AccFlux
+
+    }
+    for topo in dct_topo:
+        logger.info("{} {:<12} {:<10} -- full ...".format(prompt, "processing", topo))
+        m = dct_topo[topo](name=project_name)
+        m.load(
+            asc_file=os.path.join(folder_topo, "{}.asc".format(topo)),
+            prj_file=os.path.join(folder_topo, "{}.prj".format(topo))
+        )
+        # run main view
+        logger.info("{} {:<12} {:<10} -- full ...".format(prompt, "exporting", topo))
+        m.view(show=False, folder=outdir, filename="{}-full".format(topo))
+        if by_basins:
+            for b in basins_dct:
+                logger.info("{} {:<12} {:<10} -- basin-{} ...".format(prompt, "processing", topo, b))
+                m.apply_aoi_mask(grid_aoi=basins_dct[b].grid)
+                # run sub views
+                logger.info("{} {:<12} {:<10} -- basin-{} ...".format(prompt, "exporting", topo, b))
+                m.view(show=False, folder=outdir, filename="{}-basin-{}".format(topo, b))
+                m.release_aoi_mask()
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- END ----------------------
+    end_end = time.time()
+    elapsed_time = end_end - start_start
+    logger.info("{} end".format(prompt))
+    logger.info(
+        "{} total elapsed time: {} seconds".format(prompt, round(elapsed_time, 3))
+    )
+    return 0
+
+
+def VLULC(
+    project_name,
+    datasets_dir,
+    outdir,
+    scenario="obs",
+    by_basins=True,
+    workplace=True,
+    talk=False,
+):
+    # ---------------------- START ----------------------
+    start_start = time.time()
+    # define label
+    toolname = VLULC.__name__
+    prompt = "{}@{}: [{}]".format("plans", project_name, toolname)
+
+    # ---------------------- RUN DIR ----------------------
+    if workplace:
+        outdir = create_rundir(workplace=outdir, label=toolname, suffix=project_name)
+
+    # ---------------------- LOGGER ----------------------
+    logger = logger_setup(
+        logger_name=toolname,
+        streamhandler=talk,
+        filehandler=True,
+        logfile="{}/logs.log".format(outdir),
+    )
+    logger.info("{} start".format(prompt))
+    logger.info("{} run folder at {}".format(prompt, outdir))
+
+    # ---------------------- LOAD ----------------------
+    s_step = "loading"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    # folder setup
+    folder_lulc = os.path.join(datasets_dir, "lulc")
+    folder_lulc = os.path.join(folder_lulc, scenario)
+    folder_basins = os.path.join(datasets_dir, "basins")
+
+    # get basins aois
+    if by_basins:
+        basins_dct = _get_dict_basins(folder_basins=folder_basins)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- PROCESSING ----------------------
+    s_step = "processing"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    lulc_series = sp.LULCSeries(name=project_name)
+    logger.info("{} loading LULC series ...".format(prompt))
+    lulc_series.load_folder(
+        folder=folder_lulc,
+        table_file=os.path.join(folder_lulc, "lulc_info.csv"),
+        name_pattern="lulc_*",
+        talk=False,
+        use_parallel=False,
+    )
+    logger.info("{} exporting LULC series ...".format(prompt))
+    lulc_series.get_views(
+        show=False,
+        export_areas=False,
+        folder=outdir
+    )
+    logger.info("{} exporting LULC areas ...".format(prompt))
+    lulc_series.view_series_areas(
+        show=False,
+        export_areas=True,
+        folder=outdir,
+        filename="lulc_areas"
+    )
+
+    '''
+    if by_basins:
+        for b in basins_dct:
+            logger.info("{} processing {} -- basin-{} ...".format(prompt, topo, b))
+            m.apply_aoi_mask(grid_aoi=basins_dct[b].grid)
+            # run sub views
+            logger.info("{} exporting {} -- basin-{} ...".format(prompt, topo, b))
+            m.view(show=False, folder=outdir, filename="{}-basin-{}".format(topo, b))
+            m.release_aoi_mask()
+    '''
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- END ----------------------
+    end_end = time.time()
+    elapsed_time = end_end - start_start
+    logger.info("{} end".format(prompt))
+    logger.info(
+        "{} total elapsed time: {} seconds".format(prompt, round(elapsed_time, 3))
+    )
+    return 0
+
+
+
 
 # docs ok
 def TSC(
@@ -705,34 +924,10 @@ def DTO(
 if __name__ == "__main__":
     print("HI")
     import matplotlib.pyplot as plt
-
     plt.style.use("seaborn-v0_8")
 
-    TSCT1(
-        kind="rain",
-        project_name="potiribu",
-        file_infotable="C:/plans/potiribu/datasets/rain/obs/rain_info.csv",
-        outdir="C:/output",
-        workplace=True,
-        talk=True,
-        export_inputs=True,
-        export_views=True,
-        filter_date_start=None,
-        filter_date_end=None,
-        datarange_max=120,
-        datarange_min=0
-    )
 
-    '''
-    DTO(
-        file_ldd="C:/plans/potiribu/datasets/topo/ldd.asc",
-        outdir="C:/output",
-        workplace=True,
-        project_name="potiribu",
-        talk=True,
-        export_inputs=True,
-    )
-    
-    '''
+
+
 
 

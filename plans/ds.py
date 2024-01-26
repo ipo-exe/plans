@@ -5068,11 +5068,11 @@ class QualiRaster(Raster):
         return None
 
     def get_areas(self, merge=False):
-        """Get areas in map of each category in table.
+        """Get export_areas in map of each category in table.
 
         :param merge: option to merge data with raster table
         :type merge: bool, defaults to False
-        :return: areas dataframe
+        :return: export_areas dataframe
         :rtype: :class:`pandas.DataFrame`
         """
         if self.table is None or self.grid is None or self.prj is None:
@@ -5315,7 +5315,7 @@ class QualiRaster(Raster):
             suff = "_{}".format(specs["project_name"])
 
         # -----------------------------------------------
-        # ensure areas are computed
+        # ensure export_areas are computed
         df_aux = pd.merge(
             self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
         )
@@ -5402,7 +5402,7 @@ class QualiRaster(Raster):
         )
 
         # -----------------------------------------------
-        # plot horizontal bar of areas
+        # plot horizontal bar of export_areas
         plt.subplot(gs[: specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         if specs["bars_alias"]:
@@ -6928,12 +6928,12 @@ class QualiRasterSeries(RasterSeries):
         return None
 
     def get_series_areas(self):
-        """Get areas prevalance for all series
+        """Get export_areas prevalance for all series
 
-        :return: dataframe of series areas
+        :return: dataframe of series export_areas
         :rtype: :class:`pandas.DataFrame`
         """
-        # compute areas for each raster
+        # compute export_areas for each raster
         for i in range(len(self.catalog)):
             s_raster_name = self.catalog["Name"].values[i]
             s_raster_date = self.catalog["Date"].values[i]
@@ -6960,7 +6960,7 @@ class QualiRasterSeries(RasterSeries):
         dpi=150,
         fig_format="jpg",
     ):
-        """View series areas
+        """View series export_areas
 
         :param specs: specifications dictionary, defaults to None
         :type specs: dict
@@ -6998,7 +6998,7 @@ class QualiRasterSeries(RasterSeries):
                 default_specs[k] = specs[k]
         specs = default_specs
 
-        # compute areas
+        # compute export_areas
         df_areas = self.get_series_areas()
 
         # Deploy figure
@@ -7256,7 +7256,7 @@ class LULCSeries(QualiRasterSeries):
             0
         ]
 
-        # compute areas
+        # compute export_areas
         df_areas_start = self.collection[s_name_start].get_areas()
         df_areas_end = self.collection[s_name_end].get_areas()
         # deploy variables

@@ -1,5 +1,4 @@
 from plans.datasets.core import *
-
 # -----------------------------------------
 # Derived Raster data structures
 
@@ -110,6 +109,25 @@ class DTO(Raster):
         self.units = "meters"
         self._set_view_specs()
 
+
+class AccFlux(Raster):
+    """
+    Accumulated Flux raster map dataset.
+    """
+
+    def __init__(self, name):
+        """Initialize dataset.
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name, dtype="float32")
+        self.cmap = "plasma_r"
+        self.varname = "Accflux"
+        self.varalias = "Acc"
+        self.description = "Accumulated Flux or Upstream Area"
+        self.units = "sq. meters"
+        self._set_view_specs()
 
 class NDVI(Raster):
     """
@@ -388,6 +406,66 @@ class BiodiversityArea(Raster):
 
 # -----------------------------------------
 # Quali Raster data structures
+
+
+class Basins(QualiRaster):
+    """
+    Basins map dataset
+    """
+
+    def __init__(self, name="BasinsMap"):
+        super().__init__(name, dtype="uint32")
+        self.varname = "Basin"
+        self.varalias = "Bs"
+        self.description = "Ids map of basins"
+        self.units = "basin ID"
+        self.table = None
+
+    @staticmethod
+    def get_upstream_ids(basin_id, topology_df, visited=None):
+        """Recursive utility function for listing all upstream basins
+
+        :param basin_id: basin id to start
+        :type basin_id: int
+        :param topology_df: dataframe with topology. expected to have Id and Downstream_Id columns
+        :type topology_df: pandas.DataFrame
+        :param visited: visited id (default=None)
+        :type visited: list or None
+        :return: upstream ids
+        :rtype: list
+        """
+        if visited is None:
+            visited = []
+        _df = topology_df.query("Downstream_Id == {}".format(basin_id)).copy()
+        if len(_df) > 0:
+            for i in range(len(_df)):
+                next_id = _df["Id"].values[i]
+                visited.append(next_id)
+                visited = Basins.get_upstream_ids(basin_id=next_id, topology_df=topology_df, visited=visited)
+        return visited
+
+    def get_basin_aoi(self, basin_id):
+        # set aoi map
+        aoi = AOI(name=self.name + "_" + str(basin_id))
+        aoi.prj = self.prj
+        aoi.set_asc_metadata(metadata=self.asc_metadata)
+        # get grid
+        lst_ids = [basin_id]
+        grd_aoi = 1.0 * (self.grid == basin_id)
+        # get extra upstream basins
+        upstream_ids = Basins.get_upstream_ids(
+            basin_id=basin_id,
+            topology_df=self.table
+        )
+        if len(upstream_ids) > 0:
+            for up_id in upstream_ids:
+                grd_aoi = grd_aoi + (1 * (self.grid == up_id))
+
+        grd_aoi = grd_aoi.astype(np.uint16)
+        aoi.set_grid(grid=grd_aoi)
+        return aoi
+
+
 
 
 class LULC(QualiRaster):
@@ -920,7 +998,7 @@ class LULCSeries(QualiRasterSeries):
             0
         ]
 
-        # compute areas
+        # compute export_areas
         df_areas_start = self.collection[s_name_start].get_areas()
         df_areas_end = self.collection[s_name_end].get_areas()
         # deploy variables
