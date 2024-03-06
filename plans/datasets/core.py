@@ -160,6 +160,7 @@ class TimeSeries(DataSet):
         self.var_min = None
         self.var_max = None
         self.isstandard = False
+        self.folder_src = None
 
         self.gapsize = 6
         self.epochs_stats = None
@@ -427,7 +428,80 @@ class TimeSeries(DataSet):
 
         # ... continues in downstream objects ... #
 
-    def load_data(self, file_data, input_dtfield=None, input_varfield=None, in_sep=";"):
+    def set_data(
+        self, input_df, input_dtfield, input_varfield, filter_dates=None, dropnan=True
+    ):
+        """Set time series data from an input DataFrame.
+
+        :param input_df: pandas DataFrame
+            Input DataFrame containing time series data.
+        :type input_df: :class:`pandas.DataFrame`
+
+        :param input_dtfield: str
+            Name of the datetime field in the input DataFrame.
+        :type input_dtfield: str
+
+        :param input_varfield: str
+            Name of the variable field in the input DataFrame.
+        :type input_varfield: str
+
+        :param filter_dates: list, optional
+            List of [Start, End] used for filtering date range.
+        :type dropnan: list
+
+        :param dropnan: bool, optional
+            If True, drop NaN values from the DataFrame. Default is True.
+        :type dropnan: bool
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - Assumes the input DataFrame has a datetime column in the format "YYYY-mm-DD HH:MM:SS".
+        - Renames columns to standard format (datetime: ``self.dtfield``, variable: ``self.varfield``).
+        - Converts the datetime column to standard format.
+
+        **Examples:**
+
+        >>> input_data = pd.DataFrame({
+        ...     'Date': ['2022-01-01 12:00:00', '2022-01-02 12:00:00', '2022-01-03 12:00:00'],
+        ...     'Temperature': [25.1, 26.5, 24.8]
+        ... })
+        >>> ts.set_data(input_data, input_dtfield='Date', input_varfield='Temperature')
+
+        """
+        # Get a copy of the input DataFrame
+        df = input_df.copy()
+
+        # Drop NaN values if specified
+        if dropnan:
+            df = df.dropna()
+
+        # Rename columns to standard format
+        df = df.rename(
+            columns={input_dtfield: self.dtfield, input_varfield: self.varfield}
+        )
+
+        # Convert datetime column to standard format
+        df[self.dtfield] = pd.to_datetime(df[self.dtfield], format="%Y-%m-%d %H:%M:%S")
+
+        if filter_dates is None:
+            pass
+        else:
+            if filter_dates[0] is not None:
+                df = df.query("{} >= '{}'".format(self.dtfield, filter_dates[0]))
+            if filter_dates[1] is not None:
+                df = df.query("{} < '{}'".format(self.dtfield, filter_dates[1]))
+
+        # Set the data attribute
+        self.data = df.copy()
+        # update all
+        self.update()
+
+        return None
+
+    def load_data(self, file_data, input_dtfield=None, input_varfield=None, in_sep=";", filter_dates=None):
         """Load data from file. Expected to overwrite superior methods.
 
         :param file_data: str
@@ -491,7 +565,7 @@ class TimeSeries(DataSet):
             self.file_data_varfield = input_varfield
 
         # -------------- call loading function -------------- #
-        self.data = pd.read_csv(
+        df = pd.read_csv(
             file_data,
             sep=in_sep,
             dtype={input_dtfield: str, input_varfield: float},
@@ -500,12 +574,23 @@ class TimeSeries(DataSet):
         )
 
         # -------------- post-loading logic -------------- #
-        self.data = self.data.rename(
+        df = df.rename(
             columns={
                 input_dtfield: self.dtfield,
                 input_varfield: self.varfield
             }
         )
+
+        if filter_dates is None:
+            pass
+        else:
+            if filter_dates[0] is not None:
+                df = df.query("{} >= '{}'".format(self.dtfield, filter_dates[0]))
+            if filter_dates[1] is not None:
+                df = df.query("{} < '{}'".format(self.dtfield, filter_dates[1]))
+
+        # Set the data attribute
+        self.data = df.copy()
 
         # ------------ update related attributes ------------ #
         self.file_data = file_data[:]
@@ -2392,14 +2477,15 @@ class TimeSeriesCollection(Collection):
         self.isstandard = False
         self.datarange_min = None
         self.datarange_max = None
-
-        # load view specs
-        self._set_view_specs()
+        self.folder_src = None
 
         # Set specific attributes
         self.name_object = "Time Series Collection"
         self.dtfield = "DateTime"
         self.overfield = "Overlapping"
+
+        # load view specs
+        self._set_view_specs()
 
     def __str__(self):
         return self.catalog.to_string(index=False)
@@ -2422,8 +2508,8 @@ class TimeSeriesCollection(Collection):
         # Update start, end, min, and max attributes based on catalog information
         self.start = self.catalog["Start"].min()
         self.end = self.catalog["End"].max()
-        self.var_min = self.catalog["Min"].min()
-        self.var_max = self.catalog["Max"].max()
+        self.var_min = self.catalog["Var_min"].min()
+        self.var_max = self.catalog["Var_max"].max()
 
     # docs: ok
     def load_data(self, table_file, filter_dates=None):
@@ -2534,7 +2620,7 @@ class TimeSeriesCollection(Collection):
                     input_file = "{}/{}".format(src_dir, input_file)
             # load data
             ts.load_data(
-                table_file=input_file,
+                file_data=input_file,
                 input_varfield=df_info[dict_m_fields["VarField"]].values[i],
                 input_dtfield=df_info[dict_m_fields["DtField"]].values[i],
                 filter_dates=filter_dates,
@@ -2591,7 +2677,7 @@ class TimeSeriesCollection(Collection):
 
         # todo handle this issue on the first freq
         # consider the first freq
-        freq = self.catalog["DT_freq"].values[0]
+        freq = self.catalog["DtFreq"].values[0]
 
         # Create a date range for the entire period
         dt_index = pd.date_range(start=start, end=end, freq=freq)
@@ -2680,7 +2766,7 @@ class TimeSeriesCollection(Collection):
             name = dict_names[alias]
             # set data
             self.collection[name].set_data(
-                df_info=df_aux,
+                input_df=df_aux,
                 input_dtfield=self.dtfield,
                 input_varfield=c,
                 dropnan=False,
@@ -2781,7 +2867,7 @@ class TimeSeriesCollection(Collection):
         df_aux[self.overfield].replace(0, np.nan, inplace=True)
 
         # Create a new TimeSeries instance for epoch calculation
-        ts_aux = TimeSeries(varfield=self.overfield)
+        ts_aux = TimeSeries()
         ts_aux.set_data(
             input_df=df_aux,
             input_varfield=self.overfield,
@@ -2885,14 +2971,13 @@ class TimeSeriesCollection(Collection):
 
         # pre-processing
         local_epochs_df = self.merge_local_epochs()
-
         # Aggregate sum based on the 'Name' field
-        agg_df = local_epochs_df.groupby("Name")["Count"].sum().reset_index()
-        agg_df = agg_df.sort_values(by="Count", ascending=True).reset_index(drop=True)
+        agg_df = local_epochs_df.groupby("Name")["Epochs_n"].sum().reset_index()
+        agg_df = agg_df.sort_values(by="Epochs_n", ascending=True).reset_index(drop=True)
         names = agg_df["Name"].values
         if usealias:
             alias = [dict_alias[name] for name in names]
-        preval = 100 * agg_df["Count"].values / agg_df["Count"].sum()
+        preval = 100 * agg_df["Epochs_n"].values / agg_df["Epochs_n"].sum()
         heights = np.linspace(0, 1, len(names) + 1)
         heights = heights[: len(names)] + ((heights[1] - heights[0]) / 2)
 
@@ -3067,14 +3152,8 @@ class TimeSeriesCollection(Collection):
             self.collection[name].view_specs["xmax"] = self.end
             self.collection[name].view_specs["xmin"] = self.start
             # view
-            self.collection[name].view(
-                show=False,
-                folder=folder,
-                dpi=dpi,
-                fig_format=fig_format,
-                suff=suff,
-                raw=raw,
-            )
+            self.collection[name].view_specs["folder"] = folder
+            self.collection[name].view(show=False)
         return None
 
     # docs todo
@@ -3122,70 +3201,6 @@ class TimeSeriesCluster(TimeSeriesCollection):
         return None
     '''
 
-class StageSeriesCollection(TimeSeriesCluster):
-    # todo docstring
-    def __init__(self, name="MySSColection"):
-        # todo docstring
-        super().__init__(name=name, base_object=StageSeries)
-        # overwrite parent attributes
-        self.name_object = "Stage Series Collection"
-        self._set_view_specs()
-
-    def set_data(self, df_info, src_dir=None, filter_dates=None):
-        # todo docstring
-        """Set data for the time series collection from a info DataFrame.
-
-        :param df_info: class:`pandas.DataFrame`
-            DataFrame containing metadata information for the time series collection.
-            This DataFrame is expected to have matching fields to the metadata keys.
-
-            Required fields:
-
-            - ``Id``: int, required. Unique number id.
-            - ``Name``: str, required. Simple name.
-            - ``Alias``: str, required. Short nickname.
-            - ``Units``: str, required. Units of data.
-            - ``VarField``: str, required. Variable column in data file.
-            - ``DtField``: str, required. Date-time column in data file
-            - ``File``: str, required. Name or path to data time series ``csv`` file.
-            - ``X``: float, required. Longitude in WGS 84 Datum (EPSG4326).
-            - ``Y``: float, required. Latitude in WGS 84 Datum (EPSG4326).
-            - ``Code``: str, required
-            - ``Source``: str, required
-            - ``Description``: str, required
-            - ``Color``: str, required
-            - ``UpstreamArea``: float, required
-
-
-        :type df_info: class:`pandas.DataFrame`
-
-        :param src_dir: str, optional
-            Path for source directory in the case for only file names in ``File`` column.
-        :type src_dir: str
-
-        :param filter_dates: list, optional
-            List of Start and End dates for filter data
-        :type filter_dates: str
-
-        **Notes:**
-
-        - The ``set_data`` method populates the time series collection with data based on the provided DataFrame.
-        - It creates time series objects, loads data, and performs additional processing steps.
-        - Adjust ``skip_process`` according to your data processing needs.
-
-        **Examples:**
-
-        >>> ts_collection.set_data(df, "path/to/data", filter_dates=["2020-01-01 00:00:00", "2020-03-12 00:00:00"])
-
-        """
-        # generic part
-        super().set_data(df_info=df_info, filter_dates=filter_dates)
-        # custom part
-        for i in range(len(df_info)):
-            name = df_info["Name"].values[i]
-            self.collection[name].upstream_area = df_info["UpstreamArea"].values[i]
-        self.update(details=True)
-        return None
 
 class TimeSeriesSamples(TimeSeriesCluster):
     # todo docstring
@@ -5065,9 +5080,9 @@ class QualiRaster(Raster):
                 "gs_rows": 7,
                 "gs_cols": 5,
                 "gs_b_rowlim": 4,
-                "legend_x": 0.4,
+                "legend_x": 0.55,
                 "legend_y": 0.3,
-                "legend_ncol": 1,
+                "legend_ncol": 2,
                 "project_name": None,
             }
         return None
@@ -5194,8 +5209,8 @@ class QualiRaster(Raster):
             )
         plt.legend(
             frameon=True,
-            fontsize=9,
-            markerscale=0.8,
+            fontsize=8,
+            markerscale=0.4,# 0.8
             handles=legend_elements,
             bbox_to_anchor=(specs["legend_x"], specs["legend_y"]),
             bbox_transform=fig.transFigure,

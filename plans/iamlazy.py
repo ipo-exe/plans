@@ -846,6 +846,7 @@ def get_topo(
     layer_aoi="aoi",
     layer_rivers="rivers",
     source_crs="4326",
+    target_cellsize=30,
     w=3,
     h=10,
     hand_cells=100,
@@ -966,6 +967,7 @@ def get_topo(
         target_extent_dict=dict_bbox,
         file_output=dict_files["dem"],
         source_crs=source_crs,
+        target_cellsize=target_cellsize,
     )
     cellsize = get_cellsize(file_input=dict_files["dem"])
     # get rivers blank

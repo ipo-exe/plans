@@ -362,6 +362,72 @@ class TempSeriesSamples(TimeSeriesSpatialSamples):  # todo docstring
         self.name_object = "Temperature Series Sample"
         self._set_view_specs()
 
+class StageSeriesCollection(TimeSeriesCluster):
+    # todo docstring
+    def __init__(self, name="MySSColection"):
+        # todo docstring
+        super().__init__(name=name, base_object=StageSeries)
+        # overwrite parent attributes
+        self.name_object = "Stage Series Collection"
+        self._set_view_specs()
+
+    def set_data(self, df_info, src_dir=None, filter_dates=None):
+        # todo docstring
+        """Set data for the time series collection from a info DataFrame.
+
+        :param df_info: class:`pandas.DataFrame`
+            DataFrame containing metadata information for the time series collection.
+            This DataFrame is expected to have matching fields to the metadata keys.
+
+            Required fields:
+
+            - ``Id``: int, required. Unique number id.
+            - ``Name``: str, required. Simple name.
+            - ``Alias``: str, required. Short nickname.
+            - ``Units``: str, required. Units of data.
+            - ``VarField``: str, required. Variable column in data file.
+            - ``DtField``: str, required. Date-time column in data file
+            - ``File``: str, required. Name or path to data time series ``csv`` file.
+            - ``X``: float, required. Longitude in WGS 84 Datum (EPSG4326).
+            - ``Y``: float, required. Latitude in WGS 84 Datum (EPSG4326).
+            - ``Code``: str, required
+            - ``Source``: str, required
+            - ``Description``: str, required
+            - ``Color``: str, required
+            - ``UpstreamArea``: float, required
+
+
+        :type df_info: class:`pandas.DataFrame`
+
+        :param src_dir: str, optional
+            Path for source directory in the case for only file names in ``File`` column.
+        :type src_dir: str
+
+        :param filter_dates: list, optional
+            List of Start and End dates for filter data
+        :type filter_dates: str
+
+        **Notes:**
+
+        - The ``set_data`` method populates the time series collection with data based on the provided DataFrame.
+        - It creates time series objects, loads data, and performs additional processing steps.
+        - Adjust ``skip_process`` according to your data processing needs.
+
+        **Examples:**
+
+        >>> ts_collection.set_data(df, "path/to/data", filter_dates=["2020-01-01 00:00:00", "2020-03-12 00:00:00"])
+
+        """
+        # generic part
+        super().set_data(df_info=df_info, filter_dates=filter_dates)
+        # custom part
+        for i in range(len(df_info)):
+            name = df_info["Name"].values[i]
+            self.collection[name].upstream_area = df_info["UpstreamArea"].values[i]
+        self.update(details=True)
+        return None
+
+
 def main():
     import matplotlib.pyplot as plt
     plt.style.use("seaborn-v0_8")

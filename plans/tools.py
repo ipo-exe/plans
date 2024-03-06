@@ -333,6 +333,14 @@ def VTOPO(
         "accflux": sp.AccFlux
 
     }
+
+    # full folder setup
+    folder_full = outdir
+    if by_basins:
+        folder_full = os.path.join(outdir, "full")
+        if not os.path.isdir(folder_full):
+            os.mkdir(folder_full)
+
     for topo in dct_topo:
         logger.info("{} {:<12} {:<10} -- full ...".format(prompt, "processing", topo))
         m = dct_topo[topo](name=project_name)
@@ -342,14 +350,34 @@ def VTOPO(
         )
         # run main view
         logger.info("{} {:<12} {:<10} -- full ...".format(prompt, "exporting", topo))
-        m.view(show=False, folder=outdir, filename="{}-full".format(topo))
+
+        _filename = topo
+        if by_basins:
+            _filename = "{}-full".format(topo)
+        m.view(
+            show=False,
+            folder=folder_full,
+            filename=_filename
+        )
+
+        # run basins loop
         if by_basins:
             for b in basins_dct:
-                logger.info("{} {:<12} {:<10} -- basin-{} ...".format(prompt, "processing", topo, b))
+                # basin folder setup
+                folder_basin = os.path.join(outdir, "basin_{}".format(b))
+                if not os.path.isdir(folder_basin):
+                    os.mkdir(folder_basin)
+
+                logger.info("{} {:<12} {:<10} -- basin_{} ...".format(prompt, "processing", topo, b))
                 m.apply_aoi_mask(grid_aoi=basins_dct[b].grid)
+
                 # run sub views
-                logger.info("{} {:<12} {:<10} -- basin-{} ...".format(prompt, "exporting", topo, b))
-                m.view(show=False, folder=outdir, filename="{}-basin-{}".format(topo, b))
+                logger.info("{} {:<12} {:<10} -- basin_{} ...".format(prompt, "exporting", topo, b))
+                m.view(
+                    show=False,
+                    folder=folder_basin,
+                    filename="{}-basin_{}".format(topo, b)
+                )
                 m.release_aoi_mask()
 
     end_time = time.time()
@@ -422,6 +450,13 @@ def VLULC(
     logger.info("{} {} data ...".format(prompt, s_step))
     start_time = time.time()
 
+    # full folder setup
+    folder_full = outdir
+    if by_basins:
+        folder_full = os.path.join(outdir, "full")
+        if not os.path.isdir(folder_full):
+            os.mkdir(folder_full)
+
     lulc_series = sp.LULCSeries(name=project_name)
     logger.info("{} loading LULC series ...".format(prompt))
     lulc_series.load_folder(
@@ -435,26 +470,42 @@ def VLULC(
     lulc_series.get_views(
         show=False,
         export_areas=False,
-        folder=outdir
+        folder=folder_full
     )
     logger.info("{} exporting LULC areas ...".format(prompt))
     lulc_series.view_series_areas(
         show=False,
         export_areas=True,
-        folder=outdir,
+        folder=folder_full,
         filename="lulc_areas"
     )
 
-    '''
+    # proceed by basins
     if by_basins:
         for b in basins_dct:
-            logger.info("{} processing {} -- basin-{} ...".format(prompt, topo, b))
-            m.apply_aoi_mask(grid_aoi=basins_dct[b].grid)
+            folder_basin = os.path.join(outdir, "basin_{}".format(b))
+            if not os.path.isdir(folder_basin):
+                os.mkdir(folder_basin)
+
+            logger.info("{} {:<12} -- basin_{} ...".format(prompt, "processing", b))
+            lulc_series.apply_aoi_masks(grid_aoi=basins_dct[b].grid)
             # run sub views
-            logger.info("{} exporting {} -- basin-{} ...".format(prompt, topo, b))
-            m.view(show=False, folder=outdir, filename="{}-basin-{}".format(topo, b))
-            m.release_aoi_mask()
-    '''
+            logger.info("{} {:<12} -- basin_{} ...".format(prompt, "exporting views", b))
+            # views
+            lulc_series.get_views(
+                show=False,
+                export_areas=False,
+                folder=folder_basin
+            )
+            logger.info("{} {:<12} -- basin_{} ...".format(prompt, "exporting areas", b))
+            # areas
+            lulc_series.view_series_areas(
+                show=False,
+                export_areas=True,
+                folder=folder_basin,
+                filename="lulc_areas_{}".format(b)
+            )
+            lulc_series.release_aoi_masks()
 
     end_time = time.time()
     elapsed_time = end_time - start_time
