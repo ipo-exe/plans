@@ -146,7 +146,7 @@ def twi(slope, flowacc, cellsize):
 
     **Notes:**
 
-    - The function uses the formula: TWI = ln( A / c tan(S)), where A is flow accumulation, c is the cell resolution and S is slope in radians.
+    - The function uses the formula: TWI = ln( A / hc_colors tan(S)), where A is flow accumulation, hc_colors is the cell resolution and S is slope in radians.
     - The input arrays `slope` and `flowacc` should have the same dimensions.
     - The formula includes a small value (0.01) to prevent issues with tangent calculations for non-NaN values.
 

@@ -228,6 +228,8 @@ class Univar:
     def plot_hist(
         self,
         bins=100,
+        colored=False,
+        annotated=False,
         rule=None,
         show=False,
         folder="C:/data",
@@ -239,6 +241,10 @@ class Univar:
 
         :param bins: number of bins
         :type bins: int
+        :param colored: Boolean to quantile-colored histogram
+        :type colored: bool
+        :param annotated: Boolean to plot stats texts over histogram
+        :type annotated: bool
         :param rule: name of rule to compute bins
         :type rule: str
         :param show: Boolean to show instead of saving
@@ -271,6 +277,11 @@ class Univar:
             "ylim": (0, 0.5),
             "xlim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
             "subtitle": None,
+            "cmap": "viridis",
+            "colors": None,
+            "n_classes": 5,
+            "grid": False,
+            "quantiles": True
         }
         # handle input specs
         if specs is None:
@@ -288,15 +299,73 @@ class Univar:
             plt.title(specs["title"])
         else:
             plt.title("{} | {}".format(specs["title"], specs["subtitle"]))
-        plt.hist(
-            self.data,
-            bins=bins,
-            weights=np.ones(len(self.data)) / len(self.data),
-            color=specs["color"],
-        )
+
+        # Calculate quantiles
+        data = pd.Series(self.data)
+        # filter data to xlim
+        data = data[data.between(specs["xlim"][0], specs["xlim"][1])]
+        if specs["quantiles"]:
+            quantiles = data.quantile(np.linspace(0, 1, specs["n_classes"] + 1))
+        else:
+            quantiles = pd.Series(np.linspace(start=data.min(), stop=data.max(), num=specs["n_classes"] + 1))
+
+        # Determine the overall bin width you desire
+        bin_width = (data.max() - data.min()) / bins  # for example, 40 equal width bins across the data range
+        # handle colored plots
+        if colored:
+            if specs["colors"] is None:
+                cmap = mpl.colormaps[specs["cmap"]]
+                colors = [cmap(i) for i in np.linspace(0, 1, len(quantiles) - 1)]
+            else:
+                colors = specs["colors"]
+
+            # Create the bins
+            binsv = np.arange(start=data.min(), stop=data.max(), step=bin_width)
+            binsv = np.append(binsv, data.max())  # Ensure the last bin includes the max value
+
+            # Plot the histogram
+            n, bins, patches = plt.hist(
+                self.data,
+                bins=binsv,
+                linewidth=0,
+                weights=np.ones(len(self.data)) / len(self.data),)
+
+            # Color the bars based on the quantile
+            for patch, edge in zip(patches, bins[:-1]):
+                if edge < quantiles.values[1]:
+                    plt.setp(patch, 'facecolor', colors[0])
+                elif edge < quantiles.values[2]:
+                    plt.setp(patch, 'facecolor', colors[1])
+                elif edge < quantiles.values[3]:
+                    plt.setp(patch, 'facecolor', colors[2])
+                elif edge < quantiles.values[4]:
+                    plt.setp(patch, 'facecolor', colors[3])
+                else:
+                    plt.setp(patch, 'facecolor', colors[4])
+        else:
+            plt.hist(
+                self.data,
+                bins=bins,
+                weights=np.ones(len(self.data)) / len(self.data),
+                color=specs["color"],
+            )
+
         plt.xlabel(specs["xlabel"])
         plt.ylim(specs["ylim"])
         plt.xlim(specs["xlim"])
+        plt.grid(specs["grid"])
+        # Optionally, add vertical lines for each quantile and annotate them
+        mu = np.mean(self.data)
+        plt.axvline(mu, color='r', linestyle='dashed', linewidth=1)
+        plt.text(mu, plt.gca().get_ylim()[1] * 0.92, f'$\mu$ = {mu:.1f}',
+                 ha='left', va='bottom', fontsize=10, rotation=0, color="red")
+        if annotated:
+            aux = 0
+            for q in quantiles:
+                plt.axvline(q, color='k', linestyle='dashed', linewidth=1)
+                plt.text(q, plt.gca().get_ylim()[1] * (0.9 - aux), f'{q:.1f}',
+                         ha='right', va='bottom', fontsize=10, rotation=0)
+                aux = aux + 0.05
 
         # show or save
         if show:
@@ -632,6 +701,8 @@ class Bivar:
         self.name = name
 
         # set sorted data and reset index
+        df_data = df_data[[x_name, y_name]]
+        df_data = df_data.dropna()
         self.data = df_data.sort_values(by=self.xname).reset_index(drop=True)
 
         # models setup
@@ -774,7 +845,7 @@ class Bivar:
             "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
             "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
             "xlabel": self.xname,
-            "ylabel": self.yname
+            "ylabel": self.yname,
         }
         # handle input specs
         if specs is None:
@@ -786,6 +857,7 @@ class Bivar:
 
         # start plot
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+
         plt.suptitle(specs["title"])
         # grid
         gs = mpl.gridspec.GridSpec(
@@ -1217,6 +1289,10 @@ class Bivar:
     @staticmethod
     def rsq(pred, obs):
         return 1 - (np.sum(np.power(pred - obs, 2)) / np.sum(np.power(pred - np.mean(obs), 2)))
+
+
+
+
 
 class Bayes:
     """

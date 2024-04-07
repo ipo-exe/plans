@@ -2117,7 +2117,7 @@ class TimeSeriesCollection(Collection):
 
         # overlapping chart
         plt.subplot(gs[1:, :4])
-        plt.title("c. {}".format(specs["over"]), loc="left")
+        plt.title("hc_colors. {}".format(specs["over"]), loc="left")
         plt.plot(
             epochs_df[self.dtfield], 100 * epochs_df[self.overfield], color="tab:blue"
         )
@@ -4424,7 +4424,7 @@ class Raster:
         plt.text(
             x=n_x,
             y=n_y,
-            s="c. {}".format(specs["c_title"]),
+            s="hc_colors. {}".format(specs["c_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )
@@ -5447,7 +5447,7 @@ class QualiRaster(Raster):
         plt.text(
             x=n_x,
             y=n_y,
-            s="c. {}".format(specs["c_title"]),
+            s="hc_colors. {}".format(specs["c_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )

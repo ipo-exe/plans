@@ -339,7 +339,7 @@ class HabQuality(Raster):
         s = self.cellsize
         grid_ba = b_a * np.square(s) * self.grid / 10000
         # instantiate output
-        output_raster = BiodiversityArea(name=self.name, date=self.date, q_a=b_a)
+        output_raster = EBA(name=self.name, date=self.date, q_a=b_a)
         # set raster
         output_raster.set_asc_metadata(metadata=self.asc_metadata)
         output_raster.prj = self.prj
@@ -373,9 +373,9 @@ class HabDegradation(Raster):
         self.view_specs["vmax"] = 0.7
 
 
-class BiodiversityArea(Raster):
+class EBA(Raster):
     """
-    Biodiversity Area raster map dataset.
+    Equivalent Biodiversity Area raster map dataset.
     """
 
     def __init__(self, name, date, q_a=1.0):
@@ -390,17 +390,17 @@ class BiodiversityArea(Raster):
         """
         super().__init__(name=name, dtype="float32")
         self.cmap = "YlGn"
-        self.varname = "Biodiversity Area"
-        self.varalias = "Ba"
-        self.description = "Biodiversity area in ha equivalents"
+        self.varname = "Equivalent Biodiversity Area"
+        self.varalias = "EBA"
+        self.description = "Equivalent Biodiversity Area in ha equivalents"
         self.units = "ha"
         self.date = date
-        self.ba_total = None
+        self.eba_global = None
         self._set_view_specs()
 
     def set_grid(self, grid):
-        super(BiodiversityArea, self).set_grid(grid)
-        self.ba_total = np.sum(grid)
+        super(EBA, self).set_grid(grid)
+        self.eba_global = np.sum(grid)
         return None
 
 

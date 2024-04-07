@@ -4476,6 +4476,7 @@ class Raster:
             "vmax": None,
             "hist_vmax": None,
             "project_name": None,
+            "zoom_window": None
         }
         return None
 
@@ -4548,10 +4549,21 @@ class Raster:
 
         # plot map
         plt.subplot(gs[:3, :3])
-        plt.title("a. {}".format(specs["a_title"]), loc="left")
+        # handle zoom window
+        i_min = 0
+        i_max = len(self.grid)
+        j_min = 0
+        j_max = len(self.grid[0])
+        if specs["zoom_window"] is not None:
+            i_min = specs["zoom_window"]["i_min"]
+            i_max = specs["zoom_window"]["i_max"]
+            j_min = specs["zoom_window"]["j_min"]
+            j_max = specs["zoom_window"]["j_max"]
+        # plot image
         im = plt.imshow(
-            self.grid, cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
+            self.grid[i_min: i_max, j_min: j_max], cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
         )
+        plt.title("a. {}".format(specs["a_title"]), loc="left")
         fig.colorbar(im, shrink=0.5)
         plt.axis("off")
 
@@ -4582,7 +4594,8 @@ class Raster:
         plt.text(
             x=n_mean - 20 * (specs["vmax"] - specs["vmin"]) / 100,
             y=0.9 * specs["hist_vmax"],
-            s="$\mu$={:.2f}".format(n_mean),
+            s="$\mu$ = {:.2f}".format(n_mean),
+            color="red"
         )
 
         plt.ylim(0, specs["hist_vmax"])
@@ -4631,10 +4644,18 @@ class Raster:
             s_head = df_meta["Raster"].values[i]
             if s_head == "cellsize":
                 s_value = self.cellsize
-                s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
+                if s_value is None:
+                    s_value = '-'
+                    s_line = "{:>15}: {:<10}".format(s_head, s_value)
+                else:
+                    s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
             else:
                 s_value = df_meta["Value"].values[i]
-                s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
+                if s_value is None:
+                    s_value = '-'
+                    s_line = "{:>15}: {:<10}".format(s_head, s_value)
+                else:
+                    s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
             n_y = n_y - n_step
             plt.text(
                 x=n_x,
@@ -5084,6 +5105,8 @@ class QualiRaster(Raster):
                 "legend_y": 0.3,
                 "legend_ncol": 2,
                 "project_name": None,
+                "zoom_window": None,
+                "plot_metadata": True
             }
         return None
 
@@ -5116,6 +5139,7 @@ class QualiRaster(Raster):
         :type filter: bool
         :param n_filter: number of total classes + others
         :type n_filter: int
+        :type zoom:
         :return: None
         :rtype: None
         """
@@ -5187,10 +5211,21 @@ class QualiRaster(Raster):
 
         # plot map
         plt.subplot(gs[:5, :3])
-        plt.title("a. {}".format(specs["a_title"]), loc="left")
+        # handle zoom window
+        i_min = 0
+        i_max = len(self.grid)
+        j_min = 0
+        j_max = len(self.grid[0])
+        if specs["zoom_window"] is not None:
+            i_min = specs["zoom_window"]["i_min"]
+            i_max = specs["zoom_window"]["i_max"]
+            j_min = specs["zoom_window"]["j_min"]
+            j_max = specs["zoom_window"]["j_max"]
+        # plot image
         im = plt.imshow(
-            self.grid, cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
+            self.grid[i_min: i_max, j_min: j_max], cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
         )
+        plt.title("a. {}".format(specs["a_title"]), loc="left")
         plt.axis("off")
 
         # place legend
@@ -5251,41 +5286,42 @@ class QualiRaster(Raster):
 
         # -----------------------------------------------
         # plot metadata
-        lst_meta = []
-        lst_value = []
-        for k in self.asc_metadata:
-            lst_value.append(self.asc_metadata[k])
-            lst_meta.append(k)
-        df_meta = pd.DataFrame({"Raster": lst_meta, "Value": lst_value})
-        # metadata
-        n_y = 0.25
-        n_x = 0.62
-        plt.text(
-            x=n_x,
-            y=n_y,
-            s="c. {}".format(specs["c_title"]),
-            fontsize=12,
-            transform=fig.transFigure,
-        )
-        n_y = n_y - 0.01
-        n_step = 0.025
-        for i in range(len(df_meta)):
-            s_head = df_meta["Raster"].values[i]
-            if s_head == "cellsize":
-                s_value = self.cellsize
-                s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
-            else:
-                s_value = df_meta["Value"].values[i]
-                s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
-            n_y = n_y - n_step
+        if specs["plot_metadata"]:
+            lst_meta = []
+            lst_value = []
+            for k in self.asc_metadata:
+                lst_value.append(self.asc_metadata[k])
+                lst_meta.append(k)
+            df_meta = pd.DataFrame({"Raster": lst_meta, "Value": lst_value})
+            # metadata
+            n_y = 0.25
+            n_x = 0.62
             plt.text(
                 x=n_x,
                 y=n_y,
-                s=s_line,
-                fontsize=9,
-                fontdict={"family": "monospace"},
+                s="c. {}".format(specs["c_title"]),
+                fontsize=12,
                 transform=fig.transFigure,
             )
+            n_y = n_y - 0.01
+            n_step = 0.025
+            for i in range(len(df_meta)):
+                s_head = df_meta["Raster"].values[i]
+                if s_head == "cellsize":
+                    s_value = self.cellsize
+                    s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
+                else:
+                    s_value = df_meta["Value"].values[i]
+                    s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
+                n_y = n_y - n_step
+                plt.text(
+                    x=n_x,
+                    y=n_y,
+                    s=s_line,
+                    fontsize=9,
+                    fontdict={"family": "monospace"},
+                    transform=fig.transFigure,
+                )
 
         # show or save
         if show:
@@ -5787,7 +5823,6 @@ class RasterCollection(Collection):
         lst_stats = []
         for i in range(len(self.catalog)):
             s_name = self.catalog["Name"].values[i]
-            print(s_name)
             df_stats = self.collection[s_name].get_grid_stats()
             lst_stats.append(df_stats.copy())
         # deploy fields
@@ -6378,7 +6413,7 @@ class QualiRasterSeries(RasterSeries):
 
             threads = []
             for file_info in file_info_list:
-                print(file_info)
+                #print(file_info)
                 thread = threading.Thread(target=self.w_load_file, args=(file_info,))
                 threads.append(thread)
                 thread.start()
@@ -6394,6 +6429,8 @@ class QualiRasterSeries(RasterSeries):
                 prj_file = lst_prjs[i]
                 # get name
                 s_name = os.path.basename(asc_file).split(".")[0]
+                if talk:
+                    print(s_name)
                 # get dates
                 s_date_map = asc_file.split("_")[-1].split(".")[0]
                 s_date_prj = prj_file.split("_")[-1].split(".")[0]

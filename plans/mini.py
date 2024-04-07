@@ -830,7 +830,7 @@ class MiniPlans():
 
         plt.subplot(gs[2, 2])
         #plt.title("runoff coef.", loc="left")
-        plt.plot(self.data["t"], self.data["C"], color="black", label="$c$")
+        plt.plot(self.data["t"], self.data["C"], color="black", label="$hc_colors$")
         plt.ylim([0, 1])
         plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
         plt.ylabel("$h^{-1}$")
@@ -936,7 +936,7 @@ class MiniPlans():
         plt.ylim([0, 1.1])
         plt.xlim([0, np.max(s)])
         #plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
-        plt.ylabel("$c$")
+        plt.ylabel("$hc_colors$")
         plt.xlabel("$S_1 - s_a$ ($mm$)")
 
         plt.subplot(gs[1, 0])
