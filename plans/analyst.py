@@ -1280,7 +1280,7 @@ class Bivar:
 
     @staticmethod
     def rmse(pred, obs):
-        return  np.sqrt(np.power(np.sum(pred - obs), 2)) / len(pred)
+        return  np.sqrt(np.sum(np.power(pred - obs, 2)) / len(pred))
 
     @staticmethod
     def mae(pred, obs):
@@ -1288,7 +1288,7 @@ class Bivar:
 
     @staticmethod
     def rsq(pred, obs):
-        return 1 - (np.sum(np.power(pred - obs, 2)) / np.sum(np.power(pred - np.mean(obs), 2)))
+        return 1 - (np.sum(np.power(pred - obs, 2)) / np.sum(np.power(obs - np.mean(obs), 2)))
 
 
 
