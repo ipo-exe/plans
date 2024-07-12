@@ -254,7 +254,7 @@ def get_cellsize(file_input):
     return cellsize
 
 
-def get_blank_raster(file_input, file_output, blank_value=0):
+def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     """get a blank raster copy from other raster
 
     :param file_input: path to input raster file
@@ -263,6 +263,8 @@ def get_blank_raster(file_input, file_output, blank_value=0):
     :type file_output: str
     :param blank_value: value for constant blank raster
     :type blank_value: int
+    :param dtype: output raster data type ("byte", "int" -- else defaults to float)
+    :type dtype: str
     :return: file path of output (echo)
     :rtype: str
     """
@@ -299,12 +301,23 @@ def get_blank_raster(file_input, file_output, blank_value=0):
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
     driver = gdal.GetDriverByName("GTiff")
-
-    # Create a new raster with the same dimensions as the original
-    raster_output = driver.Create(
-        file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Byte
-    )
-
+    
+    if dtype == "byte":
+        # Create a new raster with the same dimensions as the original
+        raster_output = driver.Create(
+            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Byte
+        )
+    elif dtype == "int":
+        # Create a new raster with the same dimensions as the original
+        raster_output = driver.Create(
+            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Int16
+        )
+    else:
+        # Create a new raster with the same dimensions as the original
+        raster_output = driver.Create(
+            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
+        )
+    
     # Set the projection and geotransform of the new raster to match the original
     raster_output.SetProjection(raster_projection)
     raster_output.SetGeoTransform(raster_geotransform)
@@ -894,7 +907,8 @@ def get_topo(
             source_crs='4326',
             w=3,
             h=10,
-            hand_cells=100
+            hand_cells=100,
+            target_cellsize=30,
         )
 
     .. warning::
@@ -1628,7 +1642,7 @@ def get_basins(
     print("blank raster...")
     gauge_raster = "{}/gauges.tif".format(output_folder_gdal)
     # get blanks
-    get_blank_raster(file_input=ldd_file, file_output=gauge_raster, blank_value=0)
+    get_blank_raster(file_input=ldd_file, file_output=gauge_raster, blank_value=0, dtype="float")
     print("rasterize...")
     # rasterize
     processing.run(

@@ -400,6 +400,7 @@ class Univar:
             "width": 4 * 1.618,
             "height": 4,
             "xlabel": "value",
+            "ylabel": "",
             "ylim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
             "subtitle_1": "Scatter",
             "subtitle_2": "Hist",
@@ -424,6 +425,7 @@ class Univar:
         plt.title(specs["subtitle_1"])
         plt.ylim(specs["ylim"])
         plt.xlabel("n")
+        plt.ylabel(specs["ylabel"])
         # hist
         ax = fig.add_subplot(gs[0, 2])
         plt.hist(
@@ -437,6 +439,7 @@ class Univar:
         plt.title(specs["subtitle_2"])
         plt.ylim(specs["ylim"])
         plt.xlabel("p")
+        plt.ylabel(specs["ylabel"])
         # show or save
         if show:
             plt.show()

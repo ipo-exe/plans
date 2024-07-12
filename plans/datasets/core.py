@@ -240,6 +240,7 @@ class TimeSeries(DataSet):
             "xmax": None,
             "ymin": 0,
             "ymax": None,
+            "linestyle": "."
         }
         return None
 
@@ -1310,10 +1311,11 @@ class TimeSeries(DataSet):
             specs["ymax"] = self.data[specs["yvar"]].max()
 
         # --------------------- plotting --------------------- #
+
         plt.plot(
             self.data[specs["xvar"]],
             self.data[specs["yvar"]],
-            ".",
+            linestyle=specs["linestyle"],
             color=specs["color"]
         )
 
