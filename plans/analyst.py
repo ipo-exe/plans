@@ -927,6 +927,7 @@ class Bivar:
         fig_format="jpg"
     ):
         """Plot pannel for model analysis
+
         :param show: Boolean to show instead of saving
         :type show: bool
         :param folder: output folder
@@ -1110,6 +1111,7 @@ class Bivar:
 
     def correlation(self):
         """Compute the R correlation coefficient of the base_object
+
         :return: R correlation coefficient
         :rtype: float
         """
@@ -1125,6 +1127,7 @@ class Bivar:
             p0=None
     ):
         """Run Monte Carlo Simulation to get prediciton bands
+
         :param lst_bounds: list of prediction bounds [min, max], if None, 3x the date range is used
         :type lst_bounds: list
         :param n_sim: number of simulation runs
@@ -1279,18 +1282,62 @@ class Bivar:
 
     @staticmethod
     def bias(pred, obs):
+        """Compute the Bias between predicted and observated data
+
+        :param pred: :class:`numpy.ndarray`
+            vector of prediction vales
+        :type pred: :class:`numpy.ndarray`
+        :param obs: :class:`numpy.ndarray`
+            vector of observed values
+        :type obs: :class:`numpy.ndarray`
+        :return: Bias value
+        :rtype: float
+        """
         return 100 * np.sum(pred - obs) / np.sum(obs)
 
     @staticmethod
     def rmse(pred, obs):
+        """Compute the RMSE metric between predicted and observated data
+
+        :param pred: :class:`numpy.ndarray`
+            vector of prediction vales
+        :type pred: :class:`numpy.ndarray`
+        :param obs: :class:`numpy.ndarray`
+            vector of observed values
+        :type obs: :class:`numpy.ndarray`
+        :return: RMSE value
+        :rtype: float
+        """
         return  np.sqrt(np.sum(np.power(pred - obs, 2)) / len(pred))
 
     @staticmethod
     def mae(pred, obs):
+        """Compute the Mean Absolute Error (MAE) between predicted and observated data
+
+        :param pred: :class:`numpy.ndarray`
+            vector of prediction vales
+        :type pred: :class:`numpy.ndarray`
+        :param obs: :class:`numpy.ndarray`
+            vector of observed values
+        :type obs: :class:`numpy.ndarray`
+        :return: MAE value
+        :rtype: float
+        """
         return np.sum(np.abs(pred - obs)) / len(pred)
 
     @staticmethod
     def rsq(pred, obs):
+        """Compute the R-square between predicted and observated data
+
+        :param pred: :class:`numpy.ndarray`
+            vector of prediction vales
+        :type pred: :class:`numpy.ndarray`
+        :param obs: :class:`numpy.ndarray`
+            vector of observed values
+        :type obs: :class:`numpy.ndarray`
+        :return: R-square value
+        :rtype: float
+        """
         return 1 - (np.sum(np.power(pred - obs, 2)) / np.sum(np.power(obs - np.mean(obs), 2)))
 
 
