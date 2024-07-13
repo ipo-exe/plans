@@ -271,7 +271,7 @@ class Collection(MbaE):
     Useful for large scale manipulations in ``MbaE``-based objects.
     Expected to have custom methods and attributes downstream.
 
-    **Attributes:**
+    **Main Attributes:**
 
     - ``catalog`` (:class:`pandas.DataFrame`): A catalog containing metadata of the objects in the test_collection.
     - ``collection`` (dict): A dictionary containing the objects in the ``Collection``.
@@ -279,7 +279,7 @@ class Collection(MbaE):
     - alias (str): The name of the ``Collection``.
     - baseobject: The class of the base object used to initialize the ``Collection``.
 
-    **Methods:**
+    **Main Methods:**
 
     - __init__(self, base_object, name="myCatalog"): Initializes a new ``Collection`` with a base object.
     - update(self, details=False): Updates the ``Collection`` catalog.
@@ -564,9 +564,83 @@ class DataSet(MbaE):
     This is a Base and Dummy object. Expected to be implemented downstream for
     custom applications.
 
+    **Examples:**
 
+    Here's how to use the ``DataSet`` class:
 
+    Import Dataset
 
+    .. code-block:: python
+
+        # import Dataset
+        from plans.root import DataSet
+
+    Instantiate DataSet Object
+
+    .. code-block:: python
+
+        # instantiate DataSet object
+        ds = DataSet(name="DataSet_1", alias="DS1")
+
+    Set Object and Load Data
+
+    .. code-block:: python
+
+        # set object and load data.
+        # Note: this dummy object expects "RM", "P", and "TempDB" as columns in data
+        ds.set(
+            dict_setter={
+                "Name": "DataSet_2",
+                "Alias": "DS2",
+                "Color": "red",
+                "Source": "",
+                "Description": "This is DataSet Object",
+                "File_Data": "/content/data_ds1.csv"
+            },
+            load_data=True
+        )
+
+    Check Data
+
+    .. code-block:: python
+
+        # check data `pandas.DataFrame`
+        print(ds.data.head())
+
+    Reload New Data from File
+
+    .. code-block:: python
+
+        # re-load new data from file
+        ds.load_data(file_data="/content/data_ds2.csv")
+
+    Get Basic Visual
+
+    .. code-block:: python
+
+        # get basic visual
+        ds.view(show=True)
+
+    Customize View Parameters
+
+    .. code-block:: python
+
+        # customize view parameters via the view_specs attribute:
+        ds.view_specs["title"] = "My Custom Title"
+        ds.view_specs["xlabel"] = "The X variable"
+        ds.view(show=True)
+
+    Save the Figure
+
+    .. code-block:: python
+
+        # save the figure
+        ds.view_specs["folder"] = "path/to/folder"
+        ds.view_specs["filename"] = "my_visual"
+        ds.view_specs["fig_format"] = "png"
+        ds.view(show=False)
+
+    
     """
 
     def __init__(self, name="MyDataSet", alias="DS0"):
