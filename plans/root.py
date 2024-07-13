@@ -1,3 +1,35 @@
+"""
+The root of everything. Here is the most basic objects for the whole ontology of objects
+
+Description:
+    The ``root`` module provides the most basic objects for the whole ontology of objects.
+
+License:
+    This software is released under the GNU General Public License v3.0 (GPL-3.0).
+    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+
+Author:
+    Iporã Possantti
+
+Contact:
+    possantti@gmail.com
+
+
+Overview
+--------
+
+todo
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis.
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
+
+Class aptent taciti sociosqu ad litora torquent per
+conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
+eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+
+"""
 import glob
 import os, copy, shutil, datetime
 import pandas as pd
@@ -11,6 +43,41 @@ class MbaE:
 
         **Mba'e is the origin**. The the very-basic almost-zero level object.
         Deeper than here is only the Python builtin ``object`` class.
+
+    Examples
+    --------
+
+    The `MbaE` object from the `plans.root` module provides a comprehensive set of functionalities for managing and manipulating metadata:
+
+    - **Instantiation**: Create an instance with initial values.
+    - **Metadata Retrieval**: Fetch the current metadata attributes using the `get_metadata` method.
+    - **DataFrame Conversion**: Convert metadata into a `pandas.DataFrame` with the `get_metadata_df` method.
+    - **Updating Metadata**: Set new values for the metadata using the `set` method.
+    - **Booting from CSV**: Load attributes from a CSV file with the `boot` method.
+
+
+    .. code-block:: python
+
+        # import the object
+        from plans.root import MbaE
+
+        # MbaE instantiation
+        m = MbaE(name="Algo", alias="al")
+
+        # Retrieve metadata (not all attributes)
+        d = m.get_metadata()
+        print(d)
+
+        # Retrieve metadata in a `pandas.DataFrame`
+        df = m.get_metadata_df()
+        print(df.to_string(index=False))
+
+        # Set new values for metadata
+        d2 = {"Name": "Algo2", "Alias": "al2"}
+        m.set(dict_setter=d2)
+
+        # Boot attributes from csv file:
+        m.boot(bootfile="/content/metadata.csv")
 
 
     """
