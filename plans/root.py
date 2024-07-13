@@ -44,17 +44,10 @@ class MbaE:
         **Mba'e is the origin**. The the very-basic almost-zero level object.
         Deeper than here is only the Python builtin ``object`` class.
 
-    Examples
-    --------
 
-    The `MbaE` object from the `plans.root` module provides a comprehensive set of functionalities for managing and manipulating metadata:
+    **Examples:**
 
-    - **Instantiation**: Create an instance with initial values.
-    - **Metadata Retrieval**: Fetch the current metadata attributes using the `get_metadata` method.
-    - **DataFrame Conversion**: Convert metadata into a `pandas.DataFrame` with the `get_metadata_df` method.
-    - **Updating Metadata**: Set new values for the metadata using the `set` method.
-    - **Booting from CSV**: Load attributes from a CSV file with the `boot` method.
-
+    Here's how to use the `MbaE` class:
 
     .. code-block:: python
 
@@ -241,7 +234,7 @@ class Collection(MbaE):
     Useful for large scale manipulations in ``MbaE``-based objects.
     Expected to have custom methods and attributes downstream.
 
-    Attributes:
+    **Attributes:**
 
     - ``catalog`` (:class:`pandas.DataFrame`): A catalog containing metadata of the objects in the test_collection.
     - ``collection`` (dict): A dictionary containing the objects in the ``Collection``.
@@ -249,7 +242,7 @@ class Collection(MbaE):
     - alias (str): The name of the ``Collection``.
     - baseobject: The class of the base object used to initialize the ``Collection``.
 
-    Methods:
+    **Methods:**
 
     - __init__(self, base_object, name="myCatalog"): Initializes a new ``Collection`` with a base object.
     - update(self, details=False): Updates the ``Collection`` catalog.
@@ -258,25 +251,47 @@ class Collection(MbaE):
 
 
     **Examples:**
-    Here's how to use the Collection class:
 
-    1. Initializing a Collection
+    Here's how to use the `Collection` class:
 
-    >>> base_obj = YourBaseObject()
-    >>> test_collection = Collection(base_object=base_obj, name="myCatalog")
+    .. code-block:: python
 
-    2. Appending a New Object
+        # import MbaE-based object
+        from plans.root import MbaE
 
-    >>> new_obj = YourNewObject()
-    >>> test_collection.append(new_object=new_obj)
+        # import Collection
+        from plans.root import Collection
 
-    3. Removing an Object
+        # instantiate Collection object
+        c = Collection(base_object=MbaE, name="Collection")
 
-    >>> test_collection.remove(name="ObjectToRemove")
+        # append a new object
+        m1 = MbaE(name="Thing1", alias="al1")
+        c.append(m1)  # use .append()
 
-    4. Updating the Catalog
+        # append extra objects
+        m2 = MbaE(name="Thing2", alias="al2")
+        c.append(m2)  # use .append()
+        m3 = MbaE(name="Res", alias="r")
+        c.append(m3)  # use .append()
 
-    >>> test_collection.update(details=True)
+        # print catalog `pandas.DataFrame`
+        print(c.catalog)
+
+        # print collection dict
+        print(c.collection)
+
+        # remove object by object name
+        c.remove(name="Thing1")
+        
+        # -- apply MbaE methods for Collection
+
+        # reset metadata
+        c.set(dict_setter={"Name": "Coll", "Alias": "C1"})
+
+        # Boot attributes from csv file:
+        c.boot(bootfile="/content/metadata_coll.csv")
+
 
     """
 
