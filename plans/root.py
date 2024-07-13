@@ -29,11 +29,26 @@ Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
 eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
 
+
+Examples
+--------
+
+todo
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis.
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
+
+Class aptent taciti sociosqu ad litora torquent per
+conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
+eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+
 """
 import glob
 import os, copy, shutil, datetime
 import pandas as pd
-
+import matplotlib.pyplot as plt
 
 class MbaE:
     """
@@ -47,27 +62,49 @@ class MbaE:
 
     **Examples:**
 
-    Here's how to use the `MbaE` class:
+    Here's how to use the ``MbaE`` class:
+
+    Import ``MbaE``:
 
     .. code-block:: python
 
         # import the object
         from plans.root import MbaE
 
+    ``MbaE`` instantiation
+
+    .. code-block:: python
+
         # MbaE instantiation
         m = MbaE(name="Algo", alias="al")
+
+    Retrieve metadata (not all attributes)
+
+    .. code-block:: python
 
         # Retrieve metadata (not all attributes)
         d = m.get_metadata()
         print(d)
 
+    Retrieve metadata in a `pandas.DataFrame`
+
+    .. code-block:: python
+
         # Retrieve metadata in a `pandas.DataFrame`
         df = m.get_metadata_df()
         print(df.to_string(index=False))
 
+    Set new values for metadata
+
+    .. code-block:: python
+
         # Set new values for metadata
         d2 = {"Name": "Algo2", "Alias": "al2"}
         m.set(dict_setter=d2)
+
+    Boot attributes from csv file:
+
+    .. code-block:: python
 
         # Boot attributes from csv file:
         m.boot(bootfile="/content/metadata.csv")
@@ -249,10 +286,11 @@ class Collection(MbaE):
     - append(self, new_object): Appends a new object to the ``Collection``.
     - remove(self, name): Removes an object from the ``Collection``.
 
-
     **Examples:**
 
     Here's how to use the `Collection` class:
+
+    Import objects:
 
     .. code-block:: python
 
@@ -262,12 +300,24 @@ class Collection(MbaE):
         # import Collection
         from plans.root import Collection
 
+    Instantiate ``Collection``:
+
+    .. code-block:: python
+
         # instantiate Collection object
         c = Collection(base_object=MbaE, name="Collection")
+
+    Append a new object to the ``Collection``:
+
+    .. code-block:: python
 
         # append a new object
         m1 = MbaE(name="Thing1", alias="al1")
         c.append(m1)  # use .append()
+
+    Append extra objects:
+
+    .. code-block:: python
 
         # append extra objects
         m2 = MbaE(name="Thing2", alias="al2")
@@ -275,15 +325,31 @@ class Collection(MbaE):
         m3 = MbaE(name="Res", alias="r")
         c.append(m3)  # use .append()
 
+    Print the catalog `pandas.DataFrame`:
+
+    .. code-block:: python
+
         # print catalog `pandas.DataFrame`
         print(c.catalog)
+
+    Print the collection dict:
+
+    .. code-block:: python
 
         # print collection dict
         print(c.collection)
 
+    Remove an object by using object name:
+
+    .. code-block:: python
+
         # remove object by object name
         c.remove(name="Thing1")
-        
+
+    Apply MbaE-based methods for Collection
+
+    .. code-block:: python
+
         # -- apply MbaE methods for Collection
 
         # reset metadata
@@ -498,6 +564,9 @@ class DataSet(MbaE):
     This is a Base and Dummy object. Expected to be implemented downstream for
     custom applications.
 
+
+
+
     """
 
     def __init__(self, name="MyDataSet", alias="DS0"):
@@ -702,7 +771,8 @@ class DataSet(MbaE):
         """
 
         # -------------- overwrite relative path input -------------- #
-        file_data = os.path.abspath(file_data)
+        self.file_data = os.path.abspath(file_data)
+
 
         # -------------- implement loading logic -------------- #
         default_columns = {
@@ -713,7 +783,7 @@ class DataSet(MbaE):
         }
         # -------------- call loading function -------------- #
         self.data = pd.read_csv(
-            file_data,
+            self.file_data,
             sep=self.file_data_sep,
             dtype=default_columns,
             usecols=list(default_columns.keys()),
@@ -721,6 +791,11 @@ class DataSet(MbaE):
 
         # -------------- post-loading logic -------------- #
         self.data.dropna(inplace=True)
+
+        # -------------- update other mutables -------------- #
+        self.update()
+
+        # ... continues in downstream objects ... #
 
         return None
 
