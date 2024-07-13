@@ -963,6 +963,132 @@ class RecordTable(DataSet):
     in order to keep track of large inventories, catalogs, etc.
     All records are expected to have a unique Id. It is considered to be a relational table.
 
+
+    Import RecordTable
+
+    .. code-block:: python
+
+        # Import RecordTable
+        from plans.root import RecordTable
+
+    Instantiate RecordTable Object
+
+    .. code-block:: python
+
+        # Instantiate RecordTable object
+        rt = RecordTable(name="RecTable_1", alias="RT1")
+
+    Setup custom columns for the data
+
+    .. code-block:: python
+
+        # Setup custom columns for the data
+        rt.columns_data_main = ["Name", "Size"]  # main data
+        rt.columns_data_extra = ["Type"]  # extra data
+        rt.columns_data_files = ["File_P"]  # file-related
+        rt.columns_data = rt.columns_data_main + rt.columns_data_extra + rt.columns_data_files
+
+    Set Object Metadata and Load Data
+
+    .. code-block:: python
+
+        # Set object metadata and load data.
+        # Note: this dummy object expects the following columns in data
+        rt.set(
+            dict_setter={
+                "Name": "RecTable_01",
+                "Alias": "RT01",
+                "Color": "red",
+                "Source": "-",
+                "Description": "This is RecordTable Object",
+                "File_Data": "/content/data_rt1.csv"
+            },
+            load_data=True
+        )
+
+
+    Check Data
+
+    .. code-block:: python
+
+        # Check data `pandas.DataFrame`
+        print(rt.data.head())
+
+    Load More Data from Other File
+
+    .. code-block:: python
+
+        # Load more new data from other file
+        rt.load_data(file_data="/content/data_rt2.csv")
+
+    Insert New Record
+
+    .. code-block:: python
+
+        # Insert new record from incoming dict
+        d2 = {
+            "Name": "k",
+            "Size": 177,
+            "Type": 'input',
+            "File_P": "/filee.pdf",
+        }
+        rt.insert_record(dict_rec=d2)
+
+    Edit Record
+
+    .. code-block:: python
+
+        # Edit record based on ``RecId`` and new dict
+        d = {
+            "Size": 34,
+            "Name": "C"
+        }
+        rt.edit_record(rec_id="Rec0002", dict_rec=d)
+
+    Archive a Record
+
+    .. code-block:: python
+
+        # Archive a record in the RT, that is ``RecStatus`` = ``Off``
+        rt.archive_record(rec_id="Rec0003")
+
+    Get a Record Dict by ID
+
+    .. code-block:: python
+
+        # Get a record dict by id
+        d = rt.get_record(rec_id="Rec0001")
+        print(d)
+
+    Get a Record DataFrame by ID
+
+    .. code-block:: python
+
+        # Get a record `pandas.DataFrame` by id
+        df = rt.get_record_df(rec_id="Rec0001")
+        print(df.to_string(index=False))
+
+    Load Record Data from CSV
+
+    .. code-block:: python
+
+        # Load record data from a ``csv`` file to a dict
+        d = rt.load_record_data(file_record_data="/content/rec_rt2.csv")
+        print(d)
+
+    Export a Record to CSV
+
+    .. code-block:: python
+
+        # Export a record from the table to a ``csv`` file
+        f = rt.export_record(
+            rec_id="Rec0001",
+            folder_export="/content",
+            filename="export_rt2"
+        )
+        print(f)
+
+
     """
 
     def __init__(self, name="MyRecordTable", alias="RcT"):
@@ -1041,7 +1167,7 @@ class RecordTable(DataSet):
         This is a Base and Dummy method. It is expected to be overwrited and implemented downstream.
 
         :return: None
-        :rtype:None
+        :rtype: None
         """
 
         # ------------- define sub routines here ------------- #
@@ -1064,7 +1190,7 @@ class RecordTable(DataSet):
             "Age": func_age,
             "File_Status": func_file_status
         }
-        # remove here
+        # remove here for downstream objects!
         self.operator = None
         return None
 
@@ -1073,7 +1199,7 @@ class RecordTable(DataSet):
         """Return the organized columns (base + data columns)
 
         :return: organized columns (base + data columns)
-        :rtype:list
+        :rtype: list
         """
         return self.columns_base + self.columns_data
 
@@ -1081,7 +1207,7 @@ class RecordTable(DataSet):
         """Return a string timestamp
 
         :return: full timestamp text %Y-%m-%d %H:%M:%S
-        :rtype:str
+        :rtype: str
         """
         # compute timestamp
         _now = datetime.datetime.now()
@@ -1217,6 +1343,12 @@ class RecordTable(DataSet):
         # ... continues in downstream objects ... #
 
     def refresh_data(self):
+        """Refresh data method for the object operator.
+        Performs spreadsheet-like formulas for columns.
+
+        :return: None
+        :rtype: None
+        """
         if self.operator is not None:
             for c in self.operator:
                 self.data[c] = self.operator[c]()
@@ -1233,12 +1365,12 @@ class RecordTable(DataSet):
         :rtype: None
         """
         # -------------- overwrite relative path input -------------- #
-        file_data = os.path.abspath(file_data)
+        self.file_data = os.path.abspath(file_data)
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
         df = pd.read_csv(
-            file_data,
+            self.file_data,
             sep=self.file_data_sep
         )
 
@@ -1249,6 +1381,7 @@ class RecordTable(DataSet):
 
     def set_data(self, input_df, append=True, inplace=True):
         """Set RecordTable data from incoming dataframe.
+        It handles if the dataframe has or not the required RT columns
         Base Method. Expected to be incremented downstream.
 
         :param input_df: incoming dataframe
@@ -1343,6 +1476,8 @@ class RecordTable(DataSet):
         :type rec_id: str
         :param dict_rec: incoming record dictionary
         :type dict_rec: dict
+        :param filter_dict: option for filtering incoming record
+        :type filter_dict: bool
         :return: None
         :rtype: None
         """
@@ -1389,7 +1524,7 @@ class RecordTable(DataSet):
 
 
     def get_record(self, rec_id):
-        """Get a record dictionary
+        """Get a record dict by id
 
         :param rec_id: record id
         :type rec_id: str
@@ -1405,7 +1540,7 @@ class RecordTable(DataSet):
         return dict_rec
 
     def get_record_df(self, rec_id):
-        """Get a record dataframe
+        """Get a record dataframe by id
 
         :param rec_id: record id
         :type rec_id: str
@@ -1422,7 +1557,7 @@ class RecordTable(DataSet):
         return pd.DataFrame(dict_df)
 
     def load_record_data(self, file_record_data, input_field="Field", input_value="Value"):
-        """Load record data from a ``csv`` file.
+        """Load record data from a ``csv`` file to a dict
 
         .. note::
 
@@ -1456,7 +1591,7 @@ class RecordTable(DataSet):
         return dict_rec
 
     def export_record(self, rec_id, filename=None, folder_export=None):
-        """Export a record to a csv file.
+        """Export a record from the table to a ``csv`` file.
 
         :param rec_id: record id
         :type rec_id: str
