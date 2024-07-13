@@ -564,56 +564,39 @@ class DataSet(MbaE):
     This is a Base and Dummy object. Expected to be implemented downstream for
     custom applications.
 
-    Attributes
-    ----------
-    name : str
-        Unique object name.
-    alias : str
-        Unique object alias.
-    object_alias : str
-        Alias used internally.
-    file_data : str or None
-        Path to the data file.
-    folder_data : str or None
-        Path to the folder containing the data file.
-    data : pandas.DataFrame or None
-        The main data held by the object.
-    size : int or None
-        Size of the data (number of rows).
-    source_data : str or None
-        Source of the data.
-    descri_data : str or None
-        Description of the data.
-    color : str
-        Color attribute for visualizations.
-    file_data_sep : str
-        Separator used in the data file.
-    view_specs : dict
-        Specifications for data visualization.
+    **Attributes**
 
-    Methods
-    -------
-    __init__(name="MyDataSet", alias="DS0")
-        Initialize the ``DataSet`` object.
-    __str__()
-        Return a string representation of the ``DataSet`` object.
-    _set_fields()
-        Set field names for various attributes.
-    _set_view_specs()
-        Set specifications for data visualization.
-    get_metadata()
-        Get a dictionary with object metadata.
-    update()
-        Refresh all mutable attributes based on data.
-    set(dict_setter, load_data=True)
-        Set selected attributes based on an incoming dictionary.
-    load_data(file_data)
-        Load data from file.
-    view(show=True)
-        Get a basic visualization of the data.
+    +-------------------+-------------+----------------------------------------------+
+    | Name              | Type        | Description                                  |
+    +===================+=============+==============================================+
+    | name              | str         | Unique object name.                          |
+    +-------------------+-------------+----------------------------------------------+
+    | alias             | str         | Unique object alias.                         |
+    +-------------------+-------------+----------------------------------------------+
+    | object_alias      | str         | Alias used internally.                       |
+    +-------------------+-------------+----------------------------------------------+
+    | file_data         | str or None | Path to the data file.                       |
+    +-------------------+-------------+----------------------------------------------+
+    | folder_data       | str or None | Path to the folder containing the data file. |
+    +-------------------+-------------+----------------------------------------------+
+    | data              | pandas.DataFrame or None | The main data held by the object.            |
+    +-------------------+-------------+----------------------------------------------+
+    | size              | int or None | Size of the data (number of rows).           |
+    +-------------------+-------------+----------------------------------------------+
+    | source_data       | str or None | Source of the data.                          |
+    +-------------------+-------------+----------------------------------------------+
+    | descri_data       | str or None | Description of the data.                     |
+    +-------------------+-------------+----------------------------------------------+
+    | color             | str         | Color attribute for visualizations.          |
+    +-------------------+-------------+----------------------------------------------+
+    | file_data_sep     | str         | Separator used in the data file.             |
+    +-------------------+-------------+----------------------------------------------+
+    | view_specs        | dict        | Specifications for data visualization.       |
+    +-------------------+-------------+----------------------------------------------+
 
-    Examples
-    -------
+
+    **Examples**
+
     Here's how to use the ``DataSet`` class:
 
     Import Dataset
