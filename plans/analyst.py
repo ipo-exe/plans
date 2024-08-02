@@ -43,9 +43,9 @@ Nulla mollis tincidunt erat eget iaculis.
     data_vector = np.random.rand(1000)
 
     # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
+    uni = analyst.Univar(sample=data_vector, name="my_data")
 
-    # view data
+    # view sample
     uni.view()
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
@@ -103,6 +103,15 @@ def power_zero(x, c0, c1):
     """
     return c1 * (np.power((x), c0))
 
+
+def gumbel(x, a, b):
+    gumbel_b = b
+    gumbel_a = a
+    aux_1 = (x - gumbel_a) / gumbel_b
+    aux_2 = np.exp(- aux_1)
+    gumbel_fx = np.exp(- aux_2)
+    return gumbel_fx
+
 # --------- Objects -----------
 
 class Univar:
@@ -114,14 +123,14 @@ class Univar:
     def __init__(self, data, name="myvar"):
         """Deploy the Analyst
 
-        :param data: n-D vector of data
+        :param data: n-D vector of sample
         :type data: :class:`numpy.ndarray`
         """
         self.data = data
         self.name = name
 
     def nbins_fd(self):
-        """This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into account the interquartile range (IQR) of the data, in addition to its range.
+        """This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into account the interquartile range (IQR) of the sample, in addition to its range.
 
         :return: number of bins for histogram using the Freedman-Diaconis rule
         :rtype: int
@@ -134,7 +143,7 @@ class Univar:
         return int(np.ceil((max(self.data) - min(self.data)) / binsize))
 
     def nbins_sturges(self):
-        """This function computes the number of bins using the Sturges rule, which assumes that the data follows a normal distribution and computes the number of bins based on its sample runsize.
+        """This function computes the number of bins using the Sturges rule, which assumes that the data follows a normal distribution and computes the number of bins based on its data runsize.
 
         :return: number of bins using the Sturges rule
         :rtype: int
@@ -215,7 +224,7 @@ class Univar:
         return _df
 
     def trace_variance(self):
-        """Trace the mean variance from data
+        """Trace the mean variance from sample
 
         :return: vector of accumulated variance
         :rtype: :class:`numpy.ndarray`
@@ -232,12 +241,12 @@ class Univar:
         annotated=False,
         rule=None,
         show=False,
-        folder="C:/data",
+        folder="C:/sample",
         filename="histogram",
         specs=None,
         dpi=300,
     ):
-        """Plot histogram of data
+        """Plot histogram of sample
 
         :param bins: number of bins
         :type bins: int
@@ -374,9 +383,9 @@ class Univar:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
     def view(
-        self, show=True, folder="C:/data", filename="view", specs=None, dpi=300
+        self, show=True, folder="C:/sample", filename="view", specs=None, dpi=300
     ):
-        """Plot basic view of data
+        """Plot basic view of sample
 
         :param show: Boolean to show instead of saving
         :type show: bool
@@ -447,7 +456,7 @@ class Univar:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
     def plot_qqplot(
-        self, show=True, folder="C:/data", filename="qqplot", specs=None, dpi=300
+        self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
     ):
         """Plot Q-Q Plot on Normal distribution
 
@@ -748,6 +757,19 @@ class Bivar:
                 ),
                 "Data": None,
                 "RMSE": None
+            },
+            "Gumbel": {
+                "Function": gumbel,
+                "Formula": "f(x) =  exp(-exp(-((x-a)/b)))",
+                "Setup": pd.DataFrame(
+                    {
+                        "Parameters": ["a", "b"],
+                        "Mean": [1, 1],
+                        "SD": [0.1, 0.1]
+                    }
+                ),
+                "Data": None,
+                "RMSE": None
             }
         }
 
@@ -789,7 +811,7 @@ class Bivar:
             pass
         else:
             self.models[model_type]["Setup"]["SD"] = params_sd
-        # update data
+        # update sample
         self.updata_model_data(model_type=model_type)
         # update model metrics
         vct_e = self.models[model_type]["Data"]["e_Mean"].values
@@ -807,7 +829,7 @@ class Bivar:
         popt = self.models[model_type]["Setup"]["Mean"].values
         _df = self.data.copy()
         s_ymodel = "{}_Mean".format(self.yname)
-        # compute model on data:
+        # compute model on sample:
         _df[s_ymodel] = self.models[model_type]["Function"](self.data[self.xname], *popt)
         # compute error
         _df["e_Mean".format(model_type)] = (_df[s_ymodel] - _df[self.yname])
@@ -817,7 +839,7 @@ class Bivar:
         return None
 
     def view(
-        self, show=True, folder="C:/data", filename="view", specs=None, fig_format="jpg", dpi=300
+        self, show=True, folder="C:/sample", filename="view", specs=None, fig_format="jpg", dpi=300
     ):
         """Plot basic view of Bivar base_object
 
@@ -920,7 +942,7 @@ class Bivar:
         self,
         model_type="Power",
         show=True,
-        folder="C:/data",
+        folder="C:/sample",
         filename=None,
         specs=None,
         dpi=300,
@@ -1210,7 +1232,7 @@ class Bivar:
         _params = self.linear_model["Fit_Mean"].values
         df_preds["y_{}".format(s_refsim)] = linear(_x, *_params)
 
-        # get standard deviation from fit data
+        # get standard deviation from fit sample
         n_std_e = self.linear_model_data["e"].std()
         vct_yfit = self.linear_model_data["{}_fit".format(self.yname)].values
 
@@ -1282,7 +1304,7 @@ class Bivar:
 
     @staticmethod
     def bias(pred, obs):
-        """Compute the Bias between predicted and observated data
+        """Compute the Bias between predicted and observated sample
 
         :param pred: :class:`numpy.ndarray`
             vector of prediction vales
@@ -1297,7 +1319,7 @@ class Bivar:
 
     @staticmethod
     def rmse(pred, obs):
-        """Compute the RMSE metric between predicted and observated data
+        """Compute the RMSE metric between predicted and observated sample
 
         :param pred: :class:`numpy.ndarray`
             vector of prediction vales
@@ -1312,7 +1334,7 @@ class Bivar:
 
     @staticmethod
     def mae(pred, obs):
-        """Compute the Mean Absolute Error (MAE) between predicted and observated data
+        """Compute the Mean Absolute Error (MAE) between predicted and observated sample
 
         :param pred: :class:`numpy.ndarray`
             vector of prediction vales
@@ -1327,7 +1349,7 @@ class Bivar:
 
     @staticmethod
     def rsq(pred, obs):
-        """Compute the R-square between predicted and observated data
+        """Compute the R-square between predicted and observated sample
 
         :param pred: :class:`numpy.ndarray`
             vector of prediction vales
@@ -1525,7 +1547,7 @@ class Bayes:
     def plot_step(
         self,
         n_step,
-        folder="C:/data",
+        folder="C:/sample",
         filename="bayes",
         specs=None,
         dpi=300,

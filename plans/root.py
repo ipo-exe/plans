@@ -45,10 +45,12 @@ conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
 eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
 
 """
-import glob
+
+import glob, re
 import os, copy, shutil, datetime
 import pandas as pd
 import matplotlib.pyplot as plt
+
 
 class MbaE:
     """
@@ -847,7 +849,6 @@ class DataSet(MbaE):
         # -------------- overwrite relative path input -------------- #
         self.file_data = os.path.abspath(file_data)
 
-
         # -------------- implement loading logic -------------- #
         default_columns = {
             #'DateTime': 'datetime64[1s]',
@@ -957,9 +958,286 @@ class DataSet(MbaE):
             return file_path
 
 
+class Note(MbaE):
+
+    def __init__(self, name="MyNote", alias="Nt1"):
+        # set attributes
+        self.file_note = None
+        self.metadata = None
+        self.data = None
+        super().__init__(name=name, alias=alias)
+        # ... continues in downstream objects ... #
+
+    def _set_fields(self):
+        """Set fields names"""
+        super()._set_fields()
+        # Attribute fields
+        self.file_note_field = "file_note"
+
+        # Metadata fields
+
+        # ... continues in downstream objects ... #
+
+    def get_metadata(self):
+        """Get a dictionary with object metadata.
+        Expected to increment superior methods.
+
+        .. note::
+
+            Metadata does **not** necessarily inclue all object attributes.
+
+        :return: dictionary with all metadata
+        :rtype: dict
+        """
+        # ------------ call super ----------- #
+        dict_meta = super().get_metadata()
+
+        # customize local metadata:
+        dict_meta_local = {
+            self.file_note_field: self.file_note,
+        }
+        # update
+        dict_meta.update(dict_meta_local)
+        return dict_meta
+
+    def load_metadata(self):
+        self.metadata = Note.parse_metadata(self.file_note)
+
+    def load_data(self):
+        self.data = Note.parse_note(self.file_note)
+
+    def load(self):
+        self.load_metadata()
+        self.load_data()
+
+    def save(self):
+        self.to_file(file_path=self.file_note)
+
+    def to_file(self, file_path, cleanup=True):
+        """Export Note to markdown
+
+        :param file_path: path to file
+        :type file_path: str
+        :return:
+        :rtype:
+        """
+        ls_metadata = Note.metadata_to_list(self.metadata)
+        # clear "None" values
+        for i in range(len(ls_metadata)):
+            ls_metadata[i] = ls_metadata[i].replace("None", "")
+
+        ls_data = Note.data_to_list(self.data)
+        for l in ls_data:
+            ls_metadata.append(l[:])
+        ls_all = [line + "\n" for line in ls_metadata]
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.writelines(ls_all)
+
+        # clean up excessive lines
+        if cleanup:
+            Note.remove_excessive_blank_lines(file_path)
+
+    @staticmethod
+    def remove_excessive_blank_lines(file_path):
+        with open(file_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+
+        cleaned_lines = []
+        previous_line_blank = False
+
+        for line in lines:
+            if line.strip() == "":
+                if not previous_line_blank:
+                    cleaned_lines.append(line)
+                    previous_line_blank = True
+            else:
+                cleaned_lines.append(line)
+                previous_line_blank = False
+
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.writelines(cleaned_lines)
+
+    @staticmethod
+    def parse_metadata(note_file):
+        """Extracts YAML metadata from the header of a Markdown file.
+
+        :param note_file: str, path to the Markdown file
+        :return: dict, extracted YAML metadata
+        """
+        with open(note_file, "r", encoding="utf-8") as file:
+            content = file.read()
+
+        # Regular expression to match the YAML header
+        yaml_header_regex = r"^---\s*\n(.*?)\n---\s*\n"
+
+        # Search for the YAML header in the content
+        match = re.search(yaml_header_regex, content, re.DOTALL)
+
+        if match:
+            yaml_content = match.group(1)
+            return Note.parse_yaml(yaml_content)
+        else:
+            return None
+
+    @staticmethod
+    def parse_yaml(yaml_content):
+        """Parses YAML content into a dictionary.
+
+        :param yaml_content: str, YAML content as string
+        :return: dict, parsed YAML content
+        """
+        metadata = {}
+        lines = yaml_content.split("\n")
+        current_key = None
+        current_list = None
+
+        for line in lines:
+            if line.strip() == "":
+                continue
+            if ":" in line:
+                key, value = line.split(":", 1)
+                key = key.strip()
+                value = value.strip()
+                if value == "":  # start of a list
+                    current_key = key
+                    current_list = []
+                    metadata[current_key] = current_list
+                else:
+                    if key == "tags":
+                        metadata[key] = [
+                            v.strip() for v in value.split("-") if v.strip()
+                        ]
+                    else:
+                        metadata[key] = value
+            elif current_list is not None and line.strip().startswith("-"):
+                current_list.append(line.strip()[1:].strip())
+
+        # fix empty lists
+        for e in metadata:
+            if len(metadata[e]) == 0:
+                metadata[e] = None
+
+        # fix text fields
+        for e in metadata:
+            if metadata[e]:
+                size = len(metadata[e]) - 1
+                if metadata[e][0] == '"' and metadata[e][size] == '"':
+                    # slice it
+                    metadata[e] = metadata[e][1:size]
+
+        return metadata
+
+    @staticmethod
+    def metadata_to_list(metadata_dict):
+        ls_metadata = []
+        ls_metadata.append("---")
+        for e in metadata_dict:
+            if isinstance(metadata_dict[e], list):
+                ls_metadata.append("{}:".format(e))
+                for i in metadata_dict[e]:
+                    ls_metadata.append(" - {}".format(i))
+            else:
+                aux0 = metadata_dict[e]
+                if aux0 is None:
+                    aux0 = ""
+                aux1 = "{}: {}".format(e, aux0)
+                ls_metadata.append(aux1)
+        ls_metadata.append("---")
+
+        return ls_metadata
+
+    @staticmethod
+    def data_to_list(data_dict):
+        ls_out = []
+        for h in data_dict:
+            level = data_dict[h]["Level"]
+            # section header
+            ls_out.append("\n{} {}\n".format("#" * level, h))
+            # content
+            for line in data_dict[h]["Content"]:
+                ls_out.append(line)
+        return ls_out
+
+    @staticmethod
+    def parse_note(file_path):
+        """Parse a Markdown file into a dictionary structure, skipping any YAML header.
+
+        :param file_path: Path to the Markdown file.
+        :type file_path: str
+        :return: Dictionary representing the note structure.
+        :rtype: dict
+        """
+        with open(file_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+
+        # Skip YAML header if present
+        if lines[0].strip() == "---":
+            yaml_end_index = lines.index("---\n", 1) + 1
+            lines = lines[yaml_end_index:]
+
+        sections = {}
+        current_section = None
+        parent_section = None
+
+        for line in lines:
+            header_match = re.match(r"^(#{1,6})\s+(.*)", line)
+            if header_match:
+                level = len(header_match.group(1))
+                section_name = header_match.group(2).strip()
+
+                # Determine parent section
+                parent_section = None
+                for section in reversed(sections.keys()):
+                    if sections[section]["Level"] < level:
+                        parent_section = section
+                        break
+
+                sections[section_name] = {
+                    "Parent": parent_section,
+                    "Content": [],
+                    "Level": level,
+                }
+                current_section = section_name
+            elif current_section:
+                sections[current_section]["Content"].append(line.strip())
+
+        # Remove the 'Level' key from the final output
+        return sections
+
+    @staticmethod
+    def list_by_pattern(md_dict, patt_type="tag"):
+        """Retrieve a list of patterns from the note dictionary.
+
+        :param md_dict: Dictionary containing note sections.
+        :type md_dict: dict
+        :param patt_type: Type of pattern to search for, either "tag" or "related". Defaults to "tag".
+        :type patt_type: str
+        :return: List of found patterns or None if no patterns are found.
+        :rtype: list or None
+        """
+
+        if patt_type == "tag":
+            pattern = re.compile(r"#\w+")
+        elif patt_type == "related":
+            pattern = re.compile(r"\[\[.*?\]\]")
+        else:
+            pattern = re.compile(r"#\w+")
+
+        patts = []
+        # run over all sections
+        for s in md_dict:
+            content = md_dict[s]["Content"]
+            for line in content:
+                patts.extend(pattern.findall(line))
+
+        if len(patts) == 0:
+            patts = None
+
+        return patts
+
+
 class RecordTable(DataSet):
-    """
-    The core object for Record Tables. A Record is expected to keep adding stamped records
+    """The core object for Record Tables. A Record is expected to keep adding stamped records
     in order to keep track of large inventories, catalogs, etc.
     All records are expected to have a unique Id. It is considered to be a relational table.
 
@@ -1100,7 +1378,7 @@ class RecordTable(DataSet):
         self.object_alias = "FS"
 
         # --------- defaults --------- #
-        self.id_size = 4 # for zfill
+        self.id_size = 4  # for zfill
 
         # --------- customizations --------- #
         self._set_base_columns()
@@ -1109,7 +1387,6 @@ class RecordTable(DataSet):
 
         # UPDATE
         self.update()
-
 
     def _set_fields(self):
         """Set fields names.
@@ -1134,7 +1411,7 @@ class RecordTable(DataSet):
             self.recid_field,
             self.rectable_field,
             self.rectimest_field,
-            self.recstatus_field
+            self.recstatus_field,
         ]
         # ... continues in downstream objects ... #
 
@@ -1153,14 +1430,12 @@ class RecordTable(DataSet):
             "Category",
         ]
         # File-related columns
-        self.columns_data_files = [
-            "File_NF",
-            "File_Invoice"
-        ]
+        self.columns_data_files = ["File_NF", "File_Invoice"]
         # concat all lists
-        self.columns_data = self.columns_data_main + self.columns_data_extra + self.columns_data_files
+        self.columns_data = (
+            self.columns_data_main + self.columns_data_extra + self.columns_data_files
+        )
         # ... continues in downstream objects ... #
-
 
     def _set_operator(self):
         """Set the builtin operator for automatic column calculations.
@@ -1180,20 +1455,18 @@ class RecordTable(DataSet):
 
         def func_age():
             return RecordTable.running_time(
-                start_datetimes=self.data["Date_Birth"],
-                kind="human"
+                start_datetimes=self.data["Date_Birth"], kind="human"
             )
 
         # ---------------- the operator ---------------- #
         self.operator = {
             "Sum": func_sum,
             "Age": func_age,
-            "File_Status": func_file_status
+            "File_Status": func_file_status,
         }
         # remove here for downstream objects!
         self.operator = None
         return None
-
 
     def _get_organized_columns(self):
         """Return the organized columns (base + data columns)
@@ -1272,8 +1545,7 @@ class RecordTable(DataSet):
             filename = os.path.basename(self.file_data).split(".")[0]
             # handle folder
             self.export(
-                folder_export=os.path.dirname(self.file_data),
-                filename=filename
+                folder_export=os.path.dirname(self.file_data), filename=filename
             )
             return 0
         else:
@@ -1308,9 +1580,7 @@ class RecordTable(DataSet):
                 df = self.data.copy()
             # filter default columns:
             df = df[self._get_organized_columns()]
-            df.to_csv(
-                filepath, sep=self.file_data_sep, index=False
-            )
+            df.to_csv(filepath, sep=self.file_data_sep, index=False)
             return filepath
         else:
             return 1
@@ -1369,10 +1639,7 @@ class RecordTable(DataSet):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        df = pd.read_csv(
-            self.file_data,
-            sep=self.file_data_sep
-        )
+        df = pd.read_csv(self.file_data, sep=self.file_data_sep)
 
         # -------------- post-loading logic -------------- #
         self.set_data(input_df=df)
@@ -1406,7 +1673,9 @@ class RecordTable(DataSet):
             # enforce Id based on index
             n_last_id = self._last_id_int()
             n_incr = n_last_id + 1
-            input_df[self.recid_field] = ["Rec" + str(_ + n_incr).zfill(self.id_size) for _ in input_df.index]
+            input_df[self.recid_field] = [
+                "Rec" + str(_ + n_incr).zfill(self.id_size) for _ in input_df.index
+            ]
         else:
             # remove incoming duplicates
             input_df.drop_duplicates(subset=self.recid_field, inplace=True)
@@ -1436,7 +1705,6 @@ class RecordTable(DataSet):
             return None
         else:
             return df_merged
-
 
     def insert_record(self, dict_rec):
         """Insert a record in the RT
@@ -1516,12 +1784,9 @@ class RecordTable(DataSet):
         :return: None
         :rtype: None
         """
-        dict_rec = {
-            self.recstatus_field: "Off"
-        }
+        dict_rec = {self.recstatus_field: "Off"}
         self.edit_record(rec_id=rec_id, dict_rec=dict_rec, filter_dict=False)
         return None
-
 
     def get_record(self, rec_id):
         """Get a record dict by id
@@ -1556,7 +1821,9 @@ class RecordTable(DataSet):
         }
         return pd.DataFrame(dict_df)
 
-    def load_record_data(self, file_record_data, input_field="Field", input_value="Value"):
+    def load_record_data(
+        self, file_record_data, input_field="Field", input_value="Value"
+    ):
         """Load record data from a ``csv`` file to a dict
 
         .. note::
@@ -1575,12 +1842,12 @@ class RecordTable(DataSet):
         """
         # load record from file
         df = pd.read_csv(
-            file_record_data,
-            sep=self.file_data_sep,
-            usecols=[input_field, input_value]
+            file_record_data, sep=self.file_data_sep, usecols=[input_field, input_value]
         )
         # convert into a dict
-        dict_rec_raw = {df[input_field].values[i]: df[input_value].values[i] for i in range(len(df))}
+        dict_rec_raw = {
+            df[input_field].values[i]: df[input_value].values[i] for i in range(len(df))
+        }
 
         # filter for expected data columns
         dict_rec = {}
@@ -1635,7 +1902,7 @@ class RecordTable(DataSet):
             "Days": days,
             "Hours": hours,
             "Minutes": minutes,
-            "Seconds": seconds
+            "Seconds": seconds,
         }
 
     @staticmethod
@@ -1669,17 +1936,16 @@ class RecordTable(DataSet):
         # Convert 'start_datetimes' to datetime format
         start_datetimes = pd.to_datetime(start_datetimes)
         # Calculate the running time as a timedelta
-        current_datetime = pd.to_datetime('now')
+        current_datetime = pd.to_datetime("now")
         running_time = current_datetime - start_datetimes
         # Apply the custom function to create a new column
         if kind == "raw":
             running_time = running_time.tolist()
         elif kind == "human":
-            dct_str = {
-                "Years": "yr",
-                "Months": "mth"
-            }
-            running_time = running_time.apply(RecordTable.timedelta_to_str, args=(dct_str,))
+            dct_str = {"Years": "yr", "Months": "mth"}
+            running_time = running_time.apply(
+                RecordTable.timedelta_to_str, args=(dct_str,)
+            )
         elif kind == "age":
             running_time = [int(e.days / 365) for e in running_time]
 
@@ -1727,11 +1993,9 @@ class Budget(RecordTable):
             # Status extra
             "Date_Due",
             "Date_Exe",
-
             # Name extra
             # tags
             "Tags",
-
             # Values extra
             # Payment details
             "Method",
@@ -1739,10 +2003,14 @@ class Budget(RecordTable):
         ]
         # File columns
         self.columns_data_files = [
-            "File_Receipt", "File_Invoice", "File_NF",
+            "File_Receipt",
+            "File_Invoice",
+            "File_NF",
         ]
         # concat all lists
-        self.columns_data = self.columns_data_main + self.columns_data_extra + self.columns_data_files
+        self.columns_data = (
+            self.columns_data_main + self.columns_data_extra + self.columns_data_files
+        )
 
         # variations
         self.columns_data_status = self.columns_data_main + [
@@ -1767,13 +2035,17 @@ class Budget(RecordTable):
             # filter relevante data
             df = self.data[["Status", "Method", "Date_Due"]].copy()
             # Convert 'Date_Due' to datetime format
-            df['Date_Due'] = pd.to_datetime(self.data['Date_Due'])
+            df["Date_Due"] = pd.to_datetime(self.data["Date_Due"])
             # Get the current date
             current_dt = datetime.datetime.now()
 
             # Update 'Status' for records with 'Automatic' method and 'Expected' status based on the condition
-            condition = (df['Method'] == 'Automatic') & (df['Status'] == 'Expected') & (df['Date_Due'] <= current_dt)
-            df.loc[condition, 'Status'] = 'Executed'
+            condition = (
+                (df["Method"] == "Automatic")
+                & (df["Status"] == "Expected")
+                & (df["Date_Due"] <= current_dt)
+            )
+            df.loc[condition, "Status"] = "Executed"
 
             # return values
             return df["Status"].values
@@ -1796,7 +2068,9 @@ class Budget(RecordTable):
         return round(_n, 3)
 
     def _filter_prospected_cancelled(self):
-        return self.data[(self.data['Status'] != 'Prospected') & (self.data['Status'] != 'Cancelled')]
+        return self.data[
+            (self.data["Status"] != "Prospected") & (self.data["Status"] != "Cancelled")
+        ]
 
     def update(self):
         super().update()
@@ -1827,7 +2101,9 @@ class Budget(RecordTable):
         # compute temporary field
 
         # sign and value_signed
-        self.data["Sign"] = self.data["Type"].apply(lambda x: 1 if x == "Revenue" else -1)
+        self.data["Sign"] = self.data["Type"].apply(
+            lambda x: 1 if x == "Revenue" else -1
+        )
         self.data["Value_Signed"] = self.data["Sign"] * self.data["Value"]
 
     @staticmethod
@@ -1839,42 +2115,63 @@ class Budget(RecordTable):
 
         for _, row in budget_df.iterrows():
             # Generate date range based on frequency
-            dates = pd.date_range(start=start_date, end=end_date, freq=row['Freq'])
+            dates = pd.date_range(start=start_date, end=end_date, freq=row["Freq"])
 
             # Replicate the row for each date
-            replicated_data = pd.DataFrame({col: [row[col]] * len(dates) for col in df.columns})
-            replicated_data['Date'] = dates
+            replicated_data = pd.DataFrame(
+                {col: [row[col]] * len(dates) for col in df.columns}
+            )
+            replicated_data["Date"] = dates
 
             # Append to the expanded budget
-            annual_budget = pd.concat([annual_budget, replicated_data], ignore_index=True)
+            annual_budget = pd.concat(
+                [annual_budget, replicated_data], ignore_index=True
+            )
 
         return annual_budget
 
     def get_summary_by_type(self):
-        summary = pd.DataFrame({
-            "Total_Expenses": [self.total_expenses],
-            "Total_Revenue": [self.total_revenue],
-            "Total_Net": [self.total_net]
-        })
-        summary = summary.apply(lambda x: x.sort_values(ascending=self.summary_ascend), axis=1)
+        summary = pd.DataFrame(
+            {
+                "Total_Expenses": [self.total_expenses],
+                "Total_Revenue": [self.total_revenue],
+                "Total_Net": [self.total_net],
+            }
+        )
+        summary = summary.apply(
+            lambda x: x.sort_values(ascending=self.summary_ascend), axis=1
+        )
         return summary
 
     def get_summary_by_status(self, filter=True):
         filtered_df = self._filter_prospected_cancelled() if filter else self.data
-        return filtered_df.groupby("Status")["Value_Signed"].sum().sort_values(ascending=self.summary_ascend)
+        return (
+            filtered_df.groupby("Status")["Value_Signed"]
+            .sum()
+            .sort_values(ascending=self.summary_ascend)
+        )
 
     def get_summary_by_contract(self, filter=True):
         filtered_df = self._filter_prospected_cancelled() if filter else self.data
-        return filtered_df.groupby("Contract")["Value_Signed"].sum().sort_values(ascending=self.summary_ascend)
+        return (
+            filtered_df.groupby("Contract")["Value_Signed"]
+            .sum()
+            .sort_values(ascending=self.summary_ascend)
+        )
 
     def get_summary_by_tags(self, filter=True):
         filtered_df = self._filter_prospected_cancelled() if filter else self.data
-        tags_summary = filtered_df.groupby("Tags")["Value_Signed"].sum().sort_values(ascending=self.summary_ascend)
+        tags_summary = (
+            filtered_df.groupby("Tags")["Value_Signed"]
+            .sum()
+            .sort_values(ascending=self.summary_ascend)
+        )
         tags_summary = tags_summary.sort()
-        separate_tags_summary = filtered_df["Tags"].str.split(expand=True).stack().value_counts()
+        separate_tags_summary = (
+            filtered_df["Tags"].str.split(expand=True).stack().value_counts()
+        )
         print(type(separate_tags_summary))
         return tags_summary, separate_tags_summary
-
 
 
 class FileSys(DataSet):
@@ -2011,7 +2308,7 @@ class FileSys(DataSet):
                 ]
         return dict_structure
 
-    def get_status(self, folder_name): # todo dosctring
+    def get_status(self, folder_name):  # todo dosctring
         dict_status = {}
         # get full folder path
         folder = self.folder_main + "/" + folder_name
@@ -2035,7 +2332,7 @@ class FileSys(DataSet):
                 dict_extensions = self.get_extensions()
                 #
                 list_lcl_extensions = dict_extensions[lcl_file_format]
-                #print(list_lcl_extensions)
+                # print(list_lcl_extensions)
                 for ext in list_lcl_extensions:
                     lcl_path = os.path.join(folder, lcl_file_name + "." + ext)
                     list_files = glob.glob(lcl_path)
@@ -2043,7 +2340,9 @@ class FileSys(DataSet):
                     dict_files[lcl_file_name][ext] = lst_filenames_found
             for k in dict_files:
                 # Convert each list in the dictionary to a pandas Series and then create a DataFrame
-                _df = pd.DataFrame({key: pd.Series(value) for key, value in dict_files[k].items()})
+                _df = pd.DataFrame(
+                    {key: pd.Series(value) for key, value in dict_files[k].items()}
+                )
                 if len(_df) == 0:
                     for c in _df.columns:
                         _df[c] = [None]
@@ -2079,11 +2378,9 @@ class FileSys(DataSet):
         # set base folder
         self.folder_base = dict_setter[self.folder_base_field]
 
-
         # -------------- set data logic here -------------- #
         if load_data:
             self.load_data(file_data=self.file_data)
-
 
         # -------------- update other mutables -------------- #
         self.update()
@@ -2104,10 +2401,7 @@ class FileSys(DataSet):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        self.data = pd.read_csv(
-            file_data,
-            sep=self.file_data_sep
-        )
+        self.data = pd.read_csv(file_data, sep=self.file_data_sep)
 
         # -------------- post-loading logic -------------- #
 
@@ -2131,12 +2425,16 @@ class FileSys(DataSet):
         # fill structure
         FileSys.fill(dict_struct=self.structure, folder=self.folder_main)
 
-    def backup(self, location_dir,  version_id="v-0-0",):  # todo docstring
+    def backup(
+        self,
+        location_dir,
+        version_id="v-0-0",
+    ):  # todo docstring
         dst_dir = os.path.join(location_dir, self.name + "_" + version_id)
         FileSys.archive(src_dir=self.folder_main, dst_dir=dst_dir)
         return None
 
-    def view(self, show=True): # todo implement
+    def view(self, show=True):  # todo implement
         """Get a basic visualization.
         Expected to overwrite superior methods.
 
@@ -2202,7 +2500,7 @@ class FileSys(DataSet):
     @staticmethod
     def archive(src_dir, dst_dir):
         # Create a zip archive from the directory
-        shutil.make_archive(dst_dir, 'zip', src_dir)
+        shutil.make_archive(dst_dir, "zip", src_dir)
         return None
 
     @staticmethod
@@ -2295,7 +2593,7 @@ class FileSys(DataSet):
         if len(list_files) != 0:
             for _f in list_files:
                 _full = os.path.basename(_f).split(".")[0]
-                _suffix = _full[len(src_prefix):]
+                _suffix = _full[len(src_prefix) :]
                 _dst = os.path.join(
                     dst_folder, dst_basename + _suffix + "." + src_extension
                 )
@@ -2377,19 +2675,290 @@ class FileSys(DataSet):
         return None
 
 
-if __name__ == "__main__":
-    fs = FileSys(folder_base="C:/data", name="MyPlans", alias="MPlans")
-    fs.load_data(file_data="./iofiles.csv")
-    print(fs.folder_main)
-    fs.data  = fs.data[["Folder", "File", "Format", "Description", "File_Source", "Folder_Source"]].copy()
-    #fs.setup()
+class _Note(MbaE):
+    """
+    DEPRECATED CLASS
+    """
 
-    d = fs.get_status(folder_name=r"datasets\\topo")
-    if d is None:
-        print("Not found expected files")
-    else:
-        print(d["Folder"][["Folder", "File", "Format", "Description"]].to_string(index=False))
-        for f in d["Files"]:
-            print("*"*40)
-            print(f)
-            print(d["Files"][f].to_string(index=False))
+    def __init__(self, name="MyNote", alias="Nt1"):
+
+        # attributes
+        self.title = None
+        self.tags_head = None
+        self.tags_etc = None
+        self.related_head = None
+        self.related_etc = None
+        self.summary = None
+        self.timestamp = None
+
+        # file paths
+        self.file_note = None
+        # note dict
+        self.note_dict = None
+
+        super().__init__(name=name, alias=alias)
+        # ... continues in downstream objects ... #
+
+    def _set_fields(self):
+        """Set fields names"""
+        super()._set_fields()
+        # Attribute fields
+        self.title_field = "title"
+        self.tags_head_field = "tags_head"
+        self.tags_etc_field = "tags_etc"
+        self.related_head_field = "related_head"
+        self.related_etc_field = "related_etc"
+        self.summary_field = "summary"
+        self.timestamp_field = "timestamp"
+        self.file_note_field = "file_note"
+
+        # Metadata fields
+
+        # ... continues in downstream objects ... #
+
+    def get_metadata(self):
+        """Get a dictionary with object metadata.
+        Expected to increment superior methods.
+
+        .. note::
+
+            Metadata does **not** necessarily inclue all object attributes.
+
+        :return: dictionary with all metadata
+        :rtype: dict
+        """
+        # ------------ call super ----------- #
+        dict_meta = super().get_metadata()
+
+        # customize local metadata:
+        dict_meta_local = {
+            self.title_field: self.title,
+            self.summary_field: self.summary,
+            self.timestamp_field: self.timestamp,
+            self.tags_head_field: self.tags_head,
+            self.tags_etc_field: self.tags_etc,
+            self.related_head_field: self.related_head,
+            self.related_etc_field: self.related_etc,
+            self.file_note_field: self.file_note,
+        }
+        # update
+        dict_meta.update(dict_meta_local)
+        return dict_meta
+
+    def load(self):
+        self.note_dict = Note.parse_note(file_path=self.file_note)
+        self.update()
+
+    def update(self):
+
+        # get first section name
+        # Warning: assume it is the first item
+        self.title = next(iter(self.note_dict))
+
+        # patterns
+
+        # Create a copy of the original dictionary
+        new_dict = self.note_dict.copy()
+        # Remove the specified key from the new dictionary
+        del new_dict[self.title]
+
+        # head tags
+        self.tags_head = Note.list_by_pattern(
+            md_dict={self.title: self.note_dict[self.title]}, patt_type="tag"
+        )
+        # head related:
+        self.related_head = Note.list_by_pattern(
+            md_dict={self.title: self.note_dict[self.title]}, patt_type="related"
+        )
+        # etc tags:
+        self.tags_etc = Note.list_by_pattern(md_dict=new_dict, patt_type="tag")
+
+        self.related_etc = Note.list_by_pattern(md_dict=new_dict, patt_type="related")
+
+        # summary
+        lst_summaries = Note.list_by_intro(
+            md_dict={self.title: self.note_dict[self.title]}, intro_type="summary"
+        )
+        self.summary = lst_summaries[0]
+
+        # datetime
+        lst_datetimes = Note.list_by_intro(
+            md_dict={self.title: self.note_dict[self.title]}, intro_type="timestamp"
+        )
+        self.timestamp = lst_datetimes[0]
+
+    @staticmethod
+    def list_by_pattern(md_dict, patt_type="tag"):
+        """Retrieve a list of patterns from the note dictionary.
+
+        :param md_dict: Dictionary containing note sections.
+        :type md_dict: dict
+        :param patt_type: Type of pattern to search for, either "tag" or "related". Defaults to "tag".
+        :type patt_type: str
+        :return: List of found patterns or None if no patterns are found.
+        :rtype: list or None
+        """
+
+        if patt_type == "tag":
+            pattern = re.compile(r"#\w+")
+        elif patt_type == "related":
+            pattern = re.compile(r"\[\[.*?\]\]")
+        else:
+            pattern = re.compile(r"#\w+")
+
+        patts = []
+        # run over all sections
+        for s in md_dict:
+            content = md_dict[s]["Content"]
+            for line in content:
+                patts.extend(pattern.findall(line))
+
+        if len(patts) == 0:
+            patts = None
+
+        return patts
+
+    @staticmethod
+    def list_by_intro(md_dict, intro_type="summary"):
+        """List introduction contents based on the specified type.
+
+        :param md_dict: Dictionary containing note sections.
+        :type md_dict: dict
+        :param intro_type: Type of introduction to search for, currently supports "summary". Defaults to "summary".
+        :type intro_type: str
+        :return: List of found introductions or None if no introductions are found.
+        :rtype: list or None
+        """
+        if intro_type == "summary":
+            pattern = r"\*\*Summary:\*\*\s*(.*)"
+        elif intro_type == "timestamp":
+            pattern = r"created in:\s*(.*)"
+        # develop more options
+
+        summaries = []
+        # run over all sections
+        for s in md_dict:
+            content = md_dict[s]["Content"]
+            for line in content:
+                match = re.search(pattern, line)
+                if match:
+                    summaries.append(match.group(1))
+        if len(summaries) == 0:
+            summaries = None
+        return summaries
+
+    @staticmethod
+    def parse_note(file_path):
+        """Parse a Markdown file into a dictionary structure.
+
+        :param file_path: Path to the Markdown file.
+        :type file_path: str
+        :return: Dictionary representing the note structure.
+        :rtype: dict
+        """
+
+        with open(file_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+
+        markdown_dict = {}
+        current_section = None
+        parent_section = None
+        section_stack = []
+
+        section_pattern = re.compile(r"^(#+)\s+(.*)")
+
+        for line in lines:
+            match = section_pattern.match(line)
+            if match:
+                level = len(match.group(1))
+                section_title = match.group(2).strip()
+
+                if current_section is not None:
+                    markdown_dict[current_section]["Content"] = section_content
+
+                while section_stack and section_stack[-1][1] >= level:
+                    section_stack.pop()
+
+                parent_section = section_stack[-1][0] if section_stack else None
+                current_section = section_title
+                section_stack.append((current_section, level))
+                markdown_dict[current_section] = {
+                    "Parent Section": parent_section,
+                    "Content": [],
+                }
+                section_content = []
+            else:
+                section_content.append(line.strip())
+
+        if current_section is not None:
+            markdown_dict[current_section]["Content"] = section_content
+
+        return markdown_dict
+
+    @staticmethod
+    def to_md(md_dict, output_dir, filename):
+        """Convert a note dictionary to a Markdown file and save it to the specified directory.
+
+        :param md_dict: Dictionary containing note sections.
+        :type md_dict: dict
+        :param output_dir: Directory where the output Markdown file will be saved.
+        :type output_dir: str
+        :param filename: Name of the output Markdown file (without extension).
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+
+        def write_section(file, section, level=1):
+            # Write the section header
+            file.write(f"{'#' * level} {section}\n")
+
+            # Write the section content
+            for line in md_dict[section]["Content"]:
+                file.write(line + "\n")
+
+            # Find and write subsections
+            subsections = [
+                key for key in md_dict if md_dict[key]["Parent Section"] == section
+            ]
+            for subsection in subsections:
+                # recursive step:
+                write_section(file, subsection, level + 1)
+
+        # Find top-level sections (sections with no parent)
+        top_sections = [
+            key for key in md_dict if md_dict[key]["Parent Section"] is None
+        ]
+
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        output_file = os.path.join(output_dir, f"{filename}.md")
+
+        with open(output_file, "w", encoding="utf-8") as file:
+            for section in top_sections:
+                write_section(file, section)
+        return output_file
+
+    @staticmethod
+    def find_and_replace(note_file, old, new, line_n=None):
+        # Load the Markdown file
+        with open(note_file, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+
+        # Find and replace old by new strings
+        if line_n is None:
+            # Replace in all lines
+            lines = [line.replace(old, new) for line in lines]
+        else:
+            # Replace only in the specified line number
+            if 0 <= line_n < len(lines):
+                lines[line_n] = lines[line_n].replace(old, new)
+
+        # Overwrite the file
+        with open(note_file, "w", encoding="utf-8") as file:
+            file.writelines(lines)
+
+
+if __name__ == "__main__":
+    print("hello world!")

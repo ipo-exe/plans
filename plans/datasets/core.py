@@ -234,13 +234,20 @@ class TimeSeries(DataSet):
             "xvar": self.dtfield,
             "yvar": self.varfield,
             "xlabel": self.dtfield,
+            "xlabel_aux": "$p(x)$",
             "ylabel": self.units,
             "color": self.rawcolor,
+            "color_aux": self.rawcolor,
+            "alpha": 1,
+            "alpha_aux": 1,
             "xmin": None,
             "xmax": None,
+            "xmax_aux": 0.1,
             "ymin": 0,
             "ymax": None,
-            "linestyle": "."
+            "linestyle": "solid",
+            "marker": None,
+            "n_bins": 100
         }
         return None
 
@@ -289,8 +296,6 @@ class TimeSeries(DataSet):
             elif df["day"].nunique() > 1:
                 self.dtfreq = "D"
                 self.dtres = "day"
-                # force gapsize to 1 when daily+ time scale
-                self.gapsize = 1
             elif df["month"].nunique() > 1:
                 self.dtfreq = "MS"
                 self.dtres = "month"
@@ -566,13 +571,15 @@ class TimeSeries(DataSet):
             self.file_data_varfield = input_varfield
 
         # -------------- call loading function -------------- #
+        #print(self.file_data_dtfield)
         df = pd.read_csv(
             file_data,
             sep=in_sep,
-            dtype={input_dtfield: str, input_varfield: float},
+            dtype={input_varfield: float},
             usecols=[input_dtfield, input_varfield],
             parse_dates=[self.file_data_dtfield]
         )
+        #print(df[self.file_data_dtfield].dtype)
 
         # -------------- post-loading logic -------------- #
         df = df.rename(
@@ -783,6 +790,7 @@ class TimeSeries(DataSet):
             return df
 
         # docs: ok
+
     def get_epochs(self, inplace=False):
         """Get Epochs (periods) for continuous time series (0 = gap epoch).
 
@@ -812,6 +820,7 @@ class TimeSeries(DataSet):
         )
 
         # get skip hint
+        #print(f"debug: {self.gapsize}")
         skip_v = np.zeros(len(df))
         for i in range(len(df) - 1):
             n_curr = df["CumSum"].values[i]
@@ -1042,7 +1051,7 @@ class TimeSeries(DataSet):
 
         **Notes:**
 
-        - Resamples the time series data to the specified frequency using Pandas-like alias strings.
+        - Redatas the time series data to the specified frequency using Pandas-like alias strings.
         - Aggregates the values using the specified aggregation functions.
         - Counts the number of ``Bad`` records in each time window and excludes time windows with more ``Bad`` entries
           than the specified threshold.
@@ -1082,7 +1091,7 @@ class TimeSeries(DataSet):
         # Set the 'datetime' column as the index
         df.set_index(self.dtfield, inplace=True)
 
-        # Resample the time series to a frequency using aggregation functions
+        # Redata the time series to a frequency using aggregation functions
         agg_df1 = df.resample(freq)[self.varfield].agg(agg_funcs_list)
         agg_df2 = df.resample(freq)["Bad"].agg([("Bad_count", "sum")])
 
@@ -1116,7 +1125,33 @@ class TimeSeries(DataSet):
         return agg_df_new
 
     def upscale(self, freq, bad_max, inplace=True):
-        # todo docstring
+        """Upscale time series for larger time steps. This method uses the `agg` attribute.
+        See the `aggregate` method.
+
+        :param freq: str
+            Pandas-like alias frequency at which to aggregate the time series data. Common options include:
+            - ``H`` for hourly frequency
+            - ``D`` for daily frequency
+            - ``W`` for weekly frequency
+            - ``MS`` for monthly/start frequency
+            - ``QS`` for quarterly/start frequency
+            - ``YS`` for yearly/start frequency
+            More options and details can be found in the Pandas documentation:
+            https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases.
+        :type freq: str
+
+        :param bad_max: int
+            The maximum number of ``Bad`` records allowed in a time window for aggregation. Records with more ``Bad`` entries
+            will be excluded from the aggregated result.
+            Default is 7.
+        :type bad_max: int
+
+        :param inplace: option for overwrite data, default True
+        :type inplace: bool
+
+        :return: None
+        :rtype: None
+        """
         df_upscale = self.aggregate(freq=freq, bad_max=bad_max, agg_funcs={self.agg: self.agg})
         df_upscale = df_upscale.rename(columns={"{}_{}".format(self.varfield, self.agg): self.varfield})
 
@@ -1217,7 +1252,7 @@ class TimeSeries(DataSet):
             plt.plot(
                 df_aux[self.dtfield],
                 df_aux[self.varfield],
-                ".",
+                linestyle=specs["linestyle"],
                 color=epoch_c,
                 label=f"Epoch_{epoch_id}",
             )
@@ -1260,7 +1295,7 @@ class TimeSeries(DataSet):
             plt.close(fig)
             return file_path
 
-    def view(self, show=True):
+    def view(self, show=True, return_fig=False):
         """Get a basic visualization.
         Expected to overwrite superior methods.
 
@@ -1299,6 +1334,17 @@ class TimeSeries(DataSet):
 
         # --------------------- figure setup --------------------- #
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        plt.suptitle(specs["title"])
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            1, 4,  # nrows, ncols
+            wspace=0.4,
+            hspace=0.5,
+            left=0.1,
+            bottom=0.25,
+            top=0.85,
+            right=0.95
+        )
 
         # handle min max
         if specs["xmin"] is None:
@@ -1310,29 +1356,50 @@ class TimeSeries(DataSet):
         if specs["ymax"] is None:
             specs["ymax"] = self.data[specs["yvar"]].max()
 
-        # --------------------- plotting --------------------- #
-
+        # --------------------- plotting series --------------------- #
+        # series plot
+        ax = fig.add_subplot(gs[0, :3])
         plt.plot(
             self.data[specs["xvar"]],
             self.data[specs["yvar"]],
             linestyle=specs["linestyle"],
-            color=specs["color"]
+            marker=specs["marker"],
+            color=specs["color"],
+            alpha=specs["alpha"],
         )
-
-        # --------------------- post-plotting --------------------- #
         # set basic plotting stuff
-        plt.title(specs["title"])
+
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["xlabel"])
         plt.xlim(specs["xmin"], specs["xmax"])
         plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
 
+        # --------------------- plotting hist --------------------- #
+        ax = fig.add_subplot(gs[0, 3])
+        plt.hist(
+            self.data[self.varfield],
+            bins=specs["n_bins"],
+            color=specs["color_aux"],
+            alpha=specs["alpha_aux"],
+            orientation="horizontal",
+            weights=np.ones(len(self.data)) / len(self.data),
+        )
+        plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
+        # plt.title(specs["subtitle_2"])
+        plt.xlim([0, specs["xmax_aux"]])
+        plt.xlabel(specs["xlabel_aux"])
+
+        # --------------------- post-plotting --------------------- #
+
+
         # Adjust layout to prevent cutoff
-        plt.tight_layout()
+        #plt.tight_layout()
 
         # --------------------- end --------------------- #
-        # show or save
-        if show:
+        # return object, show or save
+        if return_fig:
+            return fig
+        elif show: # default case
             plt.show()
             return None
         else:
@@ -2092,7 +2159,7 @@ class _TimeSeries:
 
         **Notes:**
 
-        - Resamples the time series data to the specified frequency using Pandas-like alias strings.
+        - Redatas the time series data to the specified frequency using Pandas-like alias strings.
         - Aggregates the values using the specified aggregation functions.
         - Counts the number of ``Bad`` records in each time window and excludes time windows with more ``Bad`` entries
           than the specified threshold.
@@ -2132,7 +2199,7 @@ class _TimeSeries:
         # Set the 'datetime' column as the index
         df.set_index(self.dtfield, inplace=True)
 
-        # Resample the time series to a frequency using aggregation functions
+        # Redata the time series to a frequency using aggregation functions
         agg_df1 = df.resample(freq)[self.varfield].agg(agg_funcs_list)
         agg_df2 = df.resample(freq)["Bad"].agg([("Bad_count", "sum")])
 
@@ -3042,7 +3109,7 @@ class TimeSeriesCollection(Collection):
 
         # overlapping chart
         plt.subplot(gs[1:, :4])
-        plt.title("c. {}".format(specs["over"]), loc="left")
+        plt.title("code. {}".format(specs["over"]), loc="left")
         plt.plot(
             epochs_df[self.dtfield], 100 * epochs_df[self.overfield], color="tab:blue"
         )
@@ -3209,7 +3276,7 @@ class TimeSeriesSamples(TimeSeriesCluster):
     """
     The ``TimeSeriesSamples`` instance is desgined for holding a collection
     of same variable time series arising from the same underlying process.
-    This means that all elements in the collection are statistical samples.
+    This means that all elements in the collection are statistical datas.
 
     This instance allows for the ``reducer()`` method.
 
@@ -3328,7 +3395,7 @@ class TimeSeriesSpatialSamples(TimeSeriesSamples):
     """
     The ``TimeSeriesSpatialSamples`` instance is desgined for holding a collection
     of same variable time series arising from the same underlying process in space.
-    This means that all elements in the collection are statistical samples in space.
+    This means that all elements in the collection are statistical datas in space.
 
     This instance allows for the ``regionalization()`` method.
 
@@ -4358,21 +4425,21 @@ class Raster:
             return _df
 
     def get_grid_data(self):
-        """Get flat and cleared grid data.
+        """Get flat and cleared grid sample.
 
-        :return: 1D vector of cleared data.
+        :return: 1D vector of cleared sample.
         :rtype: :class:`numpy.ndarray`` or None
             If the grid is None, returns None.
 
         **Notes:**
 
-        - This function extracts and flattens the grid data, removing any masked or NaN values.
+        - This function extracts and flattens the grid sample, removing any masked or NaN values.
         - For integer grids, the masked values are ignored.
         - For floating-point grids, both masked and NaN values are ignored.
 
         **Examples:**
 
-        >>> # Get flattened and cleared grid data
+        >>> # Get flattened and cleared grid sample
         >>> data_vector = raster.get_grid_data()
         """
         if self.grid is None:
@@ -4388,7 +4455,7 @@ class Raster:
                 return _grid
 
     def get_grid_stats(self):
-        """Get basic statistics from flat and cleared data.
+        """Get basic statistics from flat and cleared sample.
 
         :return: DataFrame of basic statistics.
         :rtype: :class:`pandas.DataFrame``` or None
@@ -4396,7 +4463,7 @@ class Raster:
 
         **Notes:**
 
-        - This function computes basic statistics from the flattened and cleared grid data.
+        - This function computes basic statistics from the flattened and cleared grid sample.
         - Basic statistics include measures such as mean, median, standard deviation, minimum, and maximum.
         - Requires the 'plans.analyst' module for statistical analysis.
 
@@ -4636,7 +4703,7 @@ class Raster:
         plt.text(
             x=n_x,
             y=n_y,
-            s="c. {}".format(specs["c_title"]),
+            s="code. {}".format(specs["c_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )
@@ -4837,7 +4904,7 @@ class QualiRaster(Raster):
 
     def export(self, folder, filename=None):
         """
-        Export raster data
+        Export raster sample
         param folder: string of directory folder_main,
         :type folder: str
         :param filename: string of file without extension, defaults to None
@@ -5301,7 +5368,7 @@ class QualiRaster(Raster):
             plt.text(
                 x=n_x,
                 y=n_y,
-                s="c. {}".format(specs["c_title"]),
+                s="code. {}".format(specs["c_title"]),
                 fontsize=12,
                 transform=fig.transFigure,
             )
@@ -5331,7 +5398,7 @@ class QualiRaster(Raster):
         else:
             if filename is None:
                 filename = "{}_{}{}".format(self.varalias, self.name, suff)
-            # save fig
+            # save fig1
             plt.savefig(
                 "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
             )
@@ -5817,7 +5884,7 @@ class RasterCollection(Collection):
     def get_collection_stats(self):
         """Get basic statistics from test_collection.
 
-        :return: statistics data
+        :return: statistics sample
         :rtype: :class:`pandas.DataFrame`
         """
         # deploy dataframe
@@ -6602,7 +6669,7 @@ class QualiRasterSeries(RasterSeries):
         else:
             if filename is None:
                 filename = "{}_{}".format(self.varalias, self.name)
-            # save fig
+            # save fig1
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
             # save areas
             if export_areas:

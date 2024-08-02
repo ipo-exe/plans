@@ -56,6 +56,7 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from plans.datasets.core import *
@@ -156,6 +157,7 @@ class StageSeries(TimeSeries):
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(name, alias=alias)
         self.varname = "Stage"
+        self.varalias = "H"
         self.varfield = "H"
         self.units = "cm"
         # Overwrite attributes specific to StageSeries
@@ -191,6 +193,241 @@ class StageSeries(TimeSeries):
         # Combine both base and specific metadata
         base_metadata.update(extra_metadata)
         return base_metadata
+
+    def get_annual_maxima(self):
+        from scipy import stats
+
+        # set agg to max
+        self.agg = "max"
+        df_an = self.upscale(freq="YS", bad_max=self.gapsize, inplace=False)
+        df_an = df_an.dropna()
+
+        # fix dates to match actual maxima
+        df_an["tag1"] = df_an[self.dtfield].dt.year.astype(str) + " - " + df_an[self.varfield].astype(str)
+        df_d = self.data.copy()
+        df_d["tag2"] = df_d[self.dtfield].dt.year.astype(str) + " - " + df_d[self.varfield].astype(str)
+        # join
+        df_an = pd.merge(left=df_an, left_on="tag1", right=df_d, right_on="tag2")
+        df_an = df_an.drop_duplicates(subset="tag1").reset_index(drop=True)
+
+        # remake df
+        df_an = pd.DataFrame(
+            {
+                self.dtfield : df_an[f"{self.dtfield}_y"],
+                f"{self.varfield}_amax": df_an[f"{self.varfield}_y"],
+            }
+        )
+
+        # get extra values
+        df_an = df_an.sort_values(by=f"{self.varfield}_amax", ascending=False).reset_index(drop=True)
+
+        df_an["Rank"] = df_an.index + 1
+
+        df_an["P(X)_Empirical"] = StageSeries.px_empirical(ranks=df_an["Rank"].values)
+        df_an["P(X)_Weibull"] = StageSeries.px_weibull(ranks=df_an["Rank"].values)
+        df_an["P(X)_Gringorten"] = StageSeries.px_gringorten(ranks=df_an["Rank"].values)
+
+        # model Gumbel using the method of moments
+
+        # using scipy
+        # Fit a Gumbel distribution to the data
+        params = stats.gumbel_r.fit(df_an[f"{self.varfield}_amax"].values, method="MM") # MLM or MM
+        gumbel_a = params[0]
+        gumbel_b = params[1]
+
+        # Goodness of fit tests
+        ks_stat, ks_p_value = stats.kstest(
+            df_an[f"{self.varfield}_amax"].values,
+            cdf='gumbel_r',
+            args=params
+        )
+        # accept Null Hypothesis
+        is_gumbel = True
+        if ks_p_value <= 0.05:
+            is_gumbel = False
+
+        # QQ plots
+        qq, qq_params = stats.probplot(
+            x=df_an[f"{self.varfield}_amax"].values,
+            dist="gumbel_r",
+            sparams=params
+        )#, plot=ax)
+
+        df_qq = pd.DataFrame(
+            {
+                f"{self.varfield}_amax": qq[1],
+                "T-Q": qq[0]
+            }
+        )
+
+        # compute gumbel values
+        df_an["P(X)_Gumbel"] = 1 - StageSeries.gumbel_fx(
+            x=df_an[f"{self.varfield}_amax"].values,
+            a=gumbel_a,
+            b=gumbel_b
+        )
+        # return period
+        df_an["T(X)_Gumbel"] = 1 / df_an["P(X)_Gumbel"]
+
+        # compute uncertainty 90% bands for T(X) in the Annual Series
+        t = stats.t.ppf((1 + 0.9) / 2, df=len(df_an) - 1)
+        gumbel_se = StageSeries.gumbel_se(
+            std_sample=np.std(a=df_an[f"{self.varfield}_amax"].values),
+            n_sample=len(df_an),
+            tr=df_an["T(X)_Gumbel"]
+        )
+        # Standar error
+        df_an[f"{self.varfield}_amax_SE90"] = t * gumbel_se
+
+        h_max = df_an[f"{self.varfield}_amax"] + df_an[f"{self.varfield}_amax_SE90"]
+        h_min = df_an[f"{self.varfield}_amax"] - df_an[f"{self.varfield}_amax_SE90"]
+        tr_max = 1 / (1 - StageSeries.gumbel_fx(x=h_max, a=gumbel_a, b=gumbel_b))
+        tr_min = 1 / (1 - StageSeries.gumbel_fx(x=h_min, a=gumbel_a, b=gumbel_b))
+
+        df_an["T(X)_Gumbel_P05"] = tr_min
+        df_an["T(X)_Gumbel_P95"] = tr_max
+
+        # compute uncertainty 90% bands for a full range of TRs
+        trs = np.arange(1.5, 100, step=0.5)
+        k = StageSeries.gumbel_freqfactor(trs)
+        stages = np.mean(a=df_an[f"{self.varfield}_amax"]) + k * np.std(a=df_an[f"{self.varfield}_amax"])
+
+        gumbel_se = StageSeries.gumbel_se(
+            std_sample=np.std(a=df_an[f"{self.varfield}_amax"]),
+            n_sample=len(df_an),
+            tr=trs
+        )
+        h_range = t * gumbel_se
+        h_max = stages + h_range
+        h_min = stages - h_range
+
+        df_trs = pd.DataFrame(
+            {
+                "T(X)_Gumbel": trs,
+                f"{self.varfield}_amax": stages,
+                f"{self.varfield}_amax_P05": h_min,
+                f"{self.varfield}_amax_P95": h_max
+            }
+        )
+
+        # reset agg
+        self.agg = "mean"
+
+        return {
+            "Data": df_an,
+            "T_Data": df_trs,
+            "Gumbel_a": gumbel_a,
+            "Gumbel_b": gumbel_b,
+            "KS_Stat": ks_stat,
+            "KS_p_value": ks_p_value,
+            "IsGumbel": is_gumbel,
+            "QQ_Data":df_qq,
+            "QQ_c1": qq_params[1],
+            "QQ_c0": qq_params[0],
+            "QQ_r2": qq_params[2],
+        }
+
+    # todo remove this
+    def get_mol(self):
+        """Get the MEAN ORDINARY LEVEL according to many methods
+
+        :return:
+        :rtype:
+        """
+        # 1) get annual max values
+        df_ys = self.upscale(freq="YS", bad_max=10, inplace=False)
+
+        # get basic stats
+        mol_sample_mean = df_ys["H"].mean()  # sample mean
+        mol_sample_std = df_ys["H"].std()
+
+        # 2yr Return Period using Gumbel
+        k = StageSeries.gumbel_freqfactor(t=2)
+        mol_2yr = mol_sample_mean + k * mol_sample_std
+
+        # Apply SPU method
+
+        # get the size of series
+        size = len(df_ys)
+        # Sort values in descending order
+        df_ys_sort = df_ys.sort_values(by="H", ascending=False).reset_index(drop=True)
+        # compute rank and TR (empirical)
+        df_ys_sort["Rank"] = df_ys_sort.index + 1
+        df_ys_sort["Prob_exceed"] = df_ys_sort["Rank"] / size
+        df_ys_sort["TR"] = size / df_ys_sort["Rank"]
+        # filter 3 and 20
+        df_ys_spu = df_ys_sort.query("TR >= 3 and TR <= 20")
+        mol_spu = df_ys_spu["H"].mean()
+
+        d_out = {
+            "MOL": mol_sample_mean,
+            "MOL 2yr (Gumbel)": mol_2yr,
+            "MOL (SPU)": mol_spu,
+            "Annual": df_ys,
+            "SPU": df_ys_spu
+        }
+        return d_out
+
+
+    @staticmethod
+    def gumbel_fx(x, a, b):
+        aux_1 = (x - a) / b
+        aux_2 = np.exp(- aux_1)
+        gumbel_fx = np.exp(- aux_2)
+        return gumbel_fx
+
+    @staticmethod
+    def gumbel_freqfactor(t=2):
+        aux1 = t / (t - 1)
+        aux2 = np.log(aux1)
+        aux3 = np.log(aux2)
+        aux4 = 0.5772 + aux3
+        aux5 = - np.sqrt(6) * aux4 / np.pi
+        return aux5
+
+    @staticmethod
+    def gumbel_se(std_sample, n_sample, tr):
+        aux1 = std_sample / np.sqrt(n_sample)
+        k = StageSeries.gumbel_freqfactor(t=tr)
+        aux2 = 1 + (1.14 * k) + (1.1 * np.square(k))
+        aux3 = np.sqrt(aux2)
+        return aux1 * aux3
+
+
+
+    @staticmethod
+    def px_empirical(ranks):
+        """Get the empirical exceedance probability P(X)
+
+        :param ranks: vector of ranks
+        :type ranks: class:`numpy.array`
+        :return: empirical exceedance probability P(X)
+        :rtype: class:`numpy.array`
+        """
+        return ranks / len(ranks)
+
+    @staticmethod
+    def px_weibull(ranks):
+        """Get the Weibull exceedance probability P(X)
+
+        :param ranks: vector of ranks
+        :type ranks: class:`numpy.array`
+        :return: Weibull exceedance probability P(X)
+        :rtype: class:`numpy.array`
+        """
+        return ranks / (len(ranks) + 1)
+    @staticmethod
+    def px_gringorten(ranks):
+        """Get the Gringorten exceedance probability P(X)
+
+        :param ranks: vector of ranks
+        :type ranks: class:`numpy.array`
+        :return: Gringorten exceedance probability P(X)
+        :rtype: class:`numpy.array`
+        """
+        return (ranks - 0.44) / (len(ranks) + 0.12)
+
+
 
 class TempSeries(TimeSeries):
     """A class for representing and working with temperature time series data.

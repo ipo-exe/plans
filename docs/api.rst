@@ -54,12 +54,6 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
-   plans.ds
-
-
-.. autosummary::
-   :toctree: generated
-
    plans.datasets
 
 .. autosummary::
