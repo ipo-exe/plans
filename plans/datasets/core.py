@@ -171,6 +171,9 @@ class TimeSeries(DataSet):
         self.file_input = None  # todo rename
         self.file_data_dtfield = self.dtfield
         self.file_data_varfield = self.varfield
+
+
+        self._set_view_specs()
         # ... continues in downstream objects ... #
 
     def _set_fields(self):
@@ -207,7 +210,6 @@ class TimeSeries(DataSet):
         self.epochs_n_field = "Epochs_n"
         self.smallgaps_n_field = "SmallGaps_n"
         self.epochs_id_field = "Epoch_Id"
-
 
         # file fields
         self.file_data_dtfield_field = "File_Data_DtField"
@@ -1301,6 +1303,9 @@ class TimeSeries(DataSet):
 
         :param show: option for showing instead of saving.
         :type show: bool
+
+        :param return_fig: option for returning the figure object itself.
+        :type return_fig: bool
 
         :return: None or file path to figure
         :rtype: None or str
@@ -3599,6 +3604,48 @@ class Raster:
             lst_.append("\t{}: {}".format(k, dct_meta[k]))
         return "\n".join(lst_)
 
+    def _set_view_specs(self):
+        """Set default view specs.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - This private method sets default view specifications for visualization.
+        - The view specs include color, colormap, titles, dimensions, and other parameters for visualization.
+        - These default values can be adjusted based on specific requirements.
+
+        **Examples:**
+
+        >>> # Set default view specifications
+        >>> obj._set_view_specs()
+        """
+        self.view_specs = {
+            "folder": None,
+            "filename": self.name,
+            "fig_format": "jpg",
+            "dpi": 300,
+            "color": "tab:grey",
+            "cmap": self.cmap,
+            "suptitle": "{} | {}".format(self.varname, self.name),
+            "a_title": "{} ({})".format(self.varalias, self.units),
+            "b_title": "Histogram",
+            "c_title": "Metadata",
+            "d_title": "Statistics",
+            "width": 5 * 1.618,
+            "height": 5,
+            "b_ylabel": "percentage",
+            "b_xlabel": self.units,
+            "nbins": 100,
+            "vmin": None,
+            "vmax": None,
+            "hist_vmax": None,
+            "project_name": None,
+            "zoom_window": None
+        }
+        return None
+
     def set_grid(self, grid):
         """Set the data grid for the raster object.
 
@@ -3739,6 +3786,51 @@ class Raster:
         return None
 
     def load_asc_raster(self, file):
+        """Load data and metadata from `.asc` raster files.
+
+        This function loads both data and metadata from ``.asc`` raster files into the raster object.
+
+        :param file: str
+            The file path to the ``.asc`` raster file.
+        :type file: str
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function reads the content of the ``.asc`` file, extracts metadata, and constructs the data grid.
+        - The metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
+        - The data grid is constructed from the array information provided in the ``.asc`` file.
+        - The function depends on the existence of a properly formatted ``.asc`` file.
+        - No additional dependencies beyond standard Python libraries are required.
+
+        **Examples:**
+
+        >>> # Example of loading data and metadata from a ``.asc`` file
+        >>> raster.load_asc_raster(file="path/to/raster.asc")
+
+
+        """
+        # Get metadata and grid data
+        with open(file) as f_file:
+            lst_file = f_file.readlines()
+
+        # Metadata extraction
+        tpl_meta_labels = ("ncols", "nrows", "xllcorner", "yllcorner", "cellsize", "NODATA_value")
+        tpl_meta_format = ("int", "int", "float", "float", "float", "float")
+        dct_meta = {
+            tpl_meta_labels[i]: (int if tpl_meta_format[i] == "int" else float)(lst_file[i].split()[-1])
+            for i in range(6)
+        }
+        # Grid construction using numpy
+        grd_data = np.genfromtxt(lst_file[6:], dtype=self.dtype)
+        # Set metadata and grid
+        self.set_asc_metadata(metadata=dct_meta)
+        self.set_grid(grid=grd_data)
+
+    # legacy function
+    def __load_asc_raster(self, file):
         """Load data and metadata from ``.asc`` raster files.
 
         This function loads both data and metadata from ``.asc`` raster files into the raster object.
@@ -4353,6 +4445,16 @@ class Raster:
             + (self.asc_metadata["nrows"] * self.cellsize),
         }
 
+    def get_extent(self):
+        """Get the Extent of the map. See get_bbox.
+
+        :return: list of [xmin, xmax, ymin, ymax]
+        :rtype: list
+        """
+        d = self.get_bbox()
+        extent = [d["xmin"], d["xmax"], d["ymin"], d["ymax"]]
+        return extent
+
     def get_grid_datapoints(self, drop_nan=False):
         """Get flat and cleared grid data points (x, y, and z).
 
@@ -4511,53 +4613,14 @@ class Raster:
         self.mask_nodata()
         return map_aoi
 
-    def _set_view_specs(self):
-        """Set default view specs.
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - This private method sets default view specifications for visualization.
-        - The view specs include color, colormap, titles, dimensions, and other parameters for visualization.
-        - These default values can be adjusted based on specific requirements.
-
-        **Examples:**
-
-        >>> # Set default view specifications
-        >>> obj._set_view_specs()
-        """
-        self.view_specs = {
-            "color": "tab:grey",
-            "cmap": self.cmap,
-            "suptitle": "{} | {}".format(self.varname, self.name),
-            "a_title": "{} ({})".format(self.varalias, self.units),
-            "b_title": "Histogram",
-            "c_title": "Metadata",
-            "d_title": "Statistics",
-            "width": 5 * 1.618,
-            "height": 5,
-            "b_ylabel": "percentage",
-            "b_xlabel": self.units,
-            "nbins": 100,
-            "vmin": None,
-            "vmax": None,
-            "hist_vmax": None,
-            "project_name": None,
-            "zoom_window": None
-        }
-        return None
-
     def view(
         self,
         accum=True,
         show=True,
         stats=True,
-        folder="./output",
-        filename=None,
-        dpi=300,
-        fig_format="jpg",
+        save_stats=True,
+        return_fig=False,
+        helper_geometry=None
     ):
         """Plot a basic panel of the raster map.
 
@@ -4567,14 +4630,6 @@ class Raster:
         :type show: bool
         :param stats: boolean to include stats, defaults to True
         :type stats: bool
-        :param folder: path to the output folder, defaults to "./output"
-        :type folder: str
-        :param filename: name of the file, defaults to None
-        :type filename: str
-        :param dpi: image resolution, defaults to 300
-        :type dpi: int
-        :param fig_format: image format (e.g., jpg or png), defaults to "jpg"
-        :type fig_format: str
 
         **Notes:**
 
@@ -4604,20 +4659,15 @@ class Raster:
         if specs["vmax"] is None:
             specs["vmax"] = np.max(self.grid)
 
-        if specs["project_name"] is None:
-            suff = ""
-        else:
-            suff = "_{}".format(specs["project_name"])
-
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
         gs = mpl.gridspec.GridSpec(
             4, 5, wspace=0.8, hspace=0.1, left=0.05, bottom=0.1, top=0.85, right=0.95
         )
-        fig.suptitle(specs["suptitle"] + suff)
+        fig.suptitle(specs["suptitle"])
 
         # plot map
-        plt.subplot(gs[:3, :3])
+        ax = plt.subplot(gs[:3, :3])
         # handle zoom window
         i_min = 0
         i_max = len(self.grid)
@@ -4630,8 +4680,16 @@ class Raster:
             j_max = specs["zoom_window"]["j_max"]
         # plot image
         im = plt.imshow(
-            self.grid[i_min: i_max, j_min: j_max], cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
+            self.grid[i_min: i_max, j_min: j_max],
+            cmap=specs["cmap"],
+            vmin=specs["vmin"],
+            vmax=specs["vmax"],
+            interpolation='none',
+            extent=self.get_extent()
         )
+        # plot helper geometry
+        if helper_geometry is not None:
+            helper_geometry.plot(ax=ax, color='none', edgecolor='k')
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         fig.colorbar(im, shrink=0.5)
         plt.axis("off")
@@ -4703,7 +4761,7 @@ class Raster:
         plt.text(
             x=n_x,
             y=n_y,
-            s="code. {}".format(specs["c_title"]),
+            s="c. {}".format(specs["c_title"]),
             fontsize=12,
             transform=fig.transFigure,
         )
@@ -4776,21 +4834,29 @@ class Raster:
                     transform=fig.transFigure,
                 )
 
-        # show or save
-        if show:
+        # --------------------- end --------------------- #
+        # return object, show or save
+        if return_fig:
+            return fig
+        elif show:  # default case
             plt.show()
+            return None
         else:
-            if filename is None:
-                filename = "{}_{}{}".format(self.varalias, self.name, suff)
-            # save figure
-            plt.savefig(
-                "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
+            file_path = "{}/{}.{}".format(
+                specs["folder"],
+                specs["filename"],
+                specs["fig_format"]
             )
+            plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
             # save stats:
-            if stats:
-                df_stats.to_csv("{}/{}{}.csv".format(folder, filename, suff), sep=";", index=False)
-        return None
+            if save_stats:
+                df_stats.to_csv(
+                    "{}/{}.csv".format(
+                        specs["folder"],
+                        specs["filename"],
+                        ), sep=";", index=False)
+            return file_path
 
 class QualiRaster(Raster):
     """
@@ -5183,10 +5249,7 @@ class QualiRaster(Raster):
         self,
         show=True,
         export_areas=True,
-        folder="./output",
-        filename=None,
-        dpi=300,
-        fig_format="jpg",
+        return_fig=False,
         filter=False,
         n_filter=6,
     ):
@@ -5223,9 +5286,9 @@ class QualiRaster(Raster):
             suff = "_{}".format(specs["project_name"])
 
         # -----------------------------------------------
-        # ensure export_areas are computed
+        # ensure areas are computed
         df_areas = pd.merge(
-            self.table[["Id", "Color"]], self.get_areas(), how="left", on="Id"
+            left=self.table[["Id", "Color"]], right=self.get_areas(), how="left", on="Id"
         )
         # new aux
         df_aux = df_areas.sort_values(by="{}_m2".format(self.areafield), ascending=True)
@@ -5292,7 +5355,12 @@ class QualiRaster(Raster):
             j_max = specs["zoom_window"]["j_max"]
         # plot image
         im = plt.imshow(
-            self.grid[i_min: i_max, j_min: j_max], cmap=specs["cmap"], vmin=specs["vmin"], vmax=specs["vmax"]
+            self.grid[i_min: i_max, j_min: j_max],
+            cmap=specs["cmap"],
+            vmin=specs["vmin"],
+            vmax=specs["vmax"],
+            interpolation='none',
+            extent=self.get_extent()
         )
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         plt.axis("off")
@@ -5392,21 +5460,28 @@ class QualiRaster(Raster):
                     transform=fig.transFigure,
                 )
 
-        # show or save
-        if show:
+        # --------------------- end --------------------- #
+        # return object, show or save
+        if return_fig:
+            return fig
+        elif show:  # default case
             plt.show()
+            return None
         else:
-            if filename is None:
-                filename = "{}_{}{}".format(self.varalias, self.name, suff)
-            # save fig1
-            plt.savefig(
-                "{}/{}{}.{}".format(folder, filename, suff, fig_format), dpi=dpi
+            file_path = "{}/{}.{}".format(
+                specs["folder"],
+                specs["filename"],
+                specs["fig_format"]
             )
+            plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
-            # save areas
+            # save stats:
             if export_areas:
-                df_areas.to_csv("{}/{}{}.csv".format(folder, filename, suff), sep=";", index=False)
-        return None
+                df_areas.to_csv("{}/{}.csv".format(
+                    specs["folder"],
+                    specs["filename"]),
+                    sep=";", index=False)
+            return file_path
 
 class QualiHard(QualiRaster):
     """
@@ -5465,7 +5540,7 @@ class Zones(QualiRaster):
         self.units = "zones ID"
         self.table = None
 
-    def set_table(self):
+    def compute_table(self):
         if self.grid is None:
             self.table = None
         else:
@@ -5504,7 +5579,7 @@ class Zones(QualiRaster):
 
     def set_grid(self, grid):
         super().set_grid(grid)
-        self.set_table()
+        self.compute_table()
         return None
 
     def load(self, asc_file, prj_file):
@@ -6574,8 +6649,10 @@ class QualiRasterSeries(RasterSeries):
         df_areas_full["Date"] = pd.to_datetime(df_areas_full["Date"])
         return df_areas_full
 
+    @staticmethod
     def view_series_areas(
-        self,
+        df_table,
+        df_areas,
         specs=None,
         show=True,
         export_areas=True,
@@ -6601,18 +6678,20 @@ class QualiRasterSeries(RasterSeries):
         :return: None
         :rtype: None
         """
-        plt.style.use("seaborn-v0_8")
         # get specs
         default_specs = {
-            "suptitle": "{} | Area Series".format(self.name),
+            "suptitle": "Area Series",
             "width": 5 * 1.618,
             "height": 5,
             "ylabel": "Area prevalence (%)",
             "ylim": (0, 100),
+            "xlim": None,
             "legend_x": 0.85,
             "legend_y": 0.33,
             "legend_ncol": 3,
             "filter_by_id": None,  # list of ids
+            "annotate": False,
+            "annotate_by_id": None
         }
         # handle input specs
         if specs is None:
@@ -6621,9 +6700,6 @@ class QualiRasterSeries(RasterSeries):
             for k in specs:
                 default_specs[k] = specs[k]
         specs = default_specs
-
-        # compute export_areas
-        df_areas = self.get_series_areas()
 
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
@@ -6634,12 +6710,13 @@ class QualiRasterSeries(RasterSeries):
 
         # start plotting
         plt.subplot(gs[0:2, 0])
-        for i in range(len(self.table)):
+        for i in range(len(df_table)):
             # get attributes
-            _id = self.table["Id"].values[i]
-            _name = self.table["Name"].values[i]
-            _alias = self.table["Alias"].values[i]
-            _color = self.table["Color"].values[i]
+            _id = df_table["Id"].values[i]
+            _name = df_table["Name"].values[i]
+            _alias = df_table["Alias"].values[i]
+            _color = df_table["Color"].values[i]
+            # ploting
             if specs["filter_by_id"] == None:
                 # filter series
                 _df = df_areas.query("Id == {}".format(_id)).copy()
@@ -6649,8 +6726,27 @@ class QualiRasterSeries(RasterSeries):
                     # filter series
                     _df = df_areas.query("Id == {}".format(_id)).copy()
                     plt.plot(_df["Date"], _df["Area_%"], color=_color, label=_name)
+                    # annotate
+                    if specs["annotate"]:
+                        if _id in specs["annotate_by_id"]:
+                            lst_dates = [_df["Date"].values[0], _df["Date"].values[-1]]
+                            lst_areas = [_df["Area_%"].values[0], _df["Area_%"].values[-1]]
+                            plt.plot(lst_dates, lst_areas, color=_color, marker="o", linestyle="")
+                            plt.text(
+                                x=lst_dates[0],
+                                y=lst_areas[0] + 5,
+                                s="{:.1f}%".format(lst_areas[0]),
+                                color=_color
+                            )
+                            plt.text(
+                                x=lst_dates[1],
+                                y=lst_areas[1] + 5,
+                                s="{:.1f}%".format(lst_areas[1]),
+                                color=_color
+                            )
                 else:
                     pass
+
         plt.legend(
             frameon=True,
             fontsize=9,
@@ -6662,13 +6758,15 @@ class QualiRasterSeries(RasterSeries):
         plt.xlim(df_areas["Date"].min(), df_areas["Date"].max())
         plt.ylabel(specs["ylabel"])
         plt.ylim(specs["ylim"])
+        if specs["xlim"]:
+            plt.xlim(pd.to_datetime(specs["xlim"]))
 
         # show or save
         if show:
             plt.show()
         else:
             if filename is None:
-                filename = "{}_{}".format(self.varalias, self.name)
+                filename = "areas"
             # save fig1
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
             # save areas

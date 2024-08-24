@@ -170,7 +170,10 @@ def _get_dict_basins(folder_basins):
         basins_dct[basins_id] = m_basins.get_basin_aoi(basin_id=basins_id)
 
     return basins_dct
+
+
 # ------------------------------ TOOLS ------------------------------
+
 def DEMO(
     project_name,
     inputfile1,
@@ -278,7 +281,23 @@ def VTOPO(
     workplace=True,
     talk=False,
 ):
+    """ todo docstring
 
+    :param project_name:
+    :type project_name:
+    :param datasets_dir:
+    :type datasets_dir:
+    :param outdir:
+    :type outdir:
+    :param by_basins:
+    :type by_basins:
+    :param workplace:
+    :type workplace:
+    :param talk:
+    :type talk:
+    :return:
+    :rtype:
+    """
     # ---------------------- START ----------------------
     start_start = time.time()
     # define label
@@ -405,6 +424,25 @@ def VLULC(
     workplace=True,
     talk=False,
 ):
+    """ todo docstring
+
+    :param project_name:
+    :type project_name:
+    :param datasets_dir:
+    :type datasets_dir:
+    :param outdir:
+    :type outdir:
+    :param scenario:
+    :type scenario:
+    :param by_basins:
+    :type by_basins:
+    :param workplace:
+    :type workplace:
+    :param talk:
+    :type talk:
+    :return:
+    :rtype:
+    """
     # ---------------------- START ----------------------
     start_start = time.time()
     # define label
@@ -523,9 +561,6 @@ def VLULC(
     return 0
 
 
-
-
-# docs ok
 def TSC(
     kind,
     project_name,
@@ -544,6 +579,36 @@ def TSC(
 
 ):
     """Process and analyze ``TSC`` (time series collection) data.
+
+    **Notes:**
+
+    - Performs data loading, processing, and exporting based on specified parameters.
+    - Handles various types of time series data, such as rain, stage, and temperature.
+    - Supports options for outlier cleaning, regionalization, and exporting inputs and views.
+
+    **Examples:**
+
+    .. code-block:: python
+
+        from plans import tools
+
+        tools.TSC(
+            kind="rain",
+            project_name="myproject",
+            file_infotable="path/to/infotable.csv",
+            outdir="path/to/output",
+            workplace=True,
+            talk=True,
+            clear_outliers=True,
+            datarange_min=0,
+            datarange_max=120,
+            regionalize=False
+            export_inputs=True,
+            export_views=True,
+            filter_date_start="2018-01-01 00:00:00",
+            filter_date_end="2023-01-01 00:00:00"
+        )
+
 
     :param kind: str
         Type of time series data ('rain', 'stage', 'temperature', etc.).
@@ -605,34 +670,6 @@ def TSC(
         Returns 0 upon successful completion.
     :rtype: int
 
-    **Notes:**
-
-    - Performs data loading, processing, and exporting based on specified parameters.
-    - Handles various types of time series data, such as rain, stage, and temperature.
-    - Supports options for outlier cleaning, regionalization, and exporting inputs and views.
-
-    **Examples:**
-
-    .. code-block:: python
-
-        from plans import tools
-
-        tools.TSC(
-            kind="rain",
-            project_name="myproject",
-            file_infotable="path/to/infotable.csv",
-            outdir="path/to/output",
-            workplace=True,
-            talk=True,
-            clear_outliers=True,
-            datarange_min=0,
-            datarange_max=120,
-            regionalize=False
-            export_inputs=True,
-            export_views=True,
-            filter_date_start="2018-01-01 00:00:00",
-            filter_date_end="2023-01-01 00:00:00"
-        )
 
 
     """

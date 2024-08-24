@@ -222,12 +222,11 @@ class StageSeries(TimeSeries):
         df_an = df_an.sort_values(by=f"{self.varfield}_amax", ascending=False).reset_index(drop=True)
 
         df_an["Rank"] = df_an.index + 1
-
         df_an["P(X)_Empirical"] = StageSeries.px_empirical(ranks=df_an["Rank"].values)
         df_an["P(X)_Weibull"] = StageSeries.px_weibull(ranks=df_an["Rank"].values)
         df_an["P(X)_Gringorten"] = StageSeries.px_gringorten(ranks=df_an["Rank"].values)
 
-        # model Gumbel using the method of moments
+        # ---- model Gumbel using the method of moments ----
 
         # using scipy
         # Fit a Gumbel distribution to the data
@@ -281,32 +280,69 @@ class StageSeries(TimeSeries):
 
         h_max = df_an[f"{self.varfield}_amax"] + df_an[f"{self.varfield}_amax_SE90"]
         h_min = df_an[f"{self.varfield}_amax"] - df_an[f"{self.varfield}_amax_SE90"]
-        tr_max = 1 / (1 - StageSeries.gumbel_fx(x=h_max, a=gumbel_a, b=gumbel_b))
-        tr_min = 1 / (1 - StageSeries.gumbel_fx(x=h_min, a=gumbel_a, b=gumbel_b))
 
-        df_an["T(X)_Gumbel_P05"] = tr_min
-        df_an["T(X)_Gumbel_P95"] = tr_max
+        df_an["T(X)_Gumbel_P05"] = StageSeries.gumbel_tx(x=h_min, a=gumbel_a, b=gumbel_b)
+        df_an["T(X)_Gumbel_P95"] = StageSeries.gumbel_tx(x=h_max, a=gumbel_a, b=gumbel_b)
 
-        # compute uncertainty 90% bands for a full range of TRs
+        # Return Period analysis
+
+        # evely spaced
         trs = np.arange(1.5, 100, step=0.5)
         k = StageSeries.gumbel_freqfactor(trs)
+        # apply reverse formula
         stages = np.mean(a=df_an[f"{self.varfield}_amax"]) + k * np.std(a=df_an[f"{self.varfield}_amax"])
-
+        # get standard error
         gumbel_se = StageSeries.gumbel_se(
             std_sample=np.std(a=df_an[f"{self.varfield}_amax"]),
             n_sample=len(df_an),
             tr=trs
         )
-        h_range = t * gumbel_se
-        h_max = stages + h_range
-        h_min = stages - h_range
+
+        # compute 50% uncertainty bands
+        t_50 = stats.t.ppf((1 + 0.5) / 2, df=len(df_an) - 1)
+        h_range_50 = t_50 * gumbel_se
+
+        # compute 90% uncertainty bands
+        t_90 = stats.t.ppf((1 + 0.9) / 2, df=len(df_an) - 1)
+        h_range_90 = t_90 * gumbel_se
+
 
         df_trs = pd.DataFrame(
             {
                 "T(X)_Gumbel": trs,
                 f"{self.varfield}_amax": stages,
-                f"{self.varfield}_amax_P05": h_min,
-                f"{self.varfield}_amax_P95": h_max
+                f"{self.varfield}_amax_P25": stages - h_range_50,
+                f"{self.varfield}_amax_P75": stages + h_range_50,
+                f"{self.varfield}_amax_P05": stages - h_range_90,
+                f"{self.varfield}_amax_P95": stages + h_range_90,
+            }
+        )
+
+        # setup metadata
+        df_meta = pd.DataFrame(
+            {
+                "Metadata": [
+                    "N (years)",
+                    "Gumbel a",
+                    "Gumbel b",
+                    "KS-test s-value",
+                    "KS-test p-value",
+                    "KS-test NullHyp",
+                    "QQ-plot c0",
+                    "QQ plot c1",
+                    "QQ-plot r2"
+                ],
+                "Value": [
+                    len(df_an),
+                    gumbel_a,
+                    gumbel_b,
+                    ks_stat,
+                    ks_p_value,
+                    is_gumbel,
+                    qq_params[1],
+                    qq_params[0],
+                    qq_params[2]
+                ]
             }
         )
 
@@ -315,16 +351,9 @@ class StageSeries(TimeSeries):
 
         return {
             "Data": df_an,
-            "T_Data": df_trs,
-            "Gumbel_a": gumbel_a,
-            "Gumbel_b": gumbel_b,
-            "KS_Stat": ks_stat,
-            "KS_p_value": ks_p_value,
-            "IsGumbel": is_gumbel,
-            "QQ_Data":df_qq,
-            "QQ_c1": qq_params[1],
-            "QQ_c0": qq_params[0],
-            "QQ_r2": qq_params[2],
+            "Data_T": df_trs,
+            "Data_QQ": df_qq,
+            "Metadata": df_meta
         }
 
     # todo remove this
@@ -336,6 +365,9 @@ class StageSeries(TimeSeries):
         """
         # 1) get annual max values
         df_ys = self.upscale(freq="YS", bad_max=10, inplace=False)
+
+        print(df_ys.head())
+        # get tr of the series
 
         # get basic stats
         mol_sample_mean = df_ys["H"].mean()  # sample mean
@@ -355,8 +387,13 @@ class StageSeries(TimeSeries):
         df_ys_sort["Rank"] = df_ys_sort.index + 1
         df_ys_sort["Prob_exceed"] = df_ys_sort["Rank"] / size
         df_ys_sort["TR"] = size / df_ys_sort["Rank"]
+
         # filter 3 and 20
-        df_ys_spu = df_ys_sort.query("TR >= 3 and TR <= 20")
+        df_ys_spu = df_ys_sort.query("TR >= 3 and TR <= 20").copy()
+        mol_spu = df_ys_spu["H"].mean()
+
+        # filter 1.5 and 10
+        df_ys_spu = df_ys_sort.query("TR >= 1.5 and TR <= 10").copy()
         mol_spu = df_ys_spu["H"].mean()
 
         d_out = {
@@ -364,7 +401,7 @@ class StageSeries(TimeSeries):
             "MOL 2yr (Gumbel)": mol_2yr,
             "MOL (SPU)": mol_spu,
             "Annual": df_ys,
-            "SPU": df_ys_spu
+            "SPU": df_ys_spu,
         }
         return d_out
 
@@ -375,6 +412,11 @@ class StageSeries(TimeSeries):
         aux_2 = np.exp(- aux_1)
         gumbel_fx = np.exp(- aux_2)
         return gumbel_fx
+
+    @staticmethod
+    def gumbel_tx(x, a, b):
+        g_fx = StageSeries.gumbel_fx(x, a, b)
+        return 1/(1-g_fx)
 
     @staticmethod
     def gumbel_freqfactor(t=2):
