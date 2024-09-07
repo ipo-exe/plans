@@ -88,10 +88,12 @@ def reproject_layer(input_db, target_crs, layer_name=None):
     :return: new layer name
     :rtype: str
     """
+    # operations base (hard-coded)
     dict_operations = {
-        "31983": {"zone": 23, "hem": "south"},
-        "31982": {"zone": 22, "hem": "south"},
-        "31981": {"zone": 21, "hem": "south"},
+        "31983": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=23 +south +ellps=GRS80",
+        "31982": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=22 +south +ellps=GRS80",
+        "31981": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=21 +south +ellps=GRS80",
+        "102033": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +proj=helmert +x=57 +y=-1 +z=41 +step +inv +proj=cart +ellps=aust_SA +step +proj=pop +v_3 +step +proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=aust_SA"
     }
     if layer_name is None:  # to shapefile
         input_file = input_db
@@ -110,9 +112,7 @@ def reproject_layer(input_db, target_crs, layer_name=None):
         {
             "INPUT": input_file,
             "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
-            "OPERATION": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone={} +{} +ellps=GRS80".format(
-                dict_operations[target_crs]["zone"], dict_operations[target_crs]["hem"]
-            ),
+            "OPERATION": dict_operations[target_crs],
             "OUTPUT": output_file,
         },
     )
