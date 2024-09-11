@@ -240,8 +240,11 @@ class TimeSeries(DataSet):
             "ylabel": self.units,
             "color": self.rawcolor,
             "color_aux": self.rawcolor,
+            "color_fill": self.rawcolor,
             "alpha": 1,
             "alpha_aux": 1,
+            "alpha_fill": 1,
+            "fill": False,
             "xmin": None,
             "xmax": None,
             "xmax_aux": 0.1,
@@ -525,8 +528,12 @@ class TimeSeries(DataSet):
         :type input_dtfield: str
 
         :param sep: str, optional
-            String separator. Default is ``;`.
+            String separator. Default is ``;``.
         :type sep: str
+
+        :param filter_dates: list, optional
+            List of start and end date to filter. Default is None
+        :type sep: list
 
         :return: None
         :rtype: None
@@ -1372,8 +1379,21 @@ class TimeSeries(DataSet):
             color=specs["color"],
             alpha=specs["alpha"],
         )
-        # set basic plotting stuff
 
+        # fill option
+        if specs["fill"]:
+            lower = (self.data[specs["yvar"]].values * 0) +  specs["ymin"]
+            # Fill below the time series
+            plt.fill_between(
+                x=self.data[specs["xvar"]],
+                y1=lower,
+                y2=self.data[specs["yvar"]],
+                color=specs["color_fill"],
+                alpha=specs["alpha_fill"]
+            )
+
+
+        # set basic plotting stuff
         plt.ylabel(specs["ylabel"])
         plt.xlabel(specs["xlabel"])
         plt.xlim(specs["xmin"], specs["xmax"])
@@ -5164,7 +5184,7 @@ class QualiRaster(Raster):
 
         return df_aux
 
-    def get_aoi(self, by_value_id):
+    def get_aoi(self, by_value_id=None):
         """
         Get the AOI map from a specific value id (value is expected to exist in the raster)
         :param by_value_id: category id value
@@ -5172,12 +5192,16 @@ class QualiRaster(Raster):
         :return: AOI map
         :rtype: :class:`AOI`` object
         """
+        from plans.datasets import AOI
         map_aoi = AOI(name="{} {}".format(self.varname, by_value_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi.prj = self.prj
         # set grid
         self.insert_nodata()
-        map_aoi.set_grid(grid=1 * (self.grid == by_value_id))
+        if by_value_id:
+            map_aoi.set_grid(grid=1 * (self.grid == by_value_id))
+        else:
+            map_aoi.set_grid(grid=1 * (self.grid != self.nodatavalue))
         self.mask_nodata()
         return map_aoi
 

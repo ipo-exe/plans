@@ -690,12 +690,14 @@ class AOI(QualiHard):
         self.mask_nodata()
         map_aoi_aux.set_grid(grid=grd_new)
         # this will call the view
+
+        map_aoi_aux.view_specs["folder"] = folder
+        map_aoi_aux.view_specs["filename"] = filename
+        map_aoi_aux.view_specs["fig_format"] = fig_format
+        map_aoi_aux.view_specs["dpi"] = dpi
+
         map_aoi_aux.view(
             show=show,
-            folder=folder,
-            filename=filename,
-            dpi=dpi,
-            fig_format=fig_format,
         )
         del map_aoi_aux
         return None

@@ -1,5 +1,5 @@
 """
-Custom geoprocessing routines
+Custom standalone geoprocessing routines with minimal dependencies.
 
 Description:
     The ``geo`` module provides custom geoprocessing routines.
@@ -23,7 +23,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import iamlazy
+>>> from plans import geo
 
 Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
@@ -56,6 +56,27 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
 import numpy as np
+
+
+# VECTOR FUNCTIONS
+def extents_to_wkt_box(xmin, ymin, xmax, ymax):
+    """Returns a WKT box from the given extents (xmin, ymin, xmax, ymax).
+
+    :param xmin: Minimum x-coordinate (left)
+    :type xmin: float
+    :param ymin: Minimum y-coordinate (bottom)
+    :type xmin: float
+    :param xmax: Maximum x-coordinate (right)
+    :type xmax: float
+    :param ymax: Maximum y-coordinate (top)
+    :type ymax: float
+    :return: A string representing the box in WKT format
+    :rtype: str
+    """
+    return f"POLYGON(({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
+
+
+# RASTER FUNCTIONS
 
 # docs ok
 def slope(dem, cellsize, degree=True):

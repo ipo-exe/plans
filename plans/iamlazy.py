@@ -65,7 +65,6 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
 import glob
-
 import pandas as pd
 import processing
 from osgeo import gdal
@@ -75,6 +74,21 @@ from plans import geo
 import os, shutil
 import geopandas as gpd
 
+# operations base (hard-coded catalog)
+dict_operations = {
+    "31983": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=23 +south +ellps=GRS80",
+    "31982": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=22 +south +ellps=GRS80",
+    "31981": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=21 +south +ellps=GRS80",
+    "102033": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +proj=helmert +x=57 +y=-1 +z=41 +step +inv +proj=cart +ellps=aust_SA +step +proj=pop +v_3 +step +proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=aust_SA"
+}
+# provider base
+dict_provider = {
+    "4326": "EPSG",
+    "31983": "EPSG",
+    "31982": "EPSG",
+    "31981": "EPSG",
+    "102033": "ESRI",
+}
 
 def reproject_layer(input_db, target_crs, layer_name=None):
     """Reproject a vector layer
@@ -88,22 +102,16 @@ def reproject_layer(input_db, target_crs, layer_name=None):
     :return: new layer name
     :rtype: str
     """
-    # operations base (hard-coded)
-    dict_operations = {
-        "31983": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=23 +south +ellps=GRS80",
-        "31982": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=22 +south +ellps=GRS80",
-        "31981": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=21 +south +ellps=GRS80",
-        "102033": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +proj=helmert +x=57 +y=-1 +z=41 +step +inv +proj=cart +ellps=aust_SA +step +proj=pop +v_3 +step +proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=aust_SA"
-    }
+
     if layer_name is None:  # to shapefile
         input_file = input_db
         output_dir = os.path.dirname(input_file)
         output_name = os.path.basename(input_file).split(".")[0]
-        output_file = "{}/{}_EPSG{}.shp".format(output_dir, output_name, target_crs)
+        output_file = "{}/{}_{}{}.shp".format(output_dir, output_name, dict_provider[target_crs], target_crs)
         new_layer_name = output_file
     else:  # to geopackage
         input_file = "{}|layername={}".format(input_db, layer_name)
-        new_layer_name = "{}_EPSG{}".format(layer_name, target_crs)
+        new_layer_name = "{}_{}{}".format(layer_name, dict_provider[target_crs], target_crs)
         output_file = "ogr:dbname='{}' table=\"{}\" (geom)".format(
             input_db, new_layer_name
         )
@@ -111,7 +119,7 @@ def reproject_layer(input_db, target_crs, layer_name=None):
         "native:reprojectlayer",
         {
             "INPUT": input_file,
-            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
             "OPERATION": dict_operations[target_crs],
             "OUTPUT": output_file,
         },
@@ -356,11 +364,12 @@ def get_dem(
     :rtype: str
     """
     # get extent string
-    target_extent_str = "{},{},{},{} [EPSG:{}]".format(
+    target_extent_str = "{},{},{},{} [{}:{}]".format(
         target_extent_dict["xmin"],
         target_extent_dict["xmax"],
         target_extent_dict["ymin"],
         target_extent_dict["ymax"],
+        dict_provider[target_crs],
         target_crs,
     )
     # run warp
@@ -368,16 +377,16 @@ def get_dem(
         "gdal:warpreproject",
         {
             "INPUT": file_main_dem,
-            "SOURCE_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(source_crs)),
-            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
-            "RESAMPLING": 5,  # average=5; nearest=0
+            "SOURCE_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[source_crs], source_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
+            "RESAMPLING": 1,  # average=5; nearest=0, bilinear=1
             "NODATA": -1,
             "TARGET_RESOLUTION": target_cellsize,  # in meters
             "OPTIONS": "",
             "DATA_TYPE": 6,  # float32=6, byte=1
             "TARGET_EXTENT": target_extent_str,
             "TARGET_EXTENT_CRS": QgsCoordinateReferenceSystem(
-                "EPSG:{}".format(target_crs)
+                "{}:{}".format(dict_provider[target_crs], target_crs)
             ),
             "MULTITHREADING": False,
             "EXTRA": "",
@@ -694,24 +703,21 @@ def get_twi(file_slope, file_flowacc, file_output):
     return file_output
 
 
-def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=None):
-    """Get the HAND raster map from a DEM.
+def setup_hand(file_dem_filled, output_folder):
+    """Get basic files for HAND raster analysis.
     The DEM must be hydrologically consistent (no sinks).
 
     :param file_dem_filled: file path to filled DEM (no sinks)
     :type file_dem_filled: str
     :param output_folder: path to output folder
     :type output_folder: str
-    :param hand_cells: threshhold for HAND in number of maximum hillslope cells
-    :type hand_cells: int
-    :param file_dem_sample: [optional] file path to raw DEM for sampling the HAND.
-    :type file_dem_sample: str
-    :return: dictionary with raster output paths. keys:
-        "ldd", "material", "accflux", "threshold", "drainage", "hs_outlets_scalar",
-        "hs_outlets_nominal", "hillslopes", "hs_zmin", "hand"
+    :return: dictionary with raster output paths and cellsize. keys:
+        "ldd", "material", "accflux", "cellsize"
 
     :rtype: dict
     """
+    # ----------- Setup -----------
+
     # -- PCRaster - get LDD map
     file_ldd = "{}/ldd.map".format(output_folder)
     processing.run(
@@ -749,6 +755,81 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
             "OUTPUT": file_accflux,
         },
     )
+    return {
+        "ldd": file_ldd,
+        "material": file_material,
+        "accflux": file_accflux,
+        "cellsize": cellsize
+    }
+
+def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=None):
+    """Get the HAND raster map from a DEM.
+    The DEM must be hydrologically consistent (no sinks).
+
+    :param file_dem_filled: file path to filled DEM (no sinks)
+    :type file_dem_filled: str
+    :param output_folder: path to output folder
+    :type output_folder: str
+    :param hand_cells: threshhold for HAND in number of maximum hillslope cells
+    :type hand_cells: int
+    :param file_dem_sample: [optional] file path to raw DEM for sampling the HAND.
+    :type file_dem_sample: str
+    :return: dictionary with raster output paths. keys:
+        "ldd", "material", "accflux", "threshold", "drainage", "hs_outlets_scalar",
+        "hs_outlets_nominal", "hillslopes", "hs_zmin", "hand"
+
+    :rtype: dict
+    """
+
+    # ----------- Setup -----------
+    dict_setup = setup_hand(file_dem_filled, output_folder)
+    file_ldd = dict_setup["ldd"]
+    file_material = dict_setup["material"]
+    file_accflux = dict_setup["accflux"]
+    cellsize = dict_setup["cellsize"]
+
+    '''  
+    # -- PCRaster - get LDD map
+    file_ldd = "{}/ldd.map".format(output_folder)
+    processing.run(
+        "pcraster:lddcreate",
+        {
+            "INPUT": file_dem_filled,
+            "INPUT0": 0,
+            "INPUT1": 0,
+            "INPUT2": 9999999,
+            "INPUT4": 9999999,
+            "INPUT3": 9999999,
+            "INPUT5": 9999999,
+            "OUTPUT": file_ldd,
+        },
+    )
+    # -- PCRaster - create material layer with cell x cell (area)
+    cellsize = get_cellsize(file_input=file_dem_filled)
+    file_material = "{}/material.map".format(output_folder)
+    processing.run(
+        "pcraster:spatial",
+        {
+            "INPUT": cellsize * cellsize,
+            "INPUT1": 3,
+            "INPUT2": file_dem_filled,
+            "OUTPUT": file_material,
+        },
+    )
+    # -- PCRaster - accumulate flux
+    file_accflux = "{}/accflux.map".format(output_folder)
+    processing.run(
+        "pcraster:accuflux",
+        {
+            "INPUT": file_ldd,
+            "INPUT2": file_material,
+            "OUTPUT": file_accflux,
+        },
+    )
+    '''
+
+    # ----------- Hand -----------
+
     # -- PCRaster - create drainage threshold layer with
     file_threshold = "{}/threshold.map".format(output_folder)
     processing.run(
@@ -1202,11 +1283,12 @@ def get_lulc(
     # ---------- warp lulc -----------
     target_extent_dict = get_extent_raster(file_input=target_file)
     # get extent string
-    target_extent_str = "{},{},{},{} [EPSG:{}]".format(
+    target_extent_str = "{},{},{},{} [{}:{}]".format(
         target_extent_dict["xmin"],
         target_extent_dict["xmax"],
         target_extent_dict["ymin"],
         target_extent_dict["ymax"],
+        dict_provider[target_crs],
         target_crs,
     )
     cellsize = get_cellsize(file_input=target_file)
@@ -1226,19 +1308,19 @@ def get_lulc(
             {
                 "INPUT": file_main_lulc,
                 "SOURCE_CRS": QgsCoordinateReferenceSystem(
-                    "EPSG:{}".format(source_crs)
+                    "{}:{}".format(dict_provider[source_crs], source_crs)
                 ),
                 "TARGET_CRS": QgsCoordinateReferenceSystem(
-                    "EPSG:{}".format(target_crs)
+                    "{}:{}".format(dict_provider[target_crs], target_crs)
                 ),
-                "RESAMPLING": 0,
+                "RESAMPLING": 0, # nearest
                 "NODATA": 0,
                 "TARGET_RESOLUTION": cellsize,
                 "OPTIONS": "",
                 "DATA_TYPE": 1,
                 "TARGET_EXTENT": target_extent_str,
                 "TARGET_EXTENT_CRS": QgsCoordinateReferenceSystem(
-                    "EPSG:{}".format(target_crs)
+                    "{}:{}".format(dict_provider[target_crs], target_crs)
                 ),
                 "MULTITHREADING": False,
                 "EXTRA": "",
