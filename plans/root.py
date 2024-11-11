@@ -532,7 +532,14 @@ class Collection(MbaE):
         for k in dct_meta:
             dct_meta_df[k] = [dct_meta[k]]
         df_aux = pd.DataFrame(dct_meta_df)
-        self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
+
+        # Check if self.catalog is empty before concatenation
+        if self.catalog.empty:
+            # If it's empty, just assign df_aux to self.catalog
+            self.catalog = df_aux
+        else:
+            # If it's not empty, perform the concatenation
+            self.catalog = pd.concat([self.catalog, df_aux], ignore_index=True)
 
         self.update()
         return None

@@ -762,7 +762,7 @@ def setup_hand(file_dem_filled, output_folder):
         "cellsize": cellsize
     }
 
-def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=None):
+def get_hand(file_dem_filled, output_folder, hand_threshholds=[0.1, 1, 2], file_dem_sample=None):
     """Get the HAND raster map from a DEM.
     The DEM must be hydrologically consistent (no sinks).
 
@@ -770,8 +770,8 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
     :type file_dem_filled: str
     :param output_folder: path to output folder
     :type output_folder: str
-    :param hand_cells: threshhold for HAND in number of maximum hillslope cells
-    :type hand_cells: int
+    :param hand_threshholds: list of area threshhold for HAND in number drainage area in sq km (0.1 km2 = 10 ha)
+    :type hand_threshhold: list
     :param file_dem_sample: [optional] file path to raw DEM for sampling the HAND.
     :type file_dem_sample: str
     :return: dictionary with raster output paths. keys:
@@ -788,159 +788,225 @@ def get_hand(file_dem_filled, output_folder, hand_cells=100, file_dem_sample=Non
     file_accflux = dict_setup["accflux"]
     cellsize = dict_setup["cellsize"]
 
-    '''  
-    # -- PCRaster - get LDD map
-    file_ldd = "{}/ldd.map".format(output_folder)
-    processing.run(
-        "pcraster:lddcreate",
-        {
-            "INPUT": file_dem_filled,
-            "INPUT0": 0,
-            "INPUT1": 0,
-            "INPUT2": 9999999,
-            "INPUT4": 9999999,
-            "INPUT3": 9999999,
-            "INPUT5": 9999999,
-            "OUTPUT": file_ldd,
-        },
-    )
-    # -- PCRaster - create material layer with cell x cell (area)
-    cellsize = get_cellsize(file_input=file_dem_filled)
-    file_material = "{}/material.map".format(output_folder)
-    processing.run(
-        "pcraster:spatial",
-        {
-            "INPUT": cellsize * cellsize,
-            "INPUT1": 3,
-            "INPUT2": file_dem_filled,
-            "OUTPUT": file_material,
-        },
-    )
-    # -- PCRaster - accumulate flux
-    file_accflux = "{}/accflux.map".format(output_folder)
-    processing.run(
-        "pcraster:accuflux",
-        {
-            "INPUT": file_ldd,
-            "INPUT2": file_material,
-            "OUTPUT": file_accflux,
-        },
-    )
-    '''
-
     # ----------- Hand -----------
+    d_files = {}
+    for t in hand_threshholds:
+        str_t = str(t).replace(".", "P")
+        lcl_output = "{}/hand_{}".format(output_folder, str_t)
+        if not os.path.isdir(lcl_output):
+            os.mkdir(lcl_output)
 
-    # -- PCRaster - create drainage threshold layer with
-    file_threshold = "{}/threshold.map".format(output_folder)
-    processing.run(
-        "pcraster:spatial",
-        {
-            "INPUT": hand_cells * cellsize * cellsize,
-            "INPUT1": 3,
-            "INPUT2": file_dem_filled,
-            "OUTPUT": file_threshold,
-        },
-    )
-    # -- PCRaster - create drainage boolean
-    file_drainage = "{}/drainage.map".format(output_folder)
-    processing.run(
-        "pcraster:comparisonoperators",
-        {
-            "INPUT": file_accflux,
-            "INPUT1": 1,
-            "INPUT2": file_threshold,
-            "OUTPUT": file_drainage,
-        },
-    )
-    # -- PCRaster - create unique ids Map
-    file_outlets_1 = "{}/hs_outlets_scalar.map".format(output_folder)
-    processing.run(
-        "pcraster:uniqueid",
-        {"INPUT": file_drainage, "OUTPUT": file_outlets_1},
-    )
+        # -- PCRaster - create drainage threshold layer with
+        file_threshold = "{}/threshold.map".format(lcl_output)
+        processing.run(
+            "pcraster:spatial",
+            {
+                "INPUT": int(t * 1000 * 1000),
+                "INPUT1": 3,
+                "INPUT2": file_dem_filled,
+                "OUTPUT": file_threshold,
+            },
+        )
+        # -- PCRaster - create drainage boolean
+        file_drainage = "{}/drainage.map".format(lcl_output)
+        processing.run(
+            "pcraster:comparisonoperators",
+            {
+                "INPUT": file_accflux,
+                "INPUT1": 1,
+                "INPUT2": file_threshold,
+                "OUTPUT": file_drainage,
+            },
+        )
+        # -- PCRaster - create unique ids Map
+        file_outlets_1 = "{}/hs_outlets_scalar.map".format(lcl_output)
+        processing.run(
+            "pcraster:uniqueid",
+            {"INPUT": file_drainage, "OUTPUT": file_outlets_1},
+        )
 
-    # -- PCRaster - convert unique ids to nominal
-    file_outlets_2 = "{}/hs_outlets_nominal.map".format(output_folder)
-    processing.run(
-        "pcraster:convertdatatype",
-        {
-            "INPUT": file_outlets_1,
-            "INPUT1": 1,
-            "OUTPUT": file_outlets_2,
-        },
-    )
-    # -- PCRaster - create subcatchments
-    file_hillslopes = "{}/hillslopes.map".format(output_folder)
-    processing.run(
-        "pcraster:subcatchment",
-        {
-            "INPUT1": file_ldd,
-            "INPUT2": file_outlets_2,
-            "OUTPUT": file_hillslopes,
-        },
-    )
+        # -- PCRaster - convert unique ids to nominal
+        file_outlets_2 = "{}/hs_outlets_nominal.map".format(lcl_output)
+        processing.run(
+            "pcraster:convertdatatype",
+            {
+                "INPUT": file_outlets_1,
+                "INPUT1": 1,
+                "OUTPUT": file_outlets_2,
+            },
+        )
+        # -- PCRaster - create subcatchments
+        file_hillslopes = "{}/hillslopes.map".format(lcl_output)
+        processing.run(
+            "pcraster:subcatchment",
+            {
+                "INPUT1": file_ldd,
+                "INPUT2": file_outlets_2,
+                "OUTPUT": file_hillslopes,
+            },
+        )
 
-    # -- PCRaster - sample z min by catchment
-    file_zmin = "{}/hs_zmin.map".format(output_folder)
-    if file_dem_sample is None:
-        file_dem_sample = file_dem_filled
-    processing.run(
-        "pcraster:areaminimum",
-        {
-            "INPUT": file_hillslopes,
-            "INPUT2": file_dem_sample,
-            "OUTPUT": file_zmin,
-        },
-    )
+        # -- PCRaster - sample z min by catchment
+        file_zmin = "{}/hs_zmin.map".format(lcl_output)
+        if file_dem_sample is None:
+            file_dem_sample = file_dem_filled
+        processing.run(
+            "pcraster:areaminimum",
+            {
+                "INPUT": file_hillslopes,
+                "INPUT2": file_dem_sample,
+                "OUTPUT": file_zmin,
+            },
+        )
 
-    # -- GDAL- compute HAND
-    file_hand = "{}/hand.tif".format(output_folder)
-    processing.run(
-        "gdal:rastercalculator",
-        {
-            "INPUT_A": file_dem_sample,
-            "BAND_A": 1,
-            "INPUT_B": file_zmin,
-            "BAND_B": 1,
-            "INPUT_C": None,
-            "BAND_C": None,
-            "INPUT_D": None,
-            "BAND_D": None,
-            "INPUT_E": None,
-            "BAND_E": None,
-            "INPUT_F": None,
-            "BAND_F": None,
-            "FORMULA": "A - B",
-            "NO_DATA": None,
-            "PROJWIN": None,
-            "RTYPE": 1,
-            "OPTIONS": "",
-            "EXTRA": "",
-            "OUTPUT": file_hand,
-        },
-    )
-    return {
-        "ldd": file_ldd,
-        "material": file_material,
-        "accflux": file_accflux,
-        "threshold": file_threshold,
-        "drainage": file_drainage,
-        "hs_outlets_scalar": file_outlets_1,
-        "hs_outlets_nominal": file_outlets_2,
-        "hillslopes": file_hillslopes,
-        "hs_zmin": file_zmin,
-        "hand": file_hand,
-    }
+        # -- GDAL- compute HAND
+        file_hand = "{}/hand_{}.tif".format(lcl_output, str_t)
+        processing.run(
+            "gdal:rastercalculator",
+            {
+                "INPUT_A": file_dem_sample,
+                "BAND_A": 1,
+                "INPUT_B": file_zmin,
+                "BAND_B": 1,
+                "INPUT_C": None,
+                "BAND_C": None,
+                "INPUT_D": None,
+                "BAND_D": None,
+                "INPUT_E": None,
+                "BAND_E": None,
+                "INPUT_F": None,
+                "BAND_F": None,
+                "FORMULA": "A - B",
+                "NO_DATA": None,
+                "PROJWIN": None,
+                "RTYPE": 1,
+                "OPTIONS": "",
+                "EXTRA": "",
+                "OUTPUT": file_hand,
+            },
+        )
+        d_files[str_t] = file_hand
 
-def get_topo(
+    d_files["ldd"] = file_ldd
+    d_files["accflux"] = file_accflux
+
+    return d_files
+
+
+def setup_topo(
     output_folder,
-    file_main_dem,
+    file_src_dem,
     target_crs,
     input_db,
     layer_aoi="aoi",
     layer_rivers="rivers",
     source_crs="4326",
     target_cellsize=30,
+):
+    """Get all ``topo`` datasets for running PLANS.
+
+    :param output_folder: path to output folder to export datasets
+    :type output_folder: str
+    :param file_src_dem: file path to larger source DEM raster -- expected to be in WGS-84 (4326)
+    :type file_src_dem: str
+    :param input_db: path to geopackage database
+    :param target_crs: QGIS code (number only) for the target CRS
+    :type target_crs: str
+    :type input_db: str
+    :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
+    :type layer_aoi: str
+    :param layer_rivers: name of main rivers layers (lines). Default is "rivers"
+    :type layer_rivers: str
+    :param source_crs: QGIS code (number only) for the source CRS. default is WGS-84 (4326)
+    :type source_crs: str
+    :return: None
+    :rtype: None
+
+    Script example (for QGIS Python Console):
+
+    .. code-block:: python
+
+        # plans source code must be pasted to QGIS plugins directory
+        from plans import iamlazy
+
+        # call function
+        iamlazy.setup_topo(
+            output_folder="path/to/folder",
+            file_main_dem="path/to/main_large_dem.tif",
+            target_crs="102033",
+            input_db="path/to/project_db.gpkg",
+            layer_aoi='aoi',
+            layer_rivers='rivers',
+            source_crs='4326',
+            target_cellsize=30,
+        )
+
+    .. warning::
+
+        You must change the path files in the previous example.
+
+    """
+
+    # reproject aoi
+    print("reproject aoi layer...")
+    new_layer_aoi = reproject_layer(
+        input_db=input_db,
+        layer_name=layer_aoi,
+        target_crs=target_crs
+    )
+
+    # reproject rivers
+    print("reproject rivers layer...")
+    new_layer_rivers = reproject_layer(
+        input_db=input_db,
+        layer_name=layer_rivers,
+        target_crs=target_crs
+    )
+    # get aoi extent
+    print("get aoi extent...")
+    dict_bbox = get_extent_vector(
+        input_db=input_db,
+        layer_name=new_layer_aoi
+    )
+
+    # clip and warp dem
+    print("clip and warp dem...")
+    file_dem = get_dem(
+        file_main_dem=file_src_dem,
+        target_crs=target_crs,
+        target_extent_dict=dict_bbox,
+        file_output=f"{output_folder}/dem.tif",
+        source_crs=source_crs,
+        target_cellsize=target_cellsize,
+    )
+
+    print("translate...")
+    processing.run(
+        "gdal:translate",
+        {
+            "INPUT": file_dem,
+            "TARGET_CRS": QgsCoordinateReferenceSystem(
+                "{}:{}".format(dict_provider[target_crs], target_crs)
+            ),
+            "NODATA": -9999,
+            "COPY_SUBDATASETS": False,
+            "OPTIONS": "",
+            "EXTRA": "",
+            "DATA_TYPE": 6,
+            "OUTPUT": "{}/dem.asc".format(output_folder),
+        },
+    )
+    return {
+        "new_layer_rivers": new_layer_rivers,
+        "file_dem": file_dem,
+    }
+
+def get_topo(
+    output_folder,
+    file_dem,
+    target_crs,
+    input_db,
+    layer_rivers,
     w=3,
     h=10,
     hand_cells=100,
@@ -949,18 +1015,14 @@ def get_topo(
 
     :param output_folder: path to output folder to export datasets
     :type output_folder: str
-    :param file_main_dem: file path to larger DEM dataset raster -- expected to be in WGS-84
-    :type file_main_dem: str
+    :param file_src_dem: file path to larger DEM dataset raster -- expected to be in WGS-84
+    :type file_src_dem: str
     :param target_crs: EPSG code (number only) for the target CRS
     :type target_crs: str
     :param input_db: path to geopackage database
     :type input_db: str
-    :param layer_aoi: name of Area Of Interest layer (polygon). Default is "aoi"
-    :type layer_aoi: str
-    :param layer_rivers: name of main rivers layers (lines). Default is "rivers"
+    :param layer_rivers: name of main rivers layers (lines) in target CRS.
     :type layer_rivers: str
-    :param source_crs: EPSG code (number only) for the source CRS. default is WGS-84 (4326)
-    :type source_crs: str
     :param w: [burning dem parameter] width parameter in unit cells
     :type w: int
     :param h: [burning dem parameter] height parameter in dem units (e.g., meters)
@@ -980,7 +1042,7 @@ def get_topo(
         # call function
         iamlazy.get_topo(
             output_folder="path/to/folder",
-            file_main_dem="path/to/main_large_dem.tif",
+            file_src_dem="path/to/main_large_dem.tif",
             target_crs="31982",
             input_db="path/to/project_db.gpkg",
             layer_aoi='aoi',
@@ -997,6 +1059,8 @@ def get_topo(
         You must change the path files in the previous example.
 
     """
+
+    # ----- SETUP -----
     # folders and file setup
     output_folder_interm = "{}/intermediate".format(output_folder)
     if os.path.isdir(output_folder_interm):
@@ -1026,7 +1090,7 @@ def get_topo(
         os.mkdir(output_folder_pcraster)
 
     dict_files = {
-        "dem": "{}/dem.tif".format(output_folder_gdal),
+        "dem": file_dem,
         "main_rivers": "{}/main_rivers.tif".format(output_folder_gdal),
         "dem_b": "{}/dem_b.tif".format(output_folder_gdal),
         "slope": "{}/slope.tif".format(output_folder_gdal),
@@ -1040,51 +1104,32 @@ def get_topo(
         "dem_bf_pc": "{}/dem_bf.map".format(output_folder_pcraster),
     }
 
-    #
-    print("reproject layers...")
-    # reproject aoi
-    new_layer_aoi = reproject_layer(
-        input_db=input_db, layer_name=layer_aoi, target_crs=target_crs
-    )
-    # reproject rivers
-    new_layer_rivers = reproject_layer(
-        input_db=input_db, layer_name=layer_rivers, target_crs=target_crs
-    )
-    # 2)
-    print("get aoi extent...")
-    dict_bbox = get_extent_vector(input_db=input_db, layer_name=new_layer_aoi)
-    # print(dict_bbox)
-    # 3)
-    print("clip and warp dem...")
-    file_dem = get_dem(
-        file_main_dem=file_main_dem,
-        target_crs=target_crs,
-        target_extent_dict=dict_bbox,
-        file_output=dict_files["dem"],
-        source_crs=source_crs,
-        target_cellsize=target_cellsize,
-    )
+    # get cellsize
     cellsize = get_cellsize(file_input=dict_files["dem"])
-    # get rivers blank
-    # 4)
+
+    # 4) get rivers blank
     print("get main rivers...")
     file_rivers = get_blank_raster(
-        file_input=file_dem, file_output=dict_files["main_rivers"], blank_value=0
+        file_input=file_dem,
+        file_output=dict_files["main_rivers"],
+        blank_value=0
     )
-    print("rasterize...")
+
     # 5) rasterize rivers
+    print("rasterize rivers...")
     processing.run(
         "gdal:rasterize_over_fixed_value",
         {
-            "INPUT": "{}|layername={}".format(input_db, new_layer_rivers),
+            "INPUT": "{}|layername={}".format(input_db, layer_rivers),
             "INPUT_RASTER": dict_files["main_rivers"],
             "BURN": 1,
             "ADD": False,
             "EXTRA": "",
         },
     )
-    print("burn dem...")
+
     # 6) get burned
+    print("burn dem...")
     file_burn = get_carved_dem(
         file_dem=dict_files["dem"],
         file_rivers=dict_files["main_rivers"],
@@ -1092,10 +1137,12 @@ def get_topo(
         w=w,
         h=h,
     )
+
     # get slope
-    print("get slope....")
+    print("get slope...")
     get_slope(file_dem=dict_files["dem"], file_output=dict_files["slope"])
 
+    # fill sinks
     print("fill sinks...")
     processing.run(
         "saga:fillsinksplanchondarboux2001",
@@ -1106,7 +1153,7 @@ def get_topo(
         "gdal:translate",
         {
             "INPUT": dict_files["fill"],
-            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
             "NODATA": None,
             "COPY_SUBDATASETS": False,
             "OPTIONS": "",
@@ -1115,6 +1162,8 @@ def get_topo(
             "OUTPUT": dict_files["dem_bf"],
         },
     )
+
+    # get flow acc
     print("get flowacc mfd ...")
     processing.run(
         "saga:flowaccumulationparallelizable",
@@ -1126,12 +1175,14 @@ def get_topo(
             "CONVERGENCE": 1.1,
         },
     )
+
+    # translate flow acc
     print("translate flowacc mfd...")
     processing.run(
         "gdal:translate",
         {
             "INPUT": dict_files["flowacc_mfd_sg"],
-            "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(target_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
             "NODATA": None,
             "COPY_SUBDATASETS": False,
             "OPTIONS": "",
@@ -1140,54 +1191,63 @@ def get_topo(
             "OUTPUT": dict_files["flowacc_mfd"],
         },
     )
+
+    # get TWI
     print("get TWI...")
     get_twi(
         file_slope=dict_files["slope"],
         file_flowacc=dict_files["flowacc_mfd"],
         file_output=dict_files["twi"],
     )
+
+    # DEM PC-raster
     print("convert dem to pcraster...")
     processing.run(
         "pcraster:converttopcrasterformat",
         {"INPUT": dict_files["dem"], "INPUT2": 3, "OUTPUT": dict_files["dem_pc"]},
     )
+
+    # DEM_bf PC-raster
     print("convert dem_bf to pcraster...")
     processing.run(
         "pcraster:converttopcrasterformat",
         {"INPUT": dict_files["dem_bf"], "INPUT2": 3, "OUTPUT": dict_files["dem_bf_pc"]},
     )
 
+    # HAND
     print("get HAND...")
     dict_hand = get_hand(
         file_dem_filled=dict_files["dem_bf_pc"],
         output_folder=output_folder_pcraster,
-        hand_cells=hand_cells,
+        hand_threshholds=[0.1, 1, 2],
         file_dem_sample=dict_files["dem_pc"],
     )
+
     # append to dict
     for f in dict_hand:
         dict_files[f] = dict_hand[f]
 
     # translate all
-    dict_raster = {"nodata": -1, "data_type": 6}
+    dict_raster = {"nodata": -9999, "data_type": 6}
     dict_qualiraster = {"nodata": 0, "data_type": 1}
     dict_translate = {
         "dem": dict_raster,
         "slope": dict_raster,
         "twi": dict_raster,
         "accflux": dict_raster,
-        "hand": dict_raster,
         "ldd": dict_qualiraster,
     }
+    # todo include HAND
     # loop
     print("translating outputs...")
     for k in dict_translate:
+        input_file = dict_files[k]
         processing.run(
             "gdal:translate",
             {
-                "INPUT": dict_files[k],
+                "INPUT": input_file,
                 "TARGET_CRS": QgsCoordinateReferenceSystem(
-                    "EPSG:{}".format(target_crs)
+                    "{}:{}".format(dict_provider[target_crs], target_crs)
                 ),
                 "NODATA": dict_translate[k]["nodata"],
                 "COPY_SUBDATASETS": False,
