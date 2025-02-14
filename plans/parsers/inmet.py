@@ -18,42 +18,35 @@ Contact:
 Overview
 --------
 
-todo overview
-Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-In a lacinia nisl. Pellentesque habitant morbi tristique senectus
-et netus et malesuada fames ac turpis egestas.
+To import from outside the plans module:
 
 >>> from plans.parsers import inmet
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
 
 Example
 -------
 
-todo examples
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
-in porttitor lacus lobortis vitae. In a lacinia nisl.
-
 .. code-block:: python
 
-    import numpy as np
-    from plans import analyst
+    # set file path
+    f = "../_inmet_auto_src.csv"
 
-    # get data to a vector
-    data_vector = np.random.rand(1000)
+    # instantiate object
+    auto = inmet.Automatic(name="Automatic Station")
 
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
+    # load data
+    auto.load_data(file_path=f)
 
-    # view data
-    uni.view()
+    # print data (pandas dataframe)
+    print(auto.data.head().to_string(index=False))
 
-Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-In a lacinia nisl.
+    # print metadata (pandas dataframe)
+    print(auto.station_metadata_df.to_string())
+
+    # export to folder
+    auto.export_data(folder="C:/data", append_id=True)
+
+
+
 """
 import pandas as pd
 import numpy as np
@@ -62,7 +55,7 @@ plt.style.use("seaborn-v0_8")
 
 from plans.ds import get_random_colors
 
-# todo docstrings
+
 class _StationINMET_:
     """This is a base object for parsing Inmet Stations datasets
 
@@ -661,13 +654,14 @@ class Automatic(_Automatic_):
 
     .. code-block:: text
 
-        REGIAO:;CO
-        UF:;DF
-
-
-    **Examples:**
-
-
+        Record_ID;Station_Code;DateTime;P;PALoc;PASea;PALoc_premax;PALoc_premin;Rad;TempCPU;TempDB;TempDP;TempDB_premax;TempDB_premin;TempDP_premax;TempDP_premin;Volt;RM_premin;RM_premax;RM;WD;WG;WS
+        A802DT20011117170000;A802;2001-11-17 17:00:00;0.0;1017.3;1018.059963;1018.0;1017.3;3808.0;;20.7;9.0;20.9;20.2;9.8;7.2;;49.0;42.0;47.0;80.0;6.2;3.2
+        A802DT20011117180000;A802;2001-11-17 18:00:00;0.0;1016.4;1017.160067;1017.2;1016.4;3398.0;;20.4;9.9;21.1;20.3;10.6;8.7;;53.0;46.0;51.0;80.0;6.4;3.5
+        A802DT20011117190000;A802;2001-11-17 19:00:00;0.0;1015.6;1016.358952;1016.4;1015.6;2780.0;;20.6;11.2;21.3;20.3;11.6;9.7;;57.0;49.0;55.0;72.0;6.9;3.6
+        A802DT20011117200000;A802;2001-11-17 20:00:00;0.0;1015.2;1015.959429;1015.6;1015.2;1989.0;;20.3;11.8;20.7;20.2;12.3;10.7;;59.0;54.0;58.0;71.0;7.1;4.3
+        A802DT20011117210000;A802;2001-11-17 21:00:00;0.0;1015.6;1016.361805;1015.6;1015.3;1111.0;;19.5;11.9;20.3;19.5;12.4;11.3;;63.0;56.0;61.0;74.0;7.7;4.5
+        A802DT20011117220000;A802;2001-11-17 22:00:00;0.0;1015.4;1016.164268;1015.5;1015.4;268.0;;18.5;11.4;19.4;18.5;12.5;11.4;;65.0;62.0;63.0;70.0;8.3;5.0
+        A802DT20011117230000;A802;2001-11-17 23:00:00;0.0;1015.8;1016.566146;1015.8;1015.4;0.0;;17.9;10.9;18.5;17.9;11.8;10.8;;65.0;62.0;64.0;57.0;8.3;4.2
 
 
 
