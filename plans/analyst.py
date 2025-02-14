@@ -375,12 +375,12 @@ class Univar:
                 plt.text(q, plt.gca().get_ylim()[1] * (0.9 - aux), f'{q:.1f}',
                          ha='right', va='bottom', fontsize=10, rotation=0)
                 aux = aux + 0.05
-
+        plt.tight_layout()
         # show or save
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi, bbox_inches='tight')
 
     def view(
         self, show=True, folder="C:/sample", filename="view", specs=None, dpi=300
@@ -453,7 +453,7 @@ class Univar:
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi, bbox_inches='tight')
 
     def plot_qqplot(
         self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300

@@ -628,6 +628,106 @@ def get_slope(file_dem, file_output):
     return file_output
 
 
+def get_shalstab(
+    file_slope,
+    file_flowacc,
+    output_folder,
+    suffix,
+    cellsize=30,
+    soil_phi=15,
+    soil_z=1,
+    soil_p=1600,
+    soil_c=1,
+    water_p=997
+):
+    # -------------------------------------------------------------------------
+    # LOAD SLOPE
+
+    # Open the raster file using gdal
+    raster_slope = gdal.Open(file_slope)
+
+    # Get the raster band
+    band_slope = raster_slope.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grd_slope = band_slope.ReadAsArray()
+
+    # -- Collect useful metadata
+
+    raster_x_size = raster_slope.RasterXSize
+    raster_y_size = raster_slope.RasterYSize
+    raster_projection = raster_slope.GetProjection()
+    raster_geotransform = raster_slope.GetGeoTransform()
+    cellsize = raster_geotransform[1]
+    # -- Close the raster
+    raster_slope = None
+
+    # -------------------------------------------------------------------------
+    # LOAD Flowacc
+
+    # Open the raster file using gdal
+    raster_flowacc = gdal.Open(file_flowacc)
+
+    # Get the raster band
+    band_flowacc = raster_flowacc.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grd_flowacc = band_flowacc.ReadAsArray()
+
+    # -- Close the raster
+    raster_flowacc = None
+
+    # -------------------------------------------------------------------------
+    # PROCESS
+    w1, w2 = geo.shalstab_wetness(
+        flowacc=grd_flowacc,
+        slope=grd_slope,
+        cellsize=cellsize,
+        soil_phi=soil_phi,
+        soil_z=soil_z,
+        soil_p=soil_p,
+        soil_c=soil_c,
+        water_p=water_p,
+        kPa=True
+    )
+
+    # -------------------------------------------------------------------------
+    # EXPORT RASTER FILE
+    # Get the driver to create the new raster
+    driver = gdal.GetDriverByName("GTiff")
+
+    # Create a new raster with the same dimensions as the original
+    file_output1 = f"{output_folder}/{suffix}_qt.tif"
+    raster_output1 = driver.Create(
+        file_output1, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
+    )
+
+    # Set the projection and geotransform of the new raster to match the original
+    raster_output1.SetProjection(raster_projection)
+    raster_output1.SetGeoTransform(raster_geotransform)
+
+    # Write the new data to the new raster
+    raster_output1.GetRasterBand(1).WriteArray(w1)
+
+    # Create a new raster with the same dimensions as the original
+    file_output2 = f"{output_folder}/{suffix}_cls.tif"
+    raster_output2 = driver.Create(
+        file_output2, raster_x_size, raster_y_size, 1, gdal.GDT_Byte
+    )
+
+    # Set the projection and geotransform of the new raster to match the original
+    raster_output2.SetProjection(raster_projection)
+    raster_output2.SetGeoTransform(raster_geotransform)
+
+    # Write the new data to the new raster
+    raster_output2.GetRasterBand(1).WriteArray(w2)
+
+    # Close
+    raster_output1 = None
+    raster_output2 = None
+    return file_output1, file_output2
+
+
 def get_twi(file_slope, file_flowacc, file_output):
     """Get the TWI map from Slope and Flow Accumulation (SAGA)
 
@@ -663,7 +763,7 @@ def get_twi(file_slope, file_flowacc, file_output):
     raster_slope = None
 
     # -------------------------------------------------------------------------
-    # LOAD RIVERs
+    # LOAD Flowacc
 
     # Open the raster file using gdal
     raster_flowacc = gdal.Open(file_flowacc)
@@ -1010,13 +1110,14 @@ def get_topo(
     w=3,
     h=10,
     hand_cells=100,
+    fill_xxl=False,
 ):
     """Get all ``topo`` datasets for running PLANS.
 
     :param output_folder: path to output folder to export datasets
     :type output_folder: str
-    :param file_src_dem: file path to larger DEM dataset raster -- expected to be in WGS-84
-    :type file_src_dem: str
+    :param file_dem: file path to larger DEM dataset raster -- expected to be in WGS-84
+    :type file_dem: str
     :param target_crs: EPSG code (number only) for the target CRS
     :type target_crs: str
     :param input_db: path to geopackage database
@@ -1042,7 +1143,7 @@ def get_topo(
         # call function
         iamlazy.get_topo(
             output_folder="path/to/folder",
-            file_src_dem="path/to/main_large_dem.tif",
+            file_dem="path/to/main_large_dem.tif",
             target_crs="31982",
             input_db="path/to/project_db.gpkg",
             layer_aoi='aoi',
@@ -1143,11 +1244,17 @@ def get_topo(
     get_slope(file_dem=dict_files["dem"], file_output=dict_files["slope"])
 
     # fill sinks
-    print("fill sinks...")
-    processing.run(
-        "saga:fillsinksplanchondarboux2001",
-        {"DEM": dict_files["dem_b"], "RESULT": dict_files["fill"], "MINSLOPE": 0.01},
-    )
+    if fill_xxl:
+        print("fill sinks XXL...")
+        processing.run(
+            "sagang:fillsinksxxlwangliu",
+            {'ELEV':dict_files["dem_b"],'FILLED':dict_files["fill"],'MINSLOPE':0.01})
+    else:
+        print("fill sinks simple...")
+        processing.run(
+            "sagang:fillsinksplanchondarboux2001",
+            {"DEM": dict_files["dem_b"], "RESULT": dict_files["fill"], "MINSLOPE": 0.01},
+        )
     print("translate fill...")
     processing.run(
         "gdal:translate",
@@ -1166,7 +1273,7 @@ def get_topo(
     # get flow acc
     print("get flowacc mfd ...")
     processing.run(
-        "saga:flowaccumulationparallelizable",
+        "sagang:flowaccumulationparallelizable",
         {
             "DEM": dict_files["dem_bf"],
             "FLOW": dict_files["flowacc_mfd_sg"],
@@ -1273,6 +1380,7 @@ def get_lulc(
     layer_roads_paved="roads_paved",
     source_crs="4326",
     qml_file=None,
+    translate=True,
 ):
     """Get LULC maps from a larger main LULC dataset.
 
@@ -1335,11 +1443,14 @@ def get_lulc(
 
     """
     # folders and file setup
-    output_folder_interm = "{}/intermediate".format(output_folder)
-    if os.path.isdir(output_folder_interm):
-        pass
+    if translate:
+        output_folder_interm = "{}/intermediate".format(output_folder)
+        if os.path.isdir(output_folder_interm):
+            pass
+        else:
+            os.mkdir(output_folder_interm)
     else:
-        os.mkdir(output_folder_interm)
+        output_folder_interm = output_folder
     # ---------- warp lulc -----------
     target_extent_dict = get_extent_raster(file_input=target_file)
     # get extent string
@@ -1359,9 +1470,8 @@ def get_lulc(
         file_main_lulc = list_main_files[i]
         date = list_dates[i]
         str_filename = "lulc_{}".format(date)
-        file_output = "{}/{}.tif".format(output_folder_interm, str_filename)
-        list_output_files.append(file_output[:])
-        list_filenames.append(str_filename[:])
+        file_output1 = "{}/_{}.tif".format(output_folder_interm, str_filename)
+
         # run warp
         processing.run(
             "gdal:warpreproject",
@@ -1384,10 +1494,28 @@ def get_lulc(
                 ),
                 "MULTITHREADING": False,
                 "EXTRA": "",
-                "OUTPUT": file_output,
+                "OUTPUT": file_output1,
             },
         )
-
+        file_output = "{}/{}.tif".format(output_folder_interm, str_filename)
+        list_output_files.append(file_output[:])
+        list_filenames.append(str_filename[:])
+        # fill no data
+        processing.run(
+            "gdal:fillnodata",
+            {
+                'INPUT': file_output1,
+                'BAND': 1,
+                'DISTANCE': 10,
+                'ITERATIONS': 0,
+                'MASK_LAYER': None,
+                'OPTIONS': '',
+                'EXTRA': '-interp nearest',
+                'OUTPUT': file_output
+            }
+        )
+        # delete warp
+        os.remove(file_output1)
     #
     # ---------- handle roads -----------
     if input_db is None:
@@ -1430,25 +1558,26 @@ def get_lulc(
                 },
             )
     # ---------- translate all -----------
-    print("translate...")
     for i in range(len(list_output_files)):
         input_file = list_output_files[i]
         filename = list_filenames[i]
-        processing.run(
-            "gdal:translate",
-            {
-                "INPUT": input_file,
-                "TARGET_CRS": QgsCoordinateReferenceSystem(
-                    "EPSG:{}".format(target_crs)
-                ),
-                "NODATA": 0,
-                "COPY_SUBDATASETS": False,
-                "OPTIONS": "",
-                "EXTRA": "",
-                "DATA_TYPE": 1,
-                "OUTPUT": "{}/{}.asc".format(output_folder, filename),
-            },
-        )
+        if translate:
+            print("translate...")
+            processing.run(
+                "gdal:translate",
+                {
+                    "INPUT": input_file,
+                    "TARGET_CRS": QgsCoordinateReferenceSystem(
+                        "EPSG:{}".format(target_crs)
+                    ),
+                    "NODATA": 0,
+                    "COPY_SUBDATASETS": False,
+                    "OPTIONS": "",
+                    "EXTRA": "",
+                    "DATA_TYPE": 1,
+                    "OUTPUT": "{}/{}.asc".format(output_folder, filename),
+                },
+            )
 
         # Handle style
         if qml_file is None:

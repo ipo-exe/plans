@@ -64,21 +64,31 @@ from plans.ds import get_random_colors
 
 # todo docstrings
 class _StationINMET_:
+    """This is a base object for parsing Inmet Stations datasets
 
-    # todo doctring
+    Objects downstream will use or overwrite this methods
+
+    """
+
     def __init__(self, name="MyStationINMET"):
+        """Initialization method
+
+        :param name: name of station
+        :type name: str
+        """
         # Object attributes
         self.name = name
         self.dtfield = "DateTime"
         self.prefix = "inmet"
 
+        # base glossary
         self.gls = {
             'CH (NUVENS ALTAS)(codigo)': 'CH',
             'PRECIPITACAO TOTAL, HORARIO(mm)': 'P',
             'VISIBILIDADE, HORARIA(codigo)': 'Vis'
         }
 
-        # data
+        # data strucutre attributes
         d1, d2 = self._metadata_util()
         self.station_metadata = d1
         self.station_metadata_df = None
@@ -87,7 +97,7 @@ class _StationINMET_:
         self.start_data = None
         self.end_data = None
 
-        # reading
+        # reading attributes
         self.reading_metadata_splitter = ": "
         self.reading_delimiter = ";"
         self.reading_decimals = "."
@@ -97,8 +107,13 @@ class _StationINMET_:
         self.reading_dtformat = '%Y-%m-%d %H:%M:%S'
         self.reading_nan = ['null', -9999]
 
-    # todo doctring
+
     def get_metadata(self):
+        """Base metata getter method
+
+        :return: dictionary of metadata
+        :rtype: dict
+        """
         dict_meta = {
             "Name": self.name,
             "Start": self.start_data,
@@ -107,24 +122,34 @@ class _StationINMET_:
         dict_meta.update(self.station_metadata)
         return dict_meta
 
-    # todo doctring
+
     def update(self):
+        """Base update method
+
+        :return: None
+        :rtype: None
+        """
+        # update start and end dates
         if self.data is not None:
             self.start_data = self.data[self.dtfield].min()
             self.end_data = self.data[self.dtfield].max()
         return None
 
-    # todo doctring
     def _metadata_util(self):
+        """Utility method for naming conversions
+
+        :return: utility dictionaries
+        :rtype: dict, dict
+        """
         d = {
-            "NameStation": [None, "Nome"],
-            "CodeStation": [None, "CodigoEstacao"],
+            "Station_Name": [None, "Nome"],
+            "Station_Code": [None, "CodigoEstacao"],
             "Y": [None, "Latitude"],
             "X": [None, "Longitude"],
             "Z": [None, "Altitude"],
             "Status": [None, "Situacao"],
-            "StartStation": [None, "DataInicial"],
-            "EndStation": [None, "DataFinal"],
+            "Station_Start": [None, "DataInicial"],
+            "Station_End": [None, "DataFinal"],
             "TimeScale": [None, "PeriodicidadedaMedicao"]
         }
         d1 = {}
@@ -132,25 +157,40 @@ class _StationINMET_:
         for k in d:
             d1[k] = d[k][0]
             d2[d[k][1]] = k
-
         return d1, d2
 
-    # todo doctring
     def _standardize_metadata_fields(self, metadata):
+        """Utility method for standardizing metadata fields
+
+        :param metadata: dictionary of incoming metadata
+        :type metadata: dict
+        :return: new standard metatada dictionary
+        :rtype: dict
+        """
         dict_1, dict_convert = self._metadata_util()
         new_metadata = {}
         for k in dict_convert:
             new_metadata[dict_convert[k]] = metadata[k]
         return new_metadata
 
-    # todo doctring
+
     def _get_columns_gls(self):
+        """Retrieve the glossary mapping and its inverse.
+
+        :return: A tuple containing the glossary mapping and its inverse.
+        :rtype: tuple[dict, dict]
+        """
         # compute the opposite
         inverse_mapping = {v: k for k, v in self.gls.items()}
         return self.gls, inverse_mapping
 
-    # todo doctring
+
     def get_glossary(self):
+        """Generate a glossary DataFrame from the stored glossary mapping.
+
+        :return: A DataFrame containing field names and their source descriptions.
+        :rtype: class.`pandas.DataFrame`
+        """
         a, b = self._get_columns_gls()
         df = pd.DataFrame(
             {
@@ -160,8 +200,17 @@ class _StationINMET_:
         )
         return df
 
-    # todo docstring
+
     def fix_text(self, text, remove_spaces=False):
+        """Standardize text by converting to uppercase and replacing specific characters.
+
+        :param text: The input text to be processed.
+        :type text: str
+        :param remove_spaces: Whether to remove spaces from the text.
+        :type remove_spaces: bool, optional
+        :return: The processed text.
+        :rtype: str
+        """
         text = text.upper()
         # Iterate through each line and replace problematic characters
         text = text.replace('?', "A")
@@ -175,8 +224,15 @@ class _StationINMET_:
             text = text.replace(" ", "")
         return text
 
-    # todo doctring
+
     def read_metadata(self, file_path):
+        """Read station metadata from a file and return it as a dictionary.
+
+        :param file_path: Path to the metadata file.
+        :type file_path: str
+        :return: Dictionary containing metadata fields and values.
+        :rtype: dict
+        """
         # Read station_metadata
         with open(file_path, 'r') as file:
             # Read lines until a blank line is encountered, indicating the end of station_metadata
@@ -192,8 +248,15 @@ class _StationINMET_:
         metadata = self._standardize_metadata_fields(metadata=metadata)
         return metadata
 
-    # todo doctring
+
     def load_metadata(self, file_path):
+        """Load station metadata from a file and store it in a DataFrame.
+
+        :param file_path: Path to the metadata file.
+        :type file_path: str
+        :return: None
+        :rtype: None
+        """
         self.station_metadata = self.read_metadata(file_path)
         self.station_metadata_df = pd.DataFrame(
             {
@@ -203,8 +266,14 @@ class _StationINMET_:
         )
         return None
 
-    # todo doctring
     def read_data(self, file_path):
+        """read all data from file
+
+        :param file_path: file path
+        :type file_path: str
+        :return: pandas dataframe
+        :rtype: class.`pandas.DataFrame`
+        """
 
         # load station_metadata first
         self.load_metadata(file_path=file_path)
@@ -255,36 +324,87 @@ class _StationINMET_:
 
         return df
 
-    # todo doctring
+
     def load_data(self, file_path):
+        """Load data from a file and update the instance.
+
+        :param file_path: Path to the data file.
+        :type file_path: str
+        :return: None
+        :rtype: None
+        """
         self.data = self.read_data(file_path=file_path)
         self.update()
         return None
 
-    # todo doctring
-    def export_data(self, folder):
-        filename = "{}_{}.csv".format(self.prefix, self.station_metadata["CodeStation"])
+
+    def export_data(self, folder, append_id=True):
+        """Export the data to a CSV file.
+
+        :param folder: Folder where the file will be saved.
+        :type folder: str
+        :param append_id: Whether to append the station ID to the filename.
+        :type append_id: bool, optional
+        :return: Path to the exported file.
+        :rtype: str
+        """
+        filename = "{}_{}.csv".format(self.prefix, self.station_metadata["Station_Code"])
         file_path = "{}/{}".format(folder, filename)
-        self.data.to_csv(file_path, sep=";", index=False)
+
+        _df = self.data.copy()
+        _cols = list(_df.columns)
+        if append_id:
+            id_s = "Record_ID"
+            _meta_df = self.station_metadata_df.copy()
+            # Extracting the Value for Station_Code
+            station_code = _meta_df.loc[_meta_df["Field"] == "Station_Code", "Value"].values[0]
+            _df["Station_Code"] = station_code
+            # Create the ID field (Station_Code + YYYYMMDDHH)
+            _df[id_s] = _df["Station_Code"] + 'DT' + _df["DateTime"].dt.strftime("%Y%m%d%H") + "0000"
+            # Arrange columns
+            _new_cols = [id_s, "Station_Code"] + _cols[:]
+            _df = _df[_new_cols].copy()
+        _df.to_csv(file_path, sep=";", index=False)
         return file_path
 
-    # todo doctring
+
     def export_metadata(self, folder):
-        filename = "{}_{}_info.csv".format(self.prefix, self.station_metadata["CodeStation"])
+        """Export station metadata to a CSV file.
+
+        :param folder: Folder where the file will be saved.
+        :type folder: str
+        :return: Path to the exported metadata file.
+        :rtype: str
+        """
+        filename = "{}_{}_info.csv".format(self.prefix, self.station_metadata["Station_Code"])
         file_path = "{}/{}".format(folder, filename)
         self.station_metadata_df.to_csv(file_path, sep=";", index=False)
         return file_path
 
-    # todo doctring
+
     def export_glossary(self, folder):
-        filename = "{}_{}_glossary.csv".format(self.prefix, self.station_metadata["CodeStation"])
+        """Export the glossary to a CSV file.
+
+        :param folder: Folder where the file will be saved.
+        :type folder: str
+        :return: Path to the exported glossary file.
+        :rtype: str
+        """
+        filename = "{}_{}_glossary.csv".format(self.prefix, self.station_metadata["Station_Code"])
         file_path = "{}/{}".format(folder, filename)
         df = self.get_glossary()
         df.to_csv(file_path, sep=";", index=False)
         return file_path
 
-    # todo docstring
+
     def export(self, folder):
+        """Export data, metadata, and glossary to CSV files.
+
+        :param folder: Folder where the files will be saved.
+        :type folder: str
+        :return: Dictionary containing paths to the exported files.
+        :rtype: dict
+        """
         f1 = self.export_data(folder=folder)
         f2 = self.export_metadata(folder=folder)
         f3 = self.export_glossary(folder=folder)
@@ -316,17 +436,16 @@ class _Conventional_(_StationINMET_):
         self.reading_skiprows = len(self.station_metadata) + 1
         self.reading_dtfields = ["DATA MEDICAO", "HORA MEDICAO"]
 
-    # todo docstring
     def _metadata_util(self):
         d = {
-            "NameStation": [None, "NOME"],
-            "CodeStation": [None, "CODIGOESTACAO"],
+            "Station_Name": [None, "NOME"],
+            "Station_Code": [None, "CODIGOESTACAO"],
             "Y": [None, "LATITUDE"],
             "X": [None, "LONGITUDE"],
             "Z": [None, "ALTITUDE"],
             "Status": [None, "SITUACAO"],
-            "StartStation": [None, "DATAINICIAL"],
-            "EndStation": [None, "DATAFINAL"],
+            "Station_Start": [None, "DATAINICIAL"],
+            "Station_End": [None, "DATAFINAL"],
             "TimeScale": [None, "PERIODICIDADEDAMEDICAO"]
         }
         d1 = {}
@@ -334,7 +453,6 @@ class _Conventional_(_StationINMET_):
         for k in d:
             d1[k] = d[k][0]
             d2[d[k][1]] = k
-
         return d1, d2
 
 # todo docstring
@@ -418,14 +536,14 @@ class ConventionalDaily(_Conventional_):
     .. code-block:: text
 
         Field;Value
-        NameStation;PELOTAS
-        CodeStation;83985
+        Station_Name;PELOTAS
+        Station_Code;83985
         Y;-31.78333333
         X;-52.41666666
         Z;13
         Status;Operante
-        StartStation;1925-12-31
-        EndStation;2023-01-01
+        Station_Start;1925-12-31
+        Station_End;2023-01-01
         TimeScale;Diaria
 
     **Output format - glossary**
@@ -497,10 +615,11 @@ class ConventionalDaily(_Conventional_):
         self.reading_dtfields = ["Data Medicao"]
         self.reading_dtformat = '%Y-%m-%d %H:%M:%S'
 
-# todo docstring
 class _Automatic_(_StationINMET_):
+    """Base Parser object for automatic INMET stations
 
-    # todo docstring
+    """
+
     def __init__(self, name="MyAutomatic"):
         super().__init__(name=name)
         # Object attributes
@@ -509,112 +628,8 @@ class _Automatic_(_StationINMET_):
         self.reading_delimiter = ";"
         self.reading_skiprows = len(self.station_metadata)
 
-# todo docstring
-class AutomaticByYear(_Automatic_):
-    """Parser object for ``INMET`` Automatic Stations provided by Year.
-    The The input ``csv`` file is expected to present the following structure:
-
-    .. code-block:: text
-
-        REGIAO:;CO
-        UF:;DF
-        ESTACAO:;BRASILIA
-        CODIGO (WMO):;A001
-        LATITUDE:;-15,789343
-        LONGITUDE:;-47,925756
-        ALTITUDE:;1160,96
-        DATA DE FUNDACAO:;07/05/00
-        Data;Hora UTC;PRECIPITAÇÃO TOTAL, HORÁRIO (mm);PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB);PRESSÃO ATMOSFERICA MAX.NA HORA ANT. (AUT) (mB);PRESSÃO ATMOSFERICA MIN. NA HORA ANT. (AUT) (mB);RADIACAO GLOBAL (Kj/m²);TEMPERATURA DO AR - BULBO SECO, HORARIA (°C);TEMPERATURA DO PONTO DE ORVALHO (°C);TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C);TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C);TEMPERATURA ORVALHO MAX. NA HORA ANT. (AUT) (°C);TEMPERATURA ORVALHO MIN. NA HORA ANT. (AUT) (°C);UMIDADE REL. MAX. NA HORA ANT. (AUT) (%);UMIDADE REL. MIN. NA HORA ANT. (AUT) (%);UMIDADE RELATIVA DO AR, HORARIA (%);VENTO, DIREÇÃO HORARIA (gr) (° (gr));VENTO, RAJADA MAXIMA (m/s);VENTO, VELOCIDADE HORARIA (m/s);
-        2022/01/01;0000 UTC;;;;;;;;;;;;;;;;;;
-        2022/01/01;0100 UTC;0;935,4;935,4;934,9;;21,9;19,8;22,7;21,9;19,9;19,2;88;80;88;4;2,9;1,2;
-        2022/01/01;0200 UTC;;;;;;;;;;;;;;;;;;
-        2022/01/01;0300 UTC;0;935,1;935,7;935,1;;21,7;20,2;22,2;21,6;20,2;19,9;91;88;91;53;4;1,2;
-        2022/01/01;0400 UTC;1,6;934,6;935,1;934,6;;21,3;20,1;21,7;21,2;20,2;20,1;93;91;93;32;5;3,1;
-        2022/01/01;0500 UTC;0;934;934,6;934;;20,6;19,7;21,3;20,6;20,2;19,6;94;93;94;31;5,6;2,3;
-        2022/01/01;0600 UTC;0;933,8;934;933,8;;20,5;19,5;20,7;20,3;19,7;19,4;95;94;95;56;3,4;1,2;
-        2022/01/01;0700 UTC;0;933,7;933,9;933,7;;20,4;19,5;20,5;20,3;19,6;19,4;95;94;95;40;2,8;1,6;
-        2022/01/01;0800 UTC;0;933,8;933,8;933,7;;20,6;19,7;20,6;20,4;19,7;19,5;95;95;95;32;4;2,3;
-        2022/01/01;0900 UTC;3,6;934,3;934,3;933,8;;20,7;19,8;20,7;20,6;19,8;19,7;95;95;95;31;4,4;2,1;
-
-
-    The output ``csv`` file is designed to be parsed in the following format:
-
-    .. code-block:: text
-
-        REGIAO:;CO
-        UF:;DF
-
-
-    **Examples:**
-
-    >>> auto = AutomaticByYear()
-    >>> auto.load_data(file_path="path/to/file.csv")
-
-    """
-
-    # todo docstring
-    def __init__(self, name="MyAutomaticYer"):
-        super().__init__(name=name)
-
-        self.prefix = "inmet_autoy"
-
-        self.gls = {
-            "PRECIPITACAO TOTAL, HORARIO (MM)": "P",
-            "PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (MB)": "PALoc",
-            "PRESSAO ATMOSFERICA MAX.NA HORA ANT. (AUT) (MB)": "PALoc_premax",
-            "PRESSAO ATMOSFERICA MIN. NA HORA ANT. (AUT) (MB)": "PALoc_premin",
-            "RADIACAO GLOBAL (KJ/M²)": "Rad",
-            "TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)": "TempDB",
-            "TEMPERATURA DO PONTO DE ORVALHO (°C)": "TempDP",
-            "TEMPERATURA MAXIMA NA HORA ANT. (AUT) (°C)": "TempDB_premax",
-            "TEMPERATURA MINIMA NA HORA ANT. (AUT) (°C)": "TempDB_premin",
-            "TEMPERATURA ORVALHO MAX. NA HORA ANT. (AUT) (°C)": "TempDP_premax",
-            "TEMPERATURA ORVALHO MIN. NA HORA ANT. (AUT) (°C)": "TempDP_premin",
-            "UMIDADE REL. MAX. NA HORA ANT. (AUT) (%)": "RM_premax",
-            "UMIDADE REL. MIN. NA HORA ANT. (AUT) (%)": "RM_premin",
-            "UMIDADE RELATIVA DO AR, HORARIA (%)": "RM",
-            "VENTO, DIRECAO HORARIA (GR) (° (GR))": "WD",
-            "VENTO, RAJADA MAXIMA (M/S)": "WG",
-            "VENTO, VELOCIDADE HORARIA (M/S)": "WS",
-        }
-
-        # data
-        d1, d2 = self._metadata_util()
-        self.station_metadata = d1
-        self.glossary = self.get_glossary()
-
-        # reading
-        self.reading_metadata_splitter = ":;"
-        self.reading_dtfields = ["DATA (YYYY-MM-DD)", "HORA (UTC)"]
-        self.reading_dtformat = '%Y-%m-%d %H:%M'
-        self.reading_dtfields = ["Data", "Hora UTC"]
-        self.reading_dtformat = '%Y/%m/%d %H%M'
-        self.reading_encoding = "latin-1"
-        self.reading_decimals = ","
-
-    # todo docstring
-    def _metadata_util(self):
-        d = {
-            "NameStation": [None, "ESTACAO"],
-            "CodeStation": [None, "CODIGO(WMO)"],
-            "Y": [None, "LATITUDE"],
-            "X": [None, "LONGITUDE"],
-            "Z": [None, "ALTITUDE"],
-            "StartStation": [None, "DATADEFUNDACAO"],
-            "Region": [None, "REGIAO"],
-            "State": [None, "UF"]
-        }
-        d1 = {}
-        d2 = {}
-        for k in d:
-            d1[k] = d[k][0]
-            d2[d[k][1]] = k
-
-        return d1, d2
-
-# todo docstring
 class Automatic(_Automatic_):
-    """Parser object for ``INMET`` Automatic Stations provided by date range.
+    """Parser object for ``INMET`` Automatic Stations provided by any date range.
     The input ``csv`` file is expected to present the following structure:
 
     .. code-block:: text
@@ -642,7 +657,7 @@ class Automatic(_Automatic_):
         2001-11-18;0000;0;1015.9;1016.666221;1015.9;1015.8;-4;null;17.9;10.3;18.1;17.8;10.9;10.2;null;63;61;61;56;8.6;5.5;
 
 
-    The output ``csv`` file is designed to be parsed in the following format:
+    The output ``csv`` file is designed to be parsed to the following format:
 
     .. code-block:: text
 
@@ -652,9 +667,9 @@ class Automatic(_Automatic_):
 
     **Examples:**
 
-    >>> auto = AutomaticByYear()
-    >>> auto.load_data(file_path="path/to/file.csv")
-    >>> auto.data.to_csv("path/to/output.csv")
+
+
+
 
     """
     def __init__(self, name="MyAutomatic"):
@@ -692,14 +707,14 @@ class Automatic(_Automatic_):
 
     def _metadata_util(self):
         d = {
-            "NameStation": [None, "NOME"],
-            "CodeStation": [None, "CODIGOESTACAO"],
-            "Y": [None, "LATITUDE"],
+            "Station_Name": [None, "NOME"],
+            "Station_Code": [None, "CODIGOESTACAO"],
+            "Y": [None, "Latitude".upper()],
             "X": [None, "Longitude".upper()],
             "Z": [None, "Altitude".upper()],
             "Status": [None, "Situacao".upper()],
-            "StartStation": [None, "DataInicial".upper()],
-            "EndStation": [None, "DataFinal".upper()],
+            "Station_Start": [None, "DataInicial".upper()],
+            "Station_End": [None, "DataFinal".upper()],
             "TimeScale": [None, "PeriodicidadedaMedicao".upper()]
         }
         d1 = {}
@@ -707,12 +722,26 @@ class Automatic(_Automatic_):
         for k in d:
             d1[k] = d[k][0]
             d2[d[k][1]] = k
+
         return d1, d2
 
 
 if __name__ == "__main__":
-    print("Hello world!")
 
-    f = "C:/data/"
+    # file path
+    f = "_inmet_auto_src.csv"
 
+    # instantiate object
+    auto = Automatic(name="Automatic Station")
 
+    # load data
+    auto.load_data(file_path=f)
+
+    # print data (pandas dataframe)
+    print(auto.data.head().to_string(index=False))
+
+    # print metadata (pandas dataframe)
+    print(auto.station_metadata_df.to_string())
+
+    # export to folder
+    auto.export_data(folder="C:/data", append_id=True)

@@ -65,6 +65,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import warnings
 from plans.root import Collection, DataSet
+from plans import geo
+
 
 def dataframe_prepro(dataframe):
     """Utility function for dataframe pre-processing.
@@ -3772,7 +3774,7 @@ class Raster:
             self.load_prj_file(file=prj_file)
         return None
 
-    def load_tif_raster(self, file):
+    def load_tif_raster(self, file, xxl=False):
         """Load data from '.tif' raster files.
 
         This function loads data from '.tif' raster files into the raster object. Note that metadata may be provided from other sources.
@@ -3796,6 +3798,8 @@ class Raster:
         >>> raster.load_tif_raster(file="path/to/raster.tif")
         """
         from PIL import Image
+        if xxl:
+            Image.MAX_IMAGE_PIXELS = None
 
         # Open the TIF file
         img_data = Image.open(file)
@@ -4672,7 +4676,7 @@ class Raster:
         # get univar base_object
         uni = Univar(data=self.get_grid_data())
 
-        specs = self.view_specs
+        specs = self.view_specs.copy()
 
         if specs["vmin"] is None:
             specs["vmin"] = np.min(self.grid)
@@ -5205,6 +5209,14 @@ class QualiRaster(Raster):
         self.mask_nodata()
         return map_aoi
 
+    def apply_values(self, table_field):
+        new_grid = geo.convert_values(
+            array=self.grid,
+            old_values=self.table["Id"].values,
+            new_values=self.table[table_field].values
+        )
+        return new_grid
+
     def get_metadata(self):
         """Get all metadata from base_object
 
@@ -5241,6 +5253,10 @@ class QualiRaster(Raster):
                 _lst_colors.append(_color)
             # setup
             self.view_specs = {
+                "folder": None,
+                "filename": self.name,
+                "fig_format": "jpg",
+                "dpi": 300,
                 "color": "tab:grey",
                 "cmap": ListedColormap(_lst_colors),
                 "suptitle": "{} ({}) | {}".format(
@@ -5302,7 +5318,9 @@ class QualiRaster(Raster):
         from matplotlib.patches import Patch
 
         # pass specs
-        specs = self.view_specs
+        specs = self.view_specs.copy()
+
+
 
         if specs["project_name"] is None:
             suff = ""
@@ -5318,7 +5336,9 @@ class QualiRaster(Raster):
         df_aux = df_areas.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         if filter:
             if len(df_aux) > n_filter:
+                #print("hey")
                 n_limit = df_aux["{}_m2".format(self.areafield)].values[-n_filter]
+                # create the others
                 df_aux2 = df_aux.query("{}_m2 < {}".format(self.areafield, n_limit))
                 df_aux2 = pd.DataFrame(
                     {
@@ -5344,11 +5364,12 @@ class QualiRaster(Raster):
                         ],
                     }
                 )
-                df_aux = df_aux.query("{}_m2 >= {}".format(self.areafield, n_limit))
+                df_aux = df_aux.query("{}_m2 > {}".format(self.areafield, n_limit))
                 df_aux = pd.concat([df_aux, df_aux2])
                 df_aux = df_aux.drop_duplicates(subset="Id")
                 df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield))
                 df_aux = df_aux.reset_index(drop=True)
+                #print(df_aux.to_string())
 
         # -----------------------------------------------
         # Deploy figure
@@ -5414,7 +5435,7 @@ class QualiRaster(Raster):
         )
 
         # -----------------------------------------------
-        # plot horizontal bar of export_areas
+        # plot horizontal bar of areas
         plt.subplot(gs[: specs["gs_b_rowlim"], 3:])
         plt.title("b. {}".format(specs["b_title"]), loc="left")
         if specs["bars_alias"]:
@@ -5460,7 +5481,7 @@ class QualiRaster(Raster):
             plt.text(
                 x=n_x,
                 y=n_y,
-                s="code. {}".format(specs["c_title"]),
+                s="c. {}".format(specs["c_title"]),
                 fontsize=12,
                 transform=fig.transFigure,
             )
@@ -5628,6 +5649,7 @@ class Zones(QualiRaster):
         :return: AOI map
         :rtype: :class:`AOI`` object
         """
+        from plans.datasets.spatial import AOI
         map_aoi = AOI(name="{} {}".format(self.varname, zone_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi.prj = self.prj
@@ -5678,6 +5700,10 @@ class Zones(QualiRaster):
         map_zones_aux._set_view_specs()
         map_zones_aux.view_specs["vmin"] = self.table["Id"].min()
         map_zones_aux.view_specs["vmax"] = self.table["Id"].max()
+        map_zones_aux.view_specs["folder"] = folder
+        map_zones_aux.view_specs["filename"] = filename
+        map_zones_aux.view_specs["dpi"] = dpi
+        map_zones_aux.view_specs["fig_format"] = fig_format
         # update extra view specs:
         for k in self.view_specs:
             map_zones_aux.view_specs[k] = self.view_specs[k]
@@ -5685,10 +5711,6 @@ class Zones(QualiRaster):
         map_zones_aux.view(
             accum=False,
             show=show,
-            folder=folder,
-            filename=filename,
-            dpi=dpi,
-            fig_format=fig_format,
         )
         del map_zones_aux
         return None

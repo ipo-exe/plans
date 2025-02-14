@@ -58,6 +58,37 @@ In a lacinia nisl.
 import numpy as np
 
 
+
+
+def find_array_bbox(image):
+    """
+    Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
+
+    Parameters:
+    - image: 2D numpy array with values 1 (content) and 0 (background)
+
+    Returns:
+    - dict: Dictionary with keys "i_min", "i_max", "j_min", "j_max" representing
+            the row and column bounds of the content
+    """
+    # Find rows and columns containing 1's
+    rows_with_content = np.where(image.sum(axis=1) > 0)[0]
+    cols_with_content = np.where(image.sum(axis=0) > 0)[0]
+
+    # If there's content, determine bounds; otherwise, return None for each bound
+    if rows_with_content.size > 0 and cols_with_content.size > 0:
+        i_min, i_max = rows_with_content[0], rows_with_content[-1]
+        j_min, j_max = cols_with_content[0], cols_with_content[-1]
+    else:
+        i_min = i_max = j_min = j_max = None
+
+    return {
+        "i_min": i_min,
+        "i_max": i_max,
+        "j_min": j_min,
+        "j_max": j_max
+    }
+
 # VECTOR FUNCTIONS
 def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     """Returns a WKT box from the given extents (xmin, ymin, xmax, ymax).
@@ -77,6 +108,41 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
 
 
 # RASTER FUNCTIONS
+
+def convert_values(array, old_values, new_values):
+    """Convert values
+
+    :param array: 2d numpy array to convert values
+    :type array: :class:`numpy.ndarray`
+    :param old_values: iterable of old values
+    :type old_values: :class:`numpy.ndarray`
+    :param new_values: iterable of new values
+    :type new_values: :class:`numpy.ndarray`
+    :return: converted map
+    :rtype: :class:`numpy.ndarray`
+    """
+    new = array * 0.0
+    for i in range(len(old_values)):
+        _old = old_values[i]
+        _new = new_values[i]
+        new = new + (_new * (array == _old))
+    return new
+
+def reclassify(array, upvalues, classes):
+    """Reclassify array based on list of upper values and list of classes values
+
+    :param array: 2d numpy array to reclassify
+    :param upvalues: 1d numpy array of upper values
+    :param classes: 1d array of classes values
+    :return: 2d numpy array reclassified
+    """
+    new = array * 0.0
+    for i in range(len(upvalues)):
+        if i == 0:
+            new = new + ((array <= upvalues[i]) * classes[i])
+        else:
+            new = new + ((array > upvalues[i - 1]) * (array <= upvalues[i]) * classes[i])
+    return new
 
 # docs ok
 def slope(dem, cellsize, degree=True):
@@ -181,6 +247,130 @@ def twi(slope, flowacc, cellsize):
     """
     # +0.01 is a hack for non-nan values
     return np.log((flowacc / cellsize)/ (np.tan((slope * np.pi / 180) + 0.01)))
+
+def shalstab_wetness(flowacc, slope, cellsize, soil_phi, soil_z, soil_c, soil_p, water_p=997, g=9.8, degree=True, kPa=True):
+    """Calculate the SHALSTAB wetness model
+
+    :param flowacc: flow accumulation map (square meters)
+    :type flowacc: :class:`numpy.ndarray`
+    :param slope: slope map (degrees or radians)
+    :type slope: :class:`numpy.ndarray`
+    :param cellsize: grid cell size (meters)
+    :type cellsize: float
+    :param soil_phi: soil angle of internal friction (degrees or radians)
+    :type soil_phi: :class:`numpy.ndarray` or float
+    :param soil_z: soil depth (meters)
+    :type soil_z: :class:`numpy.ndarray` or float
+    :param soil_c: soil cohesion (Pa or N/m² or kg/ms²)
+    :type soil_c: :class:`numpy.ndarray` or float
+    :param soil_p: soil density (kg/m³)
+    :type soil_p: :class:`numpy.ndarray` or float
+    :param water_p: water density (kg/m³)
+    :type water_p: float
+    :param g: gravity acceleration (m / s²)
+    :type g: float
+    :param degree: flag to note if slope and soil_phi are in degrees
+    :type degree: bool
+    :param kPa: flag to note if soil_c in kPa
+    :type kPa: bool
+    :return: map of q/T ratio
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    if degree:
+        # convert to radians
+        slope = np.radians(slope)
+        soil_phi = np.radians(soil_phi)
+
+    if kPa:
+        # convert to Pa
+        soil_c = soil_c * 1000
+
+    # get density ratio
+    density_r = soil_p / water_p
+
+    # get tangent ratio
+    tan_r = 1 - (np.tan(slope) / np.tan(soil_phi))
+
+    slope_term = density_r * tan_r
+
+    # get force term
+    cohesion_term = soil_c / (np.square(np.cos(slope)) * np.tan(soil_phi) * water_p * g * soil_z)
+
+    topo_term =  cellsize  * np.sin(slope) / flowacc
+
+    # apply full equation
+    q_t = topo_term * (slope_term + cohesion_term)
+
+    # force non-negative
+    q_t = q_t * (q_t > 0) + 0.0001
+
+    shalstab_classes = reclassify(
+        array=np.log10(q_t),
+        upvalues=np.array([-3.1, -2.8, -2.5, -2.2, 10]),
+        classes=np.array([6, 5, 4, 3, 2])
+    )
+
+    # improve id 1 and id 7
+    mask1 = 1 * (np.tan(slope) <= np.tan(soil_phi) * (1 - (1/density_r)))
+    mask7 = 1 * (np.tan(soil_phi) > np.tan(slope))
+
+    #shalstab_classes = (shalstab_classes * (mask1 != 1)) + mask1
+    #shalstab_classes = (shalstab_classes * (mask7 != 1)) + (mask7 * 7)
+
+    return q_t, shalstab_classes
+
+def usle_l(slope, cellsize):
+    """Wischmeier & Smith (1978) L factor
+
+    L = (x / 22.13) ^ m
+
+    where:
+
+    m = 0.2 when sinθ < 0.01;
+    m = 0.3 when 0.01 ≤ sinθ ≤ 0.03;
+    m = 0.4 when 0.03 < sinθ < 0.05;
+    m = 0.5 when sinθ ≥ 0.05
+
+    x is the plot lenght taken as 1.4142 * cellsize  (diagonal length of cell)
+
+    :param slope: slope in degrees of terrain 2d array
+    :param cellsize: cell size in meters
+    :return: Wischmeier & Smith (1978) L factor 2d array
+    """
+    slope_rad = np.pi * 2 * slope / 360
+    lcl_grad = np.sin(slope_rad)
+    m = reclassify(lcl_grad, upvalues=(0.01, 0.03, 0.05, np.max(lcl_grad)), classes=(0.2, 0.3, 0.4, 0.5))
+    return np.power(np.sqrt(2) * cellsize / 22.13, m)
+
+def usle_s(slope):
+    """Wischmeier & Smith (1978) S factor
+
+    S = 65.41(sinθ)^2 + 4.56sinθ + 0.065
+
+    :param slope: slope in degrees of terrain 2d array
+    :return:
+    """
+    slope_rad = np.pi * 2 * slope / 360
+    lcl_grad = np.sin(slope_rad)
+    return (65.41 * np.power(lcl_grad, 2)) + (4.56 * lcl_grad) + 0.065
+
+
+def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
+    """USLE-M Annual Soil Loss (Kinnell & Risse, 1998)
+
+    :param q: 2d numpy array of annual runoff in mm / year
+    :param prec: 2d numpy array or float of annual precipitation in mm / year
+    :param r: 2d numpy array or float of rain erosivity in MJ mm h-1 ha-1 year-1
+    :param k: 2d numpy array or float of erodibility K factor in ton h MJ-1 mm-1
+    :param l: 2d numpy array or float of USLE/RUSLE L factor
+    :param s: 2d numpy array or float of USLE/RUSLE S factor
+    :param c: 2d numpy array or float of C_UM factor
+    :param p: 2d numpy array or float of USLE/RUSLE P factor
+    :param cellsize: float of grid cell size in meters
+    :return: 2d numpy array of Annual Soil Loss in ton / year
+    """
+    return (q / prec) * r * k * l * s * c * p * (cellsize * cellsize / (100 * 100))
 
 # docs ok
 def rivers_wedge(grd_rivers, w=3, h=3):
@@ -471,9 +661,42 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    grd = np.zeros(shape=(100, 100))
-    grd[50][50] = 1
+    from datasets import spatial
 
-    grd_d = rivers_wedge(grd_rivers=grd)
-    plt.imshow(grd_d)
-    plt.show()
+    Flowacc = spatial.AccFlux(name="Ac")
+    Flowacc.load(
+        asc_file="C:/plans/docs/datasets/topo/accflux_mfd.asc",
+        prj_file="C:/plans/docs/datasets/topo/accflux_mfd.prj",
+    )
+    #Flowacc.view(show=True)
+
+    slp = spatial.Slope()
+    slp.load(
+        asc_file="C:/plans/docs/datasets/topo/slope.asc",
+        prj_file="C:/plans/docs/datasets/topo/slope.prj",
+    )
+    #slp.grid = slp.grid
+    #slp.view(show=True)
+    #s_flat = slp.grid.flatten()
+
+    w1, w2 = shalstab_wetness(
+        flowacc=Flowacc.grid,
+        slope=slp.grid,
+        cellsize=Flowacc.cellsize,
+        soil_phi=15,
+        soil_z=1,
+        soil_p=1600,
+        soil_c=1,
+        water_p=997,
+        kPa=True
+    )
+
+    Raster = spatial.Raster()
+    Raster.nodatavalue = -999
+    Raster.grid = w1 #np.log10(qt)
+    Raster.prj = Flowacc.prj[:]
+    Raster.cellsize = Flowacc.cellsize
+    Raster.asc_metadata = Flowacc.asc_metadata
+    Raster.asc_metadata['NODATA_value'] = -9999
+    Raster.view_specs["cmap"] = "Reds"
+    Raster.view(show=True)
