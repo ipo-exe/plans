@@ -496,6 +496,7 @@ class TempSeries(TimeSeries):
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(name, alias=alias)
         self.varname = "Temperature"
+        self.varalias = "Temp"
         self.varfield = "Temp"
         self.units = "Celcius"
         # Overwrite attributes specific

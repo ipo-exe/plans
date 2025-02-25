@@ -298,7 +298,7 @@ class TimeSeries(DataSet):
                 self.dtfreq = "20min"  # force to 20min
                 self.dtres = "minute"
             elif df["hour"].nunique() > 1:
-                self.dtfreq = "H"
+                self.dtfreq = "h"
                 self.dtres = "hour"
             elif df["day"].nunique() > 1:
                 self.dtfreq = "D"
@@ -487,14 +487,17 @@ class TimeSeries(DataSet):
         # Get a copy of the input DataFrame
         df = input_df.copy()
 
-        # Drop NaN values if specified
-        if dropnan:
-            df = df.dropna()
-
         # Rename columns to standard format
         df = df.rename(
             columns={input_dtfield: self.dtfield, input_varfield: self.varfield}
         )
+
+        # Filter data only to columns
+        df = df[[self.dtfield, self.varfield]].copy()
+
+        # Drop NaN values if specified
+        if dropnan:
+            df = df.dropna()
 
         # Convert datetime column to standard format
         df[self.dtfield] = pd.to_datetime(df[self.dtfield], format="%Y-%m-%d %H:%M:%S")
@@ -679,9 +682,81 @@ class TimeSeries(DataSet):
             return None
         else:
             return in_df
-    # docs: ok
-    def standardize(self, start=None, end=None):
+
+    def standardize(self):
         """Standardize the data based on regular datetime steps and the time resolution.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - Creates a full date range with the expected frequency for the standardization period.
+        - Groups the data by epochs (based on the frequency and datetime field), applies the specified aggregation function, and fills in missing values with left merges.
+        - Cuts off any edges with missing data.
+        - Updates internal attributes, including ``self.isstandard`` to indicate that the data has been standardized.
+
+        .. warning::
+
+            The ``standardize`` method modifies the internal data representation. Ensure to review the data after standardization.
+
+        """
+
+        def _insert_epochs(df):
+            # handle epochs
+            epochs = {
+                "1min": ['%Y-%m-%d %H:%M', ''],
+                "20min": ['%Y-%m-%d %H', ' :20'],
+                "h": ['%Y-%m-%d %H', ''],
+                "D": ['%Y-%m-%d', ''],
+                "MS": ['%Y-%m', ''],
+                "YS": ['%Y', ''],
+            }
+            df[self.dtfield + "_epoch"] = df[self.dtfield].dt.strftime(epochs[self.dtfreq][0]) + epochs[self.dtfreq][1]
+            return df
+
+        # the ideia is to implement regular time increments and insert null rows
+
+        # make a copy of the data
+        df_data = self.data.copy()
+        # insert epochs based on data frequency
+        df_data = _insert_epochs(df=df_data)
+        # aggregate by epoch
+        df_data = df_data.groupby(self.dtfield + "_epoch")[self.varfield].agg([self.agg]).reset_index()
+        df_data.rename(columns={self.agg: self.varfield}, inplace=True)
+
+        # Standardize incoming start and end
+        start_std = self.start.date() # the start of date
+        end_std = self.end + pd.Timedelta(days=1) # the next day
+        end_std = end_std.date()
+
+        # Get a standard date range for all periods
+        dt_index = pd.date_range(start=start_std, end=end_std, freq=self.dtfreq)
+
+        # Set standarnd dataframe
+        df_data_std = pd.DataFrame({self.dtfield: dt_index})
+        df_data_std = _insert_epochs(df=df_data_std)
+
+        on_st = self.dtfield + "_epoch"
+        df_data_std = pd.merge(left=df_data_std, right=df_data, on=on_st, how="left")
+
+        # Clear extra column
+        self.data = df_data_std.drop(columns=on_st).copy()
+
+        # Cut off edges
+        self.cut_edges(inplace=True)
+
+        # Set extra attributes
+        self.isstandard = True
+
+        # Update all attributes
+        self.update()
+
+        return None
+
+    def deprec_standardize(self, start=None, end=None):
+        """Deprecated method. See standardize().
+        Standardize the data based on regular datetime steps and the time resolution.
 
         :param start: :class:`pandas.Timestamp`, optional
             The starting datetime for the standardization.
@@ -757,6 +832,7 @@ class TimeSeries(DataSet):
 
         # Group by 'Epochs' and calculate agg function
         result_df = df2.groupby("StEpoch")[self.varfield].agg([self.agg]).reset_index()
+
         # Rename
         result_df = result_df.rename(columns={self.agg: self.varfield})
 
@@ -1035,7 +1111,7 @@ class TimeSeries(DataSet):
 
         :param freq: str
             Pandas-like alias frequency at which to aggregate the time series data. Common options include:
-            - ``H`` for hourly frequency
+            - ``h`` for hourly frequency
             - ``D`` for daily frequency
             - ``W`` for weekly frequency
             - ``MS`` for monthly/start frequency
@@ -1141,7 +1217,7 @@ class TimeSeries(DataSet):
 
         :param freq: str
             Pandas-like alias frequency at which to aggregate the time series data. Common options include:
-            - ``H`` for hourly frequency
+            - ``h`` for hourly frequency
             - ``D`` for daily frequency
             - ``W`` for weekly frequency
             - ``MS`` for monthly/start frequency
@@ -1154,7 +1230,6 @@ class TimeSeries(DataSet):
         :param bad_max: int
             The maximum number of ``Bad`` records allowed in a time window for aggregation. Records with more ``Bad`` entries
             will be excluded from the aggregated result.
-            Default is 7.
         :type bad_max: int
 
         :param inplace: option for overwrite data, default True
@@ -2159,7 +2234,7 @@ class _TimeSeries:
 
         :param freq: str
             Pandas-like alias frequency at which to aggregate the time series data. Common options include:
-            - ``H`` for hourly frequency
+            - ``h`` for hourly frequency
             - ``D`` for daily frequency
             - ``W`` for weekly frequency
             - ``MS`` for monthly/start frequency
@@ -2317,7 +2392,7 @@ class _TimeSeries:
                 self.dtfreq = "20min"
                 self.dtres = "minute"
             elif df["hour"].nunique() > 1:
-                self.dtfreq = "H"
+                self.dtfreq = "h"
                 self.dtres = "hour"
             elif df["day"].nunique() > 1:
                 self.dtfreq = "D"
