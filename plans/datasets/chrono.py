@@ -259,7 +259,7 @@ class StageSeries(TimeSeries):
             }
         )
 
-        # compute gumbel values
+        # compute fit gumbel values
         df_an["P(X)_Gumbel"] = 1 - StageSeries.gumbel_fx(
             x=df_an[f"{self.varfield}_amax"].values,
             a=gumbel_a,
@@ -287,7 +287,7 @@ class StageSeries(TimeSeries):
         # Return Period analysis
 
         # evely spaced
-        trs = np.arange(1.5, 100, step=0.5)
+        trs = np.arange(2, 1000, step=1)
         k = StageSeries.gumbel_freqfactor(trs)
         # apply reverse formula
         stages = np.mean(a=df_an[f"{self.varfield}_amax"]) + k * np.std(a=df_an[f"{self.varfield}_amax"])
@@ -434,7 +434,6 @@ class StageSeries(TimeSeries):
         aux2 = 1 + (1.14 * k) + (1.1 * np.square(k))
         aux3 = np.sqrt(aux2)
         return aux1 * aux3
-
 
 
     @staticmethod

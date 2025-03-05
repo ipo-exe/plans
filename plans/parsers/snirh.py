@@ -62,6 +62,41 @@ plt.style.use("seaborn-v0_8")
 
 
 class Stage:
+    """
+    Overview
+    --------
+
+    todo overview
+    Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+    In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+    et netus et malesuada fames ac turpis egestas.
+
+    Example
+    -------
+
+    todo example
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+    Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+    in porttitor lacus lobortis vitae. In a lacinia nisl.
+
+    .. code-block:: python
+
+        import numpy as np
+        from plans import analyst
+
+        # get data to a vector
+        data_vector = np.random.rand(1000)
+
+        # instantiate the Univar object
+        uni = analyst.Univar(data=data_vector, name="my_data")
+
+        # view data
+        uni.view()
+
+    Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+    In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+    In a lacinia nisl.
+    """
     # todo doctring
     def __init__(self, name="MyStage"):
         # Object attributes
@@ -95,12 +130,26 @@ class Stage:
 
     # todo doctring
     def load_data(self, file_path):
+        """Load data from incoming data
+
+        :param file_path: ``.csv`` file path
+        :type file_path: str
+        :return: None
+        :rtype: None
+        """
         self.data = self.read_data(file_path=file_path)
         #self.update()
         return None
 
     # todo doctring
     def read_data(self, file_path):
+        """Handle data import
+
+        :param file_path: ``.csv`` file path
+        :type file_path: str
+        :return: DataFrame
+        :rtype: pandas.DataFrame
+        """
 
         # load station_metadata first
         #self.load_metadata(file_path=file_path)
@@ -173,16 +222,16 @@ class Stage:
 if __name__ == "__main__":
 
     print("Hello world!")
-
-    f = "C:/data/cotas.csv"
-    c = Stage(name="SaoRomao")
-
+    d = "C:/gis/snirh/rhn/src/Estacao_87382000_CSV_2025-02-27T18_02_48.292Z"
+    f = f"{d}/87382000_Cotas.csv"
+    c = Stage(name="SaoLeo")
     c.load_data(file_path=f)
 
     print(c.data.columns)
-    print(c.data[c.data.columns[:10]].head(40).to_string())
+    print(c.data[c.data.columns[:10]].head(4).to_string())
+    print(c.data[c.data.columns[:10]].tail(4).to_string())
 
-    c.data.to_csv("C:/data/cotas_v1.csv", sep=";", encoding="utf-8")
+    c.data.to_csv("C:/gis/snirh/rhn/data/tier1/snirh_ana_87382000_DTS19730725-DTE20240630.csv", sep=";", encoding="utf-8")
 
-    plt.plot(c.data["DateTime"], c.data["Stage"])
+    plt.plot(c.data["DateTime"], c.data["Stage"], ".")
     plt.show()
