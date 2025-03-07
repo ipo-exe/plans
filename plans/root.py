@@ -1,19 +1,12 @@
 """
-The src_root of everything. Here is the most basic objects for the whole ontology of objects
+The root of everything. Here is the most basic objects for the whole ontology of objects.
 
 Description:
-    The ``src_root`` module provides the most basic objects for the whole ontology of objects.
+    The ``root`` module provides the most basic objects for the whole ontology of objects.
 
 License:
     This software is released under the GNU General Public License v3.0 (GPL-3.0).
     For details, see: https://www.gnu.org/licenses/gpl-3.0.html
-
-Author:
-    Iporã Possantti
-
-Contact:
-    possantti@gmail.com
-
 
 Overview
 --------
@@ -72,7 +65,7 @@ class MbaE:
     .. code-block:: python
 
         # import the object
-        from plans.src_root import MbaE
+        from plans.root import MbaE
 
     ``MbaE`` instantiation
 
@@ -120,7 +113,6 @@ class MbaE:
 
         :param name: unique object name
         :type name: str
-
         :param alias: unique object alias.
             If None, it takes the first and last characters from ``name``
         :type alias: str
@@ -187,9 +179,9 @@ class MbaE:
     def get_metadata(self):
         """Get a dictionary with object metadata.
 
-        .. note::
+        .. warning::
 
-            Metadata does **not** necessarily inclue all object attributes.
+            Metadata does not necessarily inclue all object attributes.
 
         :return: dictionary with all metadata
         :rtype: dict
@@ -269,8 +261,7 @@ class MbaE:
 
 
 class Collection(MbaE):
-    """
-    A collection of primitive ``MbaE`` objects with associated metadata.
+    """A collection of primitive ``MbaE`` objects with associated metadata.
     Useful for large scale manipulations in ``MbaE``-based objects.
     Expected to have custom methods and attributes downstream.
 
@@ -298,10 +289,10 @@ class Collection(MbaE):
     .. code-block:: python
 
         # import MbaE-based object
-        from plans.src_root import MbaE
+        from plans.root import MbaE
 
         # import Collection
-        from plans.src_root import Collection
+        from plans.root import Collection
 
     Instantiate ``Collection``:
 
@@ -582,7 +573,7 @@ class DataSet(MbaE):
     .. code-block:: python
 
         # import Dataset
-        from plans.src_root import DataSet
+        from plans.root import DataSet
 
     Instantiate DataSet Object
 
@@ -1263,7 +1254,7 @@ class RecordTable(DataSet):
     .. code-block:: python
 
         # Import RecordTable
-        from plans.src_root import RecordTable
+        from plans.root import RecordTable
 
     Instantiate RecordTable Object
 

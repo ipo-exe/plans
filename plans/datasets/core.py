@@ -8,13 +8,6 @@ License:
     This software is released under the GNU General Public License v3.0 (GPL-3.0).
     For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Author:
-    Iporã Possantti
-
-Contact:
-    possantti@gmail.com
-
-
 Overview
 --------
 
@@ -162,21 +155,21 @@ class TimeSeries(Univar):
         self.var_min = None
         self.var_max = None
         self.isstandard = False
-
-
         self.gapsize = 6
         self.epochs_stats = None
         self.epochs_n = None
         self.smallgaps_n = None
+        self.eva = None
 
         # incoming data
         self.file_input = None  # todo rename
         self.file_data_dtfield = self.dtfield
         self.file_data_varfield = self.varfield
 
-
         self._set_view_specs()
         # ... continues in downstream objects ... #
+
+
 
     def _set_fields(self):
         """
@@ -1237,11 +1230,20 @@ class TimeSeries(Univar):
         print(factor_downscale)
 
 
-    def eva(self, eva_freq="YS"):
+    def assess_extreme_values(self, eva_freq="YS", eva_agg="max"):
+        """Run Extreme Values Analysis (EVA) over the Time Series and set the ``eva`` attribute
+
+        :param eva_freq: standard pandas frequency alias for upscaling data
+        :type eva_freq: str
+        :param eva_agg: standard pandas aggregation alias for upscaling (expected: ``max`` or ``min``)
+        :type eva_agg: str
+        :return: None
+        :rtype: None
+        """
 
         # set agg to max
         agg_old = self.agg[:]
-        self.agg = "max"
+        self.agg = eva_agg
 
         # upscale time series
         df_eva = self.upscale(freq=eva_freq, bad_max=self.gapsize, inplace=False)
@@ -1275,13 +1277,7 @@ class TimeSeries(Univar):
         uv_eva.update()
 
         # run Gumbel assessment
-        o = uv_eva.assess_gumbel_cdf()
-
-        print(o["Data"].to_string())
-        print(o["Data_T(X)"].tail(10).to_string())
-        print(o["Metadata"].to_string())
-
-        uv_eva.view()
+        self.eva = uv_eva.assess_gumbel_cdf()
 
         return None
 
@@ -1409,40 +1405,6 @@ class TimeSeries(Univar):
         :rtype: None
         """
 
-        # From old code:
-
-        '''
-        self.view_specs = {
-            "folder": self.folder_src,
-            "filename": self.name,
-            "fig_format": "jpg",
-            "dpi": 300,
-            "title": "Time Series | {} | {} ({})".format(self.name, self.varname, self.varalias),
-            "width": 8,
-            "height": 3,
-            "xvar": self.dtfield,
-            "yvar": self.varfield,
-            "xlabel": self.dtfield,
-            "xlabel_aux": "Count",
-            "ylabel": self.units,
-            "color": self.rawcolor,
-            "color_aux": self.rawcolor,
-            "color_fill": self.rawcolor,
-            "alpha": 1,
-            "alpha_aux": 1,
-            "alpha_fill": 1,
-            "fill": False,
-            "xmin": None,
-            "xmax": None,
-            "xmax_aux": 20,
-            "ymin": 0,
-            "ymax": None,
-            "linestyle": "solid",
-            "marker": None,
-            "n_bins": 100,
-        }
-        '''
-
         # Call the parent method to initialize `view_specs`
         super()._set_view_specs()
 
@@ -1453,10 +1415,11 @@ class TimeSeries(Univar):
             "xvar": self.dtfield,
             "yvar": self.varfield,
             "xlabel": self.dtfield,
-            "xlabel_aux": "Count",
             "color": self.rawcolor,
             "color_aux": self.rawcolor,
             "color_fill": self.rawcolor,
+            "color_eva": "blue",
+            "legend_eva": "Annual Maxima",
             "alpha": 1,
             "alpha_aux": 1,
             "alpha_fill": 1,
@@ -1468,13 +1431,14 @@ class TimeSeries(Univar):
             "ymax": None,
             "linestyle": "solid",
             "marker": None,
+            "marker_eva": '.',
             "n_bins": 100,
         })
 
         return None
 
 
-    def view(self, show=True, return_fig=False):
+    def view(self, show=True, return_fig=False, minimal_dates=False, include_eva=False):
         """Get a basic visualization.
         Expected to overwrite superior methods.
 
@@ -1482,45 +1446,26 @@ class TimeSeries(Univar):
         :type show: bool
         :param return_fig: option for returning the figure object itself.
         :type return_fig: bool
+        :param minimal_dates: option for setting minimal dates layout in x-axis.
+        :type minimal_dates: bool
         :return: None or file path to figure
         :rtype: None or str
 
-        **Notes:**
+        .. note::
 
-        - Uses values in the ``view_specs()`` attribute for plotting
+            Use values in the ``view_specs()`` attribute for plotting
 
-        **Examples:**
-
-
-        Simple visualization:
-
-        .. code-block:: python
-
-            ds.view(show=True)
-
-
-        Customize view specs:
-
-        .. code-block:: python
-
-            ds.view_specs["title"] = "My Custom Title"
-            ds.view_specs["xlabel"] = "The X variable"
-            ds.view(show=True)
-
-
-        Save the figure:
-
-        .. code-block:: python
-
-            ds.view_specs["folder"] = "path/to/folder"
-            ds.view_specs["filename"] = "my_visual"
-            ds.view_specs["fig_format"] = "png"
-            ds.view(show=False)
 
         """
+        if include_eva:
+            self.view_specs["hist_density"] = True
+            self.view_specs["xlabel_b"] = "p(X)"
+
         specs = self.view_specs.copy()
 
+        # call base method and return the fig
         fig = super().view(show=False, return_fig=True)
+
         # --------------------- plotting series --------------------- #
         # series plot
         axes = fig.get_axes()
@@ -1545,10 +1490,10 @@ class TimeSeries(Univar):
                 color=specs["color_fill"],
                 alpha=specs["alpha_fill"]
             )
-
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator())  # Automatically adjust based on range
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format as YYYY-MM-DD
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Always keep 3 labels
+        if minimal_dates:
+            ax.xaxis.set_major_locator(mdates.AutoDateLocator())  # Automatically adjust based on range
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format as YYYY-MM-DD
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Always keep 3 labels
 
         if specs["subtitle_a"] is not None:
             ax.set_title(specs["subtitle_a"])
@@ -1556,15 +1501,90 @@ class TimeSeries(Univar):
         if specs["ylim"] is not None:
             ax.set_ylim(specs["ylim"])
 
+        # basic decorations
         ax.set_xlabel(specs["xlabel"])
         ax.set_ylabel(specs["ylabel"])
-
         ax.set_xlim(specs["xmin"], specs["xmax"])
         ax.set_ylim(specs["ymin"], 1.2 * specs["ymax"])
+        ax.grid(specs["plot_grid"])
 
-        # set basic plotting stuff
-        #ax.ylabel(specs["ylabel"])
-        #ax.xlabel(specs["xlabel"])
+        if include_eva:
+            if self.eva is not None:
+                # ---- plot EVA series
+                ax.plot(
+                    self.eva["Data"][self.dtfield],
+                    self.eva["Data"][self.varfield],
+                    marker=".",
+                    linestyle='none',
+                    color=specs["color_eva"],
+                    label=specs["legend_eva"],
+                )
+                ax.legend(frameon=True,fontsize=8, facecolor="white")
+
+
+                # ---- plot EVA histogram
+                ax2 = axes[1]
+                data = self.eva["Data"][self.varfield].values
+                ax2.hist(
+                    data,
+                    bins=Univar.nbins_fd(data=data),
+                    color=specs["color_eva"],
+                    alpha=0.5,
+                    orientation="horizontal",
+                    density=True,
+                    label=specs["legend_eva"],
+                )
+                #ax2.legend()
+
+                # ---- plot EVA model
+                ax3 = axes[2]
+                ax3.cla()
+                ax3.scatter(
+                    x=self.eva["Data"]["T(X)_Weibull"],
+                    y=self.eva["Data"][self.varfield],
+                    marker=".",
+                    color="black",#specs["color_eva"],
+                    zorder = 3,
+                    label="Empirical"
+                )
+                ax3.plot(
+                    self.eva["Data_T(X)"]["T(X)_Gumbel"],
+                    self.eva["Data_T(X)"][self.varfield],
+                    color="blue",
+                    linestyle="solid",
+                    zorder=2,
+                    label="Gumbel"
+                )
+                ax3.fill_between(
+                    x=self.eva["Data_T(X)"]["T(X)_Gumbel"],
+                    y1=self.eva["Data_T(X)"][f"{self.varfield}_P05"],
+                    y2=self.eva["Data_T(X)"][f"{self.varfield}_P95"],
+                    color="lightblue",
+                    zorder=1,
+                    label="90%CR"
+                )
+                ax3.legend(frameon=True,fontsize=8, facecolor="white")
+                '''
+                ax3.plot(
+                    self.eva["Data_T(X)"]["T(X)_Gumbel"],
+                    self.eva["Data_T(X)"][f"{self.varfield}_P05"],
+                    color="blue",
+                    linestyle=":",
+                    zorder=1
+                )
+                ax3.plot(
+                    self.eva["Data_T(X)"]["T(X)_Gumbel"],
+                    self.eva["Data_T(X)"][f"{self.varfield}_P95"],
+                    color="red",
+                    linestyle=":",
+                    zorder=1
+                )
+                '''
+                ax3.set_xlim(1, 1000)
+                ax3.set_xscale('log')
+                ax3.set_xlabel("T(X)")
+                ax3.grid(specs["plot_grid"])
+
 
 
         # --------------------- end --------------------- #
@@ -1582,9 +1602,11 @@ class TimeSeries(Univar):
             plt.close(fig)
             return file_path
 
+
+
     # Deprecated
     def __view(self, show=True, return_fig=False):
-        """[Deprecated]Get a basic visualization.
+        """[Deprecated] Get a basic visualization.
         Expected to overwrite superior methods.
 
         :param show: option for showing instead of saving.
@@ -1668,7 +1690,7 @@ class TimeSeries(Univar):
         plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
         # plt.title(specs["subtitle_2"])
         plt.xlim([0, specs["xmax_aux"]])
-        plt.xlabel(specs["xlabel_aux"])
+        plt.xlabel(specs["xlabel_b"])
 
         # --------------------- post-plotting --------------------- #
 

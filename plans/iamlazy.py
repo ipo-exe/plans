@@ -9,13 +9,6 @@ License:
     This software is released under the GNU General Public License v3.0 (GPL-3.0).
     For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Author:
-    Iporã Possantti
-
-Contact:
-    possantti@gmail.com
-
-
 Overview
 --------
 

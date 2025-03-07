@@ -8,13 +8,6 @@ License:
     This software is released under the GNU General Public License v3.0 (GPL-3.0).
     For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Author:
-    Iporã Possantti
-
-Contact:
-    possantti@gmail.com
-
-
 Overview
 --------
 
@@ -57,12 +50,8 @@ In a lacinia nisl.
 """
 import numpy as np
 
-
-
-
 def find_array_bbox(image):
-    """
-    Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
+    """Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
 
     Parameters:
     - image: 2D numpy array with values 1 (content) and 0 (background)
@@ -106,7 +95,6 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     """
     return f"POLYGON(({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
 
-
 # RASTER FUNCTIONS
 
 def convert_values(array, old_values, new_values):
@@ -144,7 +132,6 @@ def reclassify(array, upvalues, classes):
             new = new + ((array > upvalues[i - 1]) * (array <= upvalues[i]) * classes[i])
     return new
 
-# docs ok
 def slope(dem, cellsize, degree=True):
     """Calculate slope using gradient-based algorithms on a 2D numpy array.
 
@@ -183,7 +170,6 @@ def slope(dem, cellsize, degree=True):
         slope_array = slope_array * 360 / (2 * np.pi)
     return slope_array
 
-# docs ok
 def euclidean_distance(grd_input):
     """Calculate the Euclidean distance from pixels with value 1.
 
@@ -211,7 +197,6 @@ def euclidean_distance(grd_input):
     # Calculate the distance map
     return distance_transform_edt(grd_input)
 
-# docs ok
 def twi(slope, flowacc, cellsize):
     """Calculate the Topographic Wetness Index (``TWI``).
 
@@ -355,7 +340,6 @@ def usle_s(slope):
     lcl_grad = np.sin(slope_rad)
     return (65.41 * np.power(lcl_grad, 2)) + (4.56 * lcl_grad) + 0.065
 
-
 def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     """USLE-M Annual Soil Loss (Kinnell & Risse, 1998)
 
@@ -372,7 +356,6 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     """
     return (q / prec) * r * k * l * s * c * p * (cellsize * cellsize / (100 * 100))
 
-# docs ok
 def rivers_wedge(grd_rivers, w=3, h=3):
     """Generate a wedge-like trench along the river lines.
 
@@ -407,7 +390,6 @@ def rivers_wedge(grd_rivers, w=3, h=3):
     grd_dist = euclidean_distance(grd_input=grd_rivers)
     return (((-h/w) * grd_dist) + h) * (grd_dist <= w)
 
-# docs ok
 def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     """Burn a ``DEM`` map with river lines.
 
@@ -446,7 +428,6 @@ def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     grd_wedge = rivers_wedge(grd_rivers, w=w, h=h)
     return (grd_dem + h) - grd_wedge
 
-# docs ok
 def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
     """Compute i and j downstream cell coordinates based on cell flow direction.
 
@@ -533,7 +514,6 @@ def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
     }
     return dct_output
 
-# docs ok
 def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
     """Compute the distance to outlet ``DTO`` raster of a given basin.
 
@@ -659,44 +639,3 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
                 pass
     return n_res * grd_outdist
 
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from datasets import spatial
-
-    Flowacc = spatial.AccFlux(name="Ac")
-    Flowacc.load(
-        asc_file="C:/plans/docs/datasets/topo/accflux_mfd.asc",
-        prj_file="C:/plans/docs/datasets/topo/accflux_mfd.prj",
-    )
-    #Flowacc.view(show=True)
-
-    slp = spatial.Slope()
-    slp.load(
-        asc_file="C:/plans/docs/datasets/topo/slope.asc",
-        prj_file="C:/plans/docs/datasets/topo/slope.prj",
-    )
-    #slp.grid = slp.grid
-    #slp.view(show=True)
-    #s_flat = slp.grid.flatten()
-
-    w1, w2 = shalstab_wetness(
-        flowacc=Flowacc.grid,
-        slope=slp.grid,
-        cellsize=Flowacc.cellsize,
-        soil_phi=15,
-        soil_z=1,
-        soil_p=1600,
-        soil_c=1,
-        water_p=997,
-        kPa=True
-    )
-
-    Raster = spatial.Raster()
-    Raster.nodatavalue = -999
-    Raster.grid = w1 #np.log10(qt)
-    Raster.prj = Flowacc.prj[:]
-    Raster.cellsize = Flowacc.cellsize
-    Raster.asc_metadata = Flowacc.asc_metadata
-    Raster.asc_metadata['NODATA_value'] = -9999
-    Raster.view_specs["cmap"] = "Reds"
-    Raster.view(show=True)

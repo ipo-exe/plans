@@ -6,13 +6,6 @@ License:
     This software is released under the GNU General Public License v3.0 (GPL-3.0).
     For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Author:
-    Iporã Possantti
-
-Contact:
-    possantti@gmail.com
-
-
 Overview
 --------
 
@@ -619,12 +612,16 @@ class Univar(DataSet):
             "xlabel_c": "P(X)",
             "ylabel": self.units,
             "color": self.color,
+            "color_b": "tab:grey",
+            "color_c": "blue",
             "alpha": 0.9,
             "ylim": None,
             "xlim": None,
             "subtitle_a": None,
             "subtitle_b": None,
             "subtitle_c": None,
+            "plot_grid": False,
+            "hist_density": False
         }
         return None
 
@@ -653,8 +650,8 @@ class Univar(DataSet):
             hspace=0.5,
             left=0.1,
             right=0.98,
-            bottom=0.25,
-            top=0.80
+            bottom=0.20,
+            top=0.85
         )  # nrows, ncols
 
         # ------------ scatter plot ------------
@@ -673,6 +670,7 @@ class Univar(DataSet):
         plt.xlabel(specs["xlabel"])
         plt.ylabel(specs["ylabel"])
         plt.xlim(0, len(self.data))
+        plt.grid(specs["plot_grid"])
 
         # ------------ hist ------------
         ax2 = fig.add_subplot(gs[0, 3], sharey=ax)
@@ -680,27 +678,31 @@ class Univar(DataSet):
         df_clean = self.data.dropna()
         data = df_clean[self.varfield].values
         plt.hist(
-            self.data[self.varfield].values,
+            data,
             bins=Univar.nbins_fd(data=data),
-            color="tab:grey",
+            color=specs["color_b"],
             alpha=1,
             orientation="horizontal",
+            density=specs["hist_density"]
         )
         if specs["subtitle_b"] is not None:
             plt.title(specs["subtitle_b"])
         if specs["ylim"] is not None:
             plt.ylim(specs["ylim"])
         plt.xlabel(specs["xlabel_b"])
-        #plt.ylabel(specs["ylabel"])
+        plt.grid(specs["plot_grid"])
 
         # ------------ cdf ------------
         ax3 = fig.add_subplot(gs[0, 4], sharey=ax)
-        #tx = Univar.get_tx(self.weibull_df["Data"].values)
-        plt.plot(self.weibull_df["P(X)"], self.weibull_df["Data"], color="blue")
+        plt.plot(
+            self.weibull_df["P(X)"],
+            self.weibull_df["Data"],
+            color=specs["color_c"]
+        )
         if specs["subtitle_c"] is not None:
             plt.title(specs["subtitle_c"])
         plt.xlabel(specs["xlabel_c"])
-        # plt.ylabel(specs["ylabel"])
+        plt.grid(specs["plot_grid"])
 
         # ------------ return object, show or save
         if return_fig:
