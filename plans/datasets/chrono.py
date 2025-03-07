@@ -49,6 +49,7 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -56,6 +57,7 @@ from plans.datasets.core import *
 
 
 # ------------- TIME SERIES OBJECTS -------------  #
+
 
 class RainSeries(TimeSeries):
     """A class for representing and working with rainfall time series data.
@@ -82,17 +84,23 @@ class RainSeries(TimeSeries):
         """
         # Use the superior initialization from the parent class (TimeSeries)
         super().__init__(name, alias=alias)
-        self.varname="Rain"
-        self.varfield="P"
-        self.units="mm"
+        self.varname = "Rain"
+        self.varfield = "P"
+        self.units = "mm"
         # Overwrite attributes specific to RainSeries
         self.name_object = "Rainfall Time Series"
         self.agg = "sum"  # Aggregation method, set to "sum" by default
-        self.gapsize = 7 * 72  # Maximum gap size of 1 week assuming measure device turns off when is not raining
+        self.gapsize = (
+            7 * 72
+        )  # Maximum gap size of 1 week assuming measure device turns off when is not raining
         self.outlier_min = 0
         self.rawcolor = "darkgray"
 
-    def interpolate_gaps(self, inplace=False, method=None,):
+    def interpolate_gaps(
+        self,
+        inplace=False,
+        method=None,
+    ):
         # overwrite interpolation method with constant=0
         super().interpolate_gaps(method="constant", constant=0, inplace=inplace)
 
@@ -110,6 +118,7 @@ class RainSeries(TimeSeries):
         self.gapsize = dict_gaps[self.dtres]
         return None
 
+
 class TempSeries(TimeSeries):
     """A class for representing and working with temperature time series data.
 
@@ -120,6 +129,7 @@ class TempSeries(TimeSeries):
     >>> temperature_data = TempSeries(name="Temperature2022", alias="Temp2022")
 
     """
+
     def __init__(self, name="MyTemperatureSeries", alias=None):
         """Initialize a TempSeries object.
 
@@ -199,11 +209,9 @@ class StageSeries(TimeSeries):
         return base_metadata
 
 
-
-
-
 class FlowSeries(TimeSeries):
     """A class for representing and working with streamflow time series data."""
+
     def __init__(self, name="MyFlowSeries", alias=None):
         """Initialize a FlowSeries object.
 
@@ -228,11 +236,12 @@ class FlowSeries(TimeSeries):
         self.datarange_min = 0
         self.rawcolor = "navy"
         # Specific attributes
-        self.upstream_area = None # in sq km
+        self.upstream_area = None  # in sq km
 
     @staticmethod
     def view_cfcs(freqs, specs=None, show=True, colors=None, labels=None):
         import matplotlib.pyplot as plt
+
         default_specs = {
             "folder": "C:/data",
             "filename": "cfcs",
@@ -248,8 +257,7 @@ class FlowSeries(TimeSeries):
             "log": True,
             "title": "CFCs",
             "ylabel": "m3/s",
-            "xlabel": "Exeed. Prob. (%)"
-
+            "xlabel": "Exeed. Prob. (%)",
         }
         # get specs
         if specs is not None:
@@ -275,7 +283,7 @@ class FlowSeries(TimeSeries):
                 freqs[i]["Exceedance"],
                 freqs[i]["Values"],
                 color=colors[i],
-                label=labels[i]
+                label=labels[i],
             )
         if labels is not None:
             plt.legend()
@@ -314,27 +322,26 @@ class FlowSeries(TimeSeries):
             return file_path
 
 
-
-
-
-
 # ------------- TIME SERIES COLLECTIONS -------------  #
+
 
 class RainSeriesSamples(TimeSeriesSpatialSamples):
     # todo docstring
-    def __init__(self, name="MyRSColection"): # todo docstring
+    def __init__(self, name="MyRSColection"):  # todo docstring
 
         super().__init__(name=name, base_object=RainSeries)
         # overwrite parent attributes
         self.name_object = "Rainfall Series Samples"
         self._set_view_specs()
 
+
 class TempSeriesSamples(TimeSeriesSpatialSamples):  # todo docstring
-    def __init__(self, name="MyTempSColection"): # todo docstring
+    def __init__(self, name="MyTempSColection"):  # todo docstring
         super().__init__(name=name, base_object=TempSeries)
         # overwrite parent attributes
         self.name_object = "Temperature Series Sample"
         self._set_view_specs()
+
 
 class StageSeriesCollection(TimeSeriesCluster):
     # todo docstring
@@ -488,9 +495,17 @@ class __StageSeries(TimeSeries):
         df_an = df_an.dropna()
 
         # fix dates to match actual maxima by making YEAR-Value tag
-        df_an["tag1"] = df_an[self.dtfield].dt.year.astype(str) + " - " + df_an[self.varfield].astype(str)
+        df_an["tag1"] = (
+            df_an[self.dtfield].dt.year.astype(str)
+            + " - "
+            + df_an[self.varfield].astype(str)
+        )
         df_d = self.data.copy()
-        df_d["tag2"] = df_d[self.dtfield].dt.year.astype(str) + " - " + df_d[self.varfield].astype(str)
+        df_d["tag2"] = (
+            df_d[self.dtfield].dt.year.astype(str)
+            + " - "
+            + df_d[self.varfield].astype(str)
+        )
         # join
         df_an = pd.merge(left=df_an, left_on="tag1", right=df_d, right_on="tag2")
         df_an = df_an.drop_duplicates(subset="tag1").reset_index(drop=True)
@@ -498,13 +513,15 @@ class __StageSeries(TimeSeries):
         # remake df
         df_an = pd.DataFrame(
             {
-                self.dtfield : df_an[f"{self.dtfield}_y"],
+                self.dtfield: df_an[f"{self.dtfield}_y"],
                 f"{self.varfield}_amax": df_an[f"{self.varfield}_y"],
             }
         )
 
         # get extra values
-        df_an = df_an.sort_values(by=f"{self.varfield}_amax", ascending=False).reset_index(drop=True)
+        df_an = df_an.sort_values(
+            by=f"{self.varfield}_amax", ascending=False
+        ).reset_index(drop=True)
         df_an["Rank"] = df_an.index + 1
         df_an["P(X)_Empirical"] = StageSeries.px_empirical(ranks=df_an["Rank"].values)
         df_an["P(X)_Weibull"] = StageSeries.px_weibull(ranks=df_an["Rank"].values)
@@ -514,15 +531,15 @@ class __StageSeries(TimeSeries):
 
         # using scipy
         # Fit a Gumbel distribution to the data
-        params = stats.gumbel_r.fit(df_an[f"{self.varfield}_amax"].values, method="MM") # MLM or MM
+        params = stats.gumbel_r.fit(
+            df_an[f"{self.varfield}_amax"].values, method="MM"
+        )  # MLM or MM
         gumbel_a = params[0]
         gumbel_b = params[1]
 
         # Goodness of fit tests
         ks_stat, ks_p_value = stats.kstest(
-            df_an[f"{self.varfield}_amax"].values,
-            cdf='gumbel_r',
-            args=params
+            df_an[f"{self.varfield}_amax"].values, cdf="gumbel_r", args=params
         )
         # accept Null Hypothesis
         is_gumbel = True
@@ -531,23 +548,14 @@ class __StageSeries(TimeSeries):
 
         # QQ plots
         qq, qq_params = stats.probplot(
-            x=df_an[f"{self.varfield}_amax"].values,
-            dist="gumbel_r",
-            sparams=params
-        )#, plot=ax)
+            x=df_an[f"{self.varfield}_amax"].values, dist="gumbel_r", sparams=params
+        )  # , plot=ax)
 
-        df_qq = pd.DataFrame(
-            {
-                f"{self.varfield}_amax": qq[1],
-                "T-Q": qq[0]
-            }
-        )
+        df_qq = pd.DataFrame({f"{self.varfield}_amax": qq[1], "T-Q": qq[0]})
 
         # compute fit gumbel values
         df_an["P(X)_Gumbel"] = 1 - StageSeries.gumbel_fx(
-            x=df_an[f"{self.varfield}_amax"].values,
-            a=gumbel_a,
-            b=gumbel_b
+            x=df_an[f"{self.varfield}_amax"].values, a=gumbel_a, b=gumbel_b
         )
         # return period
         df_an["T(X)_Gumbel"] = 1 / df_an["P(X)_Gumbel"]
@@ -557,7 +565,7 @@ class __StageSeries(TimeSeries):
         gumbel_se = StageSeries.gumbel_se(
             std_sample=np.std(a=df_an[f"{self.varfield}_amax"].values),
             n_sample=len(df_an),
-            tr=df_an["T(X)_Gumbel"]
+            tr=df_an["T(X)_Gumbel"],
         )
         # Standar error
         df_an[f"{self.varfield}_amax_SE90"] = t * gumbel_se
@@ -565,8 +573,12 @@ class __StageSeries(TimeSeries):
         h_max = df_an[f"{self.varfield}_amax"] + df_an[f"{self.varfield}_amax_SE90"]
         h_min = df_an[f"{self.varfield}_amax"] - df_an[f"{self.varfield}_amax_SE90"]
 
-        df_an["T(X)_Gumbel_P05"] = StageSeries.gumbel_tx(x=h_min, a=gumbel_a, b=gumbel_b)
-        df_an["T(X)_Gumbel_P95"] = StageSeries.gumbel_tx(x=h_max, a=gumbel_a, b=gumbel_b)
+        df_an["T(X)_Gumbel_P05"] = StageSeries.gumbel_tx(
+            x=h_min, a=gumbel_a, b=gumbel_b
+        )
+        df_an["T(X)_Gumbel_P95"] = StageSeries.gumbel_tx(
+            x=h_max, a=gumbel_a, b=gumbel_b
+        )
 
         # Return Period analysis
 
@@ -574,12 +586,14 @@ class __StageSeries(TimeSeries):
         trs = np.arange(2, 1000, step=1)
         k = StageSeries.gumbel_freqfactor(trs)
         # apply reverse formula
-        stages = np.mean(a=df_an[f"{self.varfield}_amax"]) + k * np.std(a=df_an[f"{self.varfield}_amax"])
+        stages = np.mean(a=df_an[f"{self.varfield}_amax"]) + k * np.std(
+            a=df_an[f"{self.varfield}_amax"]
+        )
         # get standard error
         gumbel_se = StageSeries.gumbel_se(
             std_sample=np.std(a=df_an[f"{self.varfield}_amax"]),
             n_sample=len(df_an),
-            tr=trs
+            tr=trs,
         )
 
         # compute 50% uncertainty bands
@@ -589,7 +603,6 @@ class __StageSeries(TimeSeries):
         # compute 90% uncertainty bands
         t_90 = stats.t.ppf((1 + 0.9) / 2, df=len(df_an) - 1)
         h_range_90 = t_90 * gumbel_se
-
 
         df_trs = pd.DataFrame(
             {
@@ -614,7 +627,7 @@ class __StageSeries(TimeSeries):
                     "KS-test NullHyp",
                     "QQ-plot c0",
                     "QQ plot c1",
-                    "QQ-plot r2"
+                    "QQ-plot r2",
                 ],
                 "Value": [
                     len(df_an),
@@ -625,20 +638,15 @@ class __StageSeries(TimeSeries):
                     is_gumbel,
                     qq_params[1],
                     qq_params[0],
-                    qq_params[2]
-                ]
+                    qq_params[2],
+                ],
             }
         )
 
         # reset agg
         self.agg = "mean"
 
-        return {
-            "Data": df_an,
-            "Data_T": df_trs,
-            "Data_QQ": df_qq,
-            "Metadata": df_meta
-        }
+        return {"Data": df_an, "Data_T": df_trs, "Data_QQ": df_qq, "Metadata": df_meta}
 
     # todo remove this
     def get_mol(self):
@@ -689,18 +697,17 @@ class __StageSeries(TimeSeries):
         }
         return d_out
 
-
     @staticmethod
     def gumbel_fx(x, a, b):
         aux_1 = (x - a) / b
-        aux_2 = np.exp(- aux_1)
-        gumbel_fx = np.exp(- aux_2)
+        aux_2 = np.exp(-aux_1)
+        gumbel_fx = np.exp(-aux_2)
         return gumbel_fx
 
     @staticmethod
     def gumbel_tx(x, a, b):
         g_fx = StageSeries.gumbel_fx(x, a, b)
-        return 1/(1-g_fx)
+        return 1 / (1 - g_fx)
 
     @staticmethod
     def gumbel_freqfactor(t=2):
@@ -708,7 +715,7 @@ class __StageSeries(TimeSeries):
         aux2 = np.log(aux1)
         aux3 = np.log(aux2)
         aux4 = 0.5772 + aux3
-        aux5 = - np.sqrt(6) * aux4 / np.pi
+        aux5 = -np.sqrt(6) * aux4 / np.pi
         return aux5
 
     @staticmethod
@@ -718,7 +725,6 @@ class __StageSeries(TimeSeries):
         aux2 = 1 + (1.14 * k) + (1.1 * np.square(k))
         aux3 = np.sqrt(aux2)
         return aux1 * aux3
-
 
     @staticmethod
     def px_empirical(ranks):
@@ -741,6 +747,7 @@ class __StageSeries(TimeSeries):
         :rtype: class:`numpy.array`
         """
         return ranks / (len(ranks) + 1)
+
     @staticmethod
     def px_gringorten(ranks):
         """Get the Gringorten exceedance probability P(X)
@@ -753,10 +760,9 @@ class __StageSeries(TimeSeries):
         return (ranks - 0.44) / (len(ranks) + 0.12)
 
 
-
-
 def main():
     import matplotlib.pyplot as plt
+
     plt.style.use("seaborn-v0_8")
 
     f = "C:/data/series.csv"
@@ -774,10 +780,10 @@ def main():
     specs = {
         "ylabel": "mm",
     }
-    FlowSeries.view_cfcs(freqs=[freq, freq2], specs=specs, colors=["blue", "red"], show=False)
-
+    FlowSeries.view_cfcs(
+        freqs=[freq, freq2], specs=specs, colors=["blue", "red"], show=False
+    )
 
 
 if __name__ == "__main__":
     main()
-

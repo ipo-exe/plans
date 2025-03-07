@@ -1,4 +1,5 @@
 from plans.datasets.core import *
+
 # -----------------------------------------
 # Derived Raster data structures
 
@@ -128,6 +129,7 @@ class AccFlux(Raster):
         self.description = "Accumulated Flux or Upstream Area"
         self.units = "sq. meters"
         self._set_view_specs()
+
 
 class NDVI(Raster):
     """
@@ -441,7 +443,9 @@ class Basins(QualiRaster):
             for i in range(len(_df)):
                 next_id = _df["Id"].values[i]
                 visited.append(next_id)
-                visited = Basins.get_upstream_ids(basin_id=next_id, topology_df=topology_df, visited=visited)
+                visited = Basins.get_upstream_ids(
+                    basin_id=next_id, topology_df=topology_df, visited=visited
+                )
         return visited
 
     def get_basin_aoi(self, basin_id):
@@ -454,8 +458,7 @@ class Basins(QualiRaster):
         grd_aoi = 1.0 * (self.grid == basin_id)
         # get extra upstream basins
         upstream_ids = Basins.get_upstream_ids(
-            basin_id=basin_id,
-            topology_df=self.table
+            basin_id=basin_id, topology_df=self.table
         )
         if len(upstream_ids) > 0:
             for up_id in upstream_ids:
@@ -464,8 +467,6 @@ class Basins(QualiRaster):
         grd_aoi = grd_aoi.astype(np.uint16)
         aoi.set_grid(grid=grd_aoi)
         return aoi
-
-
 
 
 class LULC(QualiRaster):
@@ -1074,21 +1075,21 @@ class LULCSeries(QualiRasterSeries):
         }
 
 
-
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+
     plt.style.use("seaborn-v0_8")
 
     s = Slope()
     s.load(
         asc_file="C:/plans/docs/datasets/topo/slope.asc",
-        prj_file="C:/plans/docs/datasets/topo/slope.prj"
+        prj_file="C:/plans/docs/datasets/topo/slope.prj",
     )
     s.view()
 
     t = TWI()
     t.load(
         asc_file="C:/plans/docs/datasets/topo/twi.asc",
-        prj_file="C:/plans/docs/datasets/topo/twi.prj"
+        prj_file="C:/plans/docs/datasets/topo/twi.prj",
     )
     t.view()

@@ -49,12 +49,14 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 import glob
 import logging
 import os, time, shutil
 import numpy as np
 from plans.tui import logger_setup
 import plans.datasets.spatial as sp
+
 
 # ------------------------------ UTILS ------------------------------
 # docs ok
@@ -84,6 +86,7 @@ def nowsep(sep="-"):
 
     """
     import datetime
+
     def_now = datetime.datetime.now()
     yr = def_now.strftime("%Y")
     mth = def_now.strftime("%m")
@@ -94,6 +97,7 @@ def nowsep(sep="-"):
     def_lst = [yr, mth, dy, hr, mn, sg]
     def_s = str(sep.join(def_lst))
     return def_s
+
 
 # docs ok
 def create_rundir(workplace, label="", suffix=None, b_time=True):
@@ -148,14 +152,16 @@ def create_rundir(workplace, label="", suffix=None, b_time=True):
         os.mkdir(dir_path)
     return dir_path
 
+
 # ------------------------------ UTILS - DRY TOOLS ------------------------------
+
 
 def _get_dict_basins(folder_basins):
     m_basins = sp.Basins(name="Basins")
     m_basins.load(
         asc_file=os.path.join(folder_basins, "basins.asc"),
         prj_file=os.path.join(folder_basins, "basins.prj"),
-        table_file=os.path.join(folder_basins, "basins_info.csv")
+        table_file=os.path.join(folder_basins, "basins_info.csv"),
     )
     basins_dct = {}
     for i in range(len(m_basins.table)):
@@ -166,6 +172,7 @@ def _get_dict_basins(folder_basins):
 
 
 # ------------------------------ TOOLS ------------------------------
+
 
 def DEMO(
     project_name,
@@ -266,6 +273,7 @@ def DEMO(
     )
     return 0
 
+
 def VTOPO(
     project_name,
     datasets_dir,
@@ -274,7 +282,7 @@ def VTOPO(
     workplace=True,
     talk=False,
 ):
-    """ todo docstring
+    """todo docstring
 
     :param project_name:
     :type project_name:
@@ -342,8 +350,7 @@ def VTOPO(
         "hand": sp.HAND,
         "slope": sp.Slope,
         "ldd": sp.LDD,
-        "accflux": sp.AccFlux
-
+        "accflux": sp.AccFlux,
     }
 
     # full folder setup
@@ -358,7 +365,7 @@ def VTOPO(
         m = dct_topo[topo](name=project_name)
         m.load(
             asc_file=os.path.join(folder_topo, "{}.asc".format(topo)),
-            prj_file=os.path.join(folder_topo, "{}.prj".format(topo))
+            prj_file=os.path.join(folder_topo, "{}.prj".format(topo)),
         )
         # run main view
         logger.info("{} {:<12} {:<10} -- full ...".format(prompt, "exporting", topo))
@@ -366,11 +373,7 @@ def VTOPO(
         _filename = topo
         if by_basins:
             _filename = "{}-full".format(topo)
-        m.view(
-            show=False,
-            folder=folder_full,
-            filename=_filename
-        )
+        m.view(show=False, folder=folder_full, filename=_filename)
 
         # run basins loop
         if by_basins:
@@ -380,15 +383,23 @@ def VTOPO(
                 if not os.path.isdir(folder_basin):
                     os.mkdir(folder_basin)
 
-                logger.info("{} {:<12} {:<10} -- basin_{} ...".format(prompt, "processing", topo, b))
+                logger.info(
+                    "{} {:<12} {:<10} -- basin_{} ...".format(
+                        prompt, "processing", topo, b
+                    )
+                )
                 m.apply_aoi_mask(grid_aoi=basins_dct[b].grid)
 
                 # run sub views
-                logger.info("{} {:<12} {:<10} -- basin_{} ...".format(prompt, "exporting", topo, b))
+                logger.info(
+                    "{} {:<12} {:<10} -- basin_{} ...".format(
+                        prompt, "exporting", topo, b
+                    )
+                )
                 m.view(
                     show=False,
                     folder=folder_basin,
-                    filename="{}-basin_{}".format(topo, b)
+                    filename="{}-basin_{}".format(topo, b),
                 )
                 m.release_aoi_mask()
 
@@ -417,7 +428,7 @@ def VLULC(
     workplace=True,
     talk=False,
 ):
-    """ todo docstring
+    """todo docstring
 
     :param project_name:
     :type project_name:
@@ -498,17 +509,10 @@ def VLULC(
         use_parallel=False,
     )
     logger.info("{} exporting LULC series ...".format(prompt))
-    lulc_series.get_views(
-        show=False,
-        export_areas=False,
-        folder=folder_full
-    )
+    lulc_series.get_views(show=False, export_areas=False, folder=folder_full)
     logger.info("{} exporting LULC areas ...".format(prompt))
     lulc_series.view_series_areas(
-        show=False,
-        export_areas=True,
-        folder=folder_full,
-        filename="lulc_areas"
+        show=False, export_areas=True, folder=folder_full, filename="lulc_areas"
     )
 
     # proceed by basins
@@ -521,20 +525,20 @@ def VLULC(
             logger.info("{} {:<12} -- basin_{} ...".format(prompt, "processing", b))
             lulc_series.apply_aoi_masks(grid_aoi=basins_dct[b].grid)
             # run sub views
-            logger.info("{} {:<12} -- basin_{} ...".format(prompt, "exporting views", b))
-            # views
-            lulc_series.get_views(
-                show=False,
-                export_areas=False,
-                folder=folder_basin
+            logger.info(
+                "{} {:<12} -- basin_{} ...".format(prompt, "exporting views", b)
             )
-            logger.info("{} {:<12} -- basin_{} ...".format(prompt, "exporting areas", b))
+            # views
+            lulc_series.get_views(show=False, export_areas=False, folder=folder_basin)
+            logger.info(
+                "{} {:<12} -- basin_{} ...".format(prompt, "exporting areas", b)
+            )
             # areas
             lulc_series.view_series_areas(
                 show=False,
                 export_areas=True,
                 folder=folder_basin,
-                filename="lulc_areas_{}".format(b)
+                filename="lulc_areas_{}".format(b),
             )
             lulc_series.release_aoi_masks()
 
@@ -569,7 +573,6 @@ def TSC(
     export_views=False,
     filter_date_start=None,
     filter_date_end=None,
-
 ):
     """Process and analyze ``TSC`` (time series collection) data.
 
@@ -715,8 +718,7 @@ def TSC(
 
     # load from info table
     tsc.load_data(
-        table_file=file_infotable,
-        filter_dates=[filter_date_start, filter_date_end]
+        table_file=file_infotable, filter_dates=[filter_date_start, filter_date_end]
     )
     tsc.datarange_min = datarange_min
     tsc.datarange_max = datarange_max
@@ -724,7 +726,9 @@ def TSC(
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(
-        "{} {} --- elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+        "{} {} --- elapsed time: {} seconds".format(
+            prompt, s_step, round(elapsed_time, 3)
+        )
     )
 
     # ---------------------- PROCESSING ----------------------
@@ -746,7 +750,9 @@ def TSC(
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(
-        "{} {} --- elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+        "{} {} --- elapsed time: {} seconds".format(
+            prompt, s_step, round(elapsed_time, 3)
+        )
     )
 
     # ---------------------- EXPORTING - INPUTS ----------------------
@@ -800,7 +806,9 @@ def TSC(
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(
-        "{} {} --- elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+        "{} {} --- elapsed time: {} seconds".format(
+            prompt, s_step, round(elapsed_time, 3)
+        )
     )
 
     # ---------------------- END ----------------------
@@ -916,7 +924,9 @@ def DTO(
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(
-        "{} {} --- elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+        "{} {} --- elapsed time: {} seconds".format(
+            prompt, s_step, round(elapsed_time, 3)
+        )
     )
 
     # ---------------------- PROCESSING ----------------------
@@ -929,7 +939,9 @@ def DTO(
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(
-        "{} {} --- elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+        "{} {} --- elapsed time: {} seconds".format(
+            prompt, s_step, round(elapsed_time, 3)
+        )
     )
 
     # ---------------------- EXPORTING - INPUTS ----------------------
@@ -989,7 +1001,9 @@ def DTO(
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(
-        "{} {} --- elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+        "{} {} --- elapsed time: {} seconds".format(
+            prompt, s_step, round(elapsed_time, 3)
+        )
     )
 
     # ---------------------- END ----------------------
@@ -1005,10 +1019,5 @@ def DTO(
 if __name__ == "__main__":
     print("HI")
     import matplotlib.pyplot as plt
+
     plt.style.use("seaborn-v0_8")
-
-
-
-
-
-

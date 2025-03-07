@@ -48,7 +48,9 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
+
 import numpy as np
+
 
 def find_array_bbox(image):
     """Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
@@ -71,12 +73,8 @@ def find_array_bbox(image):
     else:
         i_min = i_max = j_min = j_max = None
 
-    return {
-        "i_min": i_min,
-        "i_max": i_max,
-        "j_min": j_min,
-        "j_max": j_max
-    }
+    return {"i_min": i_min, "i_max": i_max, "j_min": j_min, "j_max": j_max}
+
 
 # VECTOR FUNCTIONS
 def extents_to_wkt_box(xmin, ymin, xmax, ymax):
@@ -95,7 +93,9 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     """
     return f"POLYGON(({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
 
+
 # RASTER FUNCTIONS
+
 
 def convert_values(array, old_values, new_values):
     """Convert values
@@ -116,6 +116,7 @@ def convert_values(array, old_values, new_values):
         new = new + (_new * (array == _old))
     return new
 
+
 def reclassify(array, upvalues, classes):
     """Reclassify array based on list of upper values and list of classes values
 
@@ -129,8 +130,11 @@ def reclassify(array, upvalues, classes):
         if i == 0:
             new = new + ((array <= upvalues[i]) * classes[i])
         else:
-            new = new + ((array > upvalues[i - 1]) * (array <= upvalues[i]) * classes[i])
+            new = new + (
+                (array > upvalues[i - 1]) * (array <= upvalues[i]) * classes[i]
+            )
     return new
+
 
 def slope(dem, cellsize, degree=True):
     """Calculate slope using gradient-based algorithms on a 2D numpy array.
@@ -170,6 +174,7 @@ def slope(dem, cellsize, degree=True):
         slope_array = slope_array * 360 / (2 * np.pi)
     return slope_array
 
+
 def euclidean_distance(grd_input):
     """Calculate the Euclidean distance from pixels with value 1.
 
@@ -193,9 +198,11 @@ def euclidean_distance(grd_input):
 
     """
     from scipy.ndimage import distance_transform_edt
-    grd_input = 1 * (grd_input == 0) # reverse foreground values
+
+    grd_input = 1 * (grd_input == 0)  # reverse foreground values
     # Calculate the distance map
     return distance_transform_edt(grd_input)
+
 
 def twi(slope, flowacc, cellsize):
     """Calculate the Topographic Wetness Index (``TWI``).
@@ -231,9 +238,22 @@ def twi(slope, flowacc, cellsize):
 
     """
     # +0.01 is a hack for non-nan values
-    return np.log((flowacc / cellsize)/ (np.tan((slope * np.pi / 180) + 0.01)))
+    return np.log((flowacc / cellsize) / (np.tan((slope * np.pi / 180) + 0.01)))
 
-def shalstab_wetness(flowacc, slope, cellsize, soil_phi, soil_z, soil_c, soil_p, water_p=997, g=9.8, degree=True, kPa=True):
+
+def shalstab_wetness(
+    flowacc,
+    slope,
+    cellsize,
+    soil_phi,
+    soil_z,
+    soil_c,
+    soil_p,
+    water_p=997,
+    g=9.8,
+    degree=True,
+    kPa=True,
+):
     """Calculate the SHALSTAB wetness model
 
     :param flowacc: flow accumulation map (square meters)
@@ -280,9 +300,11 @@ def shalstab_wetness(flowacc, slope, cellsize, soil_phi, soil_z, soil_c, soil_p,
     slope_term = density_r * tan_r
 
     # get force term
-    cohesion_term = soil_c / (np.square(np.cos(slope)) * np.tan(soil_phi) * water_p * g * soil_z)
+    cohesion_term = soil_c / (
+        np.square(np.cos(slope)) * np.tan(soil_phi) * water_p * g * soil_z
+    )
 
-    topo_term =  cellsize  * np.sin(slope) / flowacc
+    topo_term = cellsize * np.sin(slope) / flowacc
 
     # apply full equation
     q_t = topo_term * (slope_term + cohesion_term)
@@ -293,17 +315,18 @@ def shalstab_wetness(flowacc, slope, cellsize, soil_phi, soil_z, soil_c, soil_p,
     shalstab_classes = reclassify(
         array=np.log10(q_t),
         upvalues=np.array([-3.1, -2.8, -2.5, -2.2, 10]),
-        classes=np.array([6, 5, 4, 3, 2])
+        classes=np.array([6, 5, 4, 3, 2]),
     )
 
     # improve id 1 and id 7
-    mask1 = 1 * (np.tan(slope) <= np.tan(soil_phi) * (1 - (1/density_r)))
+    mask1 = 1 * (np.tan(slope) <= np.tan(soil_phi) * (1 - (1 / density_r)))
     mask7 = 1 * (np.tan(soil_phi) > np.tan(slope))
 
-    #shalstab_classes = (shalstab_classes * (mask1 != 1)) + mask1
-    #shalstab_classes = (shalstab_classes * (mask7 != 1)) + (mask7 * 7)
+    # shalstab_classes = (shalstab_classes * (mask1 != 1)) + mask1
+    # shalstab_classes = (shalstab_classes * (mask7 != 1)) + (mask7 * 7)
 
     return q_t, shalstab_classes
+
 
 def usle_l(slope, cellsize):
     """Wischmeier & Smith (1978) L factor
@@ -325,8 +348,13 @@ def usle_l(slope, cellsize):
     """
     slope_rad = np.pi * 2 * slope / 360
     lcl_grad = np.sin(slope_rad)
-    m = reclassify(lcl_grad, upvalues=(0.01, 0.03, 0.05, np.max(lcl_grad)), classes=(0.2, 0.3, 0.4, 0.5))
+    m = reclassify(
+        lcl_grad,
+        upvalues=(0.01, 0.03, 0.05, np.max(lcl_grad)),
+        classes=(0.2, 0.3, 0.4, 0.5),
+    )
     return np.power(np.sqrt(2) * cellsize / 22.13, m)
+
 
 def usle_s(slope):
     """Wischmeier & Smith (1978) S factor
@@ -339,6 +367,7 @@ def usle_s(slope):
     slope_rad = np.pi * 2 * slope / 360
     lcl_grad = np.sin(slope_rad)
     return (65.41 * np.power(lcl_grad, 2)) + (4.56 * lcl_grad) + 0.065
+
 
 def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     """USLE-M Annual Soil Loss (Kinnell & Risse, 1998)
@@ -355,6 +384,7 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     :return: 2d numpy array of Annual Soil Loss in ton / year
     """
     return (q / prec) * r * k * l * s * c * p * (cellsize * cellsize / (100 * 100))
+
 
 def rivers_wedge(grd_rivers, w=3, h=3):
     """Generate a wedge-like trench along the river lines.
@@ -388,7 +418,8 @@ def rivers_wedge(grd_rivers, w=3, h=3):
 
     """
     grd_dist = euclidean_distance(grd_input=grd_rivers)
-    return (((-h/w) * grd_dist) + h) * (grd_dist <= w)
+    return (((-h / w) * grd_dist) + h) * (grd_dist <= w)
+
 
 def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     """Burn a ``DEM`` map with river lines.
@@ -428,7 +459,8 @@ def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     grd_wedge = rivers_wedge(grd_rivers, w=w, h=h)
     return (grd_dem + h) - grd_wedge
 
-def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
+
+def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
     """Compute i and j downstream cell coordinates based on cell flow direction.
 
     D8 - Direction convention:
@@ -479,42 +511,39 @@ def downstream_coordinates(n_dir, i, j, s_convention='ldd'):
     """
     # directions dictionaries
     dct_dirs = {
-        'ldd': {
-            '1': {'di': 1, 'dj': -1},
-            '2': {'di': 1, 'dj':  0},
-            '3': {'di': 1, 'dj':  1},
-            '4': {'di': 0, 'dj': -1},
-            '5': {'di': 0, 'dj':  0},
-            '6': {'di': 0, 'dj':  1},
-            '7': {'di':-1, 'dj': -1},
-            '8': {'di':-1, 'dj':  0},
-            '9': {'di':-1, 'dj':  1}
+        "ldd": {
+            "1": {"di": 1, "dj": -1},
+            "2": {"di": 1, "dj": 0},
+            "3": {"di": 1, "dj": 1},
+            "4": {"di": 0, "dj": -1},
+            "5": {"di": 0, "dj": 0},
+            "6": {"di": 0, "dj": 1},
+            "7": {"di": -1, "dj": -1},
+            "8": {"di": -1, "dj": 0},
+            "9": {"di": -1, "dj": 1},
         },
-        'd8': {
-            '0': {'di': 0, 'dj': 0},
-            '1': {'di': 0, 'dj': 1},
-            '2': {'di':-1, 'dj': 1},
-            '3': {'di':-1, 'dj': 0},
-            '4': {'di':-1, 'dj':-1},
-            '5': {'di': 0, 'dj':-1},
-            '6': {'di': 1, 'dj':-1},
-            '7': {'di': 1, 'dj': 0},
-            '8': {'di': 1, 'dj': 1}
-        }
+        "d8": {
+            "0": {"di": 0, "dj": 0},
+            "1": {"di": 0, "dj": 1},
+            "2": {"di": -1, "dj": 1},
+            "3": {"di": -1, "dj": 0},
+            "4": {"di": -1, "dj": -1},
+            "5": {"di": 0, "dj": -1},
+            "6": {"di": 1, "dj": -1},
+            "7": {"di": 1, "dj": 0},
+            "8": {"di": 1, "dj": 1},
+        },
     }
     # set dir dict
     dct_dir = dct_dirs[s_convention]
-    di = dct_dir[str(n_dir)]['di']
-    dj = dct_dir[str(n_dir)]['dj']
+    di = dct_dir[str(n_dir)]["di"]
+    dj = dct_dir[str(n_dir)]["dj"]
     dist = np.sqrt(np.power(di, 2) + np.power(dj, 2))
-    dct_output = {
-        'i': i + di,
-        'j': j + dj,
-        'distance': dist
-    }
+    dct_output = {"i": i + di, "j": j + dj, "distance": dist}
     return dct_output
 
-def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
+
+def outlet_distance(grd_ldd, n_res=30, s_convention="ldd"):
     """Compute the distance to outlet ``DTO`` raster of a given basin.
 
     :param grd_ldd: 2d numpy array of flow direction LDD
@@ -555,10 +584,7 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
 
     def is_center(ldd):
         # halt
-        dict_halt = {
-            "ldd": 5,
-            "d8": 0
-        }
+        dict_halt = {"ldd": 5, "d8": 0}
         if ldd == dict_halt[s_convention]:
             return True
         else:
@@ -567,7 +593,7 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
     # compute total number of cells:
     n_total = grd_ldd.size
     # deploy out distance raster
-    grd_outdist = -1 * np.ones(shape=np.shape(grd_ldd), dtype='float32')
+    grd_outdist = -1 * np.ones(shape=np.shape(grd_ldd), dtype="float32")
     # set loop parameters
     n_rows = np.shape(grd_ldd)[0]
     n_cols = np.shape(grd_ldd)[1]
@@ -594,10 +620,11 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
                         n_dir=lcl_ldd,
                         i=i_current,
                         j=j_current,
-                        s_convention=s_convention)
-                    i_next = dct_out['i']
-                    j_next = dct_out['j']
-                    n_dist = dct_out['distance']
+                        s_convention=s_convention,
+                    )
+                    i_next = dct_out["i"]
+                    j_next = dct_out["j"]
+                    n_dist = dct_out["distance"]
                     # append to queue
                     if n_trace_count == 0:
                         list_accdist.append(n_dist)
@@ -638,4 +665,3 @@ def outlet_distance(grd_ldd, n_res=30, s_convention='ldd'):
             else:
                 pass
     return n_res * grd_outdist
-

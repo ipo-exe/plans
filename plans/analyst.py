@@ -45,12 +45,14 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from plans.root import DataSet
 import os
+
 
 # --------- Functions -----------
 def linear(x, c0, c1):
@@ -67,6 +69,7 @@ def linear(x, c0, c1):
     """
     return c0 + (x * c1)
 
+
 def power(x, c0, c1, c2):
     """Power function f(x) =  c2 * ((x + c0)^c1)
 
@@ -82,6 +85,7 @@ def power(x, c0, c1, c2):
     :rtype: float | :class:`numpy.ndarray`
     """
     return c2 * (np.power((x + c0), c1))
+
 
 def power_zero(x, c0, c1):
     """Power function with root in zero f(x) =  c1 * ((x)^c0)
@@ -102,8 +106,7 @@ def power_zero(x, c0, c1):
 
 
 class Univar(DataSet):
-    """The Univariate object
-    """
+    """The Univariate object"""
 
     def __init__(self, name="MyUnivar", alias="Uv0"):
         # ------------ set defaults ----------- #
@@ -170,6 +173,7 @@ class Univar(DataSet):
 
         # ... continues in downstream objects ... #
         return None
+
     # Assessing methods
 
     def assess_normality(self, clevel=0.95):
@@ -265,13 +269,10 @@ class Univar(DataSet):
             "p90": np.percentile(data, 90),
             "p95": np.percentile(data, 95),
             "p99": np.percentile(data, 99),
-            "Max": np.max(data)
+            "Max": np.max(data),
         }
         df_result = pd.DataFrame(
-            {
-                "Statistic": list(dct.keys()),
-                "Value": [dct[key] for key in dct]
-            }
+            {"Statistic": list(dct.keys()), "Value": [dct[key] for key in dct]}
         )
         return df_result
 
@@ -289,13 +290,7 @@ class Univar(DataSet):
         vr = v[::-1]
         r = np.arange(0, len(x)) + 1
         px = Univar.weibull_px(ranks=r)
-        result_df = pd.DataFrame(
-            {
-                "Data": vr,
-                "P(X)": px,
-                "F(X)": 1 - px
-            }
-        )
+        result_df = pd.DataFrame({"Data": vr, "P(X)": px, "F(X)": 1 - px})
         return result_df
 
     def assess_gumbel_cdf(self):
@@ -305,6 +300,7 @@ class Univar(DataSet):
         :rtype: dict
         """
         from scipy import stats
+
         # clean data
         df = self.data.dropna()
 
@@ -326,9 +322,7 @@ class Univar(DataSet):
 
         # compute fit gumbel values
         df["P(X)_Gumbel"] = 1 - Univar.gumbel_fx(
-            x=df[self.varfield].values,
-            a=gumbel_a,
-            b=gumbel_b
+            x=df[self.varfield].values, a=gumbel_a, b=gumbel_b
         )
         # return period
         df["T(X)_Gumbel"] = 1 / df["P(X)_Gumbel"]
@@ -338,7 +332,7 @@ class Univar(DataSet):
         gumbel_se = Univar.gumbel_se(
             std_sample=np.std(a=df[self.varfield].values),
             n_sample=len(df),
-            tx=df["T(X)_Gumbel"]
+            tx=df["T(X)_Gumbel"],
         )
         # Standar error analysis
         df["T(X)_Gumbel_SE90"] = t * gumbel_se
@@ -358,9 +352,7 @@ class Univar(DataSet):
 
         # get standard error
         gumbel_se = Univar.gumbel_se(
-            std_sample=np.std(a=df[self.varfield]),
-            n_sample=len(df),
-            tx=txs
+            std_sample=np.std(a=df[self.varfield]), n_sample=len(df), tx=txs
         )
         # compute 50% uncertainty bands by Student's t distribution
         t_50 = stats.t.ppf((1 + 0.5) / 2, df=len(df) - 1)
@@ -384,23 +376,14 @@ class Univar(DataSet):
 
         # -------- QQ plots
         qq, qq_params = stats.probplot(
-            x=df[self.varfield].values,
-            dist="gumbel_r",
-            sparams=params
+            x=df[self.varfield].values, dist="gumbel_r", sparams=params
         )
         # Set QQ dataframe
-        df_qq = pd.DataFrame(
-            {
-                self.varfield: qq[1],
-                "T-Q": qq[0]
-            }
-        )
+        df_qq = pd.DataFrame({self.varfield: qq[1], "T-Q": qq[0]})
 
         # -------- Goodness of fit tests
         ks_stat, ks_p_value = stats.kstest(
-            df[self.varfield].values,
-            cdf='gumbel_r',
-            args=params
+            df[self.varfield].values, cdf="gumbel_r", args=params
         )
         # accept Null Hypothesis
         is_gumbel = True
@@ -419,7 +402,7 @@ class Univar(DataSet):
                     "KS-test Is Gumbel (NullH)",
                     "QQ-plot c0",
                     "QQ plot c1",
-                    "QQ-plot r2"
+                    "QQ-plot r2",
                 ],
                 "Value": [
                     len(df),
@@ -430,17 +413,12 @@ class Univar(DataSet):
                     is_gumbel,
                     qq_params[1],
                     qq_params[0],
-                    qq_params[2]
-                ]
+                    qq_params[2],
+                ],
             }
         )
 
-        return {
-            "Data": df,
-            "Data_T(X)": df_tx,
-            "Data_QQ": df_qq,
-            "Metadata": df_meta
-        }
+        return {"Data": df, "Data_T(X)": df_tx, "Data_QQ": df_qq, "Metadata": df_meta}
 
     # Plotting methods
 
@@ -492,13 +470,16 @@ class Univar(DataSet):
             "height": 4,
             "xlabel": "value",
             "ylim": (0, 0.1),
-            "xlim": (0.95 * np.min(self.data[self.varfield]), 1.05 * np.max(self.data[self.varfield])),
+            "xlim": (
+                0.95 * np.min(self.data[self.varfield]),
+                1.05 * np.max(self.data[self.varfield]),
+            ),
             "subtitle": None,
             "cmap": "viridis",
             "colors": None,
             "n_classes": 5,
             "grid": False,
-            "quantiles": True
+            "quantiles": True,
         }
         # handle input specs
         if specs is None:
@@ -524,10 +505,16 @@ class Univar(DataSet):
         if specs["quantiles"]:
             quantiles = data.quantile(np.linspace(0, 1, specs["n_classes"] + 1))
         else:
-            quantiles = pd.Series(np.linspace(start=data.min(), stop=data.max(), num=specs["n_classes"] + 1))
+            quantiles = pd.Series(
+                np.linspace(
+                    start=data.min(), stop=data.max(), num=specs["n_classes"] + 1
+                )
+            )
 
         # Determine the overall bin width you desire
-        bin_width = (data.max() - data.min()) / bins  # for example, 40 equal width bins across the data range
+        bin_width = (
+            data.max() - data.min()
+        ) / bins  # for example, 40 equal width bins across the data range
         # handle colored plots
         if colored:
             if specs["colors"] is None:
@@ -538,27 +525,30 @@ class Univar(DataSet):
 
             # Create the bins
             binsv = np.arange(start=data.min(), stop=data.max(), step=bin_width)
-            binsv = np.append(binsv, data.max())  # Ensure the last bin includes the max value
+            binsv = np.append(
+                binsv, data.max()
+            )  # Ensure the last bin includes the max value
 
             # Plot the histogram
             n, bins, patches = plt.hist(
                 self.data,
                 bins=binsv,
                 linewidth=0,
-                weights=np.ones(len(self.data)) / len(self.data),)
+                weights=np.ones(len(self.data)) / len(self.data),
+            )
 
             # Color the bars based on the quantile
             for patch, edge in zip(patches, bins[:-1]):
                 if edge < quantiles.values[1]:
-                    plt.setp(patch, 'facecolor', colors[0])
+                    plt.setp(patch, "facecolor", colors[0])
                 elif edge < quantiles.values[2]:
-                    plt.setp(patch, 'facecolor', colors[1])
+                    plt.setp(patch, "facecolor", colors[1])
                 elif edge < quantiles.values[3]:
-                    plt.setp(patch, 'facecolor', colors[2])
+                    plt.setp(patch, "facecolor", colors[2])
                 elif edge < quantiles.values[4]:
-                    plt.setp(patch, 'facecolor', colors[3])
+                    plt.setp(patch, "facecolor", colors[3])
                 else:
-                    plt.setp(patch, 'facecolor', colors[4])
+                    plt.setp(patch, "facecolor", colors[4])
         else:
             plt.hist(
                 self.data,
@@ -573,22 +563,41 @@ class Univar(DataSet):
         plt.grid(specs["grid"])
         # Optionally, add vertical lines for each quantile and annotate them
         mu = np.mean(self.data)
-        plt.axvline(mu, color='r', linestyle='dashed', linewidth=1)
-        plt.text(mu, plt.gca().get_ylim()[1] * 0.92, f'$\mu$ = {mu:.1f}',
-                 ha='left', va='bottom', fontsize=10, rotation=0, color="red")
+        plt.axvline(mu, color="r", linestyle="dashed", linewidth=1)
+        plt.text(
+            mu,
+            plt.gca().get_ylim()[1] * 0.92,
+            f"$\mu$ = {mu:.1f}",
+            ha="left",
+            va="bottom",
+            fontsize=10,
+            rotation=0,
+            color="red",
+        )
         if annotated:
             aux = 0
             for q in quantiles:
-                plt.axvline(q, color='k', linestyle='dashed', linewidth=1)
-                plt.text(q, plt.gca().get_ylim()[1] * (0.9 - aux), f'{q:.1f}',
-                         ha='right', va='bottom', fontsize=10, rotation=0)
+                plt.axvline(q, color="k", linestyle="dashed", linewidth=1)
+                plt.text(
+                    q,
+                    plt.gca().get_ylim()[1] * (0.9 - aux),
+                    f"{q:.1f}",
+                    ha="right",
+                    va="bottom",
+                    fontsize=10,
+                    rotation=0,
+                )
                 aux = aux + 0.05
-        #plt.tight_layout()
+        # plt.tight_layout()
         # show or save
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi, bbox_inches='tight')
+            plt.savefig(
+                "{}/{}_{}.png".format(folder, self.name, filename),
+                dpi=dpi,
+                bbox_inches="tight",
+            )
 
     def _set_view_specs(self):
         """Set view specifications.
@@ -621,10 +630,15 @@ class Univar(DataSet):
             "subtitle_b": None,
             "subtitle_c": None,
             "plot_grid": False,
-            "hist_density": False
+            "hist_density": False,
+            "gs_wspace": 0.4,
+            "gs_hspace": 0.1,
+            "gs_left": 0.08,
+            "gs_right": 0.98,
+            "gs_bottom": 0.2,
+            "gs_top": 0.88,
         }
         return None
-
 
     def view(self, show=True, return_fig=False):
         """Get a basic visualization.
@@ -645,13 +659,14 @@ class Univar(DataSet):
         plt.suptitle(specs["title"])
         # grid
         gs = mpl.gridspec.GridSpec(
-            1, 5,
-            wspace=0.6,
-            hspace=0.5,
-            left=0.1,
-            right=0.98,
-            bottom=0.20,
-            top=0.85
+            1,
+            5,
+            wspace=specs["gs_wspace"],
+            hspace=specs["gs_hspace"],
+            left=specs["gs_left"],
+            right=specs["gs_right"],
+            bottom=specs["gs_bottom"],
+            top=specs["gs_top"],
         )  # nrows, ncols
 
         # ------------ scatter plot ------------
@@ -661,7 +676,7 @@ class Univar(DataSet):
             self.data[self.varfield].values,
             marker=".",
             color="tab:grey",
-            alpha=specs["alpha"]
+            alpha=specs["alpha"],
         )
         if specs["subtitle_a"] is not None:
             plt.title(specs["subtitle_a"])
@@ -683,7 +698,7 @@ class Univar(DataSet):
             color=specs["color_b"],
             alpha=1,
             orientation="horizontal",
-            density=specs["hist_density"]
+            density=specs["hist_density"],
         )
         if specs["subtitle_b"] is not None:
             plt.title(specs["subtitle_b"])
@@ -695,9 +710,7 @@ class Univar(DataSet):
         # ------------ cdf ------------
         ax3 = fig.add_subplot(gs[0, 4], sharey=ax)
         plt.plot(
-            self.weibull_df["P(X)"],
-            self.weibull_df["Data"],
-            color=specs["color_c"]
+            self.weibull_df["P(X)"], self.weibull_df["Data"], color=specs["color_c"]
         )
         if specs["subtitle_c"] is not None:
             plt.title(specs["subtitle_c"])
@@ -717,7 +730,6 @@ class Univar(DataSet):
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
             return file_path
-
 
     def plot_qqplot(
         self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
@@ -859,11 +871,7 @@ class Univar(DataSet):
         stat, p = shapiro(data)
 
         return Univar.test_distribution(
-            test_name="Shapiro-Wilk",
-            stat=stat,
-            p=p,
-            clevel=clevel,
-            distr="normal"
+            test_name="Shapiro-Wilk", stat=stat, p=p, clevel=clevel, distr="normal"
         )
 
     @staticmethod
@@ -885,7 +893,7 @@ class Univar(DataSet):
             stat=stat,
             p=p,
             clevel=clevel,
-            distr="normal"
+            distr="normal",
         )
 
     @staticmethod
@@ -913,8 +921,8 @@ class Univar(DataSet):
         :rtype: float | :class:`numpy.ndarray`
         """
         aux_1 = (x - a) / b
-        aux_2 = np.exp(- aux_1)
-        g_fx = np.exp(- aux_2)
+        aux_2 = np.exp(-aux_1)
+        g_fx = np.exp(-aux_2)
         return g_fx
 
     @staticmethod
@@ -946,7 +954,7 @@ class Univar(DataSet):
         aux2 = np.log(aux1)
         aux3 = np.log(aux2)
         aux4 = 0.5772 + aux3
-        aux5 = - np.sqrt(6) * aux4 / np.pi
+        aux5 = -np.sqrt(6) * aux4 / np.pi
         return aux5
 
     @staticmethod
@@ -967,8 +975,6 @@ class Univar(DataSet):
         aux2 = 1 + (1.14 * k) + (1.1 * np.square(k))
         aux3 = np.sqrt(aux2)
         return aux1 * aux3
-
-
 
     @staticmethod
     def empirical_px(ranks):
@@ -1109,8 +1115,7 @@ class Univar(DataSet):
         _df = pd.DataFrame(
             {
                 "Data": np.sort(data),
-                "E-Quantiles": (np.arange(1, len(data) + 1) - 0.5)
-                / len(data),
+                "E-Quantiles": (np.arange(1, len(data) + 1) - 0.5) / len(data),
             }
         )
         # get theoretical
@@ -1165,54 +1170,42 @@ class Bivar:
                 "Function": linear,
                 "Formula": "f(x) = c0 + c1 * x",
                 "Setup": pd.DataFrame(
-                    {
-                        "Parameters": ["c_0", "c_1"],
-                        "Mean": [0, 1],
-                        "SD": [0.1, 0.1]
-                    }
+                    {"Parameters": ["c_0", "c_1"], "Mean": [0, 1], "SD": [0.1, 0.1]}
                 ),
                 "Data": None,
-                "RMSE": None
+                "RMSE": None,
             },
-            "Power":{
+            "Power": {
                 "Function": power,
                 "Formula": "f(x) =  c2 * ((x + c0)^c1)",
                 "Setup": pd.DataFrame(
                     {
                         "Parameters": ["c_0", "c_1", "c_2"],
                         "Mean": [0, 1, 1],
-                        "SD": [0.1, 0.1, 0.1]
+                        "SD": [0.1, 0.1, 0.1],
                     }
                 ),
                 "Data": None,
-                "RMSE": None
+                "RMSE": None,
             },
             "Power_zero": {
                 "Function": power_zero,
                 "Formula": "f(x) =  c1 * (x^c0)",
                 "Setup": pd.DataFrame(
-                    {
-                        "Parameters": ["c_0", "c_1"],
-                        "Mean": [1, 1],
-                        "SD": [0.1, 0.1]
-                    }
+                    {"Parameters": ["c_0", "c_1"], "Mean": [1, 1], "SD": [0.1, 0.1]}
                 ),
                 "Data": None,
-                "RMSE": None
+                "RMSE": None,
             },
             "Gumbel": {
                 "Function": gumbel,
                 "Formula": "f(x) =  exp(-exp(-((x-a)/b)))",
                 "Setup": pd.DataFrame(
-                    {
-                        "Parameters": ["a", "b"],
-                        "Mean": [1, 1],
-                        "SD": [0.1, 0.1]
-                    }
+                    {"Parameters": ["a", "b"], "Mean": [1, 1], "SD": [0.1, 0.1]}
                 ),
                 "Data": None,
-                "RMSE": None
-            }
+                "RMSE": None,
+            },
         }
 
     def fit(self, model_type="Linear"):
@@ -1224,6 +1217,7 @@ class Bivar:
         :rtype: None
         """
         from scipy.optimize import curve_fit
+
         popt, pcov = curve_fit(
             f=self.models[model_type]["Function"],
             xdata=self.data[self.xname],
@@ -1272,16 +1266,24 @@ class Bivar:
         _df = self.data.copy()
         s_ymodel = "{}_Mean".format(self.yname)
         # compute model on sample:
-        _df[s_ymodel] = self.models[model_type]["Function"](self.data[self.xname], *popt)
+        _df[s_ymodel] = self.models[model_type]["Function"](
+            self.data[self.xname], *popt
+        )
         # compute error
-        _df["e_Mean".format(model_type)] = (_df[s_ymodel] - _df[self.yname])
+        _df["e_Mean".format(model_type)] = _df[s_ymodel] - _df[self.yname]
         # set attribute
         self.models[model_type]["Data"] = _df.copy()
         del _df
         return None
 
     def view(
-        self, show=True, folder="C:/sample", filename="view", specs=None, fig_format="jpg", dpi=300
+        self,
+        show=True,
+        folder="C:/sample",
+        filename="view",
+        specs=None,
+        fig_format="jpg",
+        dpi=300,
     ):
         """Plot basic view of Bivar base_object
 
@@ -1387,7 +1389,7 @@ class Bivar:
         filename=None,
         specs=None,
         dpi=300,
-        fig_format="jpg"
+        fig_format="jpg",
     ):
         """Plot pannel for model analysis
 
@@ -1423,10 +1425,10 @@ class Bivar:
             "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
             "elim": [
                 -1.5 * self.models[model_type]["Data"]["e_Mean"].max(),
-                1.5 * self.models[model_type]["Data"]["e_Mean"].max()
+                1.5 * self.models[model_type]["Data"]["e_Mean"].max(),
             ],
             "alpha_xy": 0.75,
-            "alpha_e": 0.75
+            "alpha_e": 0.75,
         }
         # handle input specs
         if specs is None:
@@ -1466,7 +1468,7 @@ class Bivar:
             self.models[model_type]["Data"]["{}_Mean".format(self.yname)],
             color=specs["color_model"],
             zorder=2,
-            linestyle="--"
+            linestyle="--",
         )
         plt.xlabel(self.xname)
         plt.ylabel(self.yname)
@@ -1492,13 +1494,13 @@ class Bivar:
             xmin=specs["xlim"][0],
             xmax=specs["xlim"][1],
             color="tab:red",
-            alpha=0.4
+            alpha=0.4,
         )
         plt.text(
             y=e_mean + e_range_10,
             x=specs["xlim"][1] - (3 * x_range_10),
             s="$\mu$: " + str(round(e_mean, 2)),
-            color="tab:red"
+            color="tab:red",
         )
         plt.xlabel(self.xname)
         plt.ylabel("$\epsilon$")
@@ -1516,13 +1518,7 @@ class Bivar:
             weights=np.ones(len(self.data)) / len(self.data),
         )
         # mean line
-        plt.hlines(
-            y=e_mean,
-            xmin=0,
-            xmax=0.15,
-            color="tab:red",
-            alpha=0.4
-        )
+        plt.hlines(y=e_mean, xmin=0, xmax=0.15, color="tab:red", alpha=0.4)
         plt.ylim(specs["elim"])
         plt.xlabel("p($\epsilon$)")
 
@@ -1542,7 +1538,7 @@ class Bivar:
             xmin=df_qq["T-Quantiles"].min(),
             xmax=df_qq["T-Quantiles"].max(),
             color="tab:red",
-            alpha=0.4
+            alpha=0.4,
         )
         plt.ylim(specs["elim"])
         plt.xlabel("normal quantiles")
@@ -1581,12 +1577,7 @@ class Bivar:
         return corr_df
 
     def prediction_bands(
-            self,
-            lst_bounds=None,
-            n_sim=100,
-            n_grid=100,
-            n_seed=None,
-            p0=None
+        self, lst_bounds=None, n_sim=100, n_grid=100, n_seed=None, p0=None
     ):
         """Run Monte Carlo Simulation to get prediciton bands
 
@@ -1604,6 +1595,7 @@ class Bivar:
         :rtype: dict
         """
         from scipy.optimize import curve_fit
+
         # todo this seems to be deprecated
         # handle None bounds
         if lst_bounds is None:
@@ -1614,6 +1606,7 @@ class Bivar:
         # handle None seed
         if n_seed is None:
             from datetime import datetime
+
             _seed = int(datetime.now().timestamp())
             n_seed = np.random.seed(_seed)
 
@@ -1688,9 +1681,7 @@ class Bivar:
             # fit new model
             if p0 is None:
                 popt, pcov = curve_fit(
-                    f=linear,
-                    xdata=self.linear_model_data[self.xname],
-                    ydata=vct_yobs
+                    f=linear, xdata=self.linear_model_data[self.xname], ydata=vct_yobs
                 )
             else:
                 popt, pcov = curve_fit(
@@ -1729,13 +1720,9 @@ class Bivar:
             df_bands["p99"].values[i] = np.quantile(_values, 0.99)
 
         # return base_object
-        return {
-            "Models": df_models,
-            "Predictions": df_preds,
-            "Bands": df_bands
-        }
+        return {"Models": df_models, "Predictions": df_preds, "Bands": df_bands}
 
-    def assess_error_normality(self, model_type="Linear",clevel=0.95):
+    def assess_error_normality(self, model_type="Linear", clevel=0.95):
         self.updata_model_data(model_type=model_type)
         vct_e = self.models[model_type]["Data"]["e_Mean"].values
         uni = Univar(data=vct_e, name=self.name)
@@ -1770,7 +1757,7 @@ class Bivar:
         :return: RMSE value
         :rtype: float
         """
-        return  np.sqrt(np.sum(np.power(pred - obs, 2)) / len(pred))
+        return np.sqrt(np.sum(np.power(pred - obs, 2)) / len(pred))
 
     @staticmethod
     def mae(pred, obs):
@@ -1800,8 +1787,9 @@ class Bivar:
         :return: R-square value
         :rtype: float
         """
-        return 1 - (np.sum(np.power(pred - obs, 2)) / np.sum(np.power(obs - np.mean(obs), 2)))
-
+        return 1 - (
+            np.sum(np.power(pred - obs, 2)) / np.sum(np.power(obs - np.mean(obs), 2))
+        )
 
 
 class Bayes:
@@ -2150,6 +2138,7 @@ class Bayes:
 
 # ----- DEPRECATED CLASSES -----
 
+
 class _Univar:
     """[Deprecated]
     The Univariate Analyst Object
@@ -2323,7 +2312,7 @@ class _Univar:
             "colors": None,
             "n_classes": 5,
             "grid": False,
-            "quantiles": True
+            "quantiles": True,
         }
         # handle input specs
         if specs is None:
@@ -2349,10 +2338,16 @@ class _Univar:
         if specs["quantiles"]:
             quantiles = data.quantile(np.linspace(0, 1, specs["n_classes"] + 1))
         else:
-            quantiles = pd.Series(np.linspace(start=data.min(), stop=data.max(), num=specs["n_classes"] + 1))
+            quantiles = pd.Series(
+                np.linspace(
+                    start=data.min(), stop=data.max(), num=specs["n_classes"] + 1
+                )
+            )
 
         # Determine the overall bin width you desire
-        bin_width = (data.max() - data.min()) / bins  # for example, 40 equal width bins across the data range
+        bin_width = (
+            data.max() - data.min()
+        ) / bins  # for example, 40 equal width bins across the data range
         # handle colored plots
         if colored:
             if specs["colors"] is None:
@@ -2363,27 +2358,30 @@ class _Univar:
 
             # Create the bins
             binsv = np.arange(start=data.min(), stop=data.max(), step=bin_width)
-            binsv = np.append(binsv, data.max())  # Ensure the last bin includes the max value
+            binsv = np.append(
+                binsv, data.max()
+            )  # Ensure the last bin includes the max value
 
             # Plot the histogram
             n, bins, patches = plt.hist(
                 self.data,
                 bins=binsv,
                 linewidth=0,
-                weights=np.ones(len(self.data)) / len(self.data),)
+                weights=np.ones(len(self.data)) / len(self.data),
+            )
 
             # Color the bars based on the quantile
             for patch, edge in zip(patches, bins[:-1]):
                 if edge < quantiles.values[1]:
-                    plt.setp(patch, 'facecolor', colors[0])
+                    plt.setp(patch, "facecolor", colors[0])
                 elif edge < quantiles.values[2]:
-                    plt.setp(patch, 'facecolor', colors[1])
+                    plt.setp(patch, "facecolor", colors[1])
                 elif edge < quantiles.values[3]:
-                    plt.setp(patch, 'facecolor', colors[2])
+                    plt.setp(patch, "facecolor", colors[2])
                 elif edge < quantiles.values[4]:
-                    plt.setp(patch, 'facecolor', colors[3])
+                    plt.setp(patch, "facecolor", colors[3])
                 else:
-                    plt.setp(patch, 'facecolor', colors[4])
+                    plt.setp(patch, "facecolor", colors[4])
         else:
             plt.hist(
                 self.data,
@@ -2398,26 +2396,43 @@ class _Univar:
         plt.grid(specs["grid"])
         # Optionally, add vertical lines for each quantile and annotate them
         mu = np.mean(self.data)
-        plt.axvline(mu, color='r', linestyle='dashed', linewidth=1)
-        plt.text(mu, plt.gca().get_ylim()[1] * 0.92, f'$\mu$ = {mu:.1f}',
-                 ha='left', va='bottom', fontsize=10, rotation=0, color="red")
+        plt.axvline(mu, color="r", linestyle="dashed", linewidth=1)
+        plt.text(
+            mu,
+            plt.gca().get_ylim()[1] * 0.92,
+            f"$\mu$ = {mu:.1f}",
+            ha="left",
+            va="bottom",
+            fontsize=10,
+            rotation=0,
+            color="red",
+        )
         if annotated:
             aux = 0
             for q in quantiles:
-                plt.axvline(q, color='k', linestyle='dashed', linewidth=1)
-                plt.text(q, plt.gca().get_ylim()[1] * (0.9 - aux), f'{q:.1f}',
-                         ha='right', va='bottom', fontsize=10, rotation=0)
+                plt.axvline(q, color="k", linestyle="dashed", linewidth=1)
+                plt.text(
+                    q,
+                    plt.gca().get_ylim()[1] * (0.9 - aux),
+                    f"{q:.1f}",
+                    ha="right",
+                    va="bottom",
+                    fontsize=10,
+                    rotation=0,
+                )
                 aux = aux + 0.05
-        #plt.tight_layout()
+        # plt.tight_layout()
         # show or save
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi, bbox_inches='tight')
+            plt.savefig(
+                "{}/{}_{}.png".format(folder, self.name, filename),
+                dpi=dpi,
+                bbox_inches="tight",
+            )
 
-    def view(
-        self, show=True, folder="C:/sample", filename="view", specs=None, dpi=300
-    ):
+    def view(self, show=True, folder="C:/sample", filename="view", specs=None, dpi=300):
         """Plot basic view of sample
 
         :param show: Boolean to show instead of saving
@@ -2488,7 +2503,11 @@ class _Univar:
         if show:
             plt.show()
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi, bbox_inches='tight')
+            plt.savefig(
+                "{}/{}_{}.png".format(folder, self.name, filename),
+                dpi=dpi,
+                bbox_inches="tight",
+            )
 
     def plot_qqplot(
         self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
@@ -2621,11 +2640,7 @@ class _Univar:
         stat, p = shapiro(self.data)
 
         return self._distribution_test(
-            test_name="Shapiro-Wilk",
-            stat=stat,
-            p=p,
-            clevel=clevel,
-            distr="normal"
+            test_name="Shapiro-Wilk", stat=stat, p=p, clevel=clevel, distr="normal"
         )
 
     def test_dagostino_pearson(self, clevel=0.95):
@@ -2644,7 +2659,7 @@ class _Univar:
             stat=stat,
             p=p,
             clevel=clevel,
-            distr="normal"
+            distr="normal",
         )
 
     def assess_normality(self, clevel=0.95):
@@ -2722,17 +2737,12 @@ class _Univar:
             "p90": np.percentile(self.data, 90),
             "p95": np.percentile(self.data, 95),
             "p99": np.percentile(self.data, 99),
-            "Max": np.max(self.data)
+            "Max": np.max(self.data),
         }
         df_result = pd.DataFrame(
-            {
-                "Statistic": list(dct.keys()),
-                "Value": [dct[key] for key in dct]
-            }
+            {"Statistic": list(dct.keys()), "Value": [dct[key] for key in dct]}
         )
         return df_result
-
-
 
 
 if __name__ == "__main__":

@@ -50,10 +50,12 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
+
 import os, shutil, glob
 import pandas as pd
 from plans import ds
 from plans.root import FileSys
+
 
 def get_file_size_mb(file_path):
     """Util for getting the file size in MB
@@ -69,6 +71,7 @@ def get_file_size_mb(file_path):
     file_size_mb = file_size_bytes / (1024 * 1024)
     return file_size_mb
 
+
 def make_dir(str_path):
     """Util function for making a diretory
 
@@ -82,6 +85,7 @@ def make_dir(str_path):
     else:
         os.mkdir(str_path)
     return None
+
 
 def fill_dir_strucuture(dict_struct, local_root):
     """Recursive function for filling a directory structure
@@ -99,10 +103,7 @@ def fill_dir_strucuture(dict_struct, local_root):
             _d = local_root + "/" + k
             make_dir(str_path=_d)
             # now move down:
-            fill_dir_strucuture(
-                dict_struct=dict_struct[k],
-                local_root=_d
-            )
+            fill_dir_strucuture(dict_struct=dict_struct[k], local_root=_d)
         else:  # is file
             pass
     return None
@@ -129,15 +130,15 @@ class Project(FileSys):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        self.data = pd.read_csv(
-            file_data,
-            sep=self.file_data_sep
-        )
+        self.data = pd.read_csv(file_data, sep=self.file_data_sep)
 
         # -------------- post-loading logic -------------- #
-        self.data = self.data[["Folder","File","Format","File_Source",'Folder_Source']].copy()
+        self.data = self.data[
+            ["Folder", "File", "Format", "File_Source", "Folder_Source"]
+        ].copy()
 
         return None
+
 
 class Project_(FileSys):
 
@@ -161,14 +162,13 @@ class Project_(FileSys):
         self.structure = self.get_structure()
 
         self.topo_status = None
-        #self.update_status_topo()
+        # self.update_status_topo()
 
         self.topo = None
         self.soil = None
         self.lulc = None
         self.et = None
         self.ndvi = None
-
 
     def download_datasets(self, zip_url):
         """Download datasets from a URL. The download is expected to be a ZIP file. Note: requests library is required
@@ -179,13 +179,14 @@ class Project_(FileSys):
         :rtype: None
         """
         import requests
+
         # 1) download to main folder
         print("Downloading datasets from URL...")
         response = requests.get(zip_url)
         # just in case of any problem
         response.raise_for_status()
         _s_zipfile = "{}/samples.zip".format(self.path_main)
-        with open(_s_zipfile, 'wb') as file:
+        with open(_s_zipfile, "wb") as file:
             file.write(response.content)
         # 2) extract to datasets folder
         self.extract_datasets(zip_file=_s_zipfile, remove=True)
@@ -197,7 +198,9 @@ class Project_(FileSys):
         :return: None
         :rtype: None
         """
-        zip_url = "https://zenodo.org/record/8217681/files/default_samples.zip?download=1"
+        zip_url = (
+            "https://zenodo.org/record/8217681/files/default_samples.zip?download=1"
+        )
         self.download_datasets(zip_url=zip_url)
         return None
 
@@ -212,8 +215,9 @@ class Project_(FileSys):
         :rtype: None
         """
         import zipfile
+
         print("Unzipping dataset files...")
-        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(self.path_ds)
         # 3) delete zip file
         if remove:
@@ -222,9 +226,8 @@ class Project_(FileSys):
 
 
 if __name__ == "__main__":
-    #import matplotlib.pyplot as plt
-    #plt.style.use("seaborn-v0_8")
-
+    # import matplotlib.pyplot as plt
+    # plt.style.use("seaborn-v0_8")
 
     p = Project(name="arles", folder_base="C:/data")
 

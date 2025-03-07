@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from plans.analyst import Bivar
 
+
 def _timer(t_start, t_end, dt):
     # datetime setup
     dtindex = pd.date_range(t_start, t_end, freq="{}H".format(dt))
@@ -11,12 +12,13 @@ def _timer(t_start, t_end, dt):
     t_nsol = dt * np.linspace(0, len(dtindex), len(dtindex))
     return dtindex, t_nsol
 
+
 def linear_bucket(
     s1_t0=10,
-    k2=1, # in hours
+    k2=1,  # in hours
     t_start="2020-01-01 00:00:0.00",
     t_end="2020-01-02 00:00:0.00",
-    dt=1 # in hours
+    dt=1,  # in hours
 ):
     # datetime setup
     dtindex, t_nsol = _timer(t_start=t_start, t_end=t_end, dt=dt)
@@ -26,7 +28,7 @@ def linear_bucket(
     s_nsol[0] = s1_t0
 
     for t in range(1, len(t_nsol)):
-        s_nsol[t] = s_nsol[t-1] - ((1/k2) * s_nsol[t-1] * dt)
+        s_nsol[t] = s_nsol[t - 1] - ((1 / k2) * s_nsol[t - 1] * dt)
 
     # get analytical solution
     s_asol = s1_t0 * np.exp(-t_nsol / k2)
@@ -61,8 +63,7 @@ def single_stock(
     m2=0,
     t_start="2020-01-01 00:00:0.00",
     t_end="2020-01-02 00:00:0.00",
-    dt=1  # in hours
-
+    dt=1,  # in hours
 ):
     # datetime setup
     dtindex, t_nsol = _timer(t_start=t_start, t_end=t_end, dt=dt)
@@ -78,8 +79,8 @@ def single_stock(
     s_nsol[0] = s1_t0
 
     for t in range(1, len(t_nsol)):
-        i_nsol[t - 1] = (1 / k1) * np.exp(m1 * s_nsol[t - 1])  * s_nsol[t - 1]
-        o_nsol[t - 1] = (1 / k2) * np.exp(m2 * s_nsol[t - 1])  * s_nsol[t - 1]
+        i_nsol[t - 1] = (1 / k1) * np.exp(m1 * s_nsol[t - 1]) * s_nsol[t - 1]
+        o_nsol[t - 1] = (1 / k2) * np.exp(m2 * s_nsol[t - 1]) * s_nsol[t - 1]
         s_nsol[t] = s_nsol[t - 1] + i_nsol[t - 1] * dt - o_nsol[t - 1] * dt
 
     df_out = pd.DataFrame(
@@ -103,8 +104,7 @@ def single_stock(
     return dict_output
 
 
-
-class SingleStock():
+class SingleStock:
 
     def __init__(self):
         self.varalias = "S"
@@ -113,14 +113,14 @@ class SingleStock():
         # INPUT parameters
         self.b1 = True
         self.k1 = 5  # in hours
-        self.m1 = 0.0 # in level^-1
+        self.m1 = 0.0  # in level^-1
         # OUTPUT parameters
         self.b2 = True
-        self.k2 = 20 # in hours
+        self.k2 = 20  # in hours
         self.m2 = 0.0
         self.start = "2020-01-01 00:00:0.00"
         self.end = "2020-01-02 00:00:0.00"
-        self.dt = 1 # in hours
+        self.dt = 1  # in hours
         self.units = "Un."
 
         # mutables
@@ -131,11 +131,7 @@ class SingleStock():
 
     def solve(self):
         # datetime setup
-        dtindex, t_nsol = _timer(
-            t_start=self.start,
-            t_end=self.end,
-            dt=self.dt
-        )
+        dtindex, t_nsol = _timer(t_start=self.start, t_end=self.end, dt=self.dt)
 
         # get numerical solution
         if self.b1:
@@ -159,11 +155,17 @@ class SingleStock():
         # Euler Method loop
         for t in range(1, len(t_nsol)):
             # compute input flow rate
-            i_nsol[t - 1] = c1 * (1 / self.k1) * np.exp(self.m1 * s_nsol[t - 1]) * s_nsol[t - 1]
+            i_nsol[t - 1] = (
+                c1 * (1 / self.k1) * np.exp(self.m1 * s_nsol[t - 1]) * s_nsol[t - 1]
+            )
             # compute output flow rate
-            o_nsol[t - 1] = c2 * (1 / self.k2) * np.exp(self.m2 * s_nsol[t - 1]) * s_nsol[t - 1]
+            o_nsol[t - 1] = (
+                c2 * (1 / self.k2) * np.exp(self.m2 * s_nsol[t - 1]) * s_nsol[t - 1]
+            )
             # apply balance equation
-            s_nsol[t] = s_nsol[t - 1] + i_nsol[t - 1] * self.dt - o_nsol[t - 1] * self.dt
+            s_nsol[t] = (
+                s_nsol[t - 1] + i_nsol[t - 1] * self.dt - o_nsol[t - 1] * self.dt
+            )
 
         self.data = pd.DataFrame(
             {
@@ -181,38 +183,40 @@ class SingleStock():
             "color_i": "blue",
             "color_o": "red",
             "suptitle": "{}".format(self.name),
-            "width": 4.0, # 5 * 1.618,
+            "width": 4.0,  # 5 * 1.618,
             "height": 5.0,
             "ylim_s": [0, 100],
             "ylim_io": [0, 25],
         }
         return None
 
-    def view(self,
+    def view(
+        self,
         show=True,
         folder="./output",
         filename=None,
         dpi=300,
         fig_format="jpg",
-        suff=""):
+        suff="",
+    ):
         # Deploy figure
-        fig = plt.figure(figsize=(self.view_specs["width"], self.view_specs["height"]))  # Width, Height
+        fig = plt.figure(
+            figsize=(self.view_specs["width"], self.view_specs["height"])
+        )  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            2, 1,
-            wspace=0.2,
-            hspace=0.5,
-            left=0.15,
-            bottom=0.15,
-            top=0.85,
-            right=0.95
+            2, 1, wspace=0.2, hspace=0.5, left=0.15, bottom=0.15, top=0.85, right=0.95
         )
-
 
         fig.suptitle(self.view_specs["suptitle"])
         # plot phase
         plt.subplot(gs[0, :])
         # plt.title("S")
-        plt.plot(self.data["t"], self.data["S"], color=self.view_specs["color_s"], label="$S$")
+        plt.plot(
+            self.data["t"],
+            self.data["S"],
+            color=self.view_specs["color_s"],
+            label="$S$",
+        )
         plt.ylim(self.view_specs["ylim_s"])
         plt.ylabel("{}".format(self.units))
         plt.legend(loc="best")
@@ -222,8 +226,18 @@ class SingleStock():
         # plot
         plt.subplot(gs[1, :])
         # plt.title("I and O")
-        plt.plot(self.data["t"], self.data["I"], color=self.view_specs["color_i"], label="$I$")
-        plt.plot(self.data["t"], self.data["O"], color=self.view_specs["color_o"], label="$O$")
+        plt.plot(
+            self.data["t"],
+            self.data["I"],
+            color=self.view_specs["color_i"],
+            label="$I$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["O"],
+            color=self.view_specs["color_o"],
+            label="$O$",
+        )
         plt.legend(loc="best")
         plt.ylabel("{} / h".format(self.units))
         plt.ylim(self.view_specs["ylim_io"])
@@ -242,7 +256,7 @@ class SingleStock():
         return None
 
 
-class DoubleStock():
+class DoubleStock:
 
     def __init__(self):
         self.varalias = "S"
@@ -258,10 +272,10 @@ class DoubleStock():
         # S1 INPUT parameters
         self.s1_b1 = True
         self.s1_k1 = 7  # in hours
-        self.s1_m1 = 0.0 # in level^-1
+        self.s1_m1 = 0.0  # in level^-1
         # S1 OUTPUT parameters
         self.s1_b2 = True
-        self.s1_k2 = 10.5 # in hours
+        self.s1_k2 = 10.5  # in hours
         self.s1_m2 = 0.0
 
         # S2 -- CAPITAL
@@ -289,11 +303,7 @@ class DoubleStock():
 
     def solve(self):
         # datetime setup
-        dtindex, t_nsol = _timer(
-            t_start=self.start,
-            t_end=self.end,
-            dt=self.dt
-        )
+        dtindex, t_nsol = _timer(t_start=self.start, t_end=self.end, dt=self.dt)
 
         # get numerical solution
 
@@ -344,21 +354,33 @@ class DoubleStock():
         # Euler Method loop
         for t in range(1, len(t_nsol)):
             # ---------- compute input flows rate ---------- #
-            s1_i[t - 1] = s1_c1 * (1 / self.s1_k1) * np.exp(self.s1_m1 * s1[t - 1]) * s1[t - 1]
-            s2_i[t - 1] = s2_c1 * (1 / self.s2_k1) * np.exp(self.s2_m1 * s2[t - 1]) * s2[t - 1]
+            s1_i[t - 1] = (
+                s1_c1 * (1 / self.s1_k1) * np.exp(self.s1_m1 * s1[t - 1]) * s1[t - 1]
+            )
+            s2_i[t - 1] = (
+                s2_c1 * (1 / self.s2_k1) * np.exp(self.s2_m1 * s2[t - 1]) * s2[t - 1]
+            )
 
             # ---------- compute output flow rate ---------- #
             # ---- s1
 
             # potential outputs
-            s1_o_pot = s1_c2 * (1 / self.s1_k2) * np.exp(self.s1_m2 * s1[t - 1]) * s1[t - 1]
+            s1_o_pot = (
+                s1_c2 * (1 / self.s1_k2) * np.exp(self.s1_m2 * s1[t - 1]) * s1[t - 1]
+            )
 
             eco_fric = (s1[t - 1] - 25) / s1[t - 1]
-            s1_e_pot = s1_ce * (1 / self.s2_ke) * np.exp(self.s2_me * s2[t - 1]) * s2[t - 1] * eco_fric
+            s1_e_pot = (
+                s1_ce
+                * (1 / self.s2_ke)
+                * np.exp(self.s2_me * s2[t - 1])
+                * s2[t - 1]
+                * eco_fric
+            )
 
             # compute actual total output on S1
             s1_ot_pot = s1_o_pot + s1_e_pot
-            s1_ot = np.min([s1_ot_pot, s1[t - 1]/self.dt])
+            s1_ot = np.min([s1_ot_pot, s1[t - 1] / self.dt])
 
             if s1_ot_pot > 0:
                 # distribute
@@ -366,11 +388,23 @@ class DoubleStock():
                 s1_e[t - 1] = s1_ot * s1_e_pot / s1_ot_pot
 
             # ---- s2
-            s2_o[t - 1] = s2_c2 * (1 / self.s2_k2) * np.exp(self.s2_m2 * s2[t - 1]) * s2[t - 1]
+            s2_o[t - 1] = (
+                s2_c2 * (1 / self.s2_k2) * np.exp(self.s2_m2 * s2[t - 1]) * s2[t - 1]
+            )
 
             # apply balance equation
-            s1[t] = s1[t - 1] + s1_i[t - 1] * self.dt - s1_e[t - 1] * self.dt - s1_o[t - 1] * self.dt
-            s2[t] = s2[t - 1] + s2_i[t - 1] * self.dt + s1_e[t - 1] * self.dt - s2_o[t - 1] * self.dt
+            s1[t] = (
+                s1[t - 1]
+                + s1_i[t - 1] * self.dt
+                - s1_e[t - 1] * self.dt
+                - s1_o[t - 1] * self.dt
+            )
+            s2[t] = (
+                s2[t - 1]
+                + s2_i[t - 1] * self.dt
+                + s1_e[t - 1] * self.dt
+                - s2_o[t - 1] * self.dt
+            )
 
         self.data = pd.DataFrame(
             {
@@ -395,38 +429,46 @@ class DoubleStock():
             "color_i_alt": "dodgerblue",
             "color_o_alt": "orange",
             "suptitle": "{}".format(self.name),
-            "width": 4.0, # 5 * 1.618,
+            "width": 4.0,  # 5 * 1.618,
             "height": 5.0,
             "ylim_s": [0, 100],
-            "ylim_io": [0, 50]
+            "ylim_io": [0, 50],
         }
         return None
 
-    def view(self,
+    def view(
+        self,
         show=True,
         folder="./output",
         filename=None,
         dpi=300,
         fig_format="jpg",
-        suff=""):
+        suff="",
+    ):
         # Deploy figure
-        fig = plt.figure(figsize=(self.view_specs["width"], self.view_specs["height"]))  # Width, Height
+        fig = plt.figure(
+            figsize=(self.view_specs["width"], self.view_specs["height"])
+        )  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            2, 1,
-            wspace=0.2,
-            hspace=0.5,
-            left=0.15,
-            bottom=0.15,
-            top=0.85,
-            right=0.95
+            2, 1, wspace=0.2, hspace=0.5, left=0.15, bottom=0.15, top=0.85, right=0.95
         )
 
         fig.suptitle(self.view_specs["suptitle"])
         # plot phase
         plt.subplot(gs[0, :])
         # plt.title("S")
-        plt.plot(self.data["t"], self.data["S1"], color=self.view_specs["color_s"], label="$S_1$")
-        plt.plot(self.data["t"], self.data["S2"], color=self.view_specs["color_s_alt"], label="$S_2$")
+        plt.plot(
+            self.data["t"],
+            self.data["S1"],
+            color=self.view_specs["color_s"],
+            label="$S_1$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["S2"],
+            color=self.view_specs["color_s_alt"],
+            label="$S_2$",
+        )
         plt.ylim(self.view_specs["ylim_s"])
         plt.ylabel("{}".format(self.units))
         plt.legend(loc="best")
@@ -434,10 +476,30 @@ class DoubleStock():
         # plot
         plt.subplot(gs[1, :])
         # plt.title("I and O")
-        plt.plot(self.data["t"], self.data["I1"], color=self.view_specs["color_i"], label="$I_1$")
-        plt.plot(self.data["t"], self.data["I2"], color=self.view_specs["color_i_alt"], label="$I_2$")
-        plt.plot(self.data["t"], self.data["O1"], color=self.view_specs["color_o"], label="$O_1$")
-        plt.plot(self.data["t"], self.data["O2"], color=self.view_specs["color_o_alt"], label="$O_2$")
+        plt.plot(
+            self.data["t"],
+            self.data["I1"],
+            color=self.view_specs["color_i"],
+            label="$I_1$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["I2"],
+            color=self.view_specs["color_i_alt"],
+            label="$I_2$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["O1"],
+            color=self.view_specs["color_o"],
+            label="$O_1$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["O2"],
+            color=self.view_specs["color_o_alt"],
+            label="$O_2$",
+        )
         plt.plot(self.data["t"], self.data["E"], color="black", label="$E$")
         plt.legend(loc="best", ncol=3)
         plt.ylabel("{} / h".format(self.units))
@@ -457,8 +519,7 @@ class DoubleStock():
         return None
 
 
-
-class MiniPlans():
+class MiniPlans:
 
     def __init__(self):
         self.varalias = "S"
@@ -466,25 +527,26 @@ class MiniPlans():
         self.units = "mm"
 
         # ---- DEFAULT PARAMETERS -----
-        self.k1 = 20 # h
-        self.k2 = 50 # h
-        self.k3 = 30 # h
+        self.k1 = 20  # h
+        self.k2 = 50  # h
+        self.k3 = 30  # h
 
-        self.s_a = 40 # mm
-        self.s_c = 30 # mm
-        self.s_2max = 200 # mm
+        self.s_a = 40  # mm
+        self.s_c = 30  # mm
+        self.s_2max = 200  # mm
 
         # ---- DEFAULT INITIAL CONDITIONS -----
-        self.s1_t0 = 60 # mm
+        self.s1_t0 = 60  # mm
         self.s2_t0 = 120  # mm
         self.s3_t0 = 80  # mm
 
-        self.start = None # datetime string
-        self.end = None # datetime string
+        self.start = None  # datetime string
+        self.end = None  # datetime string
         self.dt = None  # in hours
 
         self.data = None
         self._set_view_specs()
+
     def solve(self, df_input, inplace=True):
         print("")
         df = df_input.copy()
@@ -533,13 +595,13 @@ class MiniPlans():
 
             # local head
             h1[t0] = np.max([0, s1[t0] - self.s_a])
-            c1[t0] = h1[t0] / ((h1[t0] + self.s_c)) # /dt
+            c1[t0] = h1[t0] / ((h1[t0] + self.s_c))  # /dt
 
             # compute potential flows
             e2_pot[t0] = np.min([e[t0], s2[t0]])
             e1_pot[t0] = e[t0] - e2_pot[t0]
             r_pot[t0] = c1[t0] * h1[t0]
-            q1_pot[t0] = np.min([(1/ self.k1) * s1[t0], d2[t0]])
+            q1_pot[t0] = np.min([(1 / self.k1) * s1[t0], d2[t0]])
             q2_pot[t0] = (1 / self.k2) * s2[t0]
             q3_pot[t0] = (1 / self.k3) * s3[t0]
 
@@ -563,7 +625,7 @@ class MiniPlans():
             q3[t0] = q3_pot[t0]
 
             # apply balance
-            s1[t] = s1[t0] + ((p[t0]) * dt) - ((q1[t0] + r[t0] + e1[t0]) * dt )
+            s1[t] = s1[t0] + ((p[t0]) * dt) - ((q1[t0] + r[t0] + e1[t0]) * dt)
             s2[t] = s2[t0] + (q1[t0] * dt) - ((q2[t0] + e2[t0]) * dt)
             d2[t] = self.s_2max - s2[t0]
             s3[t] = s3[t0] + ((q2[t0] + r[t0]) * dt) - (q3[t0] * dt)
@@ -594,29 +656,25 @@ class MiniPlans():
         else:
             return df_out
 
-
     def get_default_inputs(self, dt=0.5, kind="constant"):
         self.start = "2020-01-01 00:00:0.00"
         self.end = "2020-01-08 00:00:0.00"
         self.dt = dt  # in hours
 
         # datetime setup
-        dtindex, t_nsol = _timer(
-            t_start=self.start,
-            t_end=self.end,
-            dt=self.dt
-        )
+        dtindex, t_nsol = _timer(t_start=self.start, t_end=self.end, dt=self.dt)
 
         p = np.zeros(shape=t_nsol.shape)
         e = np.zeros(shape=t_nsol.shape)
 
         if kind == "constant":
-            p = p + 5.0 # mm/h
-            e = e + 2.0 # mm /h ~ 10 mm/d
+            p = p + 5.0  # mm/h
+            e = e + 2.0  # mm /h ~ 10 mm/d
         elif kind == "zero":
             pass
         elif kind == "basic":
             from scipy.ndimage import gaussian_filter
+
             max_v = 9.5
             size = len(dtindex)
             f_sigma = 50
@@ -630,11 +688,7 @@ class MiniPlans():
             p = normalized_signal * (normalized_signal > 0.01)
 
             # Parameters for the sinusoidal function
-            _df = pd.DataFrame(
-                {
-                    "DateTime": dtindex
-                }
-            )
+            _df = pd.DataFrame({"DateTime": dtindex})
             max_value = 0.5  # Adjust as needed
             min_value = 0  # Adjust as needed
 
@@ -644,22 +698,18 @@ class MiniPlans():
             C = 15  # Since we want the peak at 3 PM, which is 15 in 24-hour format
 
             # Convert DateTime to hours and apply the sinusoidal function
-            _df['sin_value'] = _df['DateTime'].apply(lambda x: A * np.sin(B * (x.hour - C)) + D)
-            e = _df['sin_value'].values
+            _df["sin_value"] = _df["DateTime"].apply(
+                lambda x: A * np.sin(B * (x.hour - C)) + D
+            )
+            e = _df["sin_value"].values
             print(np.sum(e))
-            print(np.sum(e)/7)
+            print(np.sum(e) / 7)
 
-        df = pd.DataFrame(
-            {
-                "DateTime": dtindex,
-                "P": p,
-                "E": e
-            }
-        )
+        df = pd.DataFrame({"DateTime": dtindex, "P": p, "E": e})
         # Calculate the difference between each row and its predecessor
-        df['DeltaTime'] = df['DateTime'].diff()
+        df["DeltaTime"] = df["DateTime"].diff()
         # Convert the Timedelta to hours (float value)
-        df['dt'] = df['DeltaTime'].dt.total_seconds() / 3600
+        df["dt"] = df["DeltaTime"].dt.total_seconds() / 3600
         # fix void
         df["dt"].values[0] = df["dt"].values[1]
         # remove deltatime
@@ -679,33 +729,31 @@ class MiniPlans():
             "color_i_alt": "dodgerblue",
             "color_o_alt": "orange",
             "suptitle": "{}".format(self.name),
-            "width": 11.0, # 5 * 1.618,
+            "width": 11.0,  # 5 * 1.618,
             "height": 10.0,
             "ylim_s": [0, 1.2 * self.s_2max],
             "ylim_io": [0, 10],
-            "legend_y": 1.35
+            "legend_y": 1.35,
         }
         return None
 
-    def view(self,
+    def view(
+        self,
         show=True,
         extra=False,
         folder="./output",
         filename=None,
         dpi=300,
         fig_format="jpg",
-        suff=""):
+        suff="",
+    ):
 
         # Deploy figure
-        fig = plt.figure(figsize=(self.view_specs["width"], self.view_specs["height"]))  # Width, Height
+        fig = plt.figure(
+            figsize=(self.view_specs["width"], self.view_specs["height"])
+        )  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            5, 3,
-            wspace=0.25,
-            hspace=0.8,
-            left=0.06,
-            bottom=0.10,
-            top=0.9,
-            right=0.95
+            5, 3, wspace=0.25, hspace=0.8, left=0.06, bottom=0.10, top=0.9, right=0.95
         )
         fig.suptitle(self.view_specs["suptitle"])
 
@@ -719,7 +767,7 @@ class MiniPlans():
             ("$k_3$", self.k3, 0, 100),
             ("$s_a$", self.s_a, 0, 100),
             ("$s_c$", self.s_c, 0, 300),
-            ("$s_{2max}$", self.s_2max, 0, 300)
+            ("$s_{2max}$", self.s_2max, 0, 300),
         ]
         ax = plt.gca()
         for i, (name, set_val, min_val, max_val) in enumerate(parameters):
@@ -727,18 +775,42 @@ class MiniPlans():
             normalized_set_val = (set_val - min_val) / (max_val - min_val)
 
             # Plot the range line
-            ax.plot([i, i], [0, 1], color='dimgray', linewidth=2)
+            ax.plot([i, i], [0, 1], color="dimgray", linewidth=2)
 
             # Plot the set value with a larger marker
-            ax.plot(i, normalized_set_val, marker='o', color="navy", markersize=8)
+            ax.plot(i, normalized_set_val, marker="o", color="navy", markersize=8)
             # Add set value label
-            ax.text(i + 0.15, normalized_set_val, f'{set_val:.0f}', ha='left', va='bottom', color='blue', fontsize=8)
+            ax.text(
+                i + 0.15,
+                normalized_set_val,
+                f"{set_val:.0f}",
+                ha="left",
+                va="bottom",
+                color="blue",
+                fontsize=8,
+            )
             # min value
-            ax.text(i, -0.05, f'{min_val:.0f}', ha='center', va='top', color='tab:gray', fontsize=8)
+            ax.text(
+                i,
+                -0.05,
+                f"{min_val:.0f}",
+                ha="center",
+                va="top",
+                color="tab:gray",
+                fontsize=8,
+            )
             # parameter name
-            ax.text(i, -0.2, name, ha='center', va='top')
+            ax.text(i, -0.2, name, ha="center", va="top")
             # Add max value label at the top of each slider
-            ax.text(i, 1.01, f'{max_val:.0f}', ha='center', va='bottom', color='tab:gray', fontsize=8)
+            ax.text(
+                i,
+                1.01,
+                f"{max_val:.0f}",
+                ha="center",
+                va="bottom",
+                color="tab:gray",
+                fontsize=8,
+            )
         # Set the limits and labels
         ax.set_ylim(0, 1)  # Normalized scale
         ax.set_xlim(-1, len(parameters))
@@ -753,17 +825,43 @@ class MiniPlans():
             plt.plot(self.data["t"], self.data["P"], color="tab:grey", label="$P$")
             plt.plot(self.data["t"], self.data["E"], color="darkred", label="$E_p$")
             plt.ylim(self.view_specs["ylim_io"])
-            plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+            plt.legend(
+                loc="upper right",
+                bbox_to_anchor=(1, self.view_specs["legend_y"]),
+                ncol=3,
+            )
             plt.ylabel("$mm/h$")
             plt.xlabel("$h$")
 
             plt.subplot(gs[2, 0])
             # plt.title("water stocks", loc="left")
-            plt.plot(self.data["t"], self.data["S1"], color=self.view_specs["color_s1"], label="$S_1$", zorder=3)
-            plt.plot(self.data["t"], self.data["S2"], color=self.view_specs["color_s2"], label="$S_2$", zorder=1)
-            plt.plot(self.data["t"], self.data["S3"], color=self.view_specs["color_s3"], label="$S_3$", zorder=2)
+            plt.plot(
+                self.data["t"],
+                self.data["S1"],
+                color=self.view_specs["color_s1"],
+                label="$S_1$",
+                zorder=3,
+            )
+            plt.plot(
+                self.data["t"],
+                self.data["S2"],
+                color=self.view_specs["color_s2"],
+                label="$S_2$",
+                zorder=1,
+            )
+            plt.plot(
+                self.data["t"],
+                self.data["S3"],
+                color=self.view_specs["color_s3"],
+                label="$S_3$",
+                zorder=2,
+            )
             plt.ylim([0, 120])
-            plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+            plt.legend(
+                loc="upper right",
+                bbox_to_anchor=(1, self.view_specs["legend_y"]),
+                ncol=3,
+            )
             plt.ylabel("$mm$")
             plt.xlabel("$h$")
 
@@ -772,7 +870,11 @@ class MiniPlans():
             plt.plot(self.data["t"], self.data["R"], color="darkviolet", label="$R$")
             plt.plot(self.data["t"], self.data["Q2"], color="teal", label="$Q_2$")
             plt.ylim(self.view_specs["ylim_io"])
-            plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+            plt.legend(
+                loc="upper right",
+                bbox_to_anchor=(1, self.view_specs["legend_y"]),
+                ncol=3,
+            )
             plt.ylabel("$mm/h$")
             plt.xlabel("$h$")
 
@@ -780,17 +882,23 @@ class MiniPlans():
             # plt.title("discharge", loc="left")
             plt.plot(self.data["t"], self.data["Q3"], color="navy", label="$Q_3$")
             plt.ylim(self.view_specs["ylim_io"])
-            plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+            plt.legend(
+                loc="upper right",
+                bbox_to_anchor=(1, self.view_specs["legend_y"]),
+                ncol=3,
+            )
             plt.ylabel("$mm/h$")
             plt.xlabel("$h$")
 
         # GRID
         plt.subplot(gs[0, 1])
-        #plt.title("exogenous flows", loc="left")
+        # plt.title("exogenous flows", loc="left")
         plt.plot(self.data["t"], self.data["P"], color="tab:grey", label="$P$")
         plt.plot(self.data["t"], self.data["E"], color="darkred", label="$E_p$")
         plt.ylim(self.view_specs["ylim_io"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
 
@@ -798,25 +906,46 @@ class MiniPlans():
         # plt.title("infiltration", loc="left")
         plt.plot(self.data["t"], self.data["Q1"], color="navy", label="$Q_1$")
         plt.ylim(self.view_specs["ylim_io"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[0, 2])
-        #plt.title("water stocks", loc="left")
-        plt.plot(self.data["t"], self.data["S1"], color=self.view_specs["color_s1"], label="$S_1$")
-        plt.plot(self.data["t"], self.data["S2"], color=self.view_specs["color_s2"], label="$S_2$")
-        plt.plot(self.data["t"], self.data["S3"], color=self.view_specs["color_s3"], label="$S_3$")
+        # plt.title("water stocks", loc="left")
+        plt.plot(
+            self.data["t"],
+            self.data["S1"],
+            color=self.view_specs["color_s1"],
+            label="$S_1$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["S2"],
+            color=self.view_specs["color_s2"],
+            label="$S_2$",
+        )
+        plt.plot(
+            self.data["t"],
+            self.data["S3"],
+            color=self.view_specs["color_s3"],
+            label="$S_3$",
+        )
         plt.ylim(self.view_specs["ylim_s"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[1, 2])
-        #plt.title("fast flow (overland flow)", loc="left")
+        # plt.title("fast flow (overland flow)", loc="left")
         plt.plot(self.data["t"], self.data["R"], color="darkviolet", label="$R$")
         plt.ylim(self.view_specs["ylim_io"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
 
@@ -824,54 +953,68 @@ class MiniPlans():
         # plt.title("deficit", loc="left")
         plt.plot(self.data["t"], self.data["D2"], color="black", label="$D_2$")
         plt.ylim(self.view_specs["ylim_s"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[2, 2])
-        #plt.title("runoff coef.", loc="left")
+        # plt.title("runoff coef.", loc="left")
         plt.plot(self.data["t"], self.data["C"], color="black", label="$hc_colors$")
         plt.ylim([0, 1])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$h^{-1}$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[3, 1])
-        #plt.title("slow flow (baseflow)", loc="left")
+        # plt.title("slow flow (baseflow)", loc="left")
         plt.plot(self.data["t"], self.data["Q2"], color="teal", label="$Q_2$")
         plt.ylim(self.view_specs["ylim_io"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[3, 2])
-        #plt.title("discharge", loc="left")
+        # plt.title("discharge", loc="left")
         plt.plot(self.data["t"], self.data["Q3"], color="navy", label="$Q_3$")
         plt.ylim(self.view_specs["ylim_io"])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[4, 1])
-        #plt.title("evapotranspiration", loc="left")
+        # plt.title("evapotranspiration", loc="left")
         plt.plot(self.data["t"], self.data["E1"], color="tab:orange", label="$E_1$")
         plt.plot(self.data["t"], self.data["E2"], color="tab:green", label="$E_2$")
         plt.ylim([0, 2])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
 
         plt.subplot(gs[4, 2])
-        #plt.title("evapotranspiration total", loc="left")
-        plt.plot(self.data["t"], self.data["E1"] + self.data["E2"], color="magenta", label="$E$")
+        # plt.title("evapotranspiration total", loc="left")
+        plt.plot(
+            self.data["t"],
+            self.data["E1"] + self.data["E2"],
+            color="magenta",
+            label="$E$",
+        )
         plt.plot(self.data["t"], self.data["E"], color="darkred", label="$E_p$")
         plt.ylim([0, 2])
-        plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        plt.legend(
+            loc="upper right", bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3
+        )
         plt.ylabel("$mm/h$")
         plt.xlabel("$h$")
-
-
-
 
         # show or save
         if show:
@@ -886,24 +1029,19 @@ class MiniPlans():
             plt.close(fig)
         return None
 
-
-    def plot_principles(self,
+    def plot_principles(
+        self,
         show=True,
         folder="./output",
         filename=None,
         dpi=300,
         fig_format="jpg",
-        suff=""):
+        suff="",
+    ):
         # Deploy figure
         fig = plt.figure(figsize=(6, 5))  # Width, Height
         gs = mpl.gridspec.GridSpec(
-            2, 2,
-            wspace=0.5,
-            hspace=0.4,
-            left=0.1,
-            bottom=0.12,
-            top=0.95,
-            right=0.95
+            2, 2, wspace=0.5, hspace=0.4, left=0.1, bottom=0.12, top=0.95, right=0.95
         )
 
         def get_c(s, sc):
@@ -914,7 +1052,7 @@ class MiniPlans():
             return v * (s > sa)
 
         def get_s(s0, t, k):
-            return s0 * np.exp(-(1/k) * t)
+            return s0 * np.exp(-(1 / k) * t)
 
         # data setup
         s = np.linspace(0, 100, 100)
@@ -931,11 +1069,13 @@ class MiniPlans():
         for i in range(len(lst_sc)):
             c = get_c(s, lst_sc[i])
             plt.plot(s, c, color=lst_colors[i], label="$s_c = {}$".format(lst_sc[i]))
-        plt.legend(loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7)
+        plt.legend(
+            loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7
+        )
         plt.hlines(y=1, xmin=0, xmax=np.max(s), color="tab:grey", linestyles="--")
         plt.ylim([0, 1.1])
         plt.xlim([0, np.max(s)])
-        #plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        # plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
         plt.ylabel("$hc_colors$")
         plt.xlabel("$S_1 - s_a$ ($mm$)")
 
@@ -946,7 +1086,9 @@ class MiniPlans():
             r = get_r(s, lst_sc2[i], lst_sa[i])
             lbl = "$s_a = {}$, $s_c = {}$".format(lst_sa[i], lst_sc2[i])
             plt.plot(s, r, color=lst_colors[i], label=lbl)
-        plt.legend(loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7)
+        plt.legend(
+            loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7
+        )
         plt.ylim([0, 1.2 * np.max(s)])
         plt.xlim([0, np.max(s)])
         plt.ylabel("$R$ ($mm/h$)")
@@ -960,7 +1102,9 @@ class MiniPlans():
             s1 = get_s(s0=10, k=lst_k[i], t=t)
             lbl = "$k = {}$".format(lst_k[i])
             plt.plot(t, s1, color=lst_colors3[i], label=lbl)
-        plt.legend(loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7)
+        plt.legend(
+            loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7
+        )
         plt.ylim([0, 12])
         plt.xlim([0, np.max(t)])
         plt.xlabel("$h$")
@@ -969,10 +1113,12 @@ class MiniPlans():
         plt.subplot(gs[0, 0])
         # plt.title("exogenous flows", loc="left")
         for i in range(len(lst_k)):
-            q = (1/lst_k[i]) * s
+            q = (1 / lst_k[i]) * s
             lbl = "$k = {}$".format(lst_k[i])
             plt.plot(s, q, color=lst_colors3[i], label=lbl)
-        plt.legend(loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7)
+        plt.legend(
+            loc="best", frameon=True, fancybox=True, facecolor="white", framealpha=0.7
+        )
         plt.ylim([0, 25])
         plt.xlim([0, np.max(s)])
         plt.ylabel("$Q$ ($mm/h$)")
@@ -990,6 +1136,3 @@ class MiniPlans():
             )
             plt.close(fig)
         return None
-
-
-

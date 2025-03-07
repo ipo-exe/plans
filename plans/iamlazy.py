@@ -57,6 +57,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
+
 import glob
 import pandas as pd
 import processing
@@ -72,7 +73,7 @@ dict_operations = {
     "31983": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=23 +south +ellps=GRS80",
     "31982": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=22 +south +ellps=GRS80",
     "31981": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=utm +zone=21 +south +ellps=GRS80",
-    "102033": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +proj=helmert +x=57 +y=-1 +z=41 +step +inv +proj=cart +ellps=aust_SA +step +proj=pop +v_3 +step +proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=aust_SA"
+    "102033": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +proj=helmert +x=57 +y=-1 +z=41 +step +inv +proj=cart +ellps=aust_SA +step +proj=pop +v_3 +step +proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=aust_SA",
 }
 # provider base
 dict_provider = {
@@ -82,6 +83,7 @@ dict_provider = {
     "31981": "EPSG",
     "102033": "ESRI",
 }
+
 
 def reproject_layer(input_db, target_crs, layer_name=None):
     """Reproject a vector layer
@@ -100,11 +102,15 @@ def reproject_layer(input_db, target_crs, layer_name=None):
         input_file = input_db
         output_dir = os.path.dirname(input_file)
         output_name = os.path.basename(input_file).split(".")[0]
-        output_file = "{}/{}_{}{}.shp".format(output_dir, output_name, dict_provider[target_crs], target_crs)
+        output_file = "{}/{}_{}{}.shp".format(
+            output_dir, output_name, dict_provider[target_crs], target_crs
+        )
         new_layer_name = output_file
     else:  # to geopackage
         input_file = "{}|layername={}".format(input_db, layer_name)
-        new_layer_name = "{}_{}{}".format(layer_name, dict_provider[target_crs], target_crs)
+        new_layer_name = "{}_{}{}".format(
+            layer_name, dict_provider[target_crs], target_crs
+        )
         output_file = "ogr:dbname='{}' table=\"{}\" (geom)".format(
             input_db, new_layer_name
         )
@@ -112,7 +118,9 @@ def reproject_layer(input_db, target_crs, layer_name=None):
         "native:reprojectlayer",
         {
             "INPUT": input_file,
-            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem(
+                "{}:{}".format(dict_provider[target_crs], target_crs)
+            ),
             "OPERATION": dict_operations[target_crs],
             "OUTPUT": output_file,
         },
@@ -237,7 +245,6 @@ def get_basins_areas(file_basins, basins_ids):
     return {"Id": basins_ids, "UpstreamArea": basin_areas}
 
 
-
 def get_cellsize(file_input):
     """Get the cell size in map units (degrees or meters)
 
@@ -302,7 +309,7 @@ def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
     driver = gdal.GetDriverByName("GTiff")
-    
+
     if dtype == "byte":
         # Create a new raster with the same dimensions as the original
         raster_output = driver.Create(
@@ -318,7 +325,7 @@ def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
         raster_output = driver.Create(
             file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
         )
-    
+
     # Set the projection and geotransform of the new raster to match the original
     raster_output.SetProjection(raster_projection)
     raster_output.SetGeoTransform(raster_geotransform)
@@ -370,8 +377,12 @@ def get_dem(
         "gdal:warpreproject",
         {
             "INPUT": file_main_dem,
-            "SOURCE_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[source_crs], source_crs)),
-            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
+            "SOURCE_CRS": QgsCoordinateReferenceSystem(
+                "{}:{}".format(dict_provider[source_crs], source_crs)
+            ),
+            "TARGET_CRS": QgsCoordinateReferenceSystem(
+                "{}:{}".format(dict_provider[target_crs], target_crs)
+            ),
             "RESAMPLING": 1,  # average=5; nearest=0, bilinear=1
             "NODATA": -1,
             "TARGET_RESOLUTION": target_cellsize,  # in meters
@@ -631,7 +642,7 @@ def get_shalstab(
     soil_z=1,
     soil_p=1600,
     soil_c=1,
-    water_p=997
+    water_p=997,
 ):
     # -------------------------------------------------------------------------
     # LOAD SLOPE
@@ -681,7 +692,7 @@ def get_shalstab(
         soil_p=soil_p,
         soil_c=soil_c,
         water_p=water_p,
-        kPa=True
+        kPa=True,
     )
 
     # -------------------------------------------------------------------------
@@ -852,10 +863,13 @@ def setup_hand(file_dem_filled, output_folder):
         "ldd": file_ldd,
         "material": file_material,
         "accflux": file_accflux,
-        "cellsize": cellsize
+        "cellsize": cellsize,
     }
 
-def get_hand(file_dem_filled, output_folder, hand_threshholds=[0.1, 1, 2], file_dem_sample=None):
+
+def get_hand(
+    file_dem_filled, output_folder, hand_threshholds=[0.1, 1, 2], file_dem_sample=None
+):
     """Get the HAND raster map from a DEM.
     The DEM must be hydrologically consistent (no sinks).
 
@@ -1043,24 +1057,17 @@ def setup_topo(
     # reproject aoi
     print("reproject aoi layer...")
     new_layer_aoi = reproject_layer(
-        input_db=input_db,
-        layer_name=layer_aoi,
-        target_crs=target_crs
+        input_db=input_db, layer_name=layer_aoi, target_crs=target_crs
     )
 
     # reproject rivers
     print("reproject rivers layer...")
     new_layer_rivers = reproject_layer(
-        input_db=input_db,
-        layer_name=layer_rivers,
-        target_crs=target_crs
+        input_db=input_db, layer_name=layer_rivers, target_crs=target_crs
     )
     # get aoi extent
     print("get aoi extent...")
-    dict_bbox = get_extent_vector(
-        input_db=input_db,
-        layer_name=new_layer_aoi
-    )
+    dict_bbox = get_extent_vector(input_db=input_db, layer_name=new_layer_aoi)
 
     # clip and warp dem
     print("clip and warp dem...")
@@ -1093,6 +1100,7 @@ def setup_topo(
         "new_layer_rivers": new_layer_rivers,
         "file_dem": file_dem,
     }
+
 
 def get_topo(
     output_folder,
@@ -1204,9 +1212,7 @@ def get_topo(
     # 4) get rivers blank
     print("get main rivers...")
     file_rivers = get_blank_raster(
-        file_input=file_dem,
-        file_output=dict_files["main_rivers"],
-        blank_value=0
+        file_input=file_dem, file_output=dict_files["main_rivers"], blank_value=0
     )
 
     # 5) rasterize rivers
@@ -1241,19 +1247,30 @@ def get_topo(
         print("fill sinks XXL...")
         processing.run(
             "sagang:fillsinksxxlwangliu",
-            {'ELEV':dict_files["dem_b"],'FILLED':dict_files["fill"],'MINSLOPE':0.01})
+            {
+                "ELEV": dict_files["dem_b"],
+                "FILLED": dict_files["fill"],
+                "MINSLOPE": 0.01,
+            },
+        )
     else:
         print("fill sinks simple...")
         processing.run(
             "sagang:fillsinksplanchondarboux2001",
-            {"DEM": dict_files["dem_b"], "RESULT": dict_files["fill"], "MINSLOPE": 0.01},
+            {
+                "DEM": dict_files["dem_b"],
+                "RESULT": dict_files["fill"],
+                "MINSLOPE": 0.01,
+            },
         )
     print("translate fill...")
     processing.run(
         "gdal:translate",
         {
             "INPUT": dict_files["fill"],
-            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem(
+                "{}:{}".format(dict_provider[target_crs], target_crs)
+            ),
             "NODATA": None,
             "COPY_SUBDATASETS": False,
             "OPTIONS": "",
@@ -1282,7 +1299,9 @@ def get_topo(
         "gdal:translate",
         {
             "INPUT": dict_files["flowacc_mfd_sg"],
-            "TARGET_CRS": QgsCoordinateReferenceSystem("{}:{}".format(dict_provider[target_crs], target_crs)),
+            "TARGET_CRS": QgsCoordinateReferenceSystem(
+                "{}:{}".format(dict_provider[target_crs], target_crs)
+            ),
             "NODATA": None,
             "COPY_SUBDATASETS": False,
             "OPTIONS": "",
@@ -1476,7 +1495,7 @@ def get_lulc(
                 "TARGET_CRS": QgsCoordinateReferenceSystem(
                     "{}:{}".format(dict_provider[target_crs], target_crs)
                 ),
-                "RESAMPLING": 0, # nearest
+                "RESAMPLING": 0,  # nearest
                 "NODATA": 0,
                 "TARGET_RESOLUTION": cellsize,
                 "OPTIONS": "",
@@ -1497,15 +1516,15 @@ def get_lulc(
         processing.run(
             "gdal:fillnodata",
             {
-                'INPUT': file_output1,
-                'BAND': 1,
-                'DISTANCE': 10,
-                'ITERATIONS': 0,
-                'MASK_LAYER': None,
-                'OPTIONS': '',
-                'EXTRA': '-interp nearest',
-                'OUTPUT': file_output
-            }
+                "INPUT": file_output1,
+                "BAND": 1,
+                "DISTANCE": 10,
+                "ITERATIONS": 0,
+                "MASK_LAYER": None,
+                "OPTIONS": "",
+                "EXTRA": "-interp nearest",
+                "OUTPUT": file_output,
+            },
         )
         # delete warp
         os.remove(file_output1)
@@ -1586,7 +1605,7 @@ def get_lulc(
             "Id": [254, 255],
             "Name": ["Paved roads", "Dirty roads"],
             "Alias": ["RdP", "RdD"],
-            "Color": ["#611d1d", "#976d3f"]
+            "Color": ["#611d1d", "#976d3f"],
         }
     )
     df_table = pd.concat([df_table, df_roads], ignore_index=True)
@@ -1664,6 +1683,7 @@ def get_rain(
 
     """
     from plans import ds
+
     def calculate_buffer_ratios(box_small, box_large):
         delta_x_small = abs(box_small["xmax"] - box_small["xmin"])
         lower_x = abs(box_small["xmin"] - box_large["xmin"])
@@ -1703,7 +1723,9 @@ def get_rain(
 
     # rename files and copy
     lst_files_src = rain_gdf["Rain_File"].values
-    lst_files_dst = ["{}/rain_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values]
+    lst_files_dst = [
+        "{}/rain_{}.csv".format(output_folder, a) for a in rain_gdf["Alias"].values
+    ]
     lst_new_files = []
     for i in range(len(rain_gdf)):
         if os.path.isfile(lst_files_src[i]):
@@ -1716,14 +1738,26 @@ def get_rain(
     rain_gdf["Rain_File"] = lst_new_files
 
     # Drop the geometry column
-    rain_gdf = rain_gdf.drop(columns=['geometry'])
+    rain_gdf = rain_gdf.drop(columns=["geometry"])
 
     # organize columns
-    rain_gdf = rain_gdf[[
-        "Id", "Name", "Alias", "X", "Y",
-        "Source", "Code", "Description", "Color",
-        "Rain_Units", "Rain_VarField", "Rain_DtField", "Rain_File",
-    ]]
+    rain_gdf = rain_gdf[
+        [
+            "Id",
+            "Name",
+            "Alias",
+            "X",
+            "Y",
+            "Source",
+            "Code",
+            "Description",
+            "Color",
+            "Rain_Units",
+            "Rain_VarField",
+            "Rain_DtField",
+            "Rain_File",
+        ]
+    ]
 
     # export csv file
     rain_info_file = "{}/rain_info.csv".format(output_folder)
@@ -1796,7 +1830,7 @@ def get_rain(
             "gdal:rasterize_over",
             {
                 "INPUT": zones_shp,
-                "INPUT_RASTER": zones_raster ,
+                "INPUT_RASTER": zones_raster,
                 "FIELD": "Id",
                 "ADD": False,
                 "EXTRA": "",
@@ -1875,6 +1909,7 @@ def get_basins(
 
     """
     from plans import ds
+
     print("folder setup...")
     # folders and file setup
     output_folder_interm = "{}/intermediate".format(output_folder)
@@ -1906,7 +1941,9 @@ def get_basins(
     print("blank raster...")
     gauge_raster = "{}/gauges.tif".format(output_folder_gdal)
     # get blanks
-    get_blank_raster(file_input=ldd_file, file_output=gauge_raster, blank_value=0, dtype="float")
+    get_blank_raster(
+        file_input=ldd_file, file_output=gauge_raster, blank_value=0, dtype="float"
+    )
     print("rasterize...")
     # rasterize
     processing.run(
@@ -1974,9 +2011,7 @@ def get_basins(
 
     # ------------------- BASINS INFO ------------------- #
     # load table
-    basins_gdf = gpd.read_file(
-        input_db, layer=layer_stream_gauges
-    )
+    basins_gdf = gpd.read_file(input_db, layer=layer_stream_gauges)
 
     print("handle file series")
 
@@ -2006,12 +2041,17 @@ def get_basins(
         # rename files and copy
         print("{} files...".format(l))
         lst_files_src = basins_gdf["{}_File".format(l)].values
-        lst_files_dst = ["{}/{}_{}.csv".format(output_folder, l.lower(), a) for a in basins_gdf["Alias"].values]
+        lst_files_dst = [
+            "{}/{}_{}.csv".format(output_folder, l.lower(), a)
+            for a in basins_gdf["Alias"].values
+        ]
         lst_new_files = []
         for i in range(len(basins_gdf)):
             if os.path.isfile(lst_files_src[i]):
                 shutil.copy(src=lst_files_src[i], dst=lst_files_dst[i])
-                new_file_name = "{}_{}.csv".format(l.lower(), basins_gdf["Alias"].values[i])
+                new_file_name = "{}_{}.csv".format(
+                    l.lower(), basins_gdf["Alias"].values[i]
+                )
             else:
                 new_file_name = ""
             lst_new_files.append(new_file_name)
@@ -2019,7 +2059,7 @@ def get_basins(
         basins_gdf["{}_File".format(l)] = lst_new_files
 
     # Drop the geometry column
-    basins_gdf = basins_gdf.drop(columns=['geometry'])
+    basins_gdf = basins_gdf.drop(columns=["geometry"])
 
     print("compute basin topology")
 
@@ -2031,22 +2071,38 @@ def get_basins(
     basins_gdf = basins_gdf.merge(aux_gdf, on="Id")
 
     # GET UPSTREAM AREAS
-    dict_aux = get_basins_areas(file_basins=basins_raster, basins_ids=list(basins_gdf["Id"]))
+    dict_aux = get_basins_areas(
+        file_basins=basins_raster, basins_ids=list(basins_gdf["Id"])
+    )
     aux_gdf = gpd.GeoDataFrame.from_dict(dict_aux, geometry=None)
     basins_gdf = basins_gdf.merge(aux_gdf, on="Id")
 
     # HOW to organize columns? Base attribute first, Stage and Flow last
     column_order = [
         # Base attributes
-        "Id", "Name", "Alias",
+        "Id",
+        "Name",
+        "Alias",
         # Geo Attributes
-        "X", "Y", "Downstream_Id", "UpstreamArea",
+        "X",
+        "Y",
+        "Downstream_Id",
+        "UpstreamArea",
         # Extra Attributes
-        "Code", "Source", "Description", "Color",
+        "Code",
+        "Source",
+        "Description",
+        "Color",
         # Stage attributes
-        "Stage_Units", "Stage_VarField", "Stage_DtField", "Stage_File",
+        "Stage_Units",
+        "Stage_VarField",
+        "Stage_DtField",
+        "Stage_File",
         # Flow attributes
-        "Flow_Units", "Flow_VarField", "Flow_DtField", "Flow_File"
+        "Flow_Units",
+        "Flow_VarField",
+        "Flow_DtField",
+        "Flow_File",
     ]
 
     # Reorder the columns
@@ -2054,7 +2110,6 @@ def get_basins(
 
     # export csv file
     basins_gdf.to_csv("{}/basins_info.csv".format(output_folder), sep=";", index=False)
-
 
     print("end")
     return None

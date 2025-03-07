@@ -51,6 +51,7 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 import os, glob, copy
 import pandas as pd
 import numpy as np
@@ -84,6 +85,7 @@ def dataframe_prepro(dataframe):
             ].str.strip()
     return dataframe
 
+
 def get_colors(size=10, cmap="tab20", randomize=True):
     """Utility function to get a list of random colors
 
@@ -95,6 +97,7 @@ def get_colors(size=10, cmap="tab20", randomize=True):
     :rtype: list
     """
     import matplotlib.colors as mcolors
+
     # Choose a colormap from matplotlib
     _cmap = plt.get_cmap(cmap)
     # Generate a list of random numbers between 0 and 1
@@ -108,6 +111,7 @@ def get_colors(size=10, cmap="tab20", randomize=True):
 
 
 # ------------- CHRONOLOGICAL OBJECTS -------------  #
+
 
 class TimeSeries(Univar):
 
@@ -169,8 +173,6 @@ class TimeSeries(Univar):
         self._set_view_specs()
         # ... continues in downstream objects ... #
 
-
-
     def _set_fields(self):
         """
         Set catalog fields names. Expected to increment superior methods.
@@ -209,7 +211,6 @@ class TimeSeries(Univar):
         # file fields
         self.file_data_dtfield_field = "File_Data_DtField"
         self.file_data_varfield_field = "File_Data_VarField"
-
 
         # ... continues in downstream objects ... #
 
@@ -289,33 +290,28 @@ class TimeSeries(Univar):
         dict_meta_local = {
             # TS info
             self.code_field: self.code,
-            self.x_field : self.x,
-            self.y_field : self.y,
-
+            self.x_field: self.x,
+            self.y_field: self.y,
             # Variable info
-            self.varfield_field : self.varfield,
-            self.varname_field : self.varname,
-            self.varalias_field : self.varalias,
-            self.datarange_min_field : self.datarange_min,
-            self.datarange_max_field : self.datarange_max,
-            self.var_min_field : self.var_min,
-            self.var_max_field : self.var_max,
-
+            self.varfield_field: self.varfield,
+            self.varname_field: self.varname,
+            self.varalias_field: self.varalias,
+            self.datarange_min_field: self.datarange_min,
+            self.datarange_max_field: self.datarange_max,
+            self.var_min_field: self.var_min,
+            self.var_max_field: self.var_max,
             # DateTime info
-            self.dtfield_field : self.dtfield,
-            self.dtfreq_field : self.dtfreq,
-            self.dtres_field : self.dtres,
-            self.start_field : self.start,
-            self.end_field : self.end,
-
+            self.dtfield_field: self.dtfield,
+            self.dtfreq_field: self.dtfreq,
+            self.dtres_field: self.dtres,
+            self.start_field: self.start,
+            self.end_field: self.end,
             # Standardization
-            self.isstandard_field : self.isstandard,
-
+            self.isstandard_field: self.isstandard,
             # Epochs info
-            self.gapsize_field : self.gapsize,
-            self.epochs_n_field : self.epochs_n,
-            self.smallgaps_n_field : self.smallgaps_n,
-
+            self.gapsize_field: self.gapsize,
+            self.epochs_n_field: self.epochs_n,
+            self.smallgaps_n_field: self.smallgaps_n,
             # file data info
             self.file_data_dtfield_field: self.file_data_dtfield,
             self.file_data_varfield_field: self.file_data_varfield,
@@ -385,15 +381,15 @@ class TimeSeries(Univar):
         if load_data:
             # handle missing keys
             if self.dtfield_field not in list(dict_setter.keys()):
-                input_dtfield = None # assume default
+                input_dtfield = None  # assume default
             else:
                 input_dtfield = dict_setter[self.dtfield_field]
             if self.varfield_field not in list(dict_setter.keys()):
-                input_varfield = None # assume default
+                input_varfield = None  # assume default
             else:
                 input_varfield = dict_setter[self.varfield_field]
             if "Sep" not in list(dict_setter.keys()):
-                in_sep = ";" # assume default
+                in_sep = ";"  # assume default
             # call load
             self.load_data(
                 file_data=self.file_data,
@@ -481,7 +477,14 @@ class TimeSeries(Univar):
 
         return None
 
-    def load_data(self, file_data, input_dtfield=None, input_varfield=None, in_sep=";", filter_dates=None):
+    def load_data(
+        self,
+        file_data,
+        input_dtfield=None,
+        input_varfield=None,
+        in_sep=";",
+        filter_dates=None,
+    ):
         """Load data from file. Expected to overwrite superior methods.
 
         :param file_data: str
@@ -549,22 +552,19 @@ class TimeSeries(Univar):
             self.file_data_varfield = input_varfield
 
         # -------------- call loading function -------------- #
-        #print(self.file_data_dtfield)
+        # print(self.file_data_dtfield)
         df = pd.read_csv(
             file_data,
             sep=in_sep,
             dtype={input_varfield: float},
             usecols=[input_dtfield, input_varfield],
-            parse_dates=[self.file_data_dtfield]
+            parse_dates=[self.file_data_dtfield],
         )
-        #print(df[self.file_data_dtfield].dtype)
+        # print(df[self.file_data_dtfield].dtype)
 
         # -------------- post-loading logic -------------- #
         df = df.rename(
-            columns={
-                input_dtfield: self.dtfield,
-                input_varfield: self.varfield
-            }
+            columns={input_dtfield: self.dtfield, input_varfield: self.varfield}
         )
 
         if filter_dates is None:
@@ -621,7 +621,7 @@ class TimeSeries(Univar):
         drop_ids = list()
 
         # loop to collect indexes in the start of series
-        for def_i in range(def_len): # go forward
+        for def_i in range(def_len):  # go forward
             aux = in_df[self.varfield].isnull().iloc[def_i]
             if aux:
                 drop_ids.append(def_i)
@@ -629,7 +629,7 @@ class TimeSeries(Univar):
                 break
 
         # loop to collect indexes in the end of series
-        for def_i in range(def_len - 1, -1, -1): # go backward
+        for def_i in range(def_len - 1, -1, -1):  # go backward
             aux = in_df[self.varfield].isnull().iloc[def_i]
             if aux:
                 drop_ids.append(def_i)
@@ -669,14 +669,17 @@ class TimeSeries(Univar):
         def _insert_epochs(df):
             # handle epochs
             epochs = {
-                "1min": ['%Y-%m-%d %H:%M', ''],
-                "20min": ['%Y-%m-%d %H', ' :20'],
-                "h": ['%Y-%m-%d %H', ''],
-                "D": ['%Y-%m-%d', ''],
-                "MS": ['%Y-%m', ''],
-                "YS": ['%Y', ''],
+                "1min": ["%Y-%m-%d %H:%M", ""],
+                "20min": ["%Y-%m-%d %H", " :20"],
+                "h": ["%Y-%m-%d %H", ""],
+                "D": ["%Y-%m-%d", ""],
+                "MS": ["%Y-%m", ""],
+                "YS": ["%Y", ""],
             }
-            df[self.dtfield + "_epoch"] = df[self.dtfield].dt.strftime(epochs[self.dtfreq][0]) + epochs[self.dtfreq][1]
+            df[self.dtfield + "_epoch"] = (
+                df[self.dtfield].dt.strftime(epochs[self.dtfreq][0])
+                + epochs[self.dtfreq][1]
+            )
             return df
 
         # the ideia is to implement regular time increments and insert null rows
@@ -686,12 +689,16 @@ class TimeSeries(Univar):
         # insert epochs based on data frequency
         df_data = _insert_epochs(df=df_data)
         # aggregate by epoch
-        df_data = df_data.groupby(self.dtfield + "_epoch")[self.varfield].agg([self.agg]).reset_index()
+        df_data = (
+            df_data.groupby(self.dtfield + "_epoch")[self.varfield]
+            .agg([self.agg])
+            .reset_index()
+        )
         df_data.rename(columns={self.agg: self.varfield}, inplace=True)
 
         # Standardize incoming start and end
-        start_std = self.start.date() # the start of date
-        end_std = self.end + pd.Timedelta(days=1) # the next day
+        start_std = self.start.date()  # the start of date
+        end_std = self.end + pd.Timedelta(days=1)  # the next day
         end_std = end_std.date()
 
         # Get a standard date range for all periods
@@ -871,7 +878,7 @@ class TimeSeries(Univar):
         )
 
         # get skip hint
-        #print(f"debug: {self.gapsize}")
+        # print(f"debug: {self.gapsize}")
         skip_v = np.zeros(len(df))
         for i in range(len(df) - 1):
             n_curr = df["CumSum"].values[i]
@@ -881,7 +888,7 @@ class TimeSeries(Univar):
                     n_start = i - n_curr
                     if i <= n_curr:
                         n_start = 0
-                    skip_v[n_start + 1: i + 1] = 1
+                    skip_v[n_start + 1 : i + 1] = 1
         df["Skip"] = skip_v
 
         # Set Epoch Field
@@ -941,16 +948,14 @@ class TimeSeries(Univar):
 
         # group by
         aggregation_dict = {
-            self.epochs_n_field: (self.epochs_id_field, 'count'),
-            self.start_field: (self.dtfield, 'min'),
-            self.end_field: (self.dtfield, 'max'),
-            self.smallgaps_n_field: (self.smallgaps_n_field, 'sum')
+            self.epochs_n_field: (self.epochs_id_field, "count"),
+            self.start_field: (self.dtfield, "min"),
+            self.end_field: (self.dtfield, "max"),
+            self.smallgaps_n_field: (self.smallgaps_n_field, "sum"),
         }
 
         self.epochs_stats = (
-            df.groupby(self.epochs_id_field)
-            .agg(**aggregation_dict)
-            .reset_index()
+            df.groupby(self.epochs_id_field).agg(**aggregation_dict).reset_index()
         )
 
         # Get colors
@@ -970,7 +975,7 @@ class TimeSeries(Univar):
                 self.smallgaps_n_field,
                 self.start_field,
                 self.end_field,
-                self.color_field
+                self.color_field,
             ]
         ]
 
@@ -1124,12 +1129,12 @@ class TimeSeries(Univar):
                 "std": "std",
                 "var": "var",
             }
-            '''
+            """
             # Add custom percentiles to the dictionary
             percentiles_to_compute = [1, 5, 10, 25, 50, 75, 90, 95, 99]
             for p in percentiles_to_compute:
                 agg_funcs[f"p{p}"] = lambda x, p=p: np.percentile(x, p)
-            '''
+            """
 
         # set list of tuples
         agg_funcs_list = [
@@ -1202,10 +1207,14 @@ class TimeSeries(Univar):
         :return: None
         :rtype: None
         """
-        df_upscale = self.aggregate(freq=freq, bad_max=bad_max, agg_funcs={self.agg: self.agg})
-        df_upscale = df_upscale.rename(columns={"{}_{}".format(self.varfield, self.agg): self.varfield})
+        df_upscale = self.aggregate(
+            freq=freq, bad_max=bad_max, agg_funcs={self.agg: self.agg}
+        )
+        df_upscale = df_upscale.rename(
+            columns={"{}_{}".format(self.varfield, self.agg): self.varfield}
+        )
 
-        #return case
+        # return case
         if inplace:
             # overwrite local data
             self.data = df_upscale
@@ -1215,7 +1224,6 @@ class TimeSeries(Univar):
             return None
         else:
             return df_upscale
-
 
     # todo method
     def downscale(self, freq):
@@ -1228,7 +1236,6 @@ class TimeSeries(Univar):
         # 2) factor
         factor_downscale = len(dt_index) / self.data_size
         print(factor_downscale)
-
 
     def assess_extreme_values(self, eva_freq="YS", eva_agg="max"):
         """Run Extreme Values Analysis (EVA) over the Time Series and set the ``eva`` attribute
@@ -1253,9 +1260,17 @@ class TimeSeries(Univar):
         self.agg = agg_old
 
         # fix dates to match actual maxima by making YEAR-Value tag
-        df_eva["tag1"] = df_eva[self.dtfield].dt.year.astype(str) + " - " + df_eva[self.varfield].astype(str)
+        df_eva["tag1"] = (
+            df_eva[self.dtfield].dt.year.astype(str)
+            + " - "
+            + df_eva[self.varfield].astype(str)
+        )
         df_d = self.data.copy()
-        df_d["tag2"] = df_d[self.dtfield].dt.year.astype(str) + " - " + df_d[self.varfield].astype(str)
+        df_d["tag2"] = (
+            df_d[self.dtfield].dt.year.astype(str)
+            + " - "
+            + df_d[self.varfield].astype(str)
+        )
         # join by tag
         df_eva = pd.merge(left=df_eva, left_on="tag1", right=df_d, right_on="tag2")
         df_eva = df_eva.drop_duplicates(subset="tag1").reset_index(drop=True)
@@ -1335,7 +1350,6 @@ class TimeSeries(Univar):
         if specs["ymax"] is None:
             specs["ymax"] = self.data[specs["yvar"]].max()
 
-
         # --------------------- plotting --------------------- #
         gaps_c = "tab:red"
         gaps_a = 0.6
@@ -1367,7 +1381,7 @@ class TimeSeries(Univar):
                 alpha=gaps_a,
             )
         # Create a dummy plot for missing data symbol
-        plt.plot([], [], color=gaps_c, alpha=gaps_a, label='Gaps')
+        plt.plot([], [], color=gaps_c, alpha=gaps_a, label="Gaps")
         if self.epochs_n <= 12:
             plt.legend(frameon=True, ncol=3)
 
@@ -1396,7 +1410,6 @@ class TimeSeries(Univar):
             plt.close(fig)
             return file_path
 
-
     def _set_view_specs(self):
         """Set view specifications.
         Expected to overwrite superior methods.
@@ -1409,34 +1422,37 @@ class TimeSeries(Univar):
         super()._set_view_specs()
 
         # Update or add new specifications specific to the child class
-        self.view_specs.update({
-            "folder": self.folder_src,
-            "title": "Time Series | {} | {} ({})".format(self.name, self.varname, self.varalias),
-            "xvar": self.dtfield,
-            "yvar": self.varfield,
-            "xlabel": self.dtfield,
-            "color": self.rawcolor,
-            "color_aux": self.rawcolor,
-            "color_fill": self.rawcolor,
-            "color_eva": "blue",
-            "legend_eva": "Annual Maxima",
-            "alpha": 1,
-            "alpha_aux": 1,
-            "alpha_fill": 1,
-            "fill": False,
-            "xmin": None,
-            "xmax": None,
-            "xmax_aux": 20,
-            "ymin": 0,
-            "ymax": None,
-            "linestyle": "solid",
-            "marker": None,
-            "marker_eva": '.',
-            "n_bins": 100,
-        })
+        self.view_specs.update(
+            {
+                "folder": self.folder_src,
+                "title": "Time Series | {} | {} ({})".format(
+                    self.name, self.varname, self.varalias
+                ),
+                "xvar": self.dtfield,
+                "yvar": self.varfield,
+                "xlabel": self.dtfield,
+                "color": self.rawcolor,
+                "color_aux": self.rawcolor,
+                "color_fill": self.rawcolor,
+                "color_eva": "blue",
+                "legend_eva": "Annual Maxima",
+                "alpha": 1,
+                "alpha_aux": 1,
+                "alpha_fill": 1,
+                "fill": False,
+                "xmin": None,
+                "xmax": None,
+                "xmax_aux": 20,
+                "ymin": 0,
+                "ymax": None,
+                "linestyle": "solid",
+                "marker": None,
+                "marker_eva": ".",
+                "n_bins": 100,
+            }
+        )
 
         return None
-
 
     def view(self, show=True, return_fig=False, minimal_dates=False, include_eva=False):
         """Get a basic visualization.
@@ -1488,11 +1504,15 @@ class TimeSeries(Univar):
                 y1=lower,
                 y2=self.data[specs["yvar"]],
                 color=specs["color_fill"],
-                alpha=specs["alpha_fill"]
+                alpha=specs["alpha_fill"],
             )
         if minimal_dates:
-            ax.xaxis.set_major_locator(mdates.AutoDateLocator())  # Automatically adjust based on range
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format as YYYY-MM-DD
+            ax.xaxis.set_major_locator(
+                mdates.AutoDateLocator()
+            )  # Automatically adjust based on range
+            ax.xaxis.set_major_formatter(
+                mdates.DateFormatter("%Y-%m-%d")
+            )  # Format as YYYY-MM-DD
             ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Always keep 3 labels
 
         if specs["subtitle_a"] is not None:
@@ -1515,12 +1535,11 @@ class TimeSeries(Univar):
                     self.eva["Data"][self.dtfield],
                     self.eva["Data"][self.varfield],
                     marker=".",
-                    linestyle='none',
+                    linestyle="none",
                     color=specs["color_eva"],
                     label=specs["legend_eva"],
                 )
-                ax.legend(frameon=True,fontsize=8, facecolor="white")
-
+                ax.legend(frameon=True, fontsize=8, facecolor="white", loc="upper left")
 
                 # ---- plot EVA histogram
                 ax2 = axes[1]
@@ -1534,7 +1553,7 @@ class TimeSeries(Univar):
                     density=True,
                     label=specs["legend_eva"],
                 )
-                #ax2.legend()
+                # ax2.legend()
 
                 # ---- plot EVA model
                 ax3 = axes[2]
@@ -1543,9 +1562,9 @@ class TimeSeries(Univar):
                     x=self.eva["Data"]["T(X)_Weibull"],
                     y=self.eva["Data"][self.varfield],
                     marker=".",
-                    color="black",#specs["color_eva"],
-                    zorder = 3,
-                    label="Empirical"
+                    color="black",  # specs["color_eva"],
+                    zorder=3,
+                    label="Empirical",
                 )
                 ax3.plot(
                     self.eva["Data_T(X)"]["T(X)_Gumbel"],
@@ -1553,18 +1572,19 @@ class TimeSeries(Univar):
                     color="blue",
                     linestyle="solid",
                     zorder=2,
-                    label="Gumbel"
+                    label="Gumbel",
                 )
                 ax3.fill_between(
                     x=self.eva["Data_T(X)"]["T(X)_Gumbel"],
                     y1=self.eva["Data_T(X)"][f"{self.varfield}_P05"],
                     y2=self.eva["Data_T(X)"][f"{self.varfield}_P95"],
                     color="lightblue",
+                    alpha=0.7,
                     zorder=1,
-                    label="90%CR"
+                    label="90%CR",
                 )
-                ax3.legend(frameon=True,fontsize=8, facecolor="white")
-                '''
+                ax3.legend(frameon=True, fontsize=8, facecolor="white", loc="lower right")
+                """
                 ax3.plot(
                     self.eva["Data_T(X)"]["T(X)_Gumbel"],
                     self.eva["Data_T(X)"][f"{self.varfield}_P05"],
@@ -1579,13 +1599,11 @@ class TimeSeries(Univar):
                     linestyle=":",
                     zorder=1
                 )
-                '''
+                """
                 ax3.set_xlim(1, 1000)
-                ax3.set_xscale('log')
+                ax3.set_xscale("log")
                 ax3.set_xlabel("T(X)")
                 ax3.grid(specs["plot_grid"])
-
-
 
         # --------------------- end --------------------- #
         # return object, show or save
@@ -1601,8 +1619,6 @@ class TimeSeries(Univar):
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
             return file_path
-
-
 
     # Deprecated
     def __view(self, show=True, return_fig=False):
@@ -1624,13 +1640,14 @@ class TimeSeries(Univar):
         plt.suptitle(specs["title"])
         # grid
         gs = mpl.gridspec.GridSpec(
-            1, 5,  # nrows, ncols
+            1,
+            5,  # nrows, ncols
             wspace=0.6,
             hspace=0.5,
             left=0.1,
             right=0.98,
             bottom=0.25,
-            top=0.80
+            top=0.80,
         )
 
         # handle min max
@@ -1657,18 +1674,22 @@ class TimeSeries(Univar):
 
         # fill option
         if specs["fill"]:
-            lower = (self.data[specs["yvar"]].values * 0) +  specs["ymin"]
+            lower = (self.data[specs["yvar"]].values * 0) + specs["ymin"]
             # Fill below the time series
             plt.fill_between(
                 x=self.data[specs["xvar"]],
                 y1=lower,
                 y2=self.data[specs["yvar"]],
                 color=specs["color_fill"],
-                alpha=specs["alpha_fill"]
+                alpha=specs["alpha_fill"],
             )
 
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator())  # Automatically adjust based on range
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format as YYYY-MM-DD
+        ax.xaxis.set_major_locator(
+            mdates.AutoDateLocator()
+        )  # Automatically adjust based on range
+        ax.xaxis.set_major_formatter(
+            mdates.DateFormatter("%Y-%m-%d")
+        )  # Format as YYYY-MM-DD
         ax.xaxis.set_major_locator(MaxNLocator(nbins=3))  # Always keep 3 labels
 
         # set basic plotting stuff
@@ -1685,7 +1706,7 @@ class TimeSeries(Univar):
             color=specs["color_aux"],
             alpha=specs["alpha_aux"],
             orientation="horizontal",
-            #weights=np.ones(len(self.data)) / len(self.data),
+            # weights=np.ones(len(self.data)) / len(self.data),
         )
         plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
         # plt.title(specs["subtitle_2"])
@@ -1694,15 +1715,14 @@ class TimeSeries(Univar):
 
         # --------------------- post-plotting --------------------- #
 
-
         # Adjust layout to prevent cutoff
-        #plt.tight_layout()
+        # plt.tight_layout()
 
         # --------------------- end --------------------- #
         # return object, show or save
         if return_fig:
             return fig
-        elif show: # default case
+        elif show:  # default case
             plt.show()
             return None
         else:
@@ -1712,7 +1732,6 @@ class TimeSeries(Univar):
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
             return file_path
-
 
 
 class TimeSeriesCollection(Collection):
@@ -2272,7 +2291,9 @@ class TimeSeriesCollection(Collection):
         local_epochs_df = self.merge_local_epochs()
         # Aggregate sum based on the 'Name' field
         agg_df = local_epochs_df.groupby("Name")["Epochs_n"].sum().reset_index()
-        agg_df = agg_df.sort_values(by="Epochs_n", ascending=True).reset_index(drop=True)
+        agg_df = agg_df.sort_values(by="Epochs_n", ascending=True).reset_index(
+            drop=True
+        )
         names = agg_df["Name"].values
         if usealias:
             alias = [dict_alias[name] for name in names]
@@ -2468,6 +2489,7 @@ class TimeSeriesCollection(Collection):
             for name in self.collection:
                 df = self.collection[name].export(folder=folder)
 
+
 class TimeSeriesCluster(TimeSeriesCollection):
     # todo docstring
     """The ``TimeSeriesCluster`` instance is desgined for holding a collection
@@ -2487,7 +2509,7 @@ class TimeSeriesCluster(TimeSeriesCollection):
         # Overwrite parent attributes
         self.name_object = "Time Series Cluster"
 
-    '''
+    """
     def append(self, new_object):
         # todo docstring
         # only append if new object is the same of the base
@@ -2497,7 +2519,7 @@ class TimeSeriesCluster(TimeSeriesCollection):
             raise ValueError("new object is not instances of the same class.")
         super().append(new_object=new_object)
         return None
-    '''
+    """
 
 
 class TimeSeriesSamples(TimeSeriesCluster):
@@ -2618,6 +2640,7 @@ class TimeSeriesSamples(TimeSeriesCluster):
 
         return df
 
+
 class TimeSeriesSpatialSamples(TimeSeriesSamples):
     # todo improve docstring
     """The ``TimeSeriesSpatialSamples`` instance is desgined for holding a collection
@@ -2736,6 +2759,7 @@ class TimeSeriesSpatialSamples(TimeSeriesSamples):
 
 # ------------- SPATIAL OBJECTS -------------  #
 # todo refactor to MbaE paradigm
+
 
 class Raster:
     """
@@ -2859,7 +2883,7 @@ class Raster:
             "vmax": None,
             "hist_vmax": None,
             "project_name": None,
-            "zoom_window": None
+            "zoom_window": None,
         }
         return None
 
@@ -2993,6 +3017,7 @@ class Raster:
         >>> raster.load_tif_raster(file="path/to/raster.tif")
         """
         from PIL import Image
+
         if xxl:
             Image.MAX_IMAGE_PIXELS = None
 
@@ -3036,10 +3061,19 @@ class Raster:
             lst_file = f_file.readlines()
 
         # Metadata extraction
-        tpl_meta_labels = ("ncols", "nrows", "xllcorner", "yllcorner", "cellsize", "NODATA_value")
+        tpl_meta_labels = (
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "cellsize",
+            "NODATA_value",
+        )
         tpl_meta_format = ("int", "int", "float", "float", "float", "float")
         dct_meta = {
-            tpl_meta_labels[i]: (int if tpl_meta_format[i] == "int" else float)(lst_file[i].split()[-1])
+            tpl_meta_labels[i]: (int if tpl_meta_format[i] == "int" else float)(
+                lst_file[i].split()[-1]
+            )
             for i in range(6)
         }
         # Grid construction using numpy
@@ -3839,7 +3873,7 @@ class Raster:
         stats=True,
         save_stats=True,
         return_fig=False,
-        helper_geometry=None
+        helper_geometry=None,
     ):
         """Plot a basic panel of the raster map.
 
@@ -3899,16 +3933,16 @@ class Raster:
             j_max = specs["zoom_window"]["j_max"]
         # plot image
         im = plt.imshow(
-            self.grid[i_min: i_max, j_min: j_max],
+            self.grid[i_min:i_max, j_min:j_max],
             cmap=specs["cmap"],
             vmin=specs["vmin"],
             vmax=specs["vmax"],
-            interpolation='none',
-            extent=self.get_extent()
+            interpolation="none",
+            extent=self.get_extent(),
         )
         # plot helper geometry
         if helper_geometry is not None:
-            helper_geometry.plot(ax=ax, color='none', edgecolor='k')
+            helper_geometry.plot(ax=ax, color="none", edgecolor="k")
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         fig.colorbar(im, shrink=0.5)
         plt.axis("off")
@@ -3920,7 +3954,7 @@ class Raster:
             x=uni.data,
             bins=specs["nbins"],
             color=specs["color"],
-            weights=np.ones(len(uni.data)) / len(uni.data)
+            weights=np.ones(len(uni.data)) / len(uni.data),
             # orientation="horizontal"
         )
 
@@ -3941,7 +3975,7 @@ class Raster:
             x=n_mean - 20 * (specs["vmax"] - specs["vmin"]) / 100,
             y=0.9 * specs["hist_vmax"],
             s="$\mu$ = {:.2f}".format(n_mean),
-            color="red"
+            color="red",
         )
 
         plt.ylim(0, specs["hist_vmax"])
@@ -3991,14 +4025,14 @@ class Raster:
             if s_head == "cellsize":
                 s_value = self.cellsize
                 if s_value is None:
-                    s_value = '-'
+                    s_value = "-"
                     s_line = "{:>15}: {:<10}".format(s_head, s_value)
                 else:
                     s_line = "{:>15}: {:<10.5f}".format(s_head, s_value)
             else:
                 s_value = df_meta["Value"].values[i]
                 if s_value is None:
-                    s_value = '-'
+                    s_value = "-"
                     s_line = "{:>15}: {:<10}".format(s_head, s_value)
                 else:
                     s_line = "{:>15}: {:<10.2f}".format(s_head, s_value)
@@ -4062,9 +4096,7 @@ class Raster:
             return None
         else:
             file_path = "{}/{}.{}".format(
-                specs["folder"],
-                specs["filename"],
-                specs["fig_format"]
+                specs["folder"], specs["filename"], specs["fig_format"]
             )
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
@@ -4074,8 +4106,12 @@ class Raster:
                     "{}/{}.csv".format(
                         specs["folder"],
                         specs["filename"],
-                        ), sep=";", index=False)
+                    ),
+                    sep=";",
+                    index=False,
+                )
             return file_path
+
 
 class QualiRaster(Raster):
     """
@@ -4392,6 +4428,7 @@ class QualiRaster(Raster):
         :rtype: :class:`AOI`` object
         """
         from plans.datasets import AOI
+
         map_aoi = AOI(name="{} {}".format(self.varname, by_value_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi.prj = self.prj
@@ -4408,7 +4445,7 @@ class QualiRaster(Raster):
         new_grid = geo.convert_values(
             array=self.grid,
             old_values=self.table["Id"].values,
-            new_values=self.table[table_field].values
+            new_values=self.table[table_field].values,
         )
         return new_grid
 
@@ -4476,7 +4513,7 @@ class QualiRaster(Raster):
                 "legend_ncol": 2,
                 "project_name": None,
                 "zoom_window": None,
-                "plot_metadata": True
+                "plot_metadata": True,
             }
         return None
 
@@ -4515,8 +4552,6 @@ class QualiRaster(Raster):
         # pass specs
         specs = self.view_specs.copy()
 
-
-
         if specs["project_name"] is None:
             suff = ""
         else:
@@ -4525,13 +4560,16 @@ class QualiRaster(Raster):
         # -----------------------------------------------
         # ensure areas are computed
         df_areas = pd.merge(
-            left=self.table[["Id", "Color"]], right=self.get_areas(), how="left", on="Id"
+            left=self.table[["Id", "Color"]],
+            right=self.get_areas(),
+            how="left",
+            on="Id",
         )
         # new aux
         df_aux = df_areas.sort_values(by="{}_m2".format(self.areafield), ascending=True)
         if filter:
             if len(df_aux) > n_filter:
-                #print("hey")
+                # print("hey")
                 n_limit = df_aux["{}_m2".format(self.areafield)].values[-n_filter]
                 # create the others
                 df_aux2 = df_aux.query("{}_m2 < {}".format(self.areafield, n_limit))
@@ -4564,7 +4602,7 @@ class QualiRaster(Raster):
                 df_aux = df_aux.drop_duplicates(subset="Id")
                 df_aux = df_aux.sort_values(by="{}_m2".format(self.areafield))
                 df_aux = df_aux.reset_index(drop=True)
-                #print(df_aux.to_string())
+                # print(df_aux.to_string())
 
         # -----------------------------------------------
         # Deploy figure
@@ -4595,12 +4633,12 @@ class QualiRaster(Raster):
             j_max = specs["zoom_window"]["j_max"]
         # plot image
         im = plt.imshow(
-            self.grid[i_min: i_max, j_min: j_max],
+            self.grid[i_min:i_max, j_min:j_max],
             cmap=specs["cmap"],
             vmin=specs["vmin"],
             vmax=specs["vmax"],
-            interpolation='none',
-            extent=self.get_extent()
+            interpolation="none",
+            extent=self.get_extent(),
         )
         plt.title("a. {}".format(specs["a_title"]), loc="left")
         plt.axis("off")
@@ -4622,7 +4660,7 @@ class QualiRaster(Raster):
         plt.legend(
             frameon=True,
             fontsize=8,
-            markerscale=0.4,# 0.8
+            markerscale=0.4,  # 0.8
             handles=legend_elements,
             bbox_to_anchor=(specs["legend_x"], specs["legend_y"]),
             bbox_transform=fig.transFigure,
@@ -4709,19 +4747,19 @@ class QualiRaster(Raster):
             return None
         else:
             file_path = "{}/{}.{}".format(
-                specs["folder"],
-                specs["filename"],
-                specs["fig_format"]
+                specs["folder"], specs["filename"], specs["fig_format"]
             )
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
             # save stats:
             if export_areas:
-                df_areas.to_csv("{}/{}.csv".format(
-                    specs["folder"],
-                    specs["filename"]),
-                    sep=";", index=False)
+                df_areas.to_csv(
+                    "{}/{}.csv".format(specs["folder"], specs["filename"]),
+                    sep=";",
+                    index=False,
+                )
             return file_path
+
 
 class QualiHard(QualiRaster):
     """
@@ -4766,6 +4804,7 @@ class QualiHard(QualiRaster):
         else:
             self.load_prj_file(file=prj_file)
         return None
+
 
 class Zones(QualiRaster):
     """
@@ -4845,6 +4884,7 @@ class Zones(QualiRaster):
         :rtype: :class:`AOI`` object
         """
         from plans.datasets.spatial import AOI
+
         map_aoi = AOI(name="{} {}".format(self.varname, zone_id))
         map_aoi.set_asc_metadata(metadata=self.asc_metadata)
         map_aoi.prj = self.prj
@@ -4911,10 +4951,9 @@ class Zones(QualiRaster):
         return None
 
 
-
-
 # -----------------------------------------
 # Raster Collection data structures
+
 
 class RasterCollection(Collection):
     """
@@ -5348,6 +5387,7 @@ class RasterCollection(Collection):
         plt.close(fig)
         return None
 
+
 class QualiRasterCollection(RasterCollection):
     """
     The raster test_collection base dataset.
@@ -5398,6 +5438,7 @@ class QualiRasterCollection(RasterCollection):
         # delete aux
         del rst_aux
         return None
+
 
 class RasterSeries(RasterCollection):
     """A :class:`RasterCollection`` where date matters and all maps in collections are
@@ -5657,6 +5698,7 @@ class RasterSeries(RasterCollection):
         )
         return None
 
+
 class QualiRasterSeries(RasterSeries):
     """A :class:`RasterSeries`` where date matters and all maps in collections are
     expected to be :class:`QualiRaster`` with the same variable, same projection and same grid.
@@ -5760,7 +5802,15 @@ class QualiRasterSeries(RasterSeries):
             table_file=table_file,
         )
 
-    def load_folder(self, folder, table_file, name_pattern="map_*", talk=False, use_parallel=False, num_threads=None):
+    def load_folder(
+        self,
+        folder,
+        table_file,
+        name_pattern="map_*",
+        talk=False,
+        use_parallel=False,
+        num_threads=None,
+    ):
         """
         Load all rasters from a folder by following a name pattern. Date is expected to be at the end of name before file extension.
         Supports both serial and parallel processing using threads.
@@ -5788,17 +5838,22 @@ class QualiRasterSeries(RasterSeries):
 
         if use_parallel:
             import threading
+
             # Prepare data for parallel processing
-            file_info_list = [(os.path.basename(asc_file).split(".")[0],
-                               asc_file.split("_")[-1].split(".")[0],
-                               asc_file,
-                               prj_file,
-                               table_file)
-                              for asc_file, prj_file in zip(lst_maps, lst_prjs)]
+            file_info_list = [
+                (
+                    os.path.basename(asc_file).split(".")[0],
+                    asc_file.split("_")[-1].split(".")[0],
+                    asc_file,
+                    prj_file,
+                    table_file,
+                )
+                for asc_file, prj_file in zip(lst_maps, lst_prjs)
+            ]
 
             threads = []
             for file_info in file_info_list:
-                #print(file_info)
+                # print(file_info)
                 thread = threading.Thread(target=self.w_load_file, args=(file_info,))
                 threads.append(thread)
                 thread.start()
@@ -5849,7 +5904,7 @@ class QualiRasterSeries(RasterSeries):
             print("loading folder...")
         for i in range(len(lst_maps)):
             asc_file = lst_maps[i]
-            #print(asc_file)
+            # print(asc_file)
             prj_file = lst_prjs[i]
             # get name
             s_name = os.path.basename(asc_file).split(".")[0]
@@ -5932,7 +5987,7 @@ class QualiRasterSeries(RasterSeries):
             "legend_ncol": 3,
             "filter_by_id": None,  # list of ids
             "annotate": False,
-            "annotate_by_id": None
+            "annotate_by_id": None,
         }
         # handle input specs
         if specs is None:
@@ -5971,19 +6026,28 @@ class QualiRasterSeries(RasterSeries):
                     if specs["annotate"]:
                         if _id in specs["annotate_by_id"]:
                             lst_dates = [_df["Date"].values[0], _df["Date"].values[-1]]
-                            lst_areas = [_df["Area_%"].values[0], _df["Area_%"].values[-1]]
-                            plt.plot(lst_dates, lst_areas, color=_color, marker="o", linestyle="")
+                            lst_areas = [
+                                _df["Area_%"].values[0],
+                                _df["Area_%"].values[-1],
+                            ]
+                            plt.plot(
+                                lst_dates,
+                                lst_areas,
+                                color=_color,
+                                marker="o",
+                                linestyle="",
+                            )
                             plt.text(
                                 x=lst_dates[0],
                                 y=lst_areas[0] + 5,
                                 s="{:.1f}%".format(lst_areas[0]),
-                                color=_color
+                                color=_color,
                             )
                             plt.text(
                                 x=lst_dates[1],
                                 y=lst_areas[1] + 5,
                                 s="{:.1f}%".format(lst_areas[1]),
-                                color=_color
+                                color=_color,
                             )
                 else:
                     pass
@@ -6012,7 +6076,9 @@ class QualiRasterSeries(RasterSeries):
             plt.savefig("{}/{}.{}".format(folder, filename, fig_format), dpi=dpi)
             # save areas
             if export_areas:
-                df_areas.to_csv("{}/{}.csv".format(folder, filename), sep=";", index=False)
+                df_areas.to_csv(
+                    "{}/{}.csv".format(folder, filename), sep=";", index=False
+                )
         plt.close(fig)
         return None
 
@@ -6074,11 +6140,12 @@ class QualiRasterSeries(RasterSeries):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+
     plt.style.use("seaborn-v0_8")
 
     r = Raster()
     r.load(
         asc_file="C:/plans/docs/datasets/topo/slope.asc",
-        prj_file="C:/plans/docs/datasets/topo/slope.prj"
+        prj_file="C:/plans/docs/datasets/topo/slope.prj",
     )
     r.view()
