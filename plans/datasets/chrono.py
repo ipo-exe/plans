@@ -202,7 +202,7 @@ class StageSeries(TimeSeries):
         df_an = self.upscale(freq="YS", bad_max=self.gapsize, inplace=False)
         df_an = df_an.dropna()
 
-        # fix dates to match actual maxima
+        # fix dates to match actual maxima by making YEAR-Value tag
         df_an["tag1"] = df_an[self.dtfield].dt.year.astype(str) + " - " + df_an[self.varfield].astype(str)
         df_d = self.data.copy()
         df_d["tag2"] = df_d[self.dtfield].dt.year.astype(str) + " - " + df_d[self.varfield].astype(str)
@@ -220,7 +220,6 @@ class StageSeries(TimeSeries):
 
         # get extra values
         df_an = df_an.sort_values(by=f"{self.varfield}_amax", ascending=False).reset_index(drop=True)
-
         df_an["Rank"] = df_an.index + 1
         df_an["P(X)_Empirical"] = StageSeries.px_empirical(ranks=df_an["Rank"].values)
         df_an["P(X)_Weibull"] = StageSeries.px_weibull(ranks=df_an["Rank"].values)

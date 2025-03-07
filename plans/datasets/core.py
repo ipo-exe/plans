@@ -63,8 +63,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.dates as mdates
+from matplotlib.ticker import MaxNLocator
 import warnings
 from plans.root import Collection, DataSet
+from plans.analyst import Univar
 from plans import geo
 
 
@@ -113,7 +116,7 @@ def get_colors(size=10, cmap="tab20", randomize=True):
 
 # ------------- CHRONOLOGICAL OBJECTS -------------  #
 
-class TimeSeries(DataSet):
+class TimeSeries(Univar):
 
     def __init__(self, name="MyTimeSeries", alias="TS0"):
         """Initialize the ``TimeSeries`` object.
@@ -131,14 +134,11 @@ class TimeSeries(DataSet):
 
         # upstream setups
         self.dtfield = "DateTime"
-        self.varfield = "V"
-        self.varalias = "Var"
-        self.varname = "Variable"
-        self.units = "units"
         self.agg = "mean"
         self.cmap = "Dark2"
         self.object_alias = "TS"
         self.rawcolor = "gray"  # alternativa color
+        self.folder_src = None
 
         # ------------ call super ----------- #
         super().__init__(name=name, alias=alias)
@@ -162,7 +162,7 @@ class TimeSeries(DataSet):
         self.var_min = None
         self.var_max = None
         self.isstandard = False
-        self.folder_src = None
+
 
         self.gapsize = 6
         self.epochs_stats = None
@@ -219,44 +219,6 @@ class TimeSeries(DataSet):
 
 
         # ... continues in downstream objects ... #
-
-    def _set_view_specs(self):
-        """Set view specifications.
-        Expected to overwrite superior methods.
-
-        :return: None
-        :rtype: None
-        """
-        self.view_specs = {
-            "folder": self.folder_src,
-            "filename": self.name,
-            "fig_format": "jpg",
-            "dpi": 300,
-            "title": "Time Series | {} | {} ({})".format(self.name, self.varname, self.varalias),
-            "width": 5 * 1.618,
-            "height": 3,
-            "xvar": self.dtfield,
-            "yvar": self.varfield,
-            "xlabel": self.dtfield,
-            "xlabel_aux": "$p(x)$",
-            "ylabel": self.units,
-            "color": self.rawcolor,
-            "color_aux": self.rawcolor,
-            "color_fill": self.rawcolor,
-            "alpha": 1,
-            "alpha_aux": 1,
-            "alpha_fill": 1,
-            "fill": False,
-            "xmin": None,
-            "xmax": None,
-            "xmax_aux": 0.1,
-            "ymin": 0,
-            "ymax": None,
-            "linestyle": "solid",
-            "marker": None,
-            "n_bins": 100
-        }
-        return None
 
     def _set_frequency(self):
         """Guess the datetime resolution of a time series based on the consistency of
@@ -392,6 +354,8 @@ class TimeSeries(DataSet):
 
         >>> ts.update()
         """
+        super().update()
+
         if self.data is not None:
             self._set_frequency()
             self.start = self.data[self.dtfield].min()
@@ -400,6 +364,12 @@ class TimeSeries(DataSet):
             self.var_max = self.data[self.varfield].max()
             self.size = len(self.data)
             self._set_view_specs()
+            self.view_specs["xmax_aux"] = 1.2 * self.freq_df["Frequency"].max()
+            self.view_specs["ymax"] = self.data[self.varfield].max()
+            self.view_specs["xmax"] = self.data[self.dtfield].max()
+            self.view_specs["xmin"] = self.data[self.dtfield].min()
+
+        # ... continues in downstream objects ... #
         return None
 
     def set(self, dict_setter, load_data=True):
@@ -512,6 +482,7 @@ class TimeSeries(DataSet):
 
         # Set the data attribute
         self.data = df.copy()
+
         # update all
         self.update()
 
@@ -1266,6 +1237,52 @@ class TimeSeries(DataSet):
         print(factor_downscale)
 
 
+    def eva(self, eva_freq="YS"):
+
+        # set agg to max
+        agg_old = self.agg[:]
+        self.agg = "max"
+
+        # upscale time series
+        df_eva = self.upscale(freq=eva_freq, bad_max=self.gapsize, inplace=False)
+        df_eva = df_eva.dropna()
+
+        # reset agg
+        self.agg = agg_old
+
+        # fix dates to match actual maxima by making YEAR-Value tag
+        df_eva["tag1"] = df_eva[self.dtfield].dt.year.astype(str) + " - " + df_eva[self.varfield].astype(str)
+        df_d = self.data.copy()
+        df_d["tag2"] = df_d[self.dtfield].dt.year.astype(str) + " - " + df_d[self.varfield].astype(str)
+        # join by tag
+        df_eva = pd.merge(left=df_eva, left_on="tag1", right=df_d, right_on="tag2")
+        df_eva = df_eva.drop_duplicates(subset="tag1").reset_index(drop=True)
+
+        # remake max df
+        df_eva = pd.DataFrame(
+            {
+                self.dtfield: df_eva[f"{self.dtfield}_y"].values,
+                self.varfield: df_eva[f"{self.varfield}_y"].values,
+            }
+        )
+
+        print(df_eva.to_string())
+
+        # Setup Univar for Maxima
+        uv_eva = Univar(name=f"EVA {self.varname}", alias=f"EVA_{self.varalias}")
+        uv_eva.varfield = self.varfield
+        uv_eva.varname = self.varname
+        uv_eva.varalias = self.varalias
+        uv_eva.data = df_eva.copy()
+        uv_eva.update()
+
+        df_gumbel = uv_eva.assess_gumbel_cdf()
+
+        print(df_gumbel.to_string())
+        uv_eva.view()
+
+        return None
+
     def view_epochs(self, show=True):
         """Get a basic visualization.
         Expected to overwrite superior methods.
@@ -1381,16 +1398,88 @@ class TimeSeries(DataSet):
             plt.close(fig)
             return file_path
 
+
+    def _set_view_specs(self):
+        """Set view specifications.
+        Expected to overwrite superior methods.
+
+        :return: None
+        :rtype: None
+        """
+
+        # From old code:
+
+        '''
+        self.view_specs = {
+            "folder": self.folder_src,
+            "filename": self.name,
+            "fig_format": "jpg",
+            "dpi": 300,
+            "title": "Time Series | {} | {} ({})".format(self.name, self.varname, self.varalias),
+            "width": 8,
+            "height": 3,
+            "xvar": self.dtfield,
+            "yvar": self.varfield,
+            "xlabel": self.dtfield,
+            "xlabel_aux": "Count",
+            "ylabel": self.units,
+            "color": self.rawcolor,
+            "color_aux": self.rawcolor,
+            "color_fill": self.rawcolor,
+            "alpha": 1,
+            "alpha_aux": 1,
+            "alpha_fill": 1,
+            "fill": False,
+            "xmin": None,
+            "xmax": None,
+            "xmax_aux": 20,
+            "ymin": 0,
+            "ymax": None,
+            "linestyle": "solid",
+            "marker": None,
+            "n_bins": 100,
+        }
+        '''
+
+        # Call the parent method to initialize `view_specs`
+        super()._set_view_specs()
+
+        # Update or add new specifications specific to the child class
+        self.view_specs.update({
+            "folder": self.folder_src,
+            "title": "Time Series | {} | {} ({})".format(self.name, self.varname, self.varalias),
+            "xvar": self.dtfield,
+            "yvar": self.varfield,
+            "xlabel": self.dtfield,
+            "xlabel_aux": "Count",
+            "color": self.rawcolor,
+            "color_aux": self.rawcolor,
+            "color_fill": self.rawcolor,
+            "alpha": 1,
+            "alpha_aux": 1,
+            "alpha_fill": 1,
+            "fill": False,
+            "xmin": None,
+            "xmax": None,
+            "xmax_aux": 20,
+            "ymin": 0,
+            "ymax": None,
+            "linestyle": "solid",
+            "marker": None,
+            "n_bins": 100,
+        })
+
+        return None
+
+
     def view(self, show=True, return_fig=False):
         """Get a basic visualization.
         Expected to overwrite superior methods.
 
         :param show: option for showing instead of saving.
         :type show: bool
-
         :param return_fig: option for returning the figure object itself.
         :type return_fig: bool
-
         :return: None or file path to figure
         :rtype: None or str
 
@@ -1400,23 +1489,108 @@ class TimeSeries(DataSet):
 
         **Examples:**
 
+
         Simple visualization:
 
-        >>> ds.view(show=True)
+        .. code-block:: python
+
+            ds.view(show=True)
+
 
         Customize view specs:
 
-        >>> ds.view_specs["title"] = "My Custom Title"
-        >>> ds.view_specs["xlabel"] = "The X variable"
-        >>> ds.view(show=True)
+        .. code-block:: python
+
+            ds.view_specs["title"] = "My Custom Title"
+            ds.view_specs["xlabel"] = "The X variable"
+            ds.view(show=True)
+
 
         Save the figure:
 
-        >>> ds.view_specs["folder"] = "path/to/folder"
-        >>> ds.view_specs["filename"] = "my_visual"
-        >>> ds.view_specs["fig_format"] = "png"
-        >>> ds.view(show=False)
+        .. code-block:: python
 
+            ds.view_specs["folder"] = "path/to/folder"
+            ds.view_specs["filename"] = "my_visual"
+            ds.view_specs["fig_format"] = "png"
+            ds.view(show=False)
+
+        """
+        specs = self.view_specs.copy()
+
+        fig = super().view(show=False, return_fig=True)
+        # --------------------- plotting series --------------------- #
+        # series plot
+        axes = fig.get_axes()
+        ax = axes[0]
+        ax.cla()
+        ax.plot(
+            self.data[specs["xvar"]],
+            self.data[specs["yvar"]],
+            linestyle=specs["linestyle"],
+            marker=specs["marker"],
+            color=specs["color"],
+            alpha=specs["alpha"],
+        )
+        # fill option
+        if specs["fill"]:
+            lower = (self.data[specs["yvar"]].values * 0) + specs["ymin"]
+            # Fill below the time series
+            ax.fill_between(
+                x=self.data[specs["xvar"]],
+                y1=lower,
+                y2=self.data[specs["yvar"]],
+                color=specs["color_fill"],
+                alpha=specs["alpha_fill"]
+            )
+
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())  # Automatically adjust based on range
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format as YYYY-MM-DD
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Always keep 3 labels
+
+        if specs["subtitle_a"] is not None:
+            ax.set_title(specs["subtitle_a"])
+
+        if specs["ylim"] is not None:
+            ax.set_ylim(specs["ylim"])
+
+        ax.set_xlabel(specs["xlabel"])
+        ax.set_ylabel(specs["ylabel"])
+
+        ax.set_xlim(specs["xmin"], specs["xmax"])
+        ax.set_ylim(specs["ymin"], 1.2 * specs["ymax"])
+
+        # set basic plotting stuff
+        #ax.ylabel(specs["ylabel"])
+        #ax.xlabel(specs["xlabel"])
+
+
+        # --------------------- end --------------------- #
+        # return object, show or save
+        if return_fig:
+            return fig
+        elif show:  # default case
+            plt.show()
+            return None
+        else:
+            file_path = "{}/{}.{}".format(
+                specs["folder"], specs["filename"], specs["fig_format"]
+            )
+            plt.savefig(file_path, dpi=specs["dpi"])
+            plt.close(fig)
+            return file_path
+
+    # Deprecated
+    def __view(self, show=True, return_fig=False):
+        """[Deprecated]Get a basic visualization.
+        Expected to overwrite superior methods.
+
+        :param show: option for showing instead of saving.
+        :type show: bool
+        :param return_fig: option for returning the figure object itself.
+        :type return_fig: bool
+        :return: None or file path to figure
+        :rtype: None or str
         """
         # get specs
         specs = self.view_specs.copy()
@@ -1426,13 +1600,13 @@ class TimeSeries(DataSet):
         plt.suptitle(specs["title"])
         # grid
         gs = mpl.gridspec.GridSpec(
-            1, 4,  # nrows, ncols
-            wspace=0.4,
+            1, 5,  # nrows, ncols
+            wspace=0.6,
             hspace=0.5,
             left=0.1,
+            right=0.98,
             bottom=0.25,
-            top=0.85,
-            right=0.95
+            top=0.80
         )
 
         # handle min max
@@ -1469,6 +1643,9 @@ class TimeSeries(DataSet):
                 alpha=specs["alpha_fill"]
             )
 
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())  # Automatically adjust based on range
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format as YYYY-MM-DD
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=3))  # Always keep 3 labels
 
         # set basic plotting stuff
         plt.ylabel(specs["ylabel"])
@@ -1477,14 +1654,14 @@ class TimeSeries(DataSet):
         plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
 
         # --------------------- plotting hist --------------------- #
-        ax = fig.add_subplot(gs[0, 3])
+        ax2 = fig.add_subplot(gs[0, 3], sharey=ax)
         plt.hist(
             self.data[self.varfield],
             bins=specs["n_bins"],
             color=specs["color_aux"],
             alpha=specs["alpha_aux"],
             orientation="horizontal",
-            weights=np.ones(len(self.data)) / len(self.data),
+            #weights=np.ones(len(self.data)) / len(self.data),
         )
         plt.ylim(specs["ymin"], 1.2 * specs["ymax"])
         # plt.title(specs["subtitle_2"])

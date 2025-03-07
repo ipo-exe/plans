@@ -568,8 +568,7 @@ class Collection(MbaE):
 
 
 class DataSet(MbaE):
-    """
-    The core ``DataSet`` base/demo object.
+    """The core ``DataSet`` base/demo object.
     Expected to hold one :class:`pandas.DataFrame`.
     This is a Base and Dummy object. Expected to be implemented downstream for
     custom applications.
@@ -900,20 +899,29 @@ class DataSet(MbaE):
 
         Simple visualization:
 
-        >>> ds.view(show=True)
+        .. code-block:: python
+
+            ds.view(show=True)
+
 
         Customize view specs:
 
-        >>> ds.view_specs["title"] = "My Custom Title"
-        >>> ds.view_specs["xlabel"] = "The X variable"
-        >>> ds.view(show=True)
+        .. code-block:: python
+
+            ds.view_specs["title"] = "My Custom Title"
+            ds.view_specs["xlabel"] = "The X variable"
+            ds.view(show=True)
+
 
         Save the figure:
 
-        >>> ds.view_specs["folder"] = "path/to/folder"
-        >>> ds.view_specs["filename"] = "my_visual"
-        >>> ds.view_specs["fig_format"] = "png"
-        >>> ds.view(show=False)
+        .. code-block:: python
+
+            ds.view_specs["folder"] = "path/to/folder"
+            ds.view_specs["filename"] = "my_visual"
+            ds.view_specs["fig_format"] = "png"
+            ds.view(show=False)
+
 
         """
         # get specs
