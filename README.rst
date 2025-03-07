@@ -1,6 +1,6 @@
 .. badges
 
-|license| |toplang| |style| |docs|
+|license| |toplang| |docs| |style|
 
 .. |license| image:: https://img.shields.io/github/license/ipo-exe/plans
     :alt: License
@@ -8,13 +8,13 @@
 .. |toplang| image:: https://img.shields.io/github/languages/top/ipo-exe/plans
     :alt: Top Language
 
-.. |style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
-    :alt: Code Style
-
 .. |docs| image:: https://readthedocs.org/projects/plans-docs/badge/?version=latest
     :target: https://plans-docs.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+
+.. |style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Code Style
 
 .. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/logo.png
     :width: 150 px
