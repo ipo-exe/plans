@@ -306,9 +306,15 @@ class Univar(DataSet):
         return result_df
 
     def assess_gumbel_cdf(self):
-        from scipy import stats
+        """Assess the Gumbel CDF for the data (it assumes that is a maxima dataset)
 
+        :return: multiple results from the assessment
+        :rtype: dict
+        """
+        from scipy import stats
+        # clean data
         df = self.data.dropna()
+
         # get extra values
         df = df.sort_values(by=self.varfield, ascending=False).reset_index(drop=True)
         df["Rank"] = df.index + 1
@@ -325,7 +331,79 @@ class Univar(DataSet):
         gumbel_a = params[0]
         gumbel_b = params[1]
 
-        # Goodness of fit tests
+        # compute fit gumbel values
+        df["P(X)_Gumbel"] = 1 - Univar.gumbel_fx(
+            x=df[self.varfield].values,
+            a=gumbel_a,
+            b=gumbel_b
+        )
+        # return period
+        df["T(X)_Gumbel"] = 1 / df["P(X)_Gumbel"]
+
+        # compute uncertainty 90% bands for T(X) in the Annual Series
+        t = stats.t.ppf((1 + 0.9) / 2, df=len(df) - 1)
+        gumbel_se = Univar.gumbel_se(
+            std_sample=np.std(a=df[self.varfield].values),
+            n_sample=len(df),
+            tx=df["T(X)_Gumbel"]
+        )
+        # Standar error analysis
+        df["T(X)_Gumbel_SE90"] = t * gumbel_se
+        h_max = df[self.varfield] + df["T(X)_Gumbel_SE90"]
+        h_min = df[self.varfield] - df["T(X)_Gumbel_SE90"]
+        df["T(X)_Gumbel_P05"] = Univar.gumbel_tx(x=h_min, a=gumbel_a, b=gumbel_b)
+        df["T(X)_Gumbel_P95"] = Univar.gumbel_tx(x=h_max, a=gumbel_a, b=gumbel_b)
+
+        # -------- Return Period analysis
+
+        # evely spaced
+        txs = np.arange(2, 1001, step=1)
+        k = Univar.gumbel_freqfactor(txs)
+
+        # apply reverse formula
+        stages = np.mean(a=df[self.varfield]) + k * np.std(a=df[self.varfield])
+
+        # get standard error
+        gumbel_se = Univar.gumbel_se(
+            std_sample=np.std(a=df[self.varfield]),
+            n_sample=len(df),
+            tx=txs
+        )
+        # compute 50% uncertainty bands by Student's t distribution
+        t_50 = stats.t.ppf((1 + 0.5) / 2, df=len(df) - 1)
+        h_range_50 = t_50 * gumbel_se
+
+        # compute 90% uncertainty bands by Student's t distribution
+        t_90 = stats.t.ppf((1 + 0.9) / 2, df=len(df) - 1)
+        h_range_90 = t_90 * gumbel_se
+
+        # Set TX dataframe
+        df_tx = pd.DataFrame(
+            {
+                "T(X)_Gumbel": txs,
+                f"{self.varfield}": stages,
+                f"{self.varfield}_P25": stages - h_range_50,
+                f"{self.varfield}_P75": stages + h_range_50,
+                f"{self.varfield}_P05": stages - h_range_90,
+                f"{self.varfield}_P95": stages + h_range_90,
+            }
+        )
+
+        # -------- QQ plots
+        qq, qq_params = stats.probplot(
+            x=df[self.varfield].values,
+            dist="gumbel_r",
+            sparams=params
+        )
+        # Set QQ dataframe
+        df_qq = pd.DataFrame(
+            {
+                self.varfield: qq[1],
+                "T-Q": qq[0]
+            }
+        )
+
+        # -------- Goodness of fit tests
         ks_stat, ks_p_value = stats.kstest(
             df[self.varfield].values,
             cdf='gumbel_r',
@@ -336,31 +414,40 @@ class Univar(DataSet):
         if ks_p_value <= 0.05:
             is_gumbel = False
 
-        # QQ plots
-        qq, qq_params = stats.probplot(
-            x=df[self.varfield].values,
-            dist="gumbel_r",
-            sparams=params
-        )
-        df_qq = pd.DataFrame(
+        # -------- Metadata dataframe
+        df_meta = pd.DataFrame(
             {
-                self.varfield: qq[1],
-                "T-Q": qq[0]
+                "Metadata": [
+                    "N",
+                    "Gumbel a",
+                    "Gumbel b",
+                    "KS-test s-value",
+                    "KS-test p-value",
+                    "KS-test Is Gumbel (NullH)",
+                    "QQ-plot c0",
+                    "QQ plot c1",
+                    "QQ-plot r2"
+                ],
+                "Value": [
+                    len(df),
+                    gumbel_a,
+                    gumbel_b,
+                    ks_stat,
+                    ks_p_value,
+                    is_gumbel,
+                    qq_params[1],
+                    qq_params[0],
+                    qq_params[2]
+                ]
             }
         )
 
-        # compute fit gumbel values
-        df["P(X)_Gumbel"] = 1 - Univar.gumbel_fx(
-            x=df[self.varfield].values,
-            a=gumbel_a,
-            b=gumbel_b
-        )
-        # return period
-        df["T(X)_Gumbel"] = 1 / df["P(X)_Gumbel"]
-
-
-
-        return df
+        return {
+            "Data": df,
+            "Data_T(X)": df_tx,
+            "Data_QQ": df_qq,
+            "Metadata": df_meta
+        }
 
     # Plotting methods
 
@@ -841,19 +928,19 @@ class Univar(DataSet):
         :return: function output
         :rtype: float | :class:`numpy.ndarray`
         """
-        g_fx = gumbel_fx(x, a, b)
+        g_fx = Univar.gumbel_fx(x, a, b)
         return Univar.get_tx(fx=g_fx)
 
     @staticmethod
-    def gumbel_freqfactor(tr=2):
+    def gumbel_freqfactor(tx=2):
         """Gumbel Frequency Factor K(T)
 
-        :param tr: return period T
-        :type tr: float | :class:`numpy.ndarray`
+        :param tx: return period T
+        :type tx: float | :class:`numpy.ndarray`
         :return: function output
         :rtype: float | :class:`numpy.ndarray`
         """
-        aux1 = tr / (tr - 1)
+        aux1 = tx / (tx - 1)
         aux2 = np.log(aux1)
         aux3 = np.log(aux2)
         aux4 = 0.5772 + aux3
@@ -861,20 +948,20 @@ class Univar(DataSet):
         return aux5
 
     @staticmethod
-    def gumbel_se(std_sample, n_sample, tr):
+    def gumbel_se(std_sample, n_sample, tx):
         """Gumbel Standard Error for the MM fitted Gumbel function
 
         :param std_sample: sample standard deviation
         :type std_sample: float
         :param n_sample: sample size
         :type n_sample: int
-        :param tr: return period T
-        :type tr: float | :class:`numpy.ndarray`
+        :param tx: return period T
+        :type tx: float | :class:`numpy.ndarray`
         :return: function output
         :rtype: float | :class:`numpy.ndarray`
         """
         aux1 = std_sample / np.sqrt(n_sample)
-        k = gumbel_freqfactor(t=tr)
+        k = Univar.gumbel_freqfactor(tx=tx)
         aux2 = 1 + (1.14 * k) + (1.1 * np.square(k))
         aux3 = np.sqrt(aux2)
         return aux1 * aux3
