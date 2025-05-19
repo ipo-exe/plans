@@ -1583,7 +1583,9 @@ class TimeSeries(Univar):
                     zorder=1,
                     label="90%CR",
                 )
-                ax3.legend(frameon=True, fontsize=8, facecolor="white", loc="lower right")
+                ax3.legend(
+                    frameon=True, fontsize=8, facecolor="white", loc="lower right"
+                )
                 """
                 ax3.plot(
                     self.eva["Data_T(X)"]["T(X)_Gumbel"],

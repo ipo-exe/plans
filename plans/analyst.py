@@ -50,7 +50,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from plans.root import DataSet
+from root import DataSet
 import os
 
 
@@ -1148,6 +1148,7 @@ class Univar(DataSet):
 
 class Bivar:
     """
+    # todo make it an subinstance of Dataset()
     The Bivariate analyst base_object
 
     """

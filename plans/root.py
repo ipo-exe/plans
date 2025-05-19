@@ -680,8 +680,7 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
 
     def __str__(self):
-        """
-        The ``DataSet`` string.
+        """The ``DataSet`` string.
         Expected to overwrite superior methods.
 
         """
