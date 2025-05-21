@@ -4,7 +4,9 @@ import pandas as pd
 from plans import datasets
 from tests import core
 import matplotlib.pyplot as plt
+
 plt.style.use("seaborn-v0_8")
+
 # Ignore all DeprecationWarnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 

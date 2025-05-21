@@ -174,8 +174,7 @@ class TimeSeries(Univar):
         # ... continues in downstream objects ... #
 
     def _set_fields(self):
-        """
-        Set catalog fields names. Expected to increment superior methods.
+        """Set catalog fields names. Expected to increment superior methods.
 
         """
         # ------------ call super ----------- #
@@ -226,9 +225,6 @@ class TimeSeries(Univar):
         - This method infers the datetime frequency of the time series data
         based on the consistency of timestamp components.
 
-        **Examples:**
-
-        >>> ts._set_frequency()
 
         """
         # Handle void data
@@ -361,7 +357,7 @@ class TimeSeries(Univar):
         # ... continues in downstream objects ... #
         return None
 
-    def set(self, dict_setter, load_data=True):
+    def setter(self, dict_setter, load_data=True):
         """Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
 
@@ -373,7 +369,7 @@ class TimeSeries(Univar):
 
         """
         # ---------- call super --------- #
-        super().set(dict_setter=dict_setter, load_data=False)
+        super().setter(dict_setter=dict_setter, load_data=False)
 
         # ---------- set basic attributes --------- #
 

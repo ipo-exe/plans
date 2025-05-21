@@ -18,8 +18,6 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import ds
-
 Class aptent taciti sociosqu ad litora torquent per
 conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
 eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
@@ -53,7 +51,7 @@ In a lacinia nisl.
 
 import os, shutil, glob
 import pandas as pd
-from plans import ds
+from plans import datasets
 from plans.root import FileSys
 
 
@@ -130,7 +128,7 @@ class Project(FileSys):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        self.data = pd.read_csv(file_data, sep=self.file_data_sep)
+        self.data = pd.read_csv(file_data, sep=self.file_csv_sep)
 
         # -------------- post-loading logic -------------- #
         self.data = self.data[

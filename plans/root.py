@@ -40,7 +40,8 @@ eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
 """
 
 import glob, re
-import os, copy, shutil, datetime
+import os, copy, shutil, datetime, pprint
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import PyPDF2
@@ -207,7 +208,7 @@ class MbaE:
         )
         return df_metadata
 
-    def set(self, dict_setter):
+    def setter(self, dict_setter):
         """Set selected attributes based on an incoming dictionary
 
         :param dict_setter: incoming dictionary with attribute values
@@ -237,7 +238,7 @@ class MbaE:
         :rtype: str
         """
         # ---------- update file attributes ---------- #
-        self.bootfile = bootfile[:]
+        self.bootfile = Path(bootfile[:])
         self.folder_bootfile = os.path.dirname(bootfile)
 
         # get expected fields
@@ -255,7 +256,8 @@ class MbaE:
             ].values[i]
 
         # pass setter to set() method
-        self.set(dict_setter=dict_setter)
+        pprint.pprint(dict_setter)
+        self.setter(dict_setter=dict_setter)
 
         return None
 
@@ -672,8 +674,8 @@ class DataSet(MbaE):
 
         # ------------ set defaults ----------- #
         self.color = "blue"
-        self.file_data_sep = ";"
-
+        self.file_csv_sep = ";"
+        self.file_encoding="utf-8"
         # UPDATE
         self.update()
 
@@ -796,7 +798,7 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
         return None
 
-    def set(self, dict_setter, load_data=True):
+    def setter(self, dict_setter, load_data=True):
         """Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
 
@@ -807,7 +809,7 @@ class DataSet(MbaE):
         :type load_data: bool
 
         """
-        super().set(dict_setter=dict_setter)
+        super().setter(dict_setter=dict_setter)
 
         # ---------- settable attributes --------- #
 
@@ -815,18 +817,18 @@ class DataSet(MbaE):
         self.color = dict_setter[self.color_field]
 
         # DATA: FILE AND FOLDER
-        # handle if only filename is provided
-        if os.path.isfile(dict_setter[self.filedata_field]):
-            file_data = dict_setter[self.filedata_field][:]
-        else:
-            # assumes file is in the same folder as the boot-file
-            file_data = os.path.join(
-                self.folder_bootfile, dict_setter[self.filedata_field][:]
-            )
-        self.file_data = os.path.abspath(file_data)
-
-        # -------------- set data logic here -------------- #
         if load_data:
+            # handle if only filename is provided
+            if os.path.isfile(dict_setter[self.filedata_field]):
+                file_data = dict_setter[self.filedata_field][:]
+            else:
+                # assumes file is in the same folder as the boot-file
+                file_data = os.path.join(
+                    self.folder_bootfile, dict_setter[self.filedata_field][:]
+                )
+            self.file_data = os.path.abspath(file_data)
+
+            # -------------- set data logic here -------------- #
             self.load_data(file_data=self.file_data)
 
         # -------------- update other mutables -------------- #
@@ -856,7 +858,7 @@ class DataSet(MbaE):
         # -------------- call loading function -------------- #
         self.data = pd.read_csv(
             self.file_data,
-            sep=self.file_data_sep,
+            sep=self.file_csv_sep,
             dtype=default_columns,
             usecols=list(default_columns.keys()),
         )
@@ -1580,12 +1582,12 @@ class RecordTable(DataSet):
                 df = self.data.copy()
             # filter default columns:
             df = df[self._get_organized_columns()]
-            df.to_csv(filepath, sep=self.file_data_sep, index=False)
+            df.to_csv(filepath, sep=self.file_csv_sep, index=False)
             return filepath
         else:
             return 1
 
-    def set(self, dict_setter, load_data=True):
+    def setter(self, dict_setter, load_data=True):
         """Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
 
@@ -1598,7 +1600,7 @@ class RecordTable(DataSet):
         """
         # ignore color
         dict_setter[self.color_field] = None
-        super().set(dict_setter=dict_setter, load_data=False)
+        super().setter(dict_setter=dict_setter, load_data=False)
 
         # ---------- set basic attributes --------- #
 
@@ -1639,7 +1641,7 @@ class RecordTable(DataSet):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        df = pd.read_csv(self.file_data, sep=self.file_data_sep)
+        df = pd.read_csv(self.file_data, sep=self.file_csv_sep)
 
         # -------------- post-loading logic -------------- #
         self.set_data(input_df=df)
@@ -1842,7 +1844,7 @@ class RecordTable(DataSet):
         """
         # load record from file
         df = pd.read_csv(
-            file_record_data, sep=self.file_data_sep, usecols=[input_field, input_value]
+            file_record_data, sep=self.file_csv_sep, usecols=[input_field, input_value]
         )
         # convert into a dict
         dict_rec_raw = {
@@ -1878,7 +1880,7 @@ class RecordTable(DataSet):
             folder_export = self.folder_data
         filepath = os.path.join(folder_export, filename + ".csv")
         # save
-        df.to_csv(filepath, sep=self.file_data_sep, index=False)
+        df.to_csv(filepath, sep=self.file_csv_sep, index=False)
         return filepath
 
     # ----------------- STATIC METHODS ----------------- #
@@ -2357,7 +2359,7 @@ class FileSys(DataSet):
         self.folder_main = os.path.join(self.folder_base, self.name)
         # ... continues in downstream objects ... #
 
-    def set(self, dict_setter, load_data=True):
+    def setter(self, dict_setter, load_data=True):
         """Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
 
@@ -2372,7 +2374,7 @@ class FileSys(DataSet):
         dict_setter[self.color_field] = None
 
         # -------------- super -------------- #
-        super().set(dict_setter=dict_setter, load_data=False)
+        super().setter(dict_setter=dict_setter, load_data=False)
 
         # ---------- set basic attributes --------- #
         # set base folder
@@ -2401,7 +2403,7 @@ class FileSys(DataSet):
         # -------------- implement loading logic -------------- #
 
         # -------------- call loading function -------------- #
-        self.data = pd.read_csv(file_data, sep=self.file_data_sep)
+        self.data = pd.read_csv(file_data, sep=self.file_csv_sep)
 
         # -------------- post-loading logic -------------- #
 

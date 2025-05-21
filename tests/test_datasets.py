@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from datetime import datetime
-from plans.ds import TimeSeries, Collection
+from plans.datasets import TimeSeries, Collection
 
 
 class TestObject:

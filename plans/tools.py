@@ -274,6 +274,106 @@ def DEMO(
     return 0
 
 
+def MLINEARSTORAGE(
+    project_name,
+    inputfile1,
+    outdir,
+    workplace=True,
+    talk=False,
+    export_inputs=False,
+    export_views=False,
+):
+    # ---------------------- START ----------------------
+    start_start = time.time()
+    # define label
+    toolname = MLINEARSTORAGE.__name__
+    prompt = "{}@{}: [{}]".format("plans", project_name, toolname)
+
+    # ---------------------- RUN DIR ----------------------
+    if workplace:
+        outdir = create_rundir(workplace=outdir, label=toolname, suffix=project_name)
+
+    # ---------------------- LOGGER ----------------------
+    logger = logger_setup(
+        logger_name=toolname,
+        streamhandler=talk,
+        filehandler=True,
+        logfile="{}/logs.log".format(outdir),
+    )
+    logger.info("{} start".format(prompt))
+    logger.info("{} run folder at {}".format(prompt, outdir))
+
+    # ---------------------- LOAD ----------------------
+    s_step = "loading"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    time.sleep(1)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- PROCESSING ----------------------
+    s_step = "processing"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    time.sleep(1)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- EXPORTING - INPUTS ----------------------
+    if export_inputs:
+        s_step = "exporting input"
+        logger.info("{} {} data ...".format(prompt, s_step))
+        start_time = time.time()
+
+        # make dir
+        inpdir = "{}/inputs".format(outdir)
+        os.mkdir(path=inpdir)
+
+        # copy files or export
+        time.sleep(1)
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        logger.info(
+            "{} {} elapsed time: {} seconds".format(
+                prompt, s_step, round(elapsed_time, 3)
+            )
+        )
+
+    # ---------------------- EXPORTING - OUTPUTS ----------------------
+    s_step = "exporting output"
+    logger.info("{} {} data ...".format(prompt, s_step))
+    start_time = time.time()
+
+    time.sleep(1)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logger.info(
+        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
+    )
+
+    # ---------------------- END ----------------------
+    end_end = time.time()
+    elapsed_time = end_end - start_start
+    logger.info("{} end".format(prompt))
+    logger.info(
+        "{} total elapsed time: {} seconds".format(prompt, round(elapsed_time, 3))
+    )
+    return 0
+
+
+
 def VTOPO(
     project_name,
     datasets_dir,
@@ -669,7 +769,7 @@ def TSC(
 
 
     """
-    from plans import ds
+    from plans import datasets
     from plans.geo import outlet_distance
 
     # ---------------------- START ----------------------
@@ -890,7 +990,7 @@ def DTO(
 
 
     """
-    from plans.ds import Raster, LDD, DTO
+    from plans.datasets import Raster, LDD, DTO
     from plans.geo import outlet_distance
 
     # ---------------------- START ----------------------

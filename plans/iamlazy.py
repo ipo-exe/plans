@@ -1682,7 +1682,7 @@ def get_rain(
         )
 
     """
-    from plans import ds
+    from plans import datasets
 
     def calculate_buffer_ratios(box_small, box_large):
         delta_x_small = abs(box_small["xmax"] - box_small["xmin"])
@@ -1908,7 +1908,7 @@ def get_basins(
         )
 
     """
-    from plans import ds
+    from plans import datasets
 
     print("folder setup...")
     # folders and file setup

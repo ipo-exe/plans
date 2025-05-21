@@ -50,7 +50,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from root import DataSet
+from plans.root import DataSet
 import os
 
 
@@ -146,7 +146,7 @@ class Univar(DataSet):
         # -------------- call loading function -------------- #
         self.data = pd.read_csv(
             self.file_data,
-            sep=self.file_data_sep,
+            sep=self.file_csv_sep,
             dtype=default_columns,
             usecols=list(default_columns.keys()),
         )
@@ -1198,17 +1198,18 @@ class Bivar:
                 "Data": None,
                 "RMSE": None,
             },
-            "Gumbel": {
-                "Function": gumbel,
-                "Formula": "f(x) =  exp(-exp(-((x-a)/b)))",
-                "Setup": pd.DataFrame(
-                    {"Parameters": ["a", "b"], "Mean": [1, 1], "SD": [0.1, 0.1]}
-                ),
-                "Data": None,
-                "RMSE": None,
-            },
         }
-
+        '''
+        "Gumbel": {
+            "Function": gumbel,
+            "Formula": "f(x) =  exp(-exp(-((x-a)/b)))",
+            "Setup": pd.DataFrame(
+                {"Parameters": ["a", "b"], "Mean": [1, 1], "SD": [0.1, 0.1]}
+            ),
+            "Data": None,
+            "RMSE": None,
+        },            
+        '''
     def fit(self, model_type="Linear"):
         """Fit model to bivariate object
 

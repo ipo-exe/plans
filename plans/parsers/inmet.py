@@ -49,7 +49,7 @@ import matplotlib.pyplot as plt
 
 plt.style.use("seaborn-v0_8")
 
-from plans.ds import get_random_colors
+from plans.datasets import get_random_colors
 
 
 class _StationINMET_:
