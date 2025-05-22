@@ -1145,11 +1145,13 @@ class Univar(DataSet):
 
         return _df
 
-
+# todo urgent >>> make it an instance of Dataset()
 class Bivar:
-    """
-    # todo make it an subinstance of Dataset()
-    The Bivariate analyst base_object
+    """The Bivariate analyst object
+
+    # todo >>> make major docstring
+
+    # [major docstring]
 
     """
 
@@ -1329,6 +1331,7 @@ class Bivar:
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
 
         plt.suptitle(specs["title"])
+
         # grid
         gs = mpl.gridspec.GridSpec(
             3, 3, wspace=0.3, hspace=0.3, left=0.12, bottom=0.1, top=0.90, right=0.95
@@ -1350,10 +1353,11 @@ class Bivar:
         # x hist
         ax_histx = fig.add_subplot(gs[0, :2], sharex=ax)
         plt.ylabel("p({})".format(self.xname))
-        xuni = Univar(data=self.data[self.xname].values)
+        xuni = Univar()
+        xuni.data = self.data[self.xname].values
         plt.hist(
             self.data[self.xname],
-            bins=xuni.nbins_fd(),
+            bins=xuni.nbins_fd(data=xuni.data),
             color=specs["color"],
             alpha=1,
             weights=np.ones(len(self.data)) / len(self.data),
@@ -1363,10 +1367,11 @@ class Bivar:
         # y hist
         ay_histy = fig.add_subplot(gs[1:, 2], sharey=ax)
         plt.xlabel("p({})".format(self.yname))
-        yuni = Univar(data=self.data[self.yname].values)
+        yuni = Univar()
+        yuni.data=self.data[self.yname].values
         plt.hist(
             yuni.data,
-            bins=yuni.nbins_fd(),
+            bins=yuni.nbins_fd(data=yuni.data),
             color=specs["color"],
             alpha=1,
             orientation="horizontal",

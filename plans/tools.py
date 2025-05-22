@@ -52,9 +52,11 @@ In a lacinia nisl.
 
 import glob
 import logging
+import multiprocessing
 import os, time, shutil
 import numpy as np
 from plans.tui import logger_setup
+import plans.hydro as hydro
 import plans.datasets.spatial as sp
 
 
@@ -100,49 +102,25 @@ def nowsep(sep="-"):
 
 
 # docs ok
-def create_rundir(workplace, label="", suffix=None, b_time=True):
+def create_rundir(workplace, run_id, prefix=None, suffix=None, b_time=True):
     """Create a directory for a run with an optional label, suffix, and timestamp.
 
-    :param workplace: str
-        The base directory where the run directory will be created.
-    :type workplace: str
-
-    :param label: str, optional
-        The label to be included in the run directory name.
-    :type label: str
-
-    :param suffix: str, optional
-        The suffix to be added to the label for further customization.
-    :type suffix: str
-
-    :param b_time: bool, optional
-        Whether to include a timestamp in the run directory name, default is True.
-    :type b_time: bool
-
-    :return: str
-        Path to the created run directory.
-    :rtype: str
-
-    **Notes:**
-
-    - Creates a directory with the specified label, suffix, and timestamp (if enabled).
-
-    **Examples:**
-
-    >>> create_rundir(workplace='/path/to/base', label='experiment', suffix='run1', b_time=True)
-    '/path/to/base/experiment_run1_2023-12-23-14-30-45'
-
-    >>> create_rundir(workplace='/path/to/base', label='test', suffix=None, b_time=False)
-    '/path/to/base/test'
-
     """
-    # define label
-    if suffix is None:
-        pass
+    # define labels
+    if prefix is None:
+        prefix = ""
     else:
-        label = label + "_" + suffix
+        prefix = prefix + "_"
+
+    if suffix is None:
+        suffix = ""
+    else:
+        suffix = "_" + suffix
+
+
     # define dir path
-    dir_path = workplace + "/" + label
+    dir_path = workplace + "/" + f"{prefix}{run_id}{suffix}"
+    # include time stamp
     if b_time:
         dir_path = dir_path + "_" + nowsep()
     # make
@@ -151,7 +129,6 @@ def create_rundir(workplace, label="", suffix=None, b_time=True):
     else:
         os.mkdir(dir_path)
     return dir_path
-
 
 # ------------------------------ UTILS - DRY TOOLS ------------------------------
 
@@ -173,16 +150,18 @@ def _get_dict_basins(folder_basins):
 
 # ------------------------------ TOOLS ------------------------------
 
-
+# todo develop a proper object (class) for tools and also handle serial and multiprocessing
 def DEMO(
     project_name,
     inputfile1,
-    outdir,
+    folder_output,
     b_param1,
     workplace=True,
     talk=False,
     export_inputs=False,
     export_views=False,
+    sleep=False,
+    sleep_secs=1,
 ):
     # ---------------------- START ----------------------
     start_start = time.time()
@@ -192,24 +171,25 @@ def DEMO(
 
     # ---------------------- RUN DIR ----------------------
     if workplace:
-        outdir = create_rundir(workplace=outdir, label=toolname, suffix=project_name)
+        folder_output = create_rundir(workplace=folder_output, label=project_name, suffix=toolname)
 
     # ---------------------- LOGGER ----------------------
     logger = logger_setup(
         logger_name=toolname,
         streamhandler=talk,
         filehandler=True,
-        logfile="{}/logs.log".format(outdir),
+        logfile="{}/logs.log".format(folder_output),
     )
     logger.info("{} start".format(prompt))
-    logger.info("{} run folder at {}".format(prompt, outdir))
+    logger.info("{} run folder at {}".format(prompt, folder_output))
 
     # ---------------------- LOAD ----------------------
     s_step = "loading"
     logger.info("{} {} data ...".format(prompt, s_step))
     start_time = time.time()
 
-    time.sleep(1)
+    if sleep:
+        time.sleep(sleep_secs)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -222,7 +202,8 @@ def DEMO(
     logger.info("{} {} data ...".format(prompt, s_step))
     start_time = time.time()
 
-    time.sleep(1)
+    if sleep:
+        time.sleep(sleep_secs)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -237,11 +218,12 @@ def DEMO(
         start_time = time.time()
 
         # make dir
-        inpdir = "{}/inputs".format(outdir)
+        inpdir = "{}/inputs".format(folder_output)
         os.mkdir(path=inpdir)
 
         # copy files or export
-        time.sleep(1)
+        if sleep:
+            time.sleep(sleep_secs)
 
         end_time = time.time()
         elapsed_time = end_time - start_time
@@ -256,7 +238,8 @@ def DEMO(
     logger.info("{} {} data ...".format(prompt, s_step))
     start_time = time.time()
 
-    time.sleep(1)
+    if sleep:
+        time.sleep(sleep_secs)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -274,104 +257,148 @@ def DEMO(
     return 0
 
 
-def MLINEARSTORAGE(
-    project_name,
-    inputfile1,
-    outdir,
+def MLS(
+    run_id,
+    bootfile,
+    folder_output,
     workplace=True,
     talk=False,
     export_inputs=False,
     export_views=False,
+    sleep=False,
+    sleep_secs=1,
 ):
     # ---------------------- START ----------------------
     start_start = time.time()
     # define label
-    toolname = MLINEARSTORAGE.__name__
-    prompt = "{}@{}: [{}]".format("plans", project_name, toolname)
+    toolname = MLS.__name__
+    prompt = "{}@{}: [{}]".format("plans", run_id, toolname)
 
     # ---------------------- RUN DIR ----------------------
     if workplace:
-        outdir = create_rundir(workplace=outdir, label=toolname, suffix=project_name)
+        folder_output = create_rundir(workplace=folder_output, run_id=run_id, prefix="LS", suffix=toolname)
 
-    # ---------------------- LOGGER ----------------------
-    logger = logger_setup(
-        logger_name=toolname,
-        streamhandler=talk,
-        filehandler=True,
-        logfile="{}/logs.log".format(outdir),
-    )
-    logger.info("{} start".format(prompt))
-    logger.info("{} run folder at {}".format(prompt, outdir))
 
     # ---------------------- LOAD ----------------------
-    s_step = "loading"
-    logger.info("{} {} data ...".format(prompt, s_step))
-    start_time = time.time()
+    m = hydro.LinearStorage(name=run_id, alias=run_id)
+    m.boot(bootfile=bootfile)
+    m.load()
 
-    time.sleep(1)
-
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    logger.info(
-        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
-    )
+    if sleep:
+        time.sleep(sleep_secs)
 
     # ---------------------- PROCESSING ----------------------
-    s_step = "processing"
-    logger.info("{} {} data ...".format(prompt, s_step))
-    start_time = time.time()
-
-    time.sleep(1)
-
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    logger.info(
-        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
-    )
+    m.run()
+    m.evaluate()
+    if sleep:
+        time.sleep(sleep_secs)
 
     # ---------------------- EXPORTING - INPUTS ----------------------
     if export_inputs:
-        s_step = "exporting input"
-        logger.info("{} {} data ...".format(prompt, s_step))
-        start_time = time.time()
-
         # make dir
-        inpdir = "{}/inputs".format(outdir)
+        inpdir = "{}/inputs".format(folder_output)
         os.mkdir(path=inpdir)
-
         # copy files or export
-        time.sleep(1)
+        # >>> develop logic
+        if sleep:
+            time.sleep(sleep_secs)
 
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        logger.info(
-            "{} {} elapsed time: {} seconds".format(
-                prompt, s_step, round(elapsed_time, 3)
-            )
-        )
 
     # ---------------------- EXPORTING - OUTPUTS ----------------------
-    s_step = "exporting output"
-    logger.info("{} {} data ...".format(prompt, s_step))
-    start_time = time.time()
+    m.export(folder=folder_output, filename=m.name, views=export_views)
 
-    time.sleep(1)
-
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    logger.info(
-        "{} {} elapsed time: {} seconds".format(prompt, s_step, round(elapsed_time, 3))
-    )
+    if sleep:
+        time.sleep(sleep_secs)
 
     # ---------------------- END ----------------------
-    end_end = time.time()
-    elapsed_time = end_end - start_start
-    logger.info("{} end".format(prompt))
-    logger.info(
-        "{} total elapsed time: {} seconds".format(prompt, round(elapsed_time, 3))
-    )
+
     return 0
 
+def _run_mls_task(args):
+    """Função auxiliar para encapsular a chamada MLS com múltiplos argumentos,
+    permitindo que ela seja usada com pool.map().
+
+    :param args: Uma tupla contendo todos os argumentos necessários para MLS.
+    :type args: tuple
+    :return: O resultado da função MLS.
+    :rtype: int
+    """
+    run_id, bootfile, folder_output, talk, workplace, export_inputs, export_views, sleep, sleep_secs = args
+    return MLS(
+        run_id=run_id,
+        bootfile=bootfile,
+        folder_output=folder_output,
+        workplace=workplace,
+        talk=talk,
+        export_inputs=export_inputs,
+        export_views=export_views,
+        sleep=sleep,
+        sleep_secs=sleep_secs,
+    )
+
+def MLS_bat(
+    folder_bootfiles,
+    project_name,
+    folder_output,
+    bat_type="serial",
+    talk=False,
+    workplace=True,
+    export_inputs=False,
+    export_views=False,
+    sleep=False,
+    sleep_secs=2,
+    num_processes=None
+    ):
+    start_start = time.time()
+
+    # get bootfiles
+    ls_bootfiles = glob.glob(f"{folder_bootfiles}/*.csv")
+
+    if bat_type == "parallel":
+        # todo refactor IA code bellow
+        print(f"Iniciando processamento paralelo para {len(ls_bootfiles)} arquivos...")
+
+        # Prepara a lista de argumentos para cada chamada MLS
+        # Cada item na lista será uma tupla de argumentos para _run_mls_task
+        task_args = [
+            (os.path.basename(bootfile).split(".")[0], bootfile, folder_output, talk, workplace, export_inputs, export_views, sleep, sleep_secs)
+            for bootfile in ls_bootfiles
+        ]
+        # Define o número de processos a serem usados
+        processes_to_use = num_processes if num_processes is not None else multiprocessing.cpu_count()
+        print(f"Utilizando {processes_to_use} processos.")
+
+        with multiprocessing.Pool(processes=processes_to_use) as pool:
+            # pool.map aplica a função _run_mls_task a cada tupla em task_args
+            # Os resultados serão retornados na mesma ordem em que as tarefas foram enviadas
+            results = pool.map(_run_mls_task, task_args)
+
+        print("Processamento paralelo concluído.")
+        # Você pode inspecionar 'results' se precisar dos retornos de cada chamada MLS
+        # print("Resultados individuais:", results)
+
+    else:  # defaults to serial processing
+        # serial loop
+        for i in range(len(ls_bootfiles)):
+            bootfile = ls_bootfiles[i]
+            print(bootfile)
+            n_result = MLS(
+                run_id=os.path.basename(bootfile).split(".")[0],
+                bootfile=bootfile,
+                folder_output=folder_output,
+                workplace=True,
+                talk=talk,
+                export_inputs=export_inputs,
+                export_views=export_views,
+                sleep=sleep,
+                sleep_secs=sleep_secs,
+
+            )
+
+    end_time = time.time()
+    elapsed_time = end_time - start_start
+    print("total elapsed time: {} seconds".format(round(elapsed_time, 3)))
+    return 0
 
 
 def VTOPO(
@@ -690,9 +717,9 @@ def TSC(
 
         tools.TSC(
             kind="rain",
-            project_name="myproject",
+            run_id="myproject",
             file_infotable="path/to/infotable.csv",
-            outdir="path/to/output",
+            folder_output="path/to/output",
             workplace=True,
             talk=True,
             clear_outliers=True,
@@ -723,7 +750,7 @@ def TSC(
     :type outdir: str
 
     :param workplace: bool, optional
-        If True, create a run directory in the provided 'outdir', default is True.
+        If True, create a run directory in the provided 'folder_output', default is True.
     :type workplace: bool
 
     :param talk: bool, optional
@@ -946,7 +973,7 @@ def DTO(
     :type outdir: str
 
     :param workplace: bool, optional
-        If True, create a run directory in the provided 'outdir', default is True.
+        If True, create a run directory in the provided 'folder_output', default is True.
     :type workplace: bool
 
     :param talk: bool, optional
@@ -979,9 +1006,9 @@ def DTO(
         from plans import tools
 
         tools.DTO(
-            project_name='MyProject',
+            run_id='MyProject',
             file_ldd='path/to/ldd.asc',
-            outdir='output_directory',
+            folder_output='output_directory',
             workplace=True,
             talk=False,
             export_inputs=True,

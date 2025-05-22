@@ -16,10 +16,8 @@ import numpy as np
 import pandas as pd
 
 class Model(DataSet):
-    """The core ``Model`` base/demo object.
-    Expected to hold one :class:`pandas.DataFrame` as simulation data and a dictionary as parameters
-    This is a Base and Dummy object that simulates a Linear Storage. Expected to be implemented downstream for
-    custom applications.
+    """The core ``Model`` base object. Expected to hold one :class:`pandas.DataFrame` as simulation data and
+    a dictionary as parameters. This is a dummy object to be developed downstream.
 
     """
 
@@ -30,8 +28,10 @@ class Model(DataSet):
         # overwriters
         self.object_alias = "HM"
 
-        # file model
-        self.file_model = None
+        # evaluation parameters (model metrics)
+        self.rmse = None
+        self.rsq = None
+        self.bias = None
 
         # parameters
         self.file_params = None # global parameters
@@ -41,9 +41,8 @@ class Model(DataSet):
         self.data = None
 
         # observed data
-        self.file_data_qobs = None
-        self.data_qobs = None
-
+        self.file_data_obs = None
+        self.data_obs = None
 
         # defaults
         self.dtfield = "DateTime"
@@ -71,8 +70,11 @@ class Model(DataSet):
         # ------------ call super ----------- #
         super()._set_fields()
         # Attribute fields
-        self.file_params_fields = "File Parameters"
-        self.folder_data_field = "Folder Data"
+        self.field_file_params = "File Parameters"
+        self.field_folder_data = "Folder Data"
+        self.field_rmse = "RMSE"
+        self.field_rsq = "R2"
+        self.field_bias = "Bias"
 
         # ... continues in downstream objects ... #
 
@@ -177,12 +179,17 @@ class Model(DataSet):
         dict_meta = super().get_metadata()
 
         # remove useless fields
-        del dict_meta[self.filedata_field]
+        del dict_meta[self.field_file_data]
 
         # customize local metadata:
         dict_meta_local = {
-            self.file_params_fields: self.file_params,
-            self.folder_data_field: self.folder_data,
+            self.field_rmse: self.rmse,
+            self.field_rsq: self.rsq,
+            self.field_bias: self.bias,
+            self.field_file_params: self.file_params,
+            self.field_folder_data: self.folder_data,
+
+            # ... continue if necessary
         }
 
         # update
@@ -201,8 +208,8 @@ class Model(DataSet):
         super().setter(dict_setter, load_data=False)
 
         # set new attributes
-        self.file_params = Path(dict_setter[self.file_params_fields])
-        self.folder_data = Path(dict_setter[self.folder_data_field])
+        self.file_params = Path(dict_setter[self.field_file_params])
+        self.folder_data = Path(dict_setter[self.field_folder_data])
 
         # ... continues in downstream objects ... #
         return None
@@ -263,7 +270,7 @@ class Model(DataSet):
         """
         # -------------- load parameter data -------------- #
 
-        # >>> develop logic
+        # >>> develop logic in downstream objects
 
         return None
 
@@ -286,10 +293,15 @@ class Model(DataSet):
 
         return None
 
-    def load_model(self):
+    def load(self):
+        """Load parameters and data
+
+        :return: None
+        :rtype: None
+        """
         self.load_params()
         self.load_data()
-
+        return None
     def setup(self):
         """Set model simulation. Expected to be incremented downstream.
 
@@ -329,11 +341,20 @@ class Model(DataSet):
         return None
 
     def solve(self):
-        """Solve the model for input and initial conditions by numerical methods.
+        """Solve the model for boundary and initial conditions by numerical methods.
 
         .. warning::
 
             This method overwrites model data.
+
+        :return: None
+        :rtype: None
+        """
+        # >>> develop logic in downstream objects
+        return None
+
+    def evaluate(self):
+        """Evaluate model.
 
         :return: None
         :rtype: None
@@ -351,6 +372,33 @@ class Model(DataSet):
         self.solve()
         self.update()
         return None
+
+    def export(self, folder, filename):
+        """Export object resources
+
+        :param folder: path to folder
+        :type folder: str
+        :param filename: file name without extension
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        # export model simulation data
+        super().export(folder, filename=filename)
+        # export model observation data
+        # >>> develop in downstream objects
+
+        # ... continues in downstream objects ... #
+
+    def save(self, folder):
+        """Save to sourced files is not allowed for Model() family. Use .export() instead.
+        This is overwriting superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        return None
+
 
     def view(self, show=True):
         # >>> develop logic in downstream object
@@ -515,13 +563,9 @@ class LinearStorage(Model):
         :return: None
         :rtype: None
         """
-
         # -------------- load observation data -------------- #
         file_qobs = Path(f"{self.folder_data}/S_obs.csv")
         self.data_obs = pd.read_csv(file_qobs, sep=self.file_csv_sep, encoding=self.file_encoding, parse_dates=[self.dtfield])
-
-        # -------------- load observation data -------------- #
-        # >>> develop logic in downstream objects
 
         # -------------- update other mutables -------------- #
         self.update()
@@ -570,10 +614,10 @@ class LinearStorage(Model):
         df = self.data.copy()
         n_steps = len(df)
 
-        # analytical solution:
+        # --- analytical solution
         df["S_a"].values[:] = self.params["S0"]["value"] * np.exp(-df["t"].values/k)
 
-        # numerical solution:
+        # --- numerical solution
         # loop over (Euler Method)
         for i in range(n_steps - 1):
             # Qt = dt * St / k
@@ -581,15 +625,56 @@ class LinearStorage(Model):
             df["S"].values[i + 1] = df["S"].values[i] - df["Q"].values[i]
 
         # reset data
-        df = pd.merge(left=df, right=self.data_obs, on=self.dtfield, how="left")
         self.data = df.copy()
 
         return None
 
     def evaluate(self):
-        df = self.data.copy().dropna()
-        bv = Bivar(df_data=df, x_name="S", y_name="S_obs")
-        bv.view(show=True)
+        """Evaluate model metrics.
+
+        :return: None
+        :rtype: None
+        """
+        # merge simulation and observation data based
+        df = pd.merge(left=self.data, right=self.data_obs, on=self.dtfield, how="left")
+
+        # remove voids
+        df.dropna(inplace=True)
+
+        # evaluate paired data
+        vc_pred = df["S"].values
+        vc_obs = df["S_obs"].values
+        # compute evaluation metrics
+        self.rmse = Bivar.rmse(pred=vc_pred, obs=vc_obs)
+        self.rsq = Bivar.rsq(pred=vc_pred, obs=vc_obs)
+        self.bias = Bivar.bias(pred=vc_pred, obs=vc_obs)
+
+        return None
+
+    def export(self, folder, filename, views=False):
+        """Export object resources
+
+        :param folder: path to folder
+        :type folder: str
+        :param filename: file name without extension
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        # export model simulation data
+        super().export(folder, filename=filename + "_sim")
+
+        # export model observation data
+        fpath = Path(folder + "/" + filename + "_obs" + self.file_csv_ext)
+        self.data_obs.to_csv(fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False)
+
+        # export views
+        if views:
+            self.view_specs["folder"] = folder
+            self.view_specs["filename"] = filename
+            self.view2(show=False)
+
+        # ... continues in downstream objects ... #
 
     # todo make a definitive view() method
     def view(self, show=True):
@@ -606,12 +691,14 @@ class LinearStorage(Model):
 
     def view2(self, show=True):
         specs = self.view_specs.copy()
+
         ts = TimeSeries(name=self.name, alias=self.alias)
         ts.set_data(
             input_df=self.data,
             input_dtfield=self.dtfield,
             input_varfield="S"
         )
+        ts.view_specs["title"] = "Linear Model - R2: {}".format(round(self.rsq, 2))
         fig = ts.view(show=False, return_fig=True)
         # obs series plot
         axes = fig.get_axes()
@@ -626,22 +713,7 @@ class LinearStorage(Model):
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
 
+
 if __name__ == "__main__":
     print("Hi")
-    import pprint
-    from analyst import Bivar
-    m = Model()
-    m.load_data(folder_data="C:/plans/testing/linear")
-    pprint.pprint(m.params)
-    m.run()
-    pprint.pprint(m.data)
-    rmse = Bivar.rmse(pred=m.data["S"].values, obs=m.data["S_a"])
-    print(rmse)
 
-    m.params["dt"]["value"] = 2
-    m.params["dt"]["units"] = "h"
-
-    m.run()
-    pprint.pprint(m.data)
-    rmse = Bivar.rmse(pred=m.data["S"].values, obs=m.data["S_a"])
-    print(rmse)

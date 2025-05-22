@@ -120,15 +120,9 @@ class MbaE:
 
         """
         # ------------ pseudo-static ----------- #
-
-        #
         self.object_name = self.__class__.__name__
         self.object_alias = "mbae"
-
-        # name
         self.name = name
-
-        # alias
         self.alias = alias
 
         # handle None alias
@@ -137,6 +131,11 @@ class MbaE:
 
         # fields
         self._set_fields()
+
+        # defaults
+        self.file_csv_sep = ";"
+        self.file_csv_ext = ".csv"
+        self.file_encoding = "utf-8"
 
         # ------------ set mutables ----------- #
         self.bootfile = None
@@ -169,12 +168,12 @@ class MbaE:
         """Set fields names"""
 
         # Attribute fields
-        self.name_field = "Name"
-        self.alias_field = "Alias"
+        self.field_name = "Name"
+        self.field_alias = "Alias"
 
-        # Metadata fields
-        self.mdata_attr_field = "Attribute"
-        self.mdata_val_field = "Value"
+        # Bootfile fields
+        self.field_bootfile_attribute = "Attribute"
+        self.field_bootfile_value = "Value"
         # ... continues in downstream objects ... #
 
     def get_metadata(self):
@@ -182,14 +181,14 @@ class MbaE:
 
         .. warning::
 
-            Metadata does not necessarily inclue all object attributes.
+            Metadata does not necessarily include all object attributes.
 
         :return: dictionary with all metadata
         :rtype: dict
         """
         dict_meta = {
-            self.name_field: self.name,
-            self.alias_field: self.alias,
+            self.field_name: self.name,
+            self.field_alias: self.alias,
         }
         return dict_meta
 
@@ -202,8 +201,8 @@ class MbaE:
         dict_metadata = self.get_metadata()
         df_metadata = pd.DataFrame(
             {
-                self.mdata_attr_field: [k for k in dict_metadata],
-                self.mdata_val_field: [dict_metadata[k] for k in dict_metadata],
+                self.field_bootfile_attribute: [k for k in dict_metadata],
+                self.field_bootfile_value: [dict_metadata[k] for k in dict_metadata],
             }
         )
         return df_metadata
@@ -215,15 +214,16 @@ class MbaE:
         :type dict_setter: dict
         """
         # ---------- set basic attributes --------- #
-        self.name = dict_setter[self.name_field]
-        self.alias = dict_setter[self.alias_field]
+        self.name = dict_setter[self.field_name]
+        self.alias = dict_setter[self.field_alias]
 
         # ... continues in downstream objects ... #
 
     def boot(self, bootfile):
         """Boot fundamental attributes from a ``csv`` table.
 
-        :param bootfile: file path to ``csv`` table with metadata information.
+        :param bootfile: file path to ``csv`` table with booting information.
+
             Expected format:
 
             .. code-block:: text
@@ -231,36 +231,66 @@ class MbaE:
                 Attribute;Value
                 Name;ResTia
                 Alias;Ra
+                ...;...
 
         :type bootfile: str
-
-        :return:
-        :rtype: str
+        :return: None
+        :rtype: None
         """
         # ---------- update file attributes ---------- #
         self.bootfile = Path(bootfile[:])
         self.folder_bootfile = os.path.dirname(bootfile)
 
         # get expected fields
-        list_columns = [self.mdata_attr_field, self.mdata_val_field]
+        list_columns = [self.field_bootfile_attribute, self.field_bootfile_value]
 
         # read info table from ``csv`` file. metadata keys are the expected fields
-        df_info_table = pd.read_csv(bootfile, sep=";", usecols=list_columns)
+        df_boot_table = pd.read_csv(bootfile, sep=";", usecols=list_columns)
 
         # setter loop
         dict_setter = {}
-        for i in range(len(df_info_table)):
+        for i in range(len(df_boot_table)):
             # build setter from row
-            dict_setter[df_info_table[self.mdata_attr_field].values[i]] = df_info_table[
-                self.mdata_val_field
+            dict_setter[df_boot_table[self.field_bootfile_attribute].values[i]] = df_boot_table[
+                self.field_bootfile_value
             ].values[i]
 
         # pass setter to set() method
-        pprint.pprint(dict_setter)
+        #pprint.pprint(dict_setter)
         self.setter(dict_setter=dict_setter)
 
         return None
 
+    def export(self, folder, filename):
+        """Export object resources
+
+        :param folder: path to folder
+        :type folder: str
+        :param filename: file name without extension
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        df_metadata = self.get_metadata_df()
+        # handle filename
+        fpath = Path(folder + "/" + filename + self.file_csv_ext)
+        # export
+        df_metadata.to_csv(fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False)
+        # ... continues in downstream objects ... #
+        return None
+
+
+    def save(self):
+        """Save to sourced files
+
+        :return: None
+        :rtype: None
+        """
+        folder = os.path.dirname(self.bootfile)
+        filename = os.path.basename(self.bootfile).split(".")[0]
+        self.export(folder=folder, filename=filename)
+        # ... continues in downstream objects ... #
+        return None
 
 class Collection(MbaE):
     """A collection of primitive ``MbaE`` objects with associated metadata.
@@ -415,8 +445,8 @@ class Collection(MbaE):
         super()._set_fields()
 
         # Attribute fields
-        self.size_field = "Size"
-        self.baseobject_field = "Base_Object"  # self.baseobject().__name__
+        self.field_size = "Size"
+        self.field_baseobject = "Base_Object"  # self.baseobject().__name__
 
         # ... continues in downstream objects ... #
 
@@ -436,8 +466,8 @@ class Collection(MbaE):
 
         # customize local metadata:
         dict_meta_local = {
-            self.size_field: self.size,
-            self.baseobject_field: self.baseobject_name,
+            self.field_size: self.size,
+            self.field_baseobject: self.baseobject_name,
         }
 
         # update
@@ -669,13 +699,11 @@ class DataSet(MbaE):
         self.size = None
 
         # descriptors
-        self.source_data = None
-        self.descri_data = None
+        self.source = None
+        self.description = None
 
         # ------------ set defaults ----------- #
         self.color = "blue"
-        self.file_csv_sep = ";"
-        self.file_encoding="utf-8"
         # UPDATE
         self.update()
 
@@ -707,11 +735,11 @@ class DataSet(MbaE):
         # ------------ call super ----------- #
         super()._set_fields()
         # Attribute fields
-        self.filedata_field = "File_Data"
-        self.size_field = "Size"
-        self.color_field = "Color"
-        self.source_data_field = "Source"
-        self.descri_data_field = "Description"
+        self.field_file_data = "File_Data"
+        self.field_size = "Size"
+        self.field_color = "Color"
+        self.field_source = "Source"
+        self.field_description = "Description"
 
         # ... continues in downstream objects ... #
 
@@ -758,13 +786,12 @@ class DataSet(MbaE):
 
         # customize local metadata:
         dict_meta_local = {
-            self.size_field: self.size,
-            self.color_field: self.color,
-            self.source_data_field: self.source_data,
-            self.descri_data_field: self.descri_data,
-            self.filedata_field: self.file_data,
+            self.field_size: self.size,
+            self.field_color: self.color,
+            self.field_source: self.source,
+            self.field_description: self.description,
+            self.field_file_data: self.file_data,
         }
-
         # update
         dict_meta.update(dict_meta_local)
         return dict_meta
@@ -812,19 +839,19 @@ class DataSet(MbaE):
         super().setter(dict_setter=dict_setter)
 
         # ---------- settable attributes --------- #
+        self.color = dict_setter[self.field_color]
+        self.source = dict_setter[self.field_source]
+        self.description = dict_setter[self.field_description]
 
-        # COLOR
-        self.color = dict_setter[self.color_field]
-
-        # DATA: FILE AND FOLDER
+        # option for data loading on setting
         if load_data:
             # handle if only filename is provided
-            if os.path.isfile(dict_setter[self.filedata_field]):
-                file_data = dict_setter[self.filedata_field][:]
+            if os.path.isfile(dict_setter[self.field_file_data]):
+                file_data = dict_setter[self.field_file_data][:]
             else:
                 # assumes file is in the same folder as the boot-file
                 file_data = os.path.join(
-                    self.folder_bootfile, dict_setter[self.filedata_field][:]
+                    self.folder_bootfile, dict_setter[self.field_file_data][:]
                 )
             self.file_data = os.path.abspath(file_data)
 
@@ -872,6 +899,21 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
 
         return None
+
+    def export(self, folder, filename):
+        """Export object resources.
+
+        :param folder: path to folder
+        :type folder: str
+        :param filename: file name without extension
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        super().export(folder, filename=filename + "_bootfile")
+        fpath = Path(folder + "/" + filename + self.file_csv_ext)
+        self.data.to_csv(fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False)
+        # ... continues in downstream objects ... #
 
     def view(self, show=True):
         """Get a basic visualization.
@@ -980,7 +1022,7 @@ class Note(MbaE):
         """Set fields names"""
         super()._set_fields()
         # Attribute fields
-        self.file_note_field = "file_note"
+        self.field_file_note = "file_note"
 
         # Metadata fields
 
@@ -1002,7 +1044,7 @@ class Note(MbaE):
 
         # customize local metadata:
         dict_meta_local = {
-            self.file_note_field: self.file_note,
+            self.field_file_note: self.file_note,
         }
         # update
         dict_meta.update(dict_meta_local)
@@ -1398,10 +1440,10 @@ class RecordTable(DataSet):
         # ------------ call super ----------- #
         super()._set_fields()
         # base columns fields
-        self.recid_field = "RecId"
-        self.rectable_field = "RecTable"
-        self.rectimest_field = "RecTimestamp"
-        self.recstatus_field = "RecStatus"
+        self.field_recid = "RecId"
+        self.field_rectable = "RecTable"
+        self.field_rectimestamp = "RecTimestamp"
+        self.field_recstatus = "RecStatus"
         # ... continues in downstream objects ... #
 
     def _set_base_columns(self):
@@ -1410,10 +1452,10 @@ class RecordTable(DataSet):
 
         """
         self.columns_base = [
-            self.recid_field,
-            self.rectable_field,
-            self.rectimest_field,
-            self.recstatus_field,
+            self.field_recid,
+            self.field_rectable,
+            self.field_rectimestamp,
+            self.field_recstatus,
         ]
         # ... continues in downstream objects ... #
 
@@ -1497,8 +1539,8 @@ class RecordTable(DataSet):
         if self.data is None:
             return 0
         else:
-            df = self.data.sort_values(by=self.recid_field, ascending=True)
-            return int(df[self.recid_field].values[-1].replace("Rec", ""))
+            df = self.data.sort_values(by=self.field_recid, ascending=True)
+            return int(df[self.field_recid].values[-1].replace("Rec", ""))
 
     def _next_recid(self):
         """Get the next record id string based on the existing ids.
@@ -1599,7 +1641,7 @@ class RecordTable(DataSet):
 
         """
         # ignore color
-        dict_setter[self.color_field] = None
+        dict_setter[self.field_color] = None
         super().setter(dict_setter=dict_setter, load_data=False)
 
         # ---------- set basic attributes --------- #
@@ -1668,27 +1710,27 @@ class RecordTable(DataSet):
         list_input_cols = list(input_df.columns)
 
         # overwrite RecTable column
-        input_df[self.rectable_field] = self.name
+        input_df[self.field_rectable] = self.name
 
         # handle RecId
-        if self.recid_field not in list_input_cols:
+        if self.field_recid not in list_input_cols:
             # enforce Id based on index
             n_last_id = self._last_id_int()
             n_incr = n_last_id + 1
-            input_df[self.recid_field] = [
+            input_df[self.field_recid] = [
                 "Rec" + str(_ + n_incr).zfill(self.id_size) for _ in input_df.index
             ]
         else:
             # remove incoming duplicates
-            input_df.drop_duplicates(subset=self.recid_field, inplace=True)
+            input_df.drop_duplicates(subset=self.field_recid, inplace=True)
 
         # handle timestamp
-        if self.rectimest_field not in list_input_cols:
-            input_df[self.rectimest_field] = self._get_timestamp()
+        if self.field_rectimestamp not in list_input_cols:
+            input_df[self.field_rectimestamp] = self._get_timestamp()
 
         # handle timestamp
-        if self.recstatus_field not in list_input_cols:
-            input_df[self.recstatus_field] = "On"
+        if self.field_recstatus not in list_input_cols:
+            input_df[self.field_recstatus] = "On"
 
         # Add missing columns with default values
         for column in self._get_organized_columns():
@@ -1722,13 +1764,13 @@ class RecordTable(DataSet):
         dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
         # ------ set default fields ------- #
         # set table field
-        dict_rec_filter[self.rectable_field] = self.name
+        dict_rec_filter[self.field_rectable] = self.name
         # create index
-        dict_rec_filter[self.recid_field] = self._next_recid()
+        dict_rec_filter[self.field_recid] = self._next_recid()
         # compute timestamp
-        dict_rec_filter[self.rectimest_field] = self._get_timestamp()
+        dict_rec_filter[self.field_rectimestamp] = self._get_timestamp()
         # set active
-        dict_rec_filter[self.recstatus_field] = "On"
+        dict_rec_filter[self.field_recstatus] = "On"
 
         # ------ merge ------- #
         # create single-row dataframe
@@ -1757,12 +1799,12 @@ class RecordTable(DataSet):
         else:
             dict_rec_filter = dict_rec
         # include timestamp for edit operation
-        dict_rec_filter[self.rectimest_field] = self._get_timestamp()
+        dict_rec_filter[self.field_rectimestamp] = self._get_timestamp()
 
         # get data
         df = self.data.copy()
         # set index
-        df = df.set_index(self.recid_field)
+        df = df.set_index(self.field_recid)
         # get filter series by rec id
         sr = df.loc[rec_id].copy()
 
@@ -1786,7 +1828,7 @@ class RecordTable(DataSet):
         :return: None
         :rtype: None
         """
-        dict_rec = {self.recstatus_field: "Off"}
+        dict_rec = {self.field_recstatus: "Off"}
         self.edit_record(rec_id=rec_id, dict_rec=dict_rec, filter_dict=False)
         return None
 
@@ -1799,10 +1841,10 @@ class RecordTable(DataSet):
         :rtype: dict
         """
         # set index
-        df = self.data.set_index(self.recid_field)
+        df = self.data.set_index(self.field_recid)
 
         # locate series by index and convert to dict
-        dict_rec = {self.recid_field: rec_id}
+        dict_rec = {self.field_recid: rec_id}
         dict_rec.update(dict(df.loc[rec_id].copy()))
         return dict_rec
 
@@ -2272,9 +2314,9 @@ class FileSys(DataSet):
         # removals
 
         # remove color
-        dict_meta.pop(self.color_field)
+        dict_meta.pop(self.field_color)
         # remove source
-        dict_meta.pop(self.source_data_field)
+        dict_meta.pop(self.field_source)
 
         return dict_meta
 
@@ -2371,7 +2413,7 @@ class FileSys(DataSet):
 
         """
         # ignore color
-        dict_setter[self.color_field] = None
+        dict_setter[self.field_color] = None
 
         # -------------- super -------------- #
         super().setter(dict_setter=dict_setter, load_data=False)

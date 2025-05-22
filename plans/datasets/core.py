@@ -316,8 +316,8 @@ class TimeSeries(Univar):
         # update
         dict_meta.update(dict_meta_local)
         # mode file_data to the end
-        dict_meta.pop(self.filedata_field)
-        dict_meta[self.filedata_field] = self.file_data
+        dict_meta.pop(self.field_file_data)
+        dict_meta[self.field_file_data] = self.file_data
         return dict_meta
 
     def update(self):
@@ -955,23 +955,23 @@ class TimeSeries(Univar):
         )
 
         # Get colors
-        self.epochs_stats[self.color_field] = get_colors(
+        self.epochs_stats[self.field_color] = get_colors(
             size=len(self.epochs_stats), cmap=self.cmap
         )
 
         # Include name
-        self.epochs_stats[self.name_field] = self.name
+        self.epochs_stats[self.field_name] = self.name
 
         # Organize fields
         self.epochs_stats = self.epochs_stats[
             [
-                self.name_field,
+                self.field_name,
                 self.epochs_id_field,
                 self.epochs_n_field,
                 self.smallgaps_n_field,
                 self.start_field,
                 self.end_field,
-                self.color_field,
+                self.field_color,
             ]
         ]
 
@@ -1945,7 +1945,7 @@ class TimeSeriesCollection(Collection):
             ts.x = df_info["X"].values[i]
             ts.y = df_info["Y"].values[i]
             ts.code = df_info["Code"].values[i]
-            ts.source_data = df_info["Source"].values[i]
+            ts.source = df_info["Source"].values[i]
             ts.description = df_info["Description"].values[i]
             ts.color = df_info["Color"].values[i]
             # append
@@ -2788,7 +2788,7 @@ class Raster:
         - ``description`` (None): Description of the raster map.
         - ``units`` ("units"): Measurement units of the raster values.
         - ``date`` (None): Date associated with the raster map.
-        - ``source_data`` (None): Source data information.
+        - ``source`` (None): Source data information.
         - ``prj`` (None): Projection information.
         - ``path_ascfile`` (None): Path to the .asc raster file.
         - ``path_prjfile`` (None): Path to the .prj projection file.
@@ -2880,7 +2880,7 @@ class Raster:
             "vmin": None,
             "vmax": None,
             "hist_vmax": None,
-            "project_name": None,
+            "run_id": None,
             "zoom_window": None,
         }
         return None
@@ -4509,7 +4509,7 @@ class QualiRaster(Raster):
                 "legend_x": 0.55,
                 "legend_y": 0.3,
                 "legend_ncol": 2,
-                "project_name": None,
+                "run_id": None,
                 "zoom_window": None,
                 "plot_metadata": True,
             }
@@ -4550,10 +4550,10 @@ class QualiRaster(Raster):
         # pass specs
         specs = self.view_specs.copy()
 
-        if specs["project_name"] is None:
+        if specs["run_id"] is None:
             suff = ""
         else:
-            suff = "_{}".format(specs["project_name"])
+            suff = "_{}".format(specs["run_id"])
 
         # -----------------------------------------------
         # ensure areas are computed

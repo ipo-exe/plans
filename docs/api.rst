@@ -54,6 +54,26 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
+   plans.analyst
+
+.. autosummary::
+   :toctree: generated
+
+   plans.geo
+
+.. autosummary::
+   :toctree: generated
+
+   plans.hydro
+
+.. autosummary::
+   :toctree: generated
+
+   plans.tools
+
+.. autosummary::
+   :toctree: generated
+
    plans.datasets
 
 .. autosummary::
@@ -69,22 +89,12 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
-   plans.analyst
+   plans.datasets.spatial
 
 .. autosummary::
    :toctree: generated
 
-   plans.project
-
-.. autosummary::
-   :toctree: generated
-
-   plans.geo
-
-.. autosummary::
-   :toctree: generated
-
-   plans.tools
+   plans.parsers.inmet
 
 .. autosummary::
    :toctree: generated
@@ -94,4 +104,4 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
-   plans.parsers.inmet
+   plans.project
