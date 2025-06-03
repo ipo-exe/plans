@@ -251,29 +251,46 @@ class Univar(DataSet):
         return df_result
 
     def assess_basic_stats(self):
+        def _compute(data):
+            return {
+                "Count": len(data),
+                "Sum": np.sum(data),
+                "Mean": np.mean(data),
+                "SD": np.std(data),
+                "Min": np.min(data),
+                "P01": np.percentile(data, 1),
+                "P05": np.percentile(data, 5),
+                "P10": np.percentile(data, 10),
+                "P20": np.percentile(data, 20),
+                "P25": np.percentile(data, 25),
+                "P40": np.percentile(data, 40),
+                "P50": np.percentile(data, 50),
+                "P60": np.percentile(data, 60),
+                "P75": np.percentile(data, 75),
+                "P80": np.percentile(data, 80),
+                "P90": np.percentile(data, 90),
+                "P95": np.percentile(data, 95),
+                "P99": np.percentile(data, 99),
+                "Max": np.max(data),
+            }
 
+        # handle data
         df_clean = self.data.dropna()
+        # get data
         data = df_clean[self.varfield].values
 
-        dct = {
-            "Count": len(data),
-            "Sum": np.sum(data),
-            "Mean": np.mean(data),
-            "SD": np.std(data),
-            "Min": np.min(data),
-            "p01": np.percentile(data, 1),
-            "p05": np.percentile(data, 5),
-            "p25": np.percentile(data, 25),
-            "p50": np.percentile(data, 50),
-            "p75": np.percentile(data, 75),
-            "p90": np.percentile(data, 90),
-            "p95": np.percentile(data, 95),
-            "p99": np.percentile(data, 99),
-            "Max": np.max(data),
-        }
-        df_result = pd.DataFrame(
-            {"Statistic": list(dct.keys()), "Value": [dct[key] for key in dct]}
-        )
+        # handle void case
+        if len(df_clean) == 0:
+            dct = _compute(data=[0])  # feed dummy values
+            ls_values = [np.nan for key in dct]
+            ls_values[0] = 0  # fix for count
+            df_result = pd.DataFrame(
+                {"Statistic": list(dct.keys()), "Value": ls_values}
+            )
+        else:
+            dct = _compute(data=data)
+            ls_values = [dct[key] for key in dct]
+        df_result = pd.DataFrame({"Statistic": list(dct.keys()), "Value": ls_values})
         return df_result
 
     def assess_weibull_cdf(self):
@@ -619,6 +636,7 @@ class Univar(DataSet):
             "xlabel": "i",
             "xlabel_b": "Count",
             "xlabel_c": "P(X)",
+            "xlabel_d": "Map",
             "ylabel": self.units,
             "color": self.color,
             "color_b": "tab:grey",
@@ -629,6 +647,7 @@ class Univar(DataSet):
             "subtitle_a": None,
             "subtitle_b": None,
             "subtitle_c": None,
+            "subtitle_d": None,
             "plot_grid": False,
             "hist_density": False,
             "gs_wspace": 0.4,
@@ -637,6 +656,7 @@ class Univar(DataSet):
             "gs_right": 0.98,
             "gs_bottom": 0.2,
             "gs_top": 0.88,
+            "bins": 20,
         }
         return None
 
@@ -651,7 +671,6 @@ class Univar(DataSet):
         :return: None or file path to figure
         :rtype: None or str
         """
-
         specs = self.view_specs.copy()
 
         # start plot
@@ -1145,6 +1164,7 @@ class Univar(DataSet):
 
         return _df
 
+
 # todo urgent >>> make it an instance of Dataset()
 class Bivar:
     """The Bivariate analyst object
@@ -1201,7 +1221,7 @@ class Bivar:
                 "RMSE": None,
             },
         }
-        '''
+        """
         "Gumbel": {
             "Function": gumbel,
             "Formula": "f(x) =  exp(-exp(-((x-a)/b)))",
@@ -1211,7 +1231,8 @@ class Bivar:
             "Data": None,
             "RMSE": None,
         },            
-        '''
+        """
+
     def fit(self, model_type="Linear"):
         """Fit model to bivariate object
 
@@ -1368,7 +1389,7 @@ class Bivar:
         ay_histy = fig.add_subplot(gs[1:, 2], sharey=ax)
         plt.xlabel("p({})".format(self.yname))
         yuni = Univar()
-        yuni.data=self.data[self.yname].values
+        yuni.data = self.data[self.yname].values
         plt.hist(
             yuni.data,
             bins=yuni.nbins_fd(data=yuni.data),

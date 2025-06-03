@@ -251,12 +251,12 @@ class MbaE:
         dict_setter = {}
         for i in range(len(df_boot_table)):
             # build setter from row
-            dict_setter[df_boot_table[self.field_bootfile_attribute].values[i]] = df_boot_table[
-                self.field_bootfile_value
-            ].values[i]
+            dict_setter[df_boot_table[self.field_bootfile_attribute].values[i]] = (
+                df_boot_table[self.field_bootfile_value].values[i]
+            )
 
         # pass setter to set() method
-        #pprint.pprint(dict_setter)
+        # pprint.pprint(dict_setter)
         self.setter(dict_setter=dict_setter)
 
         return None
@@ -275,10 +275,11 @@ class MbaE:
         # handle filename
         fpath = Path(folder + "/" + filename + self.file_csv_ext)
         # export
-        df_metadata.to_csv(fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False)
+        df_metadata.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
         # ... continues in downstream objects ... #
         return None
-
 
     def save(self):
         """Save to sourced files
@@ -291,6 +292,7 @@ class MbaE:
         self.export(folder=folder, filename=filename)
         # ... continues in downstream objects ... #
         return None
+
 
 class Collection(MbaE):
     """A collection of primitive ``MbaE`` objects with associated metadata.
@@ -912,7 +914,9 @@ class DataSet(MbaE):
         """
         super().export(folder, filename=filename + "_bootfile")
         fpath = Path(folder + "/" + filename + self.file_csv_ext)
-        self.data.to_csv(fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False)
+        self.data.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
         # ... continues in downstream objects ... #
 
     def view(self, show=True):

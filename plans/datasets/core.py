@@ -174,9 +174,7 @@ class TimeSeries(Univar):
         # ... continues in downstream objects ... #
 
     def _set_fields(self):
-        """Set catalog fields names. Expected to increment superior methods.
-
-        """
+        """Set catalog fields names. Expected to increment superior methods."""
         # ------------ call super ----------- #
         super()._set_fields()
 
@@ -1014,13 +1012,6 @@ class TimeSeries(Univar):
         - If ``linear`` is chosen, the interpolation is a linear interpolation. For ``nearest``, it uses the value of the nearest data point. ``zero`` uses zero-order interpolation (nearest-neighbor). ``slinear`` and ``quadratic`` are spline interpolations of first and second order, respectively. ``cubic`` is a cubic spline interpolation.
         - If the method is ``linear``, the fill_value parameter is set to ``extrapolate`` to allow extrapolation beyond the data range.
 
-        **Examples:**
-
-        >>> ts.interpolate_gaps(method="linear", inplace=True)
-
-        >>> interpolated_ts = ts.interpolate_gaps(method="linear", inplace=False)
-
-        >>> interpolated_ts = ts.interpolate_gaps(method="constant", constant=1, inplace=False)
         """
         from scipy.interpolate import interp1d
 
@@ -1072,7 +1063,7 @@ class TimeSeries(Univar):
 
     # docs: ok
     def aggregate(self, freq, bad_max, agg_funcs=None):
-        """ "Aggregate the time series data based on a specified frequency using various aggregation functions.
+        """Aggregate the time series data based on a specified frequency using various aggregation functions.
 
         :param freq: str
             Pandas-like alias frequency at which to aggregate the time series data. Common options include:
@@ -1221,17 +1212,41 @@ class TimeSeries(Univar):
         else:
             return df_upscale
 
-    # todo method
     def downscale(self, freq):
-        # todo dosctring
-        # 0) update
+        """Donwscale time series for smaller time steps using linear inteporlation.
+
+        :param freq: new time step frequency
+        :type freq: str
+        :return: Dataframe of downscaled data
+        :rtype: pandas.Dataframe
+        """
+        # update
         self.update()
-        # 1) get new index
+        # get new index
         dt_index = pd.date_range(start=self.start, end=self.end, freq=freq)
-        print(dt_index[:5])
-        # 2) factor
-        factor_downscale = len(dt_index) / self.data_size
-        print(factor_downscale)
+        # set new dataframe
+        df_downscale = pd.DataFrame({self.dtfield: dt_index})
+        df_downscale = pd.merge(
+            left=df_downscale, right=self.data, on=self.dtfield, how="left"
+        )
+        # handle flow variable
+        if self.agg == "sum":
+            # compute downscaling factor assuming at least 2 data points
+            tdelta_source = (
+                self.data[self.dtfield].values[1] - self.data[self.dtfield].values[0]
+            )
+            tdelta_new = (
+                df_downscale[self.dtfield].values[1]
+                - df_downscale[self.dtfield].values[0]
+            )
+            factor_downscale = tdelta_new / tdelta_source
+            # apply factor
+            df_downscale[self.varfield] = df_downscale[self.varfield] * factor_downscale
+        # interpolate voids using linear method
+        df_downscale[self.varfield] = df_downscale[self.varfield].interpolate(
+            method="linear"
+        )
+        return df_downscale
 
     def assess_extreme_values(self, eva_freq="YS", eva_agg="max"):
         """Run Extreme Values Analysis (EVA) over the Time Series and set the ``eva`` attribute

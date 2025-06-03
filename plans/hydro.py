@@ -6,14 +6,17 @@ This module stores all hydrology functions of PLANS.
 
 Copyright (C) 2022 Iporã Brito Possantti
 """
+
 import os.path
 from pathlib import Path
-import matplotlib.pyplot as plt
-from plans.root import DataSet
-from plans.datasets import TimeSeries
-from plans.analyst import Bivar
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from plans.root import DataSet
+from plans.datasets import TimeSeries, RainSeries
+from plans.analyst import Bivar
+
 
 class Model(DataSet):
     """The core ``Model`` base object. Expected to hold one :class:`pandas.DataFrame` as simulation data and
@@ -28,13 +31,11 @@ class Model(DataSet):
         # overwriters
         self.object_alias = "HM"
 
-        # evaluation parameters (model metrics)
-        self.rmse = None
-        self.rsq = None
-        self.bias = None
+        # variables
+        self._set_model_vars()
 
         # parameters
-        self.file_params = None # global parameters
+        self.file_params = None  # global parameters
         self._set_model_params()
 
         # simulation data
@@ -47,8 +48,13 @@ class Model(DataSet):
         # defaults
         self.dtfield = "DateTime"
 
+        # evaluation parameters (model metrics)
+        self.rmse = None
+        self.rsq = None
+        self.bias = None
+
         # expected structure for folder data:
-        '''
+        """
         self.workplace = {
             "inputs": {
                 "params": {
@@ -58,7 +64,7 @@ class Model(DataSet):
             },
 
         }
-        '''
+        """
         # run file
         self.file_model = None
 
@@ -105,9 +111,8 @@ class Model(DataSet):
                 "description": "Storage level (observed evidence)",
                 "kind": "level",
             },
-
-
         }
+        self.var_eval = "S"
 
     def _set_model_params(self):
         """Intenal method for setting up model parameters data
@@ -122,46 +127,45 @@ class Model(DataSet):
                 "units": None,
                 "dtype": np.float64,
                 "description": "Residence time",
-                "kind": "conceptual"
+                "kind": "conceptual",
             },
             "S0": {
                 "value": None,
-                "units": "mm", # default is mm
+                "units": "mm",  # default is mm
                 "dtype": np.float64,
                 "description": "Storage initial condition",
-                "kind": "conceptual"
+                "kind": "conceptual",
             },
             "dt": {
                 "value": None,
                 "units": None,
                 "dtype": np.float64,
                 "description": "Time Step in k units",
-                "kind": "procedural"
+                "kind": "procedural",
             },
             "dt_freq": {
                 "value": None,
                 "units": "unitless",
                 "dtype": str,
                 "description": "Time Step frequency flag",
-                "kind": "procedural"
+                "kind": "procedural",
             },
             "t0": {
                 "value": None,
                 "units": "timestamp",
                 "dtype": str,
                 "description": "Simulation start",
-                "kind": "procedural"
+                "kind": "procedural",
             },
             "tN": {
                 "value": None,
                 "units": "timestamp",
                 "dtype": str,
                 "description": "Simulation end",
-                "kind": "procedural"
+                "kind": "procedural",
             },
-
-
         }
+        self.reference_dt_param = "k"
         return None
 
     def get_metadata(self):
@@ -188,7 +192,6 @@ class Model(DataSet):
             self.field_bias: self.bias,
             self.field_file_params: self.file_params,
             self.field_folder_data: self.folder_data,
-
             # ... continue if necessary
         }
 
@@ -247,17 +250,17 @@ class Model(DataSet):
         s_dt_unit_tag = str(self.params["dt"]["value"]) + self.params["dt"]["units"]
 
         # handle all good condition
-        if s_dt_unit_tag == '1'+ self.params["k"]["units"]:
+        if s_dt_unit_tag == "1" + self.params[self.reference_dt_param]["units"]:
             pass
         else:
             # compute time step in k units
             ft_aux = Model.get_timestep_factor(
                 from_unit=s_dt_unit_tag,
-                to_unit='1'+ self.params["k"]["units"],
+                to_unit="1" + self.params[self.reference_dt_param]["units"],
             )
             # update
             self.params["dt"]["value"] = ft_aux
-            self.params["dt"]["units"] = self.params["k"]["units"][:]
+            self.params["dt"]["units"] = self.params[self.reference_dt_param]["units"][:]
             self.params["dt_freq"]["value"] = s_dt_unit_tag
 
         return None
@@ -285,7 +288,6 @@ class Model(DataSet):
 
         # >>> develop logic in downstream objects
 
-
         # -------------- update other mutables -------------- #
         self.update()
 
@@ -302,6 +304,7 @@ class Model(DataSet):
         self.load_params()
         self.load_data()
         return None
+
     def setup(self):
         """Set model simulation. Expected to be incremented downstream.
 
@@ -320,9 +323,14 @@ class Model(DataSet):
         vc_ts = Model.get_timestep_series(
             start_time=self.params["t0"]["value"],
             end_time=self.params["tN"]["value"],
-            time_unit=self.params["dt_freq"]["value"]
+            time_unit=self.params["dt_freq"]["value"],
         )
-        vc_t = np.linspace(start=0, stop=len(vc_ts)*self.params["dt"]["value"],num=len(vc_ts), dtype=np.float64)
+        vc_t = np.linspace(
+            start=0,
+            stop=len(vc_ts) * self.params["dt"]["value"],
+            num=len(vc_ts),
+            dtype=np.float64,
+        )
 
         # set simulation dataframe
         self.data = pd.DataFrame(
@@ -399,7 +407,6 @@ class Model(DataSet):
         """
         return None
 
-
     def view(self, show=True):
         # >>> develop logic in downstream object
         return None
@@ -424,7 +431,9 @@ class Model(DataSet):
         return 1 / factor
 
     @staticmethod
-    def get_timestep_series(start_time: str, end_time: str, time_unit: str) -> pd.DatetimeIndex:
+    def get_timestep_series(
+        start_time: str, end_time: str, time_unit: str
+    ) -> pd.DatetimeIndex:
         """Generates a time series of timestamps.
 
         Creates a sequence of timestamps between a start and end time,
@@ -443,12 +452,43 @@ class Model(DataSet):
         time_series = pd.date_range(start=start_time, end=end_time, freq=time_unit)
         return time_series
 
+    @staticmethod
+    def get_gaussian_signal(value_max, size, sigma=50, position_factor=5):
+        """Generates a vector of normally (gaussian) distributed values. Useful for testing input inflows.
+
+        :param value_max: actual maximum value in the vector
+        :type value_max: float
+        :param size: size of vector (time series size)
+        :type size: int
+        :param sigma: standard deviation for gaussian (normal) distribution.
+        :type sigma: float
+        :param position_factor: where to place the peak in the vector
+        :type position_factor: float
+        :return: vector of values
+        :rtype: Numpy array
+        """
+        from scipy.ndimage import gaussian_filter
+
+        # Create the initial signal
+        v = np.zeros(size)
+        # place peak
+        v[int(len(v) / position_factor)] = value_max
+        # Apply Gaussian filter
+        filtered_signal = gaussian_filter(v, sigma=len(v) / sigma)
+        # Normalize the signal to have a maximum value of max_v
+        normalized_signal = (filtered_signal / np.max(filtered_signal)) * value_max
+        v_norm = normalized_signal * (normalized_signal > 0.01)
+        return v_norm
+
 
 class LinearStorage(Model):
+    """This is the Linear Storage Model. No inflow, only outflows. Simulates storage decay only."""
 
     def __init__(self, name="MyLinearStorage", alias="LS01"):
         # ------------ call super ----------- #
         super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "LS"
 
     def _set_model_vars(self):
         self.vars = {
@@ -477,9 +517,8 @@ class LinearStorage(Model):
                 "description": "Storage level (observed evidence)",
                 "kind": "level",
             },
-
-
         }
+        self.var_eval = "S"
 
     def _set_model_params(self):
         """Intenal method for setting up model parameters data
@@ -491,48 +530,46 @@ class LinearStorage(Model):
         self.params = {
             "k": {
                 "value": None,
-                "units": None,
+                "units": "D",
                 "dtype": np.float64,
                 "description": "Residence time",
-                "kind": "conceptual"
+                "kind": "conceptual",
             },
             "S0": {
                 "value": None,
-                "units": "mm", # default is mm
+                "units": "mm",  # default is mm
                 "dtype": np.float64,
                 "description": "Storage initial condition",
-                "kind": "conceptual"
+                "kind": "conceptual",
             },
             "dt": {
                 "value": None,
                 "units": None,
                 "dtype": np.float64,
                 "description": "Time Step in k units",
-                "kind": "procedural"
+                "kind": "procedural",
             },
             "dt_freq": {
                 "value": None,
                 "units": "unitless",
                 "dtype": str,
                 "description": "Time Step frequency flag",
-                "kind": "procedural"
+                "kind": "procedural",
             },
             "t0": {
                 "value": None,
                 "units": "timestamp",
                 "dtype": str,
                 "description": "Simulation start",
-                "kind": "procedural"
+                "kind": "procedural",
             },
             "tN": {
                 "value": None,
                 "units": "timestamp",
                 "dtype": str,
                 "description": "Simulation end",
-                "kind": "procedural"
+                "kind": "procedural",
             },
-
-
         }
         return None
 
@@ -543,14 +580,20 @@ class LinearStorage(Model):
         :rtype: None
         """
         # load dataframe
-        df_ = pd.read_csv(self.file_params, sep=self.file_csv_sep, encoding="utf-8", dtype=str)
+        df_ = pd.read_csv(
+            self.file_params, sep=self.file_csv_sep, encoding="utf-8", dtype=str
+        )
         ls_input_params = set(df_["Parameter"])
 
         # parse to dict
         for k in self.params:
             if k in set(ls_input_params):
-                self.params[k]["value"] = self.params[k]["dtype"](df_.loc[df_['Parameter'] == k, 'Value'].values[0])
-                self.params[k]["units"] = df_.loc[df_['Parameter'] == k, 'Units'].values[0]
+                self.params[k]["value"] = self.params[k]["dtype"](
+                    df_.loc[df_["Parameter"] == k, "Value"].values[0]
+                )
+                self.params[k]["units"] = df_.loc[
+                    df_["Parameter"] == k, "Units"
+                ].values[0]
 
         # handle input dt
         self.update_dt()
@@ -565,7 +608,12 @@ class LinearStorage(Model):
         """
         # -------------- load observation data -------------- #
         file_qobs = Path(f"{self.folder_data}/S_obs.csv")
-        self.data_obs = pd.read_csv(file_qobs, sep=self.file_csv_sep, encoding=self.file_encoding, parse_dates=[self.dtfield])
+        self.data_obs = pd.read_csv(
+            file_qobs,
+            sep=self.file_csv_sep,
+            encoding=self.file_encoding,
+            parse_dates=[self.dtfield],
+        )
 
         # -------------- update other mutables -------------- #
         self.update()
@@ -589,7 +637,7 @@ class LinearStorage(Model):
         super().setup()
 
         # append variables to dataframe
-        self.data["S"] = 0.0
+        self.data["S"] = np.nan
         self.data["Q"] = np.nan
         self.data["S_a"] = np.nan
 
@@ -615,19 +663,38 @@ class LinearStorage(Model):
         n_steps = len(df)
 
         # --- analytical solution
-        df["S_a"].values[:] = self.params["S0"]["value"] * np.exp(-df["t"].values/k)
+        df["S_a"].values[:] = self.params["S0"]["value"] * np.exp(-df["t"].values / k)
 
         # --- numerical solution
         # loop over (Euler Method)
-        for i in range(n_steps - 1):
+        for t in range(n_steps - 1):
             # Qt = dt * St / k
-            df["Q"].values[i] = df["S"].values[i] * dt / k
-            df["S"].values[i + 1] = df["S"].values[i] - df["Q"].values[i]
+            df["Q"].values[t] = df["S"].values[t] * dt / k
+            df["S"].values[t + 1] = df["S"].values[t] - df["Q"].values[t]
 
         # reset data
         self.data = df.copy()
 
         return None
+
+    def get_evaldata(self):
+        # merge simulation and observation data based
+        df = pd.merge(left=self.data, right=self.data_obs, on=self.dtfield, how="left")
+
+        # remove other columns
+        df = df[[self.dtfield, self.var_eval, "{}_obs".format(self.var_eval)]]
+
+        # remove voids
+        df.dropna(inplace=True)
+
+        # handle scaling factor for flows (expected to be in k-units)
+        factor = 1.0
+        if self.vars[self.var_eval]["kind"] == "flow":
+            factor = self.params["dt"]["value"]
+        # scale the factor
+        df["{}_obs".format(self.var_eval)] = df["{}_obs".format(self.var_eval)] * factor
+
+        return df
 
     def evaluate(self):
         """Evaluate model metrics.
@@ -635,15 +702,12 @@ class LinearStorage(Model):
         :return: None
         :rtype: None
         """
-        # merge simulation and observation data based
-        df = pd.merge(left=self.data, right=self.data_obs, on=self.dtfield, how="left")
-
-        # remove voids
-        df.dropna(inplace=True)
+        df = self.get_evaldata()
 
         # evaluate paired data
-        vc_pred = df["S"].values
-        vc_obs = df["S_obs"].values
+        vc_pred = df[self.var_eval].values
+        vc_obs = df["{}_obs".format(self.var_eval)].values
+
         # compute evaluation metrics
         self.rmse = Bivar.rmse(pred=vc_pred, obs=vc_obs)
         self.rsq = Bivar.rsq(pred=vc_pred, obs=vc_obs)
@@ -665,42 +729,30 @@ class LinearStorage(Model):
         super().export(folder, filename=filename + "_sim")
 
         # export model observation data
+        df_obs = self.get_evaldata()
         fpath = Path(folder + "/" + filename + "_obs" + self.file_csv_ext)
-        self.data_obs.to_csv(fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False)
+        df_obs.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
 
         # export views
         if views:
             self.view_specs["folder"] = folder
             self.view_specs["filename"] = filename
-            self.view2(show=False)
+            self.view(show=False)
 
+        print(filename)
         # ... continues in downstream objects ... #
 
-    # todo make a definitive view() method
     def view(self, show=True):
-        plt.figure(figsize=(8, 4))
-        plt.plot(self.data["DateTime"], self.data["S"], color="b", label="Simulated")
-        plt.plot(self.data["DateTime"], self.data["S_obs"], ".", color="k", label="Observerd")
-        plt.xlim(self.data["DateTime"].min(), self.data["DateTime"].max())
-        plt.ylim(0, 600)
-        plt.ylabel("S (mm)")
-        plt.tight_layout()
-        plt.legend()
-        if show:
-            plt.show()
-
-    def view2(self, show=True):
         specs = self.view_specs.copy()
 
         ts = TimeSeries(name=self.name, alias=self.alias)
-        ts.set_data(
-            input_df=self.data,
-            input_dtfield=self.dtfield,
-            input_varfield="S"
-        )
+        ts.set_data(input_df=self.data, input_dtfield=self.dtfield, input_varfield="S")
         ts.view_specs["title"] = "Linear Model - R2: {}".format(round(self.rsq, 2))
         fig = ts.view(show=False, return_fig=True)
         # obs series plot
+        # access axes from fig
         axes = fig.get_axes()
         ax = axes[0]
         ax.plot(self.data_obs[self.dtfield], self.data_obs["S_obs"], ".", color="k")
@@ -714,6 +766,898 @@ class LinearStorage(Model):
             plt.close(fig)
 
 
+class LSPQ(LinearStorage):
+    """This is a Rainfall-Runoff model based on a Linear Storage.
+    Inflow (P) in a necessary data input.
+
+    """
+
+    def __init__(self, name="MyLSPQ", alias="LSPQ001"):
+        super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "LSPQ"
+
+        # input data
+        self.data_input = None
+
+    def _set_model_params(self):
+        """Intenal method for setting up model parameters data
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_model_params()
+        # model parameters
+        self.params.update(
+            {
+                "Q_max": {
+                    "value": None,
+                    "units": "mm/{dt_freq}",
+                    "dtype": np.float64,
+                    "description": "Downstream limiting control for Q",
+                    "kind": "conceptual",
+                },
+            }
+        )
+
+        return None
+
+    def _set_model_vars(self):
+        self.vars = {
+            "t": {
+                "units": "{k}",
+                "description": "Accumulated time",
+                "kind": "time",
+            },
+            "P": {
+                "units": "mm/{dt_freq}",
+                "description": "Inflow",
+                "kind": "flow",
+            },
+            "S": {
+                "units": "mm",
+                "description": "Storage level",
+                "kind": "level",
+            },
+            "Q": {
+                "units": "mm/{dt_freq}",
+                "description": "Outflow",
+                "kind": "flow",
+            },
+            "Q_obs": {
+                "units": "mm/d",
+                "description": "Outflow (observed evidence)",
+                "kind": "flow",
+            },
+        }
+        self.var_eval = "Q"
+        self.var_inputs = ["P"]
+        return None
+
+    def load_data(self):
+        """Load simulation data. Expected to overwrite superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        # -------------- load input data -------------- #
+        file_input = Path(f"{self.folder_data}/clim.csv")
+        df_data_input = pd.read_csv(
+            file_input,
+            sep=self.file_csv_sep,
+            encoding=self.file_encoding,
+            parse_dates=[self.dtfield],
+        )
+        # Format the datetime column to string (e.g., 'YYYY-MM-DD HH:MM:SS')
+        df_data_input["DT_str"] = df_data_input[self.dtfield].dt.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        # set t0 and tN
+        self.params["t0"]["value"] = df_data_input["DT_str"].values[0]
+        self.params["tN"]["value"] = df_data_input["DT_str"].values[-1]
+        # set the data input
+        self.data_input = df_data_input[[self.dtfield] + self.var_inputs].copy()
+        # -------------- load observation data -------------- #
+        file_qobs = Path(f"{self.folder_data}/q_obs.csv")
+        self.data_obs = pd.read_csv(
+            file_qobs,
+            sep=self.file_csv_sep,
+            encoding=self.file_encoding,
+            parse_dates=[self.dtfield],
+        )
+
+        # -------------- update other mutables -------------- #
+        self.update()
+
+        # ... continues in downstream objects ... #
+
+        return None
+
+    def setup(self):
+        """Set model simulation.
+
+        .. warning::
+
+            This method overwrites model data.
+
+
+        :return: None
+        :rtype: None
+        """
+        # setup superior object
+        super().setup()
+
+        # drop superior meaningless columns
+        self.data.drop(columns=["S_a"], inplace=True)
+
+        # handle input P values
+        rs = RainSeries()
+        rs.set_data(
+            input_df=self.data_input, input_varfield="P", input_dtfield="DateTime"
+        )
+        df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
+
+        # set interpolated input variables
+        self.data["P"] = df_downscaled["P"].values
+
+        # organize table
+        ls_vars = [self.dtfield, "t", "P", "Q", "S"]
+        self.data = self.data[ls_vars].copy()
+
+        return None
+
+    def solve(self):
+        """Solve the model for input and initial conditions by numerical methods.
+
+        .. warning::
+
+            This method overwrites model data.
+
+        :return: None
+        :rtype: None
+        """
+        # make simpler variables for clarity
+        k = self.params["k"]["value"]
+        qmax = self.params["Q_max"]["value"]
+        dt = self.params["dt"]["value"]
+        df = self.data.copy()
+        n_steps = len(df)
+
+        # --- numerical solution
+        # loop over (Euler Method)
+        for t in range(n_steps - 1):
+            # Qt = dt * St / k
+            df["Q"].values[t] = np.min([df["S"].values[t] * dt / k, qmax])
+            # S(t + 1) = S(t) + P(t) - Q(t)
+            df["S"].values[t + 1] = (
+                df["S"].values[t] + df["P"].values[t] - df["Q"].values[t]
+            )
+
+        # reset data
+        self.data = df.copy()
+
+        return None
+
+    def view(self, show=True, return_fig=False):
+        specs = self.view_specs.copy()
+        # start plot
+        fig = plt.figure(figsize=(6, 6))  # Width, Height
+        plt.suptitle("Model LSPQ - R2: {}".format(round(self.rsq, 4)))
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            3,
+            1,
+            wspace=0.5,
+            hspace=0.5,
+            left=0.2,
+            right=0.9,
+            bottom=0.1,
+            top=0.9,
+        )  # nrows, ncols
+
+        first_date = self.data[self.dtfield].values[0]
+        last_date = self.data[self.dtfield].values[-1]
+        ls_dates = [first_date, last_date]
+        n_flow_max = np.max([self.data["P"].max(), self.data["Q"].max()])
+
+        # ------------ P plot ------------
+        n_pmax = self.data["P"].max() / self.params["dt"]["value"]
+        ax = fig.add_subplot(gs[0, 0])
+        plt.plot(self.data[self.dtfield], self.data["P"] / self.params["dt"]["value"], color="tab:gray")
+        plt.title("P", loc="left")
+        ax.set_xticks(ls_dates)
+        plt.xlim(ls_dates)
+        plt.ylim(0, 1.1 * n_pmax)
+        plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+        # ------------ Q plot ------------
+        n_qmax = np.max([self.data["Q"].max() / self.params["dt"]["value"], self.data_obs["Q_obs"].max()])
+        ax = fig.add_subplot(gs[1, 0])
+        plt.plot(self.data[self.dtfield], self.data["Q"] / self.params["dt"]["value"], color="blue")
+        plt.plot(
+            self.data_obs[self.dtfield],
+            self.data_obs["Q_obs"],
+            ".",
+            color="navy",
+        )
+        plt.title("Q", loc="left")
+        ax.set_xticks(ls_dates)
+        plt.xlim(ls_dates)
+        plt.ylim(0, 1.1 * n_qmax)
+        plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+        # ------------ S plot ------------
+        ax = fig.add_subplot(gs[2, 0])
+        plt.plot(self.data[self.dtfield], self.data["S"], color="black")
+        plt.title("S", loc="left")
+        ax.set_xticks(ls_dates)
+        plt.xlim(ls_dates)
+        plt.ylabel("mm")
+        plt.ylim(0, 1.1 * self.data["S"].max())
+
+        # handle return
+        if return_fig:
+            return fig
+        else:
+            if show:
+                plt.show()
+            else:
+                file_path = "{}/{}.{}".format(
+                    specs["folder"], specs["filename"], specs["fig_format"]
+                )
+                plt.savefig(file_path, dpi=specs["dpi"])
+                plt.close(fig)
+
+
+class LSPQE(LSPQ):
+    """This is a Rainfall-Runoff model based on a Linear Storage.
+    Inflow (P) and External flow (E) are necessary data input.
+
+    """
+
+    def __init__(self, name="MyLSPQE", alias="LSPQE001"):
+        super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "LSPQE"
+
+    def _set_model_vars(self):
+        super()._set_model_vars()
+        self.vars.update(
+            {
+                "E": {
+                    "units": "mm/{dt_freq}",
+                    "description": "External Outflow",
+                    "kind": "flow",
+                },
+                "E_pot": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Maximal External Outflow",
+                    "kind": "flow",
+                },
+            }
+        )
+        self.var_inputs = ["P", "E_pot"]
+
+    def setup(self):
+        """Set model simulation.
+
+        .. warning::
+
+            This method overwrites model data.
+
+
+        :return: None
+        :rtype: None
+        """
+        # setup superior object
+        super().setup()
+
+        # set E (actual)
+        self.data["E"] = np.nan
+
+        # handle input E_pot values
+        rs = RainSeries() # todo best practice is to have a EvapoSeries() object
+        rs.varfield = "E_pot"
+        rs.varname = "E_pot"
+        rs.set_data(
+            input_df=self.data_input, input_varfield="E_pot", input_dtfield="DateTime"
+        )
+        df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
+
+        # set interpolated input variables
+        self.data["E_pot"] = df_downscaled["E_pot"].values
+
+        # organize table
+        ls_vars = [self.dtfield, "t", "P", "E_pot", "E", "Q", "S"]
+        self.data = self.data[ls_vars].copy()
+
+        return None
+
+    def solve(self):
+        """Solve the model for input and initial conditions by numerical methods.
+
+        .. warning::
+
+            This method overwrites model data.
+
+        :return: None
+        :rtype: None
+        """
+        # make simpler variables for clarity
+        k = self.params["k"]["value"]
+        qmax = self.params["Q_max"]["value"]
+        dt = self.params["dt"]["value"]
+        df = self.data.copy()
+        n_steps = len(df)
+
+        # --- numerical solution
+        # loop over (Euler Method)
+        for t in range(n_steps - 1):
+            # Qt = dt * St / k
+            q_pot = np.min([df["S"].values[t] * dt / k, qmax])
+
+            # Et = Et_pot
+            e_pot = df["E_pot"].values[t]
+
+            # Potential outflow O_pot
+            o_pot = q_pot + e_pot
+
+            # Maximum outflow Omax = St
+            o_max = df["S"].values[t]
+
+            # actual outflow
+            o_act = np.min([o_max, o_pot])
+
+            # allocate Q and E
+            df["Q"].values[t] = o_act * (q_pot / o_pot)
+            df["E"].values[t] = o_act * (e_pot / o_pot)
+
+            # S(t + 1) = S(t) + P(t) - Q(t) - E(t)
+            df["S"].values[t + 1] = (
+                df["S"].values[t]
+                + df["P"].values[t]
+                - df["Q"].values[t]
+                - df["E"].values[t]
+            )
+        # reset data
+        self.data = df.copy()
+
+        return None
+
+    def view(self, show=True, return_fig=False):
+        specs = self.view_specs.copy()
+        fig = super().view(show=False, return_fig=True)
+        plt.suptitle("Model LSFAS - R2: {}".format(round(self.rsq, 4)))
+        axes = fig.get_axes()
+        # P
+        ax = axes[0]
+        ax.set_title("P and E", loc="left")
+        ax.plot(self.data[self.dtfield], self.data["E"] / self.params["dt"]["value"], c="red")
+
+
+        # handle return
+        if return_fig:
+            return fig
+        else:
+            if show:
+                plt.show()
+            else:
+                file_path = "{}/{}.{}".format(
+                    specs["folder"], specs["filename"], specs["fig_format"]
+                )
+                plt.savefig(file_path, dpi=specs["dpi"])
+                plt.close(fig)
+
+
+
+class LSFAS(LSPQE):
+    """This is a Rainfall-Runoff model based on a Linear Storage with Fill-And-Spill (FAS) mechanism.
+    Inflow Precipitation (P) and Potential Evapotranspiration (E_pot) are necessary data input.
+
+    """
+
+    def __init__(self, name="MyLSFAS", alias="LSFAS001"):
+        super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "LSFAS"
+
+    def _set_model_vars(self):
+        super()._set_model_vars()
+        self.vars.update(
+            {
+                "Q_s": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Spill flow (outflow)",
+                    "kind": "flow",
+                },
+                "Q_s_f": {
+                    "units": "mm/mm",
+                    "description": "Spill flow coefficient",
+                    "kind": "constant",
+                },
+                "Q_b": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Base flow (outflow)",
+                    "kind": "flow",
+                },
+            }
+        )
+        return None
+
+    def _set_model_params(self):
+        """Intenal method for setting up model parameters data
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_model_params()
+        # clean useless model parameters from upstream
+        del self.params["Q_max"]
+        # add new params
+        self.params.update(
+            {
+                "s_a": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Activation level for storage spill",
+                    "kind": "conceptual",
+                },
+                "s_c": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Effective fragmentantion level of storage",
+                    "kind": "conceptual",
+                },
+            }
+        )
+        return None
+
+    def setup(self):
+        """Set model simulation.
+
+        .. warning::
+
+            This method overwrites model data.
+
+
+        :return: None
+        :rtype: None
+        """
+        # setup superior object
+        super().setup()
+
+        # add new columns
+        self.data["Q_s"] = np.nan
+        self.data["Q_b"] = np.nan
+        self.data["Q_s_f"] = np.nan
+
+        # organize table
+        ls_vars = [self.dtfield, "t", "P", "E_pot", "E", "Q_s", "Q_s_f", "Q_b", "Q", "S"]
+        self.data = self.data[ls_vars].copy()
+
+        return None
+    def solve(self):
+        """Solve the model for input and initial conditions by numerical methods.
+
+        .. warning::
+
+            This method overwrites model data.
+
+        :return: None
+        :rtype: None
+        """
+        # make simpler variables for clarity
+        k = self.params["k"]["value"]
+        s_a = self.params["s_a"]["value"]
+        s_c = self.params["s_c"]["value"]
+        dt = self.params["dt"]["value"]
+        df = self.data.copy()
+        n_steps = len(df)
+
+        # --- numerical solution
+        # loop over (Euler Method)
+        for t in range(n_steps - 1):
+            # Compute potential spill storage
+            ss_pot = np.max([0, df["S"].values[t] - s_a])
+            # Compute runoff coeficient
+            ss_qsf = (ss_pot / (ss_pot + (s_c + s_a)))
+            df["Q_s_f"].values[t] = ss_qsf
+            qs_pot = ss_qsf * ss_pot * dt
+
+            # Compute potential base flow
+            # Qt = dt * St / k
+            qb_pot = df["S"].values[t] * dt / k
+
+            # Compute potential evaporation flow
+            # Et = E_pot
+            e_pot = df["E_pot"].values[t]
+
+            # Compute Potential outflow O_pot
+            o_pot = qs_pot + qb_pot + e_pot
+
+            # Compute Maximum outflow Omax = St
+            o_max = df["S"].values[t]
+
+            # Compute actual outflow
+            o_act = np.min([o_max, o_pot])
+
+            # Allocate outflow
+            df["Q_s"].values[t] = o_act * (qs_pot / o_pot)
+            df["Q_b"].values[t] = o_act * (qb_pot / o_pot)
+            df["E"].values[t] = o_act * (e_pot / o_pot)
+
+            # Compute full Q
+            df["Q"].values[t] = df["Q_s"].values[t] + df["Q_b"].values[t]
+
+            # Apply Water balance
+            # S(t + 1) = S(t) + P(t) - Qs(t) - Qb(t) - E(t)
+            df["S"].values[t + 1] = (
+                df["S"].values[t]
+                + df["P"].values[t]
+                - df["Q_s"].values[t]
+                - df["Q_b"].values[t]
+                - df["E"].values[t]
+            )
+        # reset data
+        self.data = df.copy()
+
+        return None
+
+
+class Global(LSFAS):
+    """This is the global Rainfall-Runoff model of PLANS. Simulates the the catchment
+    as if is a global system. Precipitation (P) and Potential Evapotranspiration (E_pot) are necessary data input.
+
+    """
+    def __init__(self, name="MyGlobal", alias="Glo001"):
+        super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "Global"
+
+    def _set_model_vars(self):
+        super()._set_model_vars()
+        # clean some vars
+        del self.vars["S"]
+        del self.vars["Q"]
+        del self.vars["Q_b"]
+        del self.vars["Q_s_f"]
+        del self.vars["Q_s"]
+        # update
+        self.new_vars = {
+                #
+                #
+                # Canopy variables
+                "C": {
+                    "units": "mm",
+                    "description": "Canopy storage",
+                    "kind": "level",
+                },
+                "E_c": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Canopy evaporation",
+                    "kind": "flow",
+                },
+                "P_tf": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Throughfall -- canopy spill water",
+                    "kind": "flow",
+                },
+                "P_sf": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Stemflow -- canopy drained water",
+                    "kind": "flow",
+                },
+                #
+                #
+                # Surface variables
+                "S": {
+                    "units": "mm",
+                    "description": "Surface storage",
+                    "kind": "level",
+                },
+                "E_s": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Surface evaporation",
+                    "kind": "flow",
+                },
+                "Q_so": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Surface spill flow -- surface overland flow",
+                    "kind": "flow",
+                },
+                "Q_ss": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Subsurface spill flow -- lateral flow on topsoil",
+                    "kind": "flow",
+                },
+                "Q_f": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Infiltration flow -- surface drainage flow",
+                    "kind": "flow",
+                },
+                #
+                #
+                # Vadose vars
+                "V": {
+                    "units": "mm",
+                    "description": "Vadose zone storage",
+                    "kind": "level",
+                },
+                "E_v": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Vadose zone transpiration",
+                    "kind": "flow",
+                },
+                "Q_v": {
+                    "units": "mm",
+                    "description": "Recharge flow",
+                    "kind": "flow",
+                },
+                #
+                #
+                # Phreatic vars
+                "G": {
+                    "units": "mm",
+                    "description": "Phreatic zone storage",
+                    "kind": "level",
+                },
+                "D": {
+                    "units": "mm",
+                    "description": "Phreatic zone storage deficit",
+                    "kind": "level",
+                },
+                "E_g": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Phreatic zone transpiration",
+                    "kind": "flow",
+                },
+                "Q_g": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Baseflow from Groundwater/Phreatic zone",
+                    "kind": "flow",
+                },
+                # routing
+                "R": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Slope runoff (surface, subsurface and baseflow)",
+                    "kind": "flow",
+                },
+                "Q": {
+                    "units": "mm/{dt_freq}",
+                    "description": "River discharge at stage station",
+                    "kind": "flow",
+                },
+            }
+        self.vars.update(self.new_vars.copy())
+        return None
+
+    def _set_model_params(self):
+        """Intenal method for setting up model parameters data
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_model_params()
+        # clean useless model parameters from upstream
+        del self.params["k"]
+        del self.params["s_a"]
+        del self.params["s_c"]
+        del self.params["S0"]
+
+        # add new params
+        self.params.update(
+            {
+                #
+                #
+                # initial conditions
+                "C0": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Canopy storage initial conditions",
+                    "kind": "conceptual",
+                },
+                "S0": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Surface storage initial conditions",
+                    "kind": "conceptual",
+                },
+                "V0": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Vadose zone initial conditions",
+                    "kind": "conceptual",
+                },
+                "G0": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Phreatic zone initial conditions",
+                    "kind": "conceptual",
+                },
+                #
+                #
+                # Canopy parameters
+                "c_k": {
+                    "value": None,
+                    "units": "D",
+                    "dtype": np.float64,
+                    "description": "Canopy residence time",
+                    "kind": "conceptual",
+                },
+                "c_a": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Activation level for canopy spill",
+                    "kind": "conceptual",
+                },
+                "c_c": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Fragmentantion level of canopy",
+                    "kind": "conceptual",
+                },
+                #
+                #
+                # Surface parameters
+                "s_k": {
+                    "value": None,
+                    "units": "D",
+                    "dtype": np.float64,
+                    "description": "Surface residence time",
+                    "kind": "conceptual",
+                },
+                "f_max": {
+                    "value": None,
+                    "units": "mm/D",
+                    "dtype": np.float64,
+                    "description": "Infiltration capacity",
+                    "kind": "conceptual",
+                },
+                # subsurface spill
+                "s_as": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Activation level for subsurface spill",
+                    "kind": "conceptual",
+                },
+                "s_cs": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Activation level for subsurface spill",
+                    "kind": "conceptual",
+                },
+                # surface spill
+                "s_ao": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Activation level for surface overland spill",
+                    "kind": "conceptual",
+                },
+                "s_co": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Activation level for surface overland spill",
+                    "kind": "conceptual",
+                },
+                # recharge
+                "k": {
+                    "value": None,
+                    "units": "mm/D",
+                    "dtype": np.float64,
+                    "description": "Effective hydraulic conductivity",
+                    "kind": "conceptual",
+                },
+                # baseflow
+                "g_k": {
+                    "value": None,
+                    "units": "D",
+                    "dtype": np.float64,
+                    "description": "Phreatic zone residence time",
+                    "kind": "conceptual",
+                },
+                "g_max": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Phreatic zone storage capacity",
+                    "kind": "conceptual",
+                },
+            }
+        )
+        # reset reference
+        self.reference_dt_param = "g_k"
+        return None
+
+
+    def setup(self):
+        """Set model simulation.
+
+        .. warning::
+
+            This method overwrites model data.
+
+
+        :return: None
+        :rtype: None
+        """
+        # setup superior object
+        super().setup()
+
+        # clear deprecated columns
+        self.data.drop(
+            columns=["Q_s", "Q_s_f", "Q_b", "S"],
+            inplace=True
+        )
+
+        # append variables
+        for v in self.new_vars:
+            self.data[v] = np.nan
+            # set initial conditions on storages
+            if self.vars[v]["kind"] == "level":
+                if v == "D":
+                    pass
+                else:
+                    self.data[v].values[0] = self.params["{}0".format(v)]["value"]
+
+        # organize table?
+
+        return None
+
+
+    def solve(self):
+        """Solve the model for input and initial conditions by numerical methods.
+
+        .. warning::
+
+            This method overwrites model data.
+
+        :return: None
+        :rtype: None
+        """
+        # make simpler variables for clarity
+        dt = self.params["dt"]["value"]
+        df = self.data.copy()
+        n_steps = len(df)
+
+        # --- numerical solution
+        # loop over (Euler Method)
+        for i in range(n_steps - 1):
+            # Solve canopy water balance
+
+            # todo resume here
+            # todo compute potential and actual outflows from canopy
+            # todo set actual outflows
+            df["E_c"].values[i] = 0.0 # remove
+            df["P_sf"].values[i] = 0.0
+            df["P_tf"].values[i] = 0.0
+
+            # Apply water balance
+            # C(t+1) = P(t) - Ec(t) - Psf(t) - P(tf)
+            df["C"].values[i + 1] = df["P"].values[i] - df["E_c"].values[i] - df["P_sf"].values[i] - df["P_tf"].values[i]
+
+            # Compute compounded flows
+            # R - Hillslope runoff
+            df["R"].values[i] = df["Q_so"].values[i] + df["Q_ss"].values[i] + df["Q_g"].values[i]
+            # E - Total E
+            df["E"].values[i] = df["E_c"].values[i] + df["E_s"].values[i] + df["E_v"].values[i] + df["E_g"].values[i]
+
+        # reset data
+        self.data = df.copy()
+
+        return None
+
+
 if __name__ == "__main__":
     print("Hi")
-

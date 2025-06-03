@@ -103,9 +103,7 @@ def nowsep(sep="-"):
 
 # docs ok
 def create_rundir(workplace, run_id, prefix=None, suffix=None, b_time=True):
-    """Create a directory for a run with an optional label, suffix, and timestamp.
-
-    """
+    """Create a directory for a run with an optional label, suffix, and timestamp."""
     # define labels
     if prefix is None:
         prefix = ""
@@ -116,7 +114,6 @@ def create_rundir(workplace, run_id, prefix=None, suffix=None, b_time=True):
         suffix = ""
     else:
         suffix = "_" + suffix
-
 
     # define dir path
     dir_path = workplace + "/" + f"{prefix}{run_id}{suffix}"
@@ -129,6 +126,7 @@ def create_rundir(workplace, run_id, prefix=None, suffix=None, b_time=True):
     else:
         os.mkdir(dir_path)
     return dir_path
+
 
 # ------------------------------ UTILS - DRY TOOLS ------------------------------
 
@@ -149,6 +147,7 @@ def _get_dict_basins(folder_basins):
 
 
 # ------------------------------ TOOLS ------------------------------
+
 
 # todo develop a proper object (class) for tools and also handle serial and multiprocessing
 def DEMO(
@@ -171,7 +170,9 @@ def DEMO(
 
     # ---------------------- RUN DIR ----------------------
     if workplace:
-        folder_output = create_rundir(workplace=folder_output, label=project_name, suffix=toolname)
+        folder_output = create_rundir(
+            workplace=folder_output, label=project_name, suffix=toolname
+        )
 
     # ---------------------- LOGGER ----------------------
     logger = logger_setup(
@@ -276,8 +277,9 @@ def MLS(
 
     # ---------------------- RUN DIR ----------------------
     if workplace:
-        folder_output = create_rundir(workplace=folder_output, run_id=run_id, prefix="LS", suffix=toolname)
-
+        folder_output = create_rundir(
+            workplace=folder_output, run_id=run_id, prefix="LS", suffix=toolname
+        )
 
     # ---------------------- LOAD ----------------------
     m = hydro.LinearStorage(name=run_id, alias=run_id)
@@ -303,7 +305,6 @@ def MLS(
         if sleep:
             time.sleep(sleep_secs)
 
-
     # ---------------------- EXPORTING - OUTPUTS ----------------------
     m.export(folder=folder_output, filename=m.name, views=export_views)
 
@@ -314,6 +315,7 @@ def MLS(
 
     return 0
 
+
 def _run_mls_task(args):
     """Função auxiliar para encapsular a chamada MLS com múltiplos argumentos,
     permitindo que ela seja usada com pool.map().
@@ -323,7 +325,17 @@ def _run_mls_task(args):
     :return: O resultado da função MLS.
     :rtype: int
     """
-    run_id, bootfile, folder_output, talk, workplace, export_inputs, export_views, sleep, sleep_secs = args
+    (
+        run_id,
+        bootfile,
+        folder_output,
+        talk,
+        workplace,
+        export_inputs,
+        export_views,
+        sleep,
+        sleep_secs,
+    ) = args
     return MLS(
         run_id=run_id,
         bootfile=bootfile,
@@ -336,6 +348,7 @@ def _run_mls_task(args):
         sleep_secs=sleep_secs,
     )
 
+
 def MLS_bat(
     folder_bootfiles,
     project_name,
@@ -347,8 +360,8 @@ def MLS_bat(
     export_views=False,
     sleep=False,
     sleep_secs=2,
-    num_processes=None
-    ):
+    num_processes=None,
+):
     start_start = time.time()
 
     # get bootfiles
@@ -361,11 +374,23 @@ def MLS_bat(
         # Prepara a lista de argumentos para cada chamada MLS
         # Cada item na lista será uma tupla de argumentos para _run_mls_task
         task_args = [
-            (os.path.basename(bootfile).split(".")[0], bootfile, folder_output, talk, workplace, export_inputs, export_views, sleep, sleep_secs)
+            (
+                os.path.basename(bootfile).split(".")[0],
+                bootfile,
+                folder_output,
+                talk,
+                workplace,
+                export_inputs,
+                export_views,
+                sleep,
+                sleep_secs,
+            )
             for bootfile in ls_bootfiles
         ]
         # Define o número de processos a serem usados
-        processes_to_use = num_processes if num_processes is not None else multiprocessing.cpu_count()
+        processes_to_use = (
+            num_processes if num_processes is not None else multiprocessing.cpu_count()
+        )
         print(f"Utilizando {processes_to_use} processos.")
 
         with multiprocessing.Pool(processes=processes_to_use) as pool:
@@ -392,7 +417,6 @@ def MLS_bat(
                 export_views=export_views,
                 sleep=sleep,
                 sleep_secs=sleep_secs,
-
             )
 
     end_time = time.time()
