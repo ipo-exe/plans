@@ -978,7 +978,7 @@ class LSPQ(LinearStorage):
             self.data_obs[self.dtfield],
             self.data_obs["Q_obs"],
             ".",
-            color="navy",
+            color="indigo",
         )
         plt.title("Q", loc="left")
         ax.set_xticks(ls_dates)
@@ -1134,7 +1134,6 @@ class LSPQE(LSPQ):
         ax.set_title("P and E", loc="left")
         ax.plot(self.data[self.dtfield], self.data["E"] / self.params["dt"]["value"], c="red")
 
-
         # handle return
         if return_fig:
             return fig
@@ -1212,6 +1211,7 @@ class LSFAS(LSPQE):
                 },
             }
         )
+        self.reference_dt_param = "k"
         return None
 
     def setup(self):
@@ -1252,6 +1252,7 @@ class LSFAS(LSPQE):
         k = self.params["k"]["value"]
         s_a = self.params["s_a"]["value"]
         s_c = self.params["s_c"]["value"]
+        # dt is the fraction of 1 Day/(1 simulation time step)
         dt = self.params["dt"]["value"]
         df = self.data.copy()
         n_steps = len(df)
@@ -1259,12 +1260,18 @@ class LSFAS(LSPQE):
         # --- numerical solution
         # loop over (Euler Method)
         for t in range(n_steps - 1):
-            # Compute potential spill storage
-            ss_pot = np.max([0, df["S"].values[t] - s_a])
+            # Compute dynamic spill storage capacity in mm/D
+            ss_cap = np.max([0, df["S"].values[t] - s_a]) # spill storage = s - s_a
+
+            # compute dynamic runoff capacity
+            qs_cap = ss_cap * dt # multiply by dt (figure out why!)
+
             # Compute runoff coeficient
-            ss_qsf = (ss_pot / (ss_pot + (s_c + s_a)))
-            df["Q_s_f"].values[t] = ss_qsf
-            qs_pot = ss_qsf * ss_pot * dt
+            qs_f = (ss_cap / (ss_cap + (s_c + s_a))) # effective s_c = s_c + s_a
+            df["Q_s_f"].values[t] = qs_f
+
+            # potential runoff -- scale by the coefficient
+            qs_pot = qs_f * qs_cap
 
             # Compute potential base flow
             # Qt = dt * St / k
@@ -1306,6 +1313,35 @@ class LSFAS(LSPQE):
         return None
 
 
+    def view(self, show=True, return_fig=False):
+        specs = self.view_specs.copy()
+        fig = super().view(show=False, return_fig=True)
+        plt.suptitle("Model LSFAS - R2: {}".format(round(self.rsq, 4)))
+        axes = fig.get_axes()
+        # Q
+        ax = axes[1]
+        ax.set_title("Q, Qb and Qobs", loc="left")
+        ax.plot(self.data[self.dtfield], self.data["Q_b"] / self.params["dt"]["value"], c="navy")
+        ax.set_ylim(0, 800)
+
+        ax.set_title("Runoff C", loc="right")
+        ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
+        ax2.plot(self.data[self.dtfield], self.data["Q_s_f"], 'm--')
+        ax2.set_ylim(0, 1)
+
+        # handle return
+        if return_fig:
+            return fig
+        else:
+            if show:
+                plt.show()
+            else:
+                file_path = "{}/{}.{}".format(
+                    specs["folder"], specs["filename"], specs["fig_format"]
+                )
+                plt.savefig(file_path, dpi=specs["dpi"])
+                plt.close(fig)
+
 class Global(LSFAS):
     """This is the global Rainfall-Runoff model of PLANS. Simulates the the catchment
     as if is a global system. Precipitation (P) and Potential Evapotranspiration (E_pot) are necessary data input.
@@ -1344,9 +1380,19 @@ class Global(LSFAS):
                     "description": "Throughfall -- canopy spill water",
                     "kind": "flow",
                 },
+                "P_tf_f": {
+                    "units": "mm/mm",
+                    "description": "Throughfall coefficient",
+                    "kind": "constant",
+                },
                 "P_sf": {
                     "units": "mm/{dt_freq}",
                     "description": "Stemflow -- canopy drained water",
+                    "kind": "flow",
+                },
+                "P_c": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Effective precipitation",
                     "kind": "flow",
                 },
                 #
@@ -1362,17 +1408,27 @@ class Global(LSFAS):
                     "description": "Surface evaporation",
                     "kind": "flow",
                 },
-                "Q_so": {
+                "Q_of": {
                     "units": "mm/{dt_freq}",
                     "description": "Surface spill flow -- surface overland flow",
                     "kind": "flow",
                 },
-                "Q_ss": {
+                "Q_of_f": {
+                    "units": "mm/mm",
+                    "description": "Surface spill flow coefficient",
+                    "kind": "constant",
+                },
+                "Q_uf": {
                     "units": "mm/{dt_freq}",
                     "description": "Subsurface spill flow -- lateral flow on topsoil",
                     "kind": "flow",
                 },
-                "Q_f": {
+                "Q_uf_f": {
+                    "units": "mm/mm",
+                    "description": "Surface spill flow coefficient",
+                    "kind": "constant",
+                },
+                "Q_if": {
                     "units": "mm/{dt_freq}",
                     "description": "Infiltration flow -- surface drainage flow",
                     "kind": "flow",
@@ -1483,21 +1539,21 @@ class Global(LSFAS):
                 #
                 #
                 # Canopy parameters
-                "c_k": {
+                "C_k": {
                     "value": None,
                     "units": "D",
                     "dtype": np.float64,
                     "description": "Canopy residence time",
                     "kind": "conceptual",
                 },
-                "c_a": {
+                "C_a": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Activation level for canopy spill",
                     "kind": "conceptual",
                 },
-                "c_c": {
+                "C_c": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -1507,14 +1563,14 @@ class Global(LSFAS):
                 #
                 #
                 # Surface parameters
-                "s_k": {
+                "S_k": {
                     "value": None,
                     "units": "D",
                     "dtype": np.float64,
                     "description": "Surface residence time",
                     "kind": "conceptual",
                 },
-                "f_max": {
+                "Q_f_cap": {
                     "value": None,
                     "units": "mm/D",
                     "dtype": np.float64,
@@ -1522,14 +1578,14 @@ class Global(LSFAS):
                     "kind": "conceptual",
                 },
                 # subsurface spill
-                "s_as": {
+                "S_au": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Activation level for subsurface spill",
                     "kind": "conceptual",
                 },
-                "s_cs": {
+                "S_cu": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -1537,14 +1593,14 @@ class Global(LSFAS):
                     "kind": "conceptual",
                 },
                 # surface spill
-                "s_ao": {
+                "S_ao": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Activation level for surface overland spill",
                     "kind": "conceptual",
                 },
-                "s_co": {
+                "S_co": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -1552,7 +1608,7 @@ class Global(LSFAS):
                     "kind": "conceptual",
                 },
                 # recharge
-                "k": {
+                "K": {
                     "value": None,
                     "units": "mm/D",
                     "dtype": np.float64,
@@ -1560,14 +1616,21 @@ class Global(LSFAS):
                     "kind": "conceptual",
                 },
                 # baseflow
-                "g_k": {
+                "D_max": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Maximal Deficit for root transpiration (effective root depth)",
+                    "kind": "level",
+                },
+                "G_k": {
                     "value": None,
                     "units": "D",
                     "dtype": np.float64,
                     "description": "Phreatic zone residence time",
                     "kind": "conceptual",
                 },
-                "g_max": {
+                "G_cap": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -1577,7 +1640,7 @@ class Global(LSFAS):
             }
         )
         # reset reference
-        self.reference_dt_param = "g_k"
+        self.reference_dt_param = "G_k"
         return None
 
 
@@ -1610,6 +1673,8 @@ class Global(LSFAS):
                     pass
                 else:
                     self.data[v].values[0] = self.params["{}0".format(v)]["value"]
+        # compute deficit initial condition
+        self.data["D"].values[0] = self.params["G_cap"]["value"] - self.data["G"].values[0]
 
         # organize table?
 
@@ -1626,35 +1691,198 @@ class Global(LSFAS):
         :return: None
         :rtype: None
         """
-        # make simpler variables for clarity
+        # --- simulation setup
+        # dt is the fraction of 1 Day/(1 simulation time step)
         dt = self.params["dt"]["value"]
-        df = self.data.copy()
-        n_steps = len(df)
+        # global processes data
+        GB = self.data.copy()
+        n_steps = len(GB)
+        # todo remove hacks
+        #n_steps = 10
+
+        # --- parameter setup ---
+
+        # [Canopy] canopy parameters
+        C_k = self.params["C_k"]["value"]
+        C_a = self.params["C_a"]["value"]
+        C_c = self.params["C_c"]["value"]
+        # [Canopy] Compute effective canopy activation level
+        C_a_eff = C_a # same
+        # [Canopy] Compute effective canopy fragmentation level
+        C_c_eff = C_a_eff + C_c  # incremental with activation
+
+        # [Surface] surface parameters
+        Q_f_cap = self.params["Q_f_cap"]["value"]
+        S_k = self.params["S_k"]["value"]
+        S_ao = self.params["S_ao"]["value"]
+        S_co = self.params["S_co"]["value"]
+        S_au = self.params["S_au"]["value"]
+        S_cu = self.params["S_cu"]["value"]
+        # [Surface] Compute effective overland flow activation level
+        S_ao_eff = S_au + S_ao  # incremental with underland (topsoil)
+        # [Surface] Compute effective overland flow fragmentation level
+        S_co_eff = S_ao_eff + S_co  # incremental with activation
+        # [Surface] Compute effective underland flow activation level
+        S_au_eff = S_au  # same
+        # [Surface] Compute effective underland flow fragmentation level
+        S_cu_eff = S_au_eff + S_cu  # incremental with activation
 
         # --- numerical solution
         # loop over (Euler Method)
-        for i in range(n_steps - 1):
-            # Solve canopy water balance
+        for t in range(n_steps - 1):
+
+            # [Evaporation] ---- get evaporation flows first ---- #
+
+            # [Evaporation] canopy
+            E_c_pot = GB["E_pot"].values[t]
+            E_c_cap = GB["C"].values[t] * dt  # multiply by dt
+            GB["E_c"].values[t] = np.min([E_c_pot, E_c_cap])
+            # apply discount on the fly
+            GB["C"].values[t] = GB["C"].values[t] - GB["E_c"].values[t]
+
+            # todo include root zone depth rationale
+            # [Evaporation] phreatic zone
+            E_g_pot = GB["E_pot"].values[t] - GB["E_c"].values[t]  # discount actual Ec
+            E_g_cap = GB["G"].values[t] * dt  # multiply by dt
+            GB["E_g"].values[t] = np.min([E_g_pot, E_g_cap])
+            # apply discount on the fly
+            GB["G"].values[t] = GB["G"].values[t] - GB["E_g"].values[t]
+
+            # [Evaporation] vadose zone
+            E_v_pot = GB["E_pot"].values[t] - GB["E_c"].values[t] - GB["E_g"].values[t]
+            E_v_cap = GB["V"].values[t] * dt  # multiply by dt
+            GB["E_v"].values[t] = np.min([E_v_pot, E_v_cap])
+            # apply discount on the fly
+            GB["V"].values[t] = GB["V"].values[t] - GB["E_v"].values[t]
+
+            # [Evaporation] surface
+            E_s_pot = GB["E_pot"].values[t] - GB["E_c"].values[t] - GB["E_g"].values[t] - GB["E_v"].values[t]
+            E_s_cap = GB["S"].values[t] * dt  # multiply by dt
+            GB["E_s"].values[t] = np.min([E_s_pot, E_s_cap])
+            # apply discount on the fly
+            GB["S"].values[t] = GB["S"].values[t] - GB["E_s"].values[t]
+
+            # [Canopy] ---- Solve canopy water balance ---- #
+
+            # [Canopy] ---- Potential flows
+
+            # [Canopy] -- Throughfall
+
+            # [Canopy] Compute canopy spill storage capacity
+            C_ss_cap = np.max([0, GB["C"].values[t] - C_a_eff])
+
+            # [Canopy] Compute dynamic throughfall capacity
+            P_tf_cap = C_ss_cap * dt  # multiply by dt
+
+            # [Canopy] Compute throughfall coeficient
+            P_tf_f = (C_ss_cap / (C_ss_cap + C_c_eff))
+            GB["P_tf_f"].values[t] = P_tf_f
+
+            # [Canopy] Compute potential throughfall -- scale by the coefficient
+            P_tf_pot = P_tf_f * P_tf_cap
+
+            # [Canopy] -- Stemflow
+            # [Canopy] Compute potential stemflow
+            P_sf_pot = GB["C"].values[t] * dt / C_k  # Linear storage Q = dt * S / k
+
+            # [Canopy] -- Canopy evaporation
+            # [Canopy] Compute potential evaporation flow (first priority)
+            # by pass E_c_pot = glb["E_pot"].values[t]
+
+            # [Canopy] -- Full potential outflow
+            C_out_pot = P_tf_pot + P_sf_pot # by pass + E_c_pot
+
+            # [Canopy] ---- Actual flows
+
+            # [Canopy] Compute canopy maximum outflow
+            C_out_max = GB["C"].values[t]
+
+            # [Canopy] Compute Actual outflow
+            C_out_act = np.min([C_out_max, C_out_pot])
+
+            # [Canopy] Allocate outflows
+            GB["P_tf"].values[t] = C_out_act  * (P_tf_pot / C_out_pot)
+            GB["P_sf"].values[t] = C_out_act  * (P_sf_pot / C_out_pot)
+            GB["P_c"].values[t] = GB["P_tf"].values[t] + GB["P_sf"].values[t]
+
+            # [Canopy Water Balance] ---- Apply water balance
+            # C(t+1) = C(t) + P(t) - Psf(t) - P(tf) >>> Ec(t) discounted earlier
+            GB["C"].values[t + 1] = GB["C"].values[t] + GB["P"].values[t] - GB["P_sf"].values[t] - GB["P_tf"].values[t]
+
+            # [Surface] ---- Solve surface water balance ---- #
+
+            # [Surface] ---- Potential flows
+
+            # [Surface -- overland] -- Overland flow
+
+            # [Surface -- overland] Compute surface overland spill storage capacity
+            Sof_ss_cap = np.max([0, GB["S"].values[t] - S_ao_eff])
+
+            # [Surface -- overland] Compute dynamic overland flow capacity
+            Q_of_cap = Sof_ss_cap * dt  # multiply by dt
+
+            # [Surface -- overland] Compute overland flow coeficient
+            Q_of_f = Sof_ss_cap / (Sof_ss_cap + S_co_eff)
+            GB["Q_of_f"].values[t] = Q_of_f
+
+            # [Surface -- overland] Compute potential overland -- scale by the coefficient
+            Q_of_pot = Q_of_f * Q_of_cap
+
+            # [Surface -- underland] -- Underland flow
+
+            # [Surface -- underland] Compute surface underland spill storage capacity
+            Suf_ss_cap = np.max([0, GB["S"].values[t] - S_au_eff])
+
+            # [Surface -- underland] Compute dynamic underland flow capacity
+            Q_uf_cap = Suf_ss_cap * dt  # multiply by dt
+
+            # [Surface -- underland] Compute underland flow coeficient
+            Q_uf_f = Suf_ss_cap / (Suf_ss_cap + S_cu_eff)
+            GB["Q_uf_f"].values[t] = Q_uf_f
+
+            # [Surface -- underland] Compute potential overland -- scale by the coefficient
+            Q_uf_pot = Q_uf_f * Q_uf_cap
+
+            # [Surface -- infiltration] -- Infiltration flow
+            # linear store upper bounded by infiltration capacity
+            # todo integrate with downstream soil water control
+            Q_f_pot = np.min([GB["S"].values[t] * dt / S_k, Q_f_cap])
+
+            # [Surface] -- Full potential outflow
+            S_out_pot = Q_of_pot + Q_uf_pot + Q_f_pot
+
+            # [Surface] ---- Actual flows
+            # [Canopy] Compute surface maximum outflow
+            S_out_max = GB["S"].values[t]
+
+            # [Surface] Compute Actual outflow
+            S_out_act = np.min([S_out_max, S_out_pot])
+
+            # [Surface] Allocate outflows
+            GB["Q_of"].values[t] = S_out_act * (Q_of_pot / S_out_pot)
+            GB["Q_uf"].values[t] = S_out_act * (Q_uf_pot / S_out_pot)
+            GB["Q_if"].values[t] = S_out_act * (Q_f_pot / S_out_pot)
+
+            # [Surface Water Balance] ---- Apply water balance
+            GB["S"].values[t + 1] = GB["S"].values[t] + GB["P_c"].values[t] - GB["Q_of"].values[t] - GB["Q_uf"].values[t] - GB["Q_if"].values[t]
 
             # todo resume here
-            # todo compute potential and actual outflows from canopy
-            # todo set actual outflows
-            df["E_c"].values[i] = 0.0 # remove
-            df["P_sf"].values[i] = 0.0
-            df["P_tf"].values[i] = 0.0
-
-            # Apply water balance
-            # C(t+1) = P(t) - Ec(t) - Psf(t) - P(tf)
-            df["C"].values[i + 1] = df["P"].values[i] - df["E_c"].values[i] - df["P_sf"].values[i] - df["P_tf"].values[i]
-
             # Compute compounded flows
+            GB["Q_g"].values[t] = 0.0
+
             # R - Hillslope runoff
-            df["R"].values[i] = df["Q_so"].values[i] + df["Q_ss"].values[i] + df["Q_g"].values[i]
+            GB["R"].values[t] = GB["Q_of"].values[t] + GB["Q_uf"].values[t] + GB["Q_g"].values[t]
             # E - Total E
-            df["E"].values[i] = df["E_c"].values[i] + df["E_s"].values[i] + df["E_v"].values[i] + df["E_g"].values[i]
+            GB["E"].values[t] = GB["E_c"].values[t] + GB["E_s"].values[t] + GB["E_v"].values[t] + GB["E_g"].values[t]
+
+            # hacking schemes
+            # todo remove hacks
+            GB["V"].values[t + 1] = GB["V"].values[t]
+            GB["G"].values[t + 1] = GB["G"].values[t]
+
 
         # reset data
-        self.data = df.copy()
+        self.data = GB.copy()
 
         return None
 
