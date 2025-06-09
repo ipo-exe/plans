@@ -1487,6 +1487,11 @@ class Global(LSFAS):
                 },
             }
         self.vars.update(self.new_vars.copy())
+
+        self.vars_canopy = [
+            "P", "P_c", "P_sf", "P_tf", "P_tf_f", "E_pot", "E_c", "C"
+        ]
+
         return None
 
     def _set_model_params(self):
@@ -1709,8 +1714,7 @@ class Global(LSFAS):
         # [Canopy] Compute effective canopy activation level
         C_a_eff = C_a # same
         # [Canopy] Compute effective canopy fragmentation level
-        C_c_eff = C_a_eff + C_c  # incremental with activation
-
+        C_c_eff = C_c  # same
         # [Surface] surface parameters
         Q_f_cap = self.params["Q_f_cap"]["value"]
         S_k = self.params["S_k"]["value"]
@@ -1721,11 +1725,11 @@ class Global(LSFAS):
         # [Surface] Compute effective overland flow activation level
         S_ao_eff = S_au + S_ao  # incremental with underland (topsoil)
         # [Surface] Compute effective overland flow fragmentation level
-        S_co_eff = S_ao_eff + S_co  # incremental with activation
+        S_co_eff = S_co  # incremental with activation
         # [Surface] Compute effective underland flow activation level
         S_au_eff = S_au  # same
         # [Surface] Compute effective underland flow fragmentation level
-        S_cu_eff = S_au_eff + S_cu  # incremental with activation
+        S_cu_eff = S_cu  #
 
         # --- numerical solution
         # loop over (Euler Method)
@@ -1736,7 +1740,7 @@ class Global(LSFAS):
             # [Evaporation] canopy
             E_c_pot = GB["E_pot"].values[t]
             E_c_cap = GB["C"].values[t] * dt  # multiply by dt
-            GB["E_c"].values[t] = np.min([E_c_pot, E_c_cap])
+            GB["E_c"].values[t] = 0.0# np.min([E_c_pot, E_c_cap])
             # apply discount on the fly
             GB["C"].values[t] = GB["C"].values[t] - GB["E_c"].values[t]
 
@@ -1763,7 +1767,7 @@ class Global(LSFAS):
             GB["S"].values[t] = GB["S"].values[t] - GB["E_s"].values[t]
 
             # [Canopy] ---- Solve canopy water balance ---- #
-
+            # todo resume here ---- REDO CANOPY MODEL
             # [Canopy] ---- Potential flows
 
             # [Canopy] -- Throughfall
@@ -1779,15 +1783,11 @@ class Global(LSFAS):
             GB["P_tf_f"].values[t] = P_tf_f
 
             # [Canopy] Compute potential throughfall -- scale by the coefficient
-            P_tf_pot = P_tf_f * P_tf_cap
+            P_tf_pot = P_tf_f * GB["P"].values[t] # todo P_tf_f * P_tf_cap
 
             # [Canopy] -- Stemflow
-            # [Canopy] Compute potential stemflow
-            P_sf_pot = GB["C"].values[t] * dt / C_k  # Linear storage Q = dt * S / k
-
-            # [Canopy] -- Canopy evaporation
-            # [Canopy] Compute potential evaporation flow (first priority)
-            # by pass E_c_pot = glb["E_pot"].values[t]
+            # [Canopy] Compute potential stemflow -- spill storage does not contribute
+            P_sf_pot = (GB["C"].values[t] - C_ss_cap) * dt / C_k  # Linear storage Q = dt * S / k
 
             # [Canopy] -- Full potential outflow
             C_out_pot = P_tf_pot + P_sf_pot # by pass + E_c_pot
@@ -1801,9 +1801,10 @@ class Global(LSFAS):
             C_out_act = np.min([C_out_max, C_out_pot])
 
             # [Canopy] Allocate outflows
-            GB["P_tf"].values[t] = C_out_act  * (P_tf_pot / C_out_pot)
-            GB["P_sf"].values[t] = C_out_act  * (P_sf_pot / C_out_pot)
-            GB["P_c"].values[t] = GB["P_tf"].values[t] + GB["P_sf"].values[t]
+            with np.errstate(divide='ignore', invalid='ignore'):
+                GB["P_tf"].values[t] = C_out_act * np.where(C_out_pot == 0, 0, P_tf_pot / C_out_pot)
+                GB["P_sf"].values[t] = C_out_act * np.where(C_out_pot == 0, 0, P_sf_pot / C_out_pot)
+                GB["P_c"].values[t] = GB["P_tf"].values[t] + GB["P_sf"].values[t]
 
             # [Canopy Water Balance] ---- Apply water balance
             # C(t+1) = C(t) + P(t) - Psf(t) - P(tf) >>> Ec(t) discounted earlier
@@ -1846,10 +1847,10 @@ class Global(LSFAS):
             # [Surface -- infiltration] -- Infiltration flow
             # linear store upper bounded by infiltration capacity
             # todo integrate with downstream soil water control
-            Q_f_pot = np.min([GB["S"].values[t] * dt / S_k, Q_f_cap])
+            Q_if_pot = np.min([GB["S"].values[t] * dt / S_k, Q_f_cap])
 
             # [Surface] -- Full potential outflow
-            S_out_pot = Q_of_pot + Q_uf_pot + Q_f_pot
+            S_out_pot = Q_of_pot + Q_uf_pot + Q_if_pot
 
             # [Surface] ---- Actual flows
             # [Canopy] Compute surface maximum outflow
@@ -1859,14 +1860,15 @@ class Global(LSFAS):
             S_out_act = np.min([S_out_max, S_out_pot])
 
             # [Surface] Allocate outflows
-            GB["Q_of"].values[t] = S_out_act * (Q_of_pot / S_out_pot)
-            GB["Q_uf"].values[t] = S_out_act * (Q_uf_pot / S_out_pot)
-            GB["Q_if"].values[t] = S_out_act * (Q_f_pot / S_out_pot)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                GB["Q_of"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_of_pot / S_out_pot)
+                GB["Q_uf"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_uf_pot / S_out_pot)
+                GB["Q_if"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_if_pot / S_out_pot)
 
             # [Surface Water Balance] ---- Apply water balance
             GB["S"].values[t + 1] = GB["S"].values[t] + GB["P_c"].values[t] - GB["Q_of"].values[t] - GB["Q_uf"].values[t] - GB["Q_if"].values[t]
 
-            # todo resume here
+            # todo CONTINUE HERE FOR SURFACE SPILLS
             # Compute compounded flows
             GB["Q_g"].values[t] = 0.0
 
@@ -1886,6 +1888,12 @@ class Global(LSFAS):
 
         return None
 
+
+    def print_canopy(self):
+        df = self.data.copy()
+        ls = [self.dtfield] + self.vars_canopy
+        df = df[ls]
+        print(df.round(3))
 
 if __name__ == "__main__":
     print("Hi")

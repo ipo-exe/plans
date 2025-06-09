@@ -130,5 +130,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+# other folders
+/tests
 /docs/datasets/
-/tests/data/
