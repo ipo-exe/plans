@@ -1,5 +1,0 @@
-Name;Alias;Units;VarField;DtField;X;Y;Code;Source;Description;Color;File
-porto_alegre_-_jardim_botanico;A801;Celcius;TempDB;DateTime;-51.17472221;-30.05361111;A801;INMET;Hourly Temperature by INMET;#ff7f0e;clim_hourly_src.csv
-uruguaiana;A809;Celcius;TempDB;DateTime;-57.08194443;-29.83999999;A809;INMET;Hourly Temperature by INMET;#c5b0d5;clim_hourly_b.csv
-cambara_do_sul;A897;Celcius;TempDB;DateTime;-50.14972221;-29.04916666;A897;INMET;Hourly Temperature by INMET;#98df8a;clim_hourly_c.csv
-rio_pardo;A813;Celcius;TempDB;DateTime;-52.38194443;-29.87222221;A813;INMET;Hourly Temperature by INMET;#98df8a;clim_hourly_d.csv

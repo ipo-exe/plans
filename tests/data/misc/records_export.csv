@@ -1,4 +1,0 @@
-RecId;RecTable;RecTimestamp;RecStatus;Value1;Value2;Sum;Date_Birth;Age;File;File_Status
-Rec0001;Ipo2024;1900-01-01 00:00:00;On;30.0;2.0;32.0;1992-01-01;yr: 32, mth: 0;C:\data\cd_a.csv;ok
-Rec0002;Ipo2024;1900-01-01 00:00:00;On;400.0;4.0;404.0;1998-03-12;yr: 25, mth: 10;C:\data\cd_x.csv;missing
-Rec0003;Ipo2024;2024-01-02 19:02:39;On;1000.0;5.0;1005.0;2021-05-01;yr: 2, mth: 8;C:\data\cd_b.csv;ok

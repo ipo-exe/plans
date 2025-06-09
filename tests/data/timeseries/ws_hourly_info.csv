@@ -1,5 +1,0 @@
-Name;Alias;Units;VarField;DtField;X;Y;Code;Source;Description;Color;File
-porto_alegre_-_jardim_botanico;A801;m/s;WS;DateTime;-51.17472221;-30.05361111;A801;INMET;Wind Speed by INMET;#ff7f0e;clim_hourly_src.csv
-uruguaiana;A809;m/s;WS;DateTime;-57.08194443;-29.83999999;A809;INMET;Wind Speed by INMET;#c5b0d5;clim_hourly_b.csv
-cambara_do_sul;A897;m/s;WS;DateTime;-50.14972221;-29.04916666;A897;INMET;Wind Speed by INMET;#98df8a;clim_hourly_c.csv
-rio_pardo;A813;m/s;WS;DateTime;-52.38194443;-29.87222221;A813;INMET;Wind Speed by INMET;#98df8a;clim_hourly_d.csv
