@@ -133,3 +133,4 @@ dmypy.json
 # other folders
 /docs/datasets/
 /tests/
+/tests/data/

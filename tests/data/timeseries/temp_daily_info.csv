@@ -1,0 +1,5 @@
+Name;Alias;Units;VarField;DtField;X;Y;Code;Source;Description;Color;File
+alto_da_boa_vista;83007;Celcius;Temp_mean;DateTime;-43.27916666;-22.96583333;83007;INMET;Daily Temperature by INMET;#17becf;clim_daily_a.csv
+porto_alegre;83967;Celcius;Temp_mean;DateTime;-51.17472221;-30.05361111;83967;INMET;Daily Temperature by INMET;#aec7e8;clim_daily_b.csv
+cambara_do_sul;83946;Celcius;Temp_mean;DateTime;-50.14972221;-29.04916666;83946;INMET;Daily Temperature by INMET;#ffbb78;clim_daily_c.csv
+pelotas;83985;Celcius;Temp_mean;DateTime;-52.41666666;-31.78333333;83985;INMET;Daily Temperature by INMET;#ff9896;clim_daily_d.csv

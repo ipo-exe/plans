@@ -1,0 +1,16 @@
+RecId;RecTable;RecTimestamp;RecStatus;Kind;Value;Category;File_NF
+Rec0001;Ipo2024;1900-01-01 00:00:00;Active;Expense;500;Pro;
+Rec0002;Ipo2024;1900-01-01 00:00:00;Active;Revenue;2000;Pro;nf_1.pdf
+Rec0003;Ipo2024;1900-01-01 00:00:00;Active;Revenue;4000;Pro;nf_2.pdf
+Rec0006;Ipo2024;1900-01-01 00:00:00;Active;Expense;700;Pro;
+Rec0007;Ipo2024;2024-01-01 16:26:51;Active;Expense;10000;;
+Rec0008;Ipo2024;2024-01-01 16:27:02;Active;Expense;10000;;
+Rec0009;Ipo2024;2024-01-01 16:27:06;Active;Expense;10000;;
+Rec0010;Ipo2024;2024-01-01 16:27:08;Active;Expense;10000;;
+Rec0011;Ipo2024;2024-01-01 16:27:11;Active;Expense;10000;;
+Rec0012;Ipo2024;2024-01-01 16:27:12;Active;Expense;10000;;
+Rec0013;Ipo2024;2024-01-01 16:27:14;Active;Expense;10000;;
+Rec0014;Ipo2024;2024-01-01 16:27:16;Active;Expense;10000;;
+Rec0015;Ipo2024;2024-01-01 16:27:19;Active;Expense;10000;;
+Rec0016;Ipo2024;2024-01-01 16:27:42;Active;Expense;10000;;
+Rec0017;Ipo2024;2024-01-01 17:20:51;Active;Expense;10000;;
