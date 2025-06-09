@@ -132,5 +132,5 @@ dmypy.json
 .pyre/
 # other folders
 /docs/datasets/
-/tests/
-/tests/data/
+/testing/outputs/
+/testing/data/*/outputs/

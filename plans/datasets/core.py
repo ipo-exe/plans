@@ -1229,6 +1229,7 @@ class TimeSeries(Univar):
         df_downscale = pd.merge(
             left=df_downscale, right=self.data, on=self.dtfield, how="left"
         )
+
         # handle flow variable
         if self.agg == "sum":
             # compute downscaling factor assuming at least 2 data points
@@ -1242,6 +1243,7 @@ class TimeSeries(Univar):
             factor_downscale = tdelta_new / tdelta_source
             # apply factor
             df_downscale[self.varfield] = df_downscale[self.varfield] * factor_downscale
+
         # interpolate voids using linear method
         df_downscale[self.varfield] = df_downscale[self.varfield].interpolate(
             method="linear"

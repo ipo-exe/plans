@@ -68,6 +68,9 @@ class Model(DataSet):
         # run file
         self.file_model = None
 
+        # flags
+        self.update_dt_flag = True
+
     def _set_fields(self):
         """Set fields names.
         Expected to increment superior methods.
@@ -246,23 +249,25 @@ class Model(DataSet):
         :return: None
         :rtype: None
         """
-        # handle input dt
-        s_dt_unit_tag = str(self.params["dt"]["value"]) + self.params["dt"]["units"]
+        if self.update_dt_flag:
+            # handle input dt
+            s_dt_unit_tag = str(self.params["dt"]["value"]) + self.params["dt"]["units"]
 
-        # handle all good condition
-        if s_dt_unit_tag == "1" + self.params[self.reference_dt_param]["units"]:
-            pass
-        else:
-            # compute time step in k units
-            ft_aux = Model.get_timestep_factor(
-                from_unit=s_dt_unit_tag,
-                to_unit="1" + self.params[self.reference_dt_param]["units"],
-            )
-            # update
-            self.params["dt"]["value"] = ft_aux
-            self.params["dt"]["units"] = self.params[self.reference_dt_param]["units"][:]
-            self.params["dt_freq"]["value"] = s_dt_unit_tag
-
+            # handle all good condition
+            if s_dt_unit_tag == "1" + self.params[self.reference_dt_param]["units"]:
+                pass
+            else:
+                # compute time step in k units
+                ft_aux = Model.get_timestep_factor(
+                    from_unit=s_dt_unit_tag,
+                    to_unit="1" + self.params[self.reference_dt_param]["units"],
+                )
+                # update
+                self.params["dt"]["value"] = ft_aux
+                self.params["dt"]["units"] = self.params[self.reference_dt_param]["units"][:]
+                self.params["dt_freq"]["value"] = s_dt_unit_tag
+            # shut down
+            self.update_dt_flag = False
         return None
 
     def load_params(self):
@@ -449,11 +454,16 @@ class Model(DataSet):
         :rtype: pd.DatetimeIndex
         """
 
-        time_series = pd.date_range(start=start_time, end=end_time, freq=time_unit)
+        raw_time_series = pd.date_range(start=start_time, end=end_time, freq=time_unit)
+        time_series = pd.to_datetime(
+            np.where(raw_time_series.microsecond > 0,
+                     raw_time_series.floor('s') + pd.Timedelta(seconds=1),
+                     raw_time_series)
+        )
         return time_series
 
     @staticmethod
-    def get_gaussian_signal(value_max, size, sigma=50, position_factor=5):
+    def get_gaussian_signal(value_max, size, sigma=50, position_factor=5, reverse=False):
         """Generates a vector of normally (gaussian) distributed values. Useful for testing input inflows.
 
         :param value_max: actual maximum value in the vector
@@ -464,6 +474,8 @@ class Model(DataSet):
         :type sigma: float
         :param position_factor: where to place the peak in the vector
         :type position_factor: float
+        :param reverse: boolean to reverse position in order
+        :type reverse: bool
         :return: vector of values
         :rtype: Numpy array
         """
@@ -473,6 +485,8 @@ class Model(DataSet):
         v = np.zeros(size)
         # place peak
         v[int(len(v) / position_factor)] = value_max
+        if reverse:
+            v = v[::-1]
         # Apply Gaussian filter
         filtered_signal = gaussian_filter(v, sigma=len(v) / sigma)
         # Normalize the signal to have a maximum value of max_v
@@ -571,6 +585,7 @@ class LinearStorage(Model):
                 "kind": "procedural",
             },
         }
+        self.reference_dt_param = "k"
         return None
 
     def load_params(self):
@@ -692,8 +707,8 @@ class LinearStorage(Model):
         if self.vars[self.var_eval]["kind"] == "flow":
             factor = self.params["dt"]["value"]
         # scale the factor
-        df["{}_obs".format(self.var_eval)] = df["{}_obs".format(self.var_eval)] * factor
-
+        #df["{}_obs".format(self.var_eval)] = df["{}_obs".format(self.var_eval)] * factor
+        df["{}".format(self.var_eval)] = df["{}".format(self.var_eval)] / factor
         return df
 
     def evaluate(self):
@@ -741,7 +756,6 @@ class LinearStorage(Model):
             self.view_specs["filename"] = filename
             self.view(show=False)
 
-        print(filename)
         # ... continues in downstream objects ... #
 
     def view(self, show=True):
@@ -886,20 +900,18 @@ class LSPQ(LinearStorage):
         """
         # setup superior object
         super().setup()
-
         # drop superior meaningless columns
         self.data.drop(columns=["S_a"], inplace=True)
 
         # handle input P values
         rs = RainSeries()
         rs.set_data(
-            input_df=self.data_input, input_varfield="P", input_dtfield="DateTime"
+            input_df=self.data_input.copy(), input_varfield="P", input_dtfield="DateTime"
         )
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
-
         # set interpolated input variables
-        self.data["P"] = df_downscaled["P"].values
 
+        self.data["P"] = df_downscaled["P"].values
         # organize table
         ls_vars = [self.dtfield, "t", "P", "Q", "S"]
         self.data = self.data[ls_vars].copy()
@@ -940,6 +952,7 @@ class LSPQ(LinearStorage):
 
     def view(self, show=True, return_fig=False):
         specs = self.view_specs.copy()
+        n_dt = self.params["dt"]["value"]
         # start plot
         fig = plt.figure(figsize=(6, 6))  # Width, Height
         plt.suptitle("Model LSPQ - R2: {}".format(round(self.rsq, 4)))
@@ -961,17 +974,19 @@ class LSPQ(LinearStorage):
         n_flow_max = np.max([self.data["P"].max(), self.data["Q"].max()])
 
         # ------------ P plot ------------
-        n_pmax = self.data["P"].max() / self.params["dt"]["value"]
+        n_pmax = self.data["P"].max() / n_dt
         ax = fig.add_subplot(gs[0, 0])
-        plt.plot(self.data[self.dtfield], self.data["P"] / self.params["dt"]["value"], color="tab:gray")
-        plt.title("P", loc="left")
+        plt.plot(self.data[self.dtfield], self.data["P"] / n_dt , color="tab:gray", zorder=0)
+        plt.title("P ({} mm)".format(round(self.data["P"].sum(), 1)), loc="left")
         ax.set_xticks(ls_dates)
         plt.xlim(ls_dates)
         plt.ylim(0, 1.1 * n_pmax)
         plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
 
         # ------------ Q plot ------------
-        n_qmax = np.max([self.data["Q"].max() / self.params["dt"]["value"], self.data_obs["Q_obs"].max()])
+        n_qmax = np.max([self.data["Q"].max() / n_dt, self.data_obs["Q_obs"].max()])
+        #n_qmax = self.data["Q"].max() / n_dt
+        q_sum = round(self.data["Q"].sum(), 1)
         ax = fig.add_subplot(gs[1, 0])
         plt.plot(self.data[self.dtfield], self.data["Q"] / self.params["dt"]["value"], color="blue")
         plt.plot(
@@ -980,7 +995,8 @@ class LSPQ(LinearStorage):
             ".",
             color="indigo",
         )
-        plt.title("Q", loc="left")
+        plt.title("Q ({} mm)".format(q_sum), loc="left")
+        plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["Q_obs"].sum(), 1)), loc="right")
         ax.set_xticks(ls_dates)
         plt.xlim(ls_dates)
         plt.ylim(0, 1.1 * n_qmax)
@@ -1019,6 +1035,7 @@ class LSPQE(LSPQ):
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "LSPQE"
+        self.shutdown_epot = True
 
     def _set_model_vars(self):
         super()._set_model_vars()
@@ -1090,6 +1107,9 @@ class LSPQE(LSPQ):
         df = self.data.copy()
         n_steps = len(df)
 
+        if self.shutdown_epot:
+            df["E_pot"] = 0.0
+
         # --- numerical solution
         # loop over (Euler Method)
         for t in range(n_steps - 1):
@@ -1109,8 +1129,9 @@ class LSPQE(LSPQ):
             o_act = np.min([o_max, o_pot])
 
             # allocate Q and E
-            df["Q"].values[t] = o_act * (q_pot / o_pot)
-            df["E"].values[t] = o_act * (e_pot / o_pot)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                df["Q"].values[t] = o_act * np.where(o_pot == 0, 0, q_pot / o_pot)
+                df["E"].values[t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
 
             # S(t + 1) = S(t) + P(t) - Q(t) - E(t)
             df["S"].values[t + 1] = (
@@ -1126,14 +1147,22 @@ class LSPQE(LSPQ):
 
     def view(self, show=True, return_fig=False):
         specs = self.view_specs.copy()
+        n_dt = self.params["dt"]["value"]
         fig = super().view(show=False, return_fig=True)
         plt.suptitle("Model LSFAS - R2: {}".format(round(self.rsq, 4)))
         axes = fig.get_axes()
         # P
         ax = axes[0]
-        ax.set_title("P and E", loc="left")
-        ax.plot(self.data[self.dtfield], self.data["E"] / self.params["dt"]["value"], c="red")
-
+        e_sum = round(self.data["E"].sum(), 1)
+        ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
+        ax2.plot(self.data[self.dtfield], self.data["E"] / n_dt, c="tab:red", zorder=1)
+        e_max = self.data["E"].max()
+        if e_max == 0:
+            ax2.set_ylim(-1, 1)
+        else:
+            ax2.set_ylim(0, 1.2 * e_max/ n_dt)
+        ax2.set_title("E ({} mm)".format(e_sum), loc="right")
+        ax2.set_ylabel("mm/d")
         # handle return
         if return_fig:
             return fig

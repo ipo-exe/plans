@@ -1,0 +1,11 @@
+Attribute;Value
+Name;LSPQE001
+Alias;LSPQEM001
+Color;blue
+Source;Ipo
+Description;Rainfall-Runoff model testing with evaporation
+RMSE;
+R2;
+Bias;
+File Parameters;./data/LSPQE/inputs/params.csv
+Folder Data;./data/LSPQE/inputs
