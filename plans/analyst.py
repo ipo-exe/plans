@@ -623,41 +623,34 @@ class Univar(DataSet):
         :return: None
         :rtype: None
         """
-        self.view_specs = {
-            "folder": self.folder_data,
-            "filename": self.name,
-            "fig_format": "jpg",
-            "dpi": 300,
-            "title": "View of {}".format(self.name),
-            "width": 8,
-            "height": 3,
-            "xvar": "i",
-            "yvar": self.varname,
-            "xlabel": "i",
-            "xlabel_b": "Count",
-            "xlabel_c": "P(X)",
-            "xlabel_d": "Map",
-            "ylabel": self.units,
-            "color": self.color,
-            "color_b": "tab:grey",
-            "color_c": "blue",
-            "alpha": 0.9,
-            "ylim": None,
-            "xlim": None,
-            "subtitle_a": None,
-            "subtitle_b": None,
-            "subtitle_c": None,
-            "subtitle_d": None,
-            "plot_grid": False,
-            "hist_density": False,
-            "gs_wspace": 0.4,
-            "gs_hspace": 0.1,
-            "gs_left": 0.08,
-            "gs_right": 0.98,
-            "gs_bottom": 0.2,
-            "gs_top": 0.88,
-            "bins": 20,
-        }
+        super()._set_view_specs()
+        self.view_specs.update(
+            {
+                "title": "View of {}".format(self.name),
+                "width": 8,
+                "height": 3,
+                "xvar": "i",
+                "yvar": self.varname,
+                "xlabel": "i",
+                "xlabel_b": "Count",
+                "xlabel_c": "P(X)",
+                "xlabel_d": "Map",
+                "ylabel": self.units,
+                "color": self.color,
+                "color_b": "tab:grey",
+                "color_c": "blue",
+                "alpha": 0.9,
+                "ylim": None,
+                "xlim": None,
+                "subtitle_a": None,
+                "subtitle_b": None,
+                "subtitle_c": None,
+                "subtitle_d": None,
+                "plot_grid": False,
+                "hist_density": False,
+                "bins": 20,
+            }
+        )
         return None
 
     def view(self, show=True, return_fig=False):

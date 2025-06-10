@@ -6,13 +6,15 @@ This module stores all hydrology functions of PLANS.
 
 Copyright (C) 2022 Iporã Brito Possantti
 """
-
 import os.path
+import shutil
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'Arial'
+import matplotlib.dates as mdates
 from plans.root import DataSet
 from plans.datasets import TimeSeries, RainSeries
 from plans.analyst import Bivar
@@ -53,23 +55,16 @@ class Model(DataSet):
         self.rsq = None
         self.bias = None
 
-        # expected structure for folder data:
-        """
-        self.workplace = {
-            "inputs": {
-                "params": {
-                    "filepath": "/inputs/params.csv",
-                    "description": "Global model parameters"
-                }
-            },
-
-        }
-        """
         # run file
         self.file_model = None
 
         # flags
         self.update_dt_flag = True
+
+        # testing helpers
+        self.n_steps = None
+
+        self._set_view_specs()
 
     def _set_fields(self):
         """Set fields names.
@@ -171,6 +166,51 @@ class Model(DataSet):
         self.reference_dt_param = "k"
         return None
 
+    def _set_view_specs(self):
+        """Set view specifications.
+        Expected to increment superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_view_specs()
+        # cleanup useless entries
+        dc_remove = {
+            "xvar": "RM",
+            "yvar": "TempDB",
+            "xlabel": "RM",
+            "ylabel": "TempDB",
+            "color": self.color,
+            "xmin": None,
+            "xmax": None,
+            "ymin": None,
+            "ymax": None,
+        }
+        for k in dc_remove:
+            del self.view_specs[k]
+        # add new specs
+        self.view_specs.update(
+            {
+                "width": 6,
+                "height": 6,
+            }
+        )
+        return None
+
+    def get_params(self):
+        # todo docstring
+        ls_param = [p for p in self.params]
+        ls_values = [self.params[p]["value"] for p in self.params]
+        ls_units = [self.params[p]["units"] for p in self.params]
+        df = pd.DataFrame(
+            {
+                "Parameter": ls_param,
+                "Value": ls_values,
+                "Units": ls_units
+            }
+        )
+        return df
+
     def get_metadata(self):
         """Get a dictionary with object metadata.
         Expected to increment superior methods.
@@ -233,7 +273,7 @@ class Model(DataSet):
         self._set_fields()
 
         # (re)set view specs
-        self._set_view_specs()
+        ## self._set_view_specs()
 
         # update major attributes
         if self.data is not None:
@@ -244,11 +284,14 @@ class Model(DataSet):
         return None
 
     def update_dt(self):
-        """Update Time Step value, units and tag to match the model time parameters (like k)
+        """Update Time Step value, units and tag to match the model reference time parameter (like k)
 
         :return: None
         :rtype: None
         """
+        # this flag prevents revisting the function unintentionally
+        # todo actually this is more like a bad bugfix so it would be nice
+        #  to remove the flag and optimize this process.
         if self.update_dt_flag:
             # handle input dt
             s_dt_unit_tag = str(self.params["dt"]["value"]) + self.params["dt"]["units"]
@@ -257,11 +300,15 @@ class Model(DataSet):
             if s_dt_unit_tag == "1" + self.params[self.reference_dt_param]["units"]:
                 pass
             else:
-                # compute time step in k units
+                #
+                #
+                # compute time step in reference units
                 ft_aux = Model.get_timestep_factor(
                     from_unit=s_dt_unit_tag,
                     to_unit="1" + self.params[self.reference_dt_param]["units"],
                 )
+                #
+                #
                 # update
                 self.params["dt"]["value"] = ft_aux
                 self.params["dt"]["units"] = self.params[self.reference_dt_param]["units"][:]
@@ -323,7 +370,6 @@ class Model(DataSet):
         """
         # ensure to update dt
         self.update_dt()
-
         # get timestep series
         vc_ts = Model.get_timestep_series(
             start_time=self.params["t0"]["value"],
@@ -375,15 +421,19 @@ class Model(DataSet):
         # >>> develop logic in downstream objects
         return None
 
-    def run(self):
-        """Simulate model.
+    def run(self, setup_model=True):
+        """Simulate model (full procedure).
 
+        :param setup_model: flag for setting up data (default=True)
+        :type setup_model: bool
         :return: None
         :rtype: None
         """
-        self.setup()
+        if setup_model:  # by-passing setup may save computing time
+            self.setup()
         self.solve()
         self.update()
+        self.evaluate()
         return None
 
     def export(self, folder, filename):
@@ -398,6 +448,11 @@ class Model(DataSet):
         """
         # export model simulation data
         super().export(folder, filename=filename)
+
+        # export model parameter file
+        df_params = self.get_params()
+        df_params.to_csv(f"{folder}/{filename}_params.csv", sep=";", index=False)
+
         # export model observation data
         # >>> develop in downstream objects
 
@@ -453,7 +508,6 @@ class Model(DataSet):
         :return: A pandas DatetimeIndex representing the generated time series.
         :rtype: pd.DatetimeIndex
         """
-
         raw_time_series = pd.date_range(start=start_time, end=end_time, freq=time_unit)
         time_series = pd.to_datetime(
             np.where(raw_time_series.microsecond > 0,
@@ -601,14 +655,25 @@ class LinearStorage(Model):
         ls_input_params = set(df_["Parameter"])
 
         # parse to dict
-        for k in self.params:
-            if k in set(ls_input_params):
-                self.params[k]["value"] = self.params[k]["dtype"](
-                    df_.loc[df_["Parameter"] == k, "Value"].values[0]
+        for p in self.params:
+            if p in set(ls_input_params):
+                # set value
+                self.params[p]["value"] = self.params[p]["dtype"](
+                    df_.loc[df_["Parameter"] == p, "Value"].values[0]
                 )
-                self.params[k]["units"] = df_.loc[
-                    df_["Parameter"] == k, "Units"
+                # units
+                self.params[p]["units"] = df_.loc[
+                    df_["Parameter"] == p, "Units"
                 ].values[0]
+                # min
+                self.params[p]["min"] = self.params[p]["dtype"](df_.loc[
+                    df_["Parameter"] == p, "Min"
+                ].values[0])
+                # max
+                self.params[p]["max"] = self.params[p]["dtype"](df_.loc[
+                    df_["Parameter"] == p, "Max"
+                ].values[0])
+
 
         # handle input dt
         self.update_dt()
@@ -675,7 +740,12 @@ class LinearStorage(Model):
         k = self.params["k"]["value"]
         dt = self.params["dt"]["value"]
         df = self.data.copy()
-        n_steps = len(df)
+
+        # simulation steps (this is useful for testing and debug)
+        if self.n_steps is None:
+            n_steps = len(df)
+        else:
+            n_steps = self.n_steps
 
         # --- analytical solution
         df["S_a"].values[:] = self.params["S0"]["value"] * np.exp(-df["t"].values / k)
@@ -760,7 +830,6 @@ class LinearStorage(Model):
 
     def view(self, show=True):
         specs = self.view_specs.copy()
-
         ts = TimeSeries(name=self.name, alias=self.alias)
         ts.set_data(input_df=self.data, input_dtfield=self.dtfield, input_varfield="S")
         ts.view_specs["title"] = "Linear Model - R2: {}".format(round(self.rsq, 2))
@@ -770,6 +839,7 @@ class LinearStorage(Model):
         axes = fig.get_axes()
         ax = axes[0]
         ax.plot(self.data_obs[self.dtfield], self.data_obs["S_obs"], ".", color="k")
+        # handle return
         if show:
             plt.show()
         else:
@@ -778,18 +848,19 @@ class LinearStorage(Model):
             )
             plt.savefig(file_path, dpi=specs["dpi"])
             plt.close(fig)
+            return None
 
 
-class LSPQ(LinearStorage):
+class LSRR(LinearStorage):
     """This is a Rainfall-Runoff model based on a Linear Storage.
     Inflow (P) in a necessary data input.
 
     """
 
-    def __init__(self, name="MyLSPQ", alias="LSPQ001"):
+    def __init__(self, name="MyLSRR", alias="LSRR001"):
         super().__init__(name=name, alias=alias)
         # overwriters
-        self.object_alias = "LSPQ"
+        self.object_alias = "LSRR"
 
         # input data
         self.data_input = None
@@ -846,6 +917,38 @@ class LSPQ(LinearStorage):
         }
         self.var_eval = "Q"
         self.var_inputs = ["P"]
+        return None
+
+    def _set_view_specs(self):
+        """Set view specifications.
+        Expected to increment superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_view_specs()
+        # cleanup useless entries
+
+        # add new specs
+        self.view_specs.update(
+            {
+                # update vales
+                "gs_wspace": 0.4,
+                "gs_hspace": 0.8,
+                "gs_left": 0.15,
+                "gs_right": 0.85,
+                "gs_bottom": 0.1,
+                "gs_top": 0.9,
+                # new params
+                "color_P": "tab:gray",
+                "color_Q": "blue",
+                "color_Q_obs": "indigo",
+                "color_S": "black",
+                "ymax_P": None,
+                "ymax_Q": None,
+                "ymax_S": None,
+            }
+        )
         return None
 
     def load_data(self):
@@ -933,7 +1036,12 @@ class LSPQ(LinearStorage):
         qmax = self.params["Q_max"]["value"]
         dt = self.params["dt"]["value"]
         df = self.data.copy()
-        n_steps = len(df)
+
+        # simulation steps (this is useful for testing and debug)
+        if self.n_steps is None:
+            n_steps = len(df)
+        else:
+            n_steps = self.n_steps
 
         # --- numerical solution
         # loop over (Euler Method)
@@ -954,33 +1062,39 @@ class LSPQ(LinearStorage):
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
         # start plot
-        fig = plt.figure(figsize=(6, 6))  # Width, Height
-        plt.suptitle("Model LSPQ - R2: {}".format(round(self.rsq, 4)))
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        plt.suptitle("{} | Model LSRR - R2: {}".format(self.name, round(self.rsq, 3)))
         # grid
         gs = mpl.gridspec.GridSpec(
             3,
             1,
-            wspace=0.5,
-            hspace=0.5,
-            left=0.2,
-            right=0.9,
-            bottom=0.1,
-            top=0.9,
+            wspace=specs["gs_wspace"],
+            hspace=specs["gs_hspace"],
+            left=specs["gs_left"],
+            right=specs["gs_right"],
+            bottom=specs["gs_bottom"],
+            top=specs["gs_top"],
         )  # nrows, ncols
 
-        first_date = self.data[self.dtfield].values[0]
-        last_date = self.data[self.dtfield].values[-1]
+        first_date = self.data[self.dtfield].iloc[0]
+        last_date = self.data[self.dtfield].iloc[-1]
         ls_dates = [first_date, last_date]
         n_flow_max = np.max([self.data["P"].max(), self.data["Q"].max()])
 
         # ------------ P plot ------------
         n_pmax = self.data["P"].max() / n_dt
         ax = fig.add_subplot(gs[0, 0])
-        plt.plot(self.data[self.dtfield], self.data["P"] / n_dt , color="tab:gray", zorder=0)
-        plt.title("P ({} mm)".format(round(self.data["P"].sum(), 1)), loc="left")
+        plt.plot(self.data[self.dtfield], self.data["P"] / n_dt , color=specs["color_P"], zorder=2)
+        plt.title("$P$ ({} mm)".format(round(self.data["P"].sum(), 1)), loc="left")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.set_xticks(ls_dates)
+        # normalize X axis
         plt.xlim(ls_dates)
-        plt.ylim(0, 1.1 * n_pmax)
+        # normalize Y axis
+        ymax_p = specs["ymax_P"]
+        if ymax_p is None:
+            ymax_p = 1.1 * n_pmax
+        plt.ylim(0, ymax_p)
         plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
 
         # ------------ Q plot ------------
@@ -988,28 +1102,45 @@ class LSPQ(LinearStorage):
         #n_qmax = self.data["Q"].max() / n_dt
         q_sum = round(self.data["Q"].sum(), 1)
         ax = fig.add_subplot(gs[1, 0])
-        plt.plot(self.data[self.dtfield], self.data["Q"] / self.params["dt"]["value"], color="blue")
+        # titles
+        plt.title("$Q$ ({} mm) ".format(q_sum), loc="left")
+        plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["Q_obs"].sum(), 1)), loc="right")
+        # plots
+        plt.plot(self.data[self.dtfield], self.data["Q"] / n_dt, color=specs["color_Q"])
         plt.plot(
             self.data_obs[self.dtfield],
             self.data_obs["Q_obs"],
             ".",
-            color="indigo",
+            color=specs["color_Q_obs"],
         )
-        plt.title("Q ({} mm)".format(q_sum), loc="left")
-        plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["Q_obs"].sum(), 1)), loc="right")
+        # tic labels
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.set_xticks(ls_dates)
+        # normalize X axis
         plt.xlim(ls_dates)
-        plt.ylim(0, 1.1 * n_qmax)
+        # normalize Y axis
+        ymax_q = specs["ymax_Q"]
+        if ymax_q is None:
+            ymax_q = 1.1 * n_qmax
+        plt.ylim(0, 1.1 * ymax_q)
         plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
 
         # ------------ S plot ------------
+        n_smax = self.data["S"].max()
         ax = fig.add_subplot(gs[2, 0])
-        plt.plot(self.data[self.dtfield], self.data["S"], color="black")
-        plt.title("S", loc="left")
+        plt.title("$S$ ($\mu$ = {} mm)".format(round(self.data["S"].mean(), 1)), loc="left")
+        plt.plot(self.data[self.dtfield], self.data["S"], color=specs["color_S"])
+        # ticks
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.set_xticks(ls_dates)
+        # normalize X axis
         plt.xlim(ls_dates)
         plt.ylabel("mm")
-        plt.ylim(0, 1.1 * self.data["S"].max())
+        # normalize Y axis
+        ymax_s = specs["ymax_S"]
+        if ymax_s is None:
+            ymax_s = 1.1 * n_smax
+        plt.ylim(0, ymax_s)
 
         # handle return
         if return_fig:
@@ -1025,16 +1156,16 @@ class LSPQ(LinearStorage):
                 plt.close(fig)
 
 
-class LSPQE(LSPQ):
+class LSRRE(LSRR):
     """This is a Rainfall-Runoff model based on a Linear Storage.
     Inflow (P) and External flow (E) are necessary data input.
 
     """
 
-    def __init__(self, name="MyLSPQE", alias="LSPQE001"):
+    def __init__(self, name="MyLSRRE", alias="LSRRE001"):
         super().__init__(name=name, alias=alias)
         # overwriters
-        self.object_alias = "LSPQE"
+        self.object_alias = "LSRRE"
         self.shutdown_epot = True
 
     def _set_model_vars(self):
@@ -1105,7 +1236,12 @@ class LSPQE(LSPQ):
         qmax = self.params["Q_max"]["value"]
         dt = self.params["dt"]["value"]
         df = self.data.copy()
-        n_steps = len(df)
+
+        # simulation steps (this is useful for testing and debug)
+        if self.n_steps is None:
+            n_steps = len(df)
+        else:
+            n_steps = self.n_steps
 
         if self.shutdown_epot:
             df["E_pot"] = 0.0
@@ -1149,9 +1285,9 @@ class LSPQE(LSPQ):
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
         fig = super().view(show=False, return_fig=True)
-        plt.suptitle("Model LSFAS - R2: {}".format(round(self.rsq, 4)))
+        plt.suptitle("{} | Model LSRRE - R2: {}".format(self.name, round(self.rsq, 3)))
         axes = fig.get_axes()
-        # P
+        # ---- E plot
         ax = axes[0]
         e_sum = round(self.data["E"].sum(), 1)
         ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
@@ -1161,7 +1297,7 @@ class LSPQE(LSPQ):
             ax2.set_ylim(-1, 1)
         else:
             ax2.set_ylim(0, 1.2 * e_max/ n_dt)
-        ax2.set_title("E ({} mm)".format(e_sum), loc="right")
+        ax2.set_title("$E$ ({} mm)".format(e_sum), loc="right")
         ax2.set_ylabel("mm/d")
         # handle return
         if return_fig:
@@ -1178,7 +1314,7 @@ class LSPQE(LSPQ):
 
 
 
-class LSFAS(LSPQE):
+class LSFAS(LSRRE):
     """This is a Rainfall-Runoff model based on a Linear Storage with Fill-And-Spill (FAS) mechanism.
     Inflow Precipitation (P) and Potential Evapotranspiration (E_pot) are necessary data input.
 
@@ -1188,11 +1324,18 @@ class LSFAS(LSPQE):
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "LSFAS"
+        # controllers:
+        self.shutdown_qb = False
 
     def _set_model_vars(self):
         super()._set_model_vars()
         self.vars.update(
             {
+                "SS": {
+                    "units": "mm",
+                    "description": "Spill storage",
+                    "kind": "flow",
+                },
                 "Q_s": {
                     "units": "mm/{dt_freq}",
                     "description": "Spill flow (outflow)",
@@ -1261,9 +1404,10 @@ class LSFAS(LSPQE):
         self.data["Q_s"] = np.nan
         self.data["Q_b"] = np.nan
         self.data["Q_s_f"] = np.nan
+        self.data["SS"] = np.nan
 
         # organize table
-        ls_vars = [self.dtfield, "t", "P", "E_pot", "E", "Q_s", "Q_s_f", "Q_b", "Q", "S"]
+        ls_vars = [self.dtfield, "t", "P", "E_pot", "E", "Q_s", "Q_s_f", "Q_b", "Q", "S", "SS"]
         self.data = self.data[ls_vars].copy()
 
         return None
@@ -1284,27 +1428,49 @@ class LSFAS(LSPQE):
         # dt is the fraction of 1 Day/(1 simulation time step)
         dt = self.params["dt"]["value"]
         df = self.data.copy()
-        n_steps = len(df)
+
+        # simulation steps (this is useful for testing and debug)
+        if self.n_steps is None:
+            n_steps = len(df)
+        else:
+            n_steps = self.n_steps
+
+        # remove E_pot (useful for testing)
+        if self.shutdown_epot:
+            df["E_pot"] = 0.0
 
         # --- numerical solution
         # loop over (Euler Method)
         for t in range(n_steps - 1):
             # Compute dynamic spill storage capacity in mm/D
             ss_cap = np.max([0, df["S"].values[t] - s_a]) # spill storage = s - s_a
-
-            # compute dynamic runoff capacity
-            qs_cap = ss_cap * dt # multiply by dt (figure out why!)
+            df["SS"].values[t] = ss_cap
 
             # Compute runoff coeficient
-            qs_f = (ss_cap / (ss_cap + (s_c + s_a))) # effective s_c = s_c + s_a
+            with np.errstate(divide='ignore', invalid='ignore'):
+                qs_f = np.where((ss_cap + s_c) == 0, 0, (ss_cap / (ss_cap + s_c)))
             df["Q_s_f"].values[t] = qs_f
 
             # potential runoff -- scale by the coefficient
+
+            # compute dynamic runoff capacity
+
+            # -- old equation is only on spill storage
+            # qs_cap = ss_cap * dt  # multiply by dt (figure out why!)
+
+            # -- new equation includes P in the Qs capacity
+            qs_cap = (ss_cap * dt) + df["P"].values[t] # multiply by dt (figure out why!)
+
+            # apply runoff coefficient over Qs
             qs_pot = qs_f * qs_cap
 
             # Compute potential base flow
             # Qt = dt * St / k
-            qb_pot = df["S"].values[t] * dt / k
+            # useful for testing
+            if self.shutdown_qb:
+                qb_pot = 0.0
+            else:
+                qb_pot = df["S"].values[t] * dt / k
 
             # Compute potential evaporation flow
             # Et = E_pot
@@ -1319,10 +1485,11 @@ class LSFAS(LSPQE):
             # Compute actual outflow
             o_act = np.min([o_max, o_pot])
 
-            # Allocate outflow
-            df["Q_s"].values[t] = o_act * (qs_pot / o_pot)
-            df["Q_b"].values[t] = o_act * (qb_pot / o_pot)
-            df["E"].values[t] = o_act * (e_pot / o_pot)
+            # Allocate outflows
+            with np.errstate(divide='ignore', invalid='ignore'):
+                df["Q_s"].values[t] = o_act * np.where(o_pot == 0, 0, qs_pot / o_pot)
+                df["Q_b"].values[t] = o_act * np.where(o_pot == 0, 0, qb_pot / o_pot)
+                df["E"].values[t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
 
             # Compute full Q
             df["Q"].values[t] = df["Q_s"].values[t] + df["Q_b"].values[t]
@@ -1345,19 +1512,28 @@ class LSFAS(LSPQE):
     def view(self, show=True, return_fig=False):
         specs = self.view_specs.copy()
         fig = super().view(show=False, return_fig=True)
-        plt.suptitle("Model LSFAS - R2: {}".format(round(self.rsq, 4)))
+        plt.suptitle("{} | Model LSFAS - R2: {}".format(self.name, round(self.rsq, 1)))
         axes = fig.get_axes()
-        # Q
+        # add Qb
         ax = axes[1]
-        ax.set_title("Q, Qb and Qobs", loc="left")
-        ax.plot(self.data[self.dtfield], self.data["Q_b"] / self.params["dt"]["value"], c="navy")
-        ax.set_ylim(0, 800)
-
+        q_sum = round(self.data["Q"].sum(), 1)
+        qb_sum = round(self.data["Q_b"].sum(), 1)
+        ax.set_title("$Q$ ({} mm)".format(q_sum) + ", $Q_b$ ({} mm)".format(qb_sum) + " and $Q_{obs}$", loc="left")
+        ax.plot(self.data[self.dtfield], self.data["Q_b"] / self.params["dt"]["value"], c="navy", zorder=1)
         ax.set_title("Runoff C", loc="right")
         ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-        ax2.plot(self.data[self.dtfield], self.data["Q_s_f"], 'm--')
+        ax2.plot(self.data[self.dtfield], self.data["Q_s_f"], '--', zorder=2)
         ax2.set_ylim(0, 1)
 
+        ax = axes[2]
+        ax.fill_between(
+            x=self.data[self.dtfield],
+            y1=self.data["S"] - self.data["SS"],
+            y2=self.data["S"],
+            color="lightsteelblue",
+            label="Spill storage"
+        )
+        ax.legend()
         # handle return
         if return_fig:
             return fig
@@ -1419,7 +1595,7 @@ class Global(LSFAS):
                     "description": "Stemflow -- canopy drained water",
                     "kind": "flow",
                 },
-                "P_c": {
+                "P_s": {
                     "units": "mm/{dt_freq}",
                     "description": "Effective precipitation",
                     "kind": "flow",
@@ -1518,7 +1694,7 @@ class Global(LSFAS):
         self.vars.update(self.new_vars.copy())
 
         self.vars_canopy = [
-            "P", "P_c", "P_sf", "P_tf", "P_tf_f", "E_pot", "E_c", "C"
+            "P", "P_s", "P_sf", "P_tf", "P_tf_f", "E_pot", "E_c", "C"
         ]
 
         return None
@@ -1604,7 +1780,7 @@ class Global(LSFAS):
                     "description": "Surface residence time",
                     "kind": "conceptual",
                 },
-                "Q_f_cap": {
+                "Q_if_cap": {
                     "value": None,
                     "units": "mm/D",
                     "dtype": np.float64,
@@ -1730,9 +1906,12 @@ class Global(LSFAS):
         dt = self.params["dt"]["value"]
         # global processes data
         GB = self.data.copy()
-        n_steps = len(GB)
-        # todo remove hacks
-        #n_steps = 10
+
+        # simulation steps (this is useful for testing and debug)
+        if self.n_steps is None:
+            n_steps = len(GB)
+        else:
+            n_steps = self.n_steps
 
         # --- parameter setup ---
 
@@ -1745,7 +1924,8 @@ class Global(LSFAS):
         # [Canopy] Compute effective canopy fragmentation level
         C_c_eff = C_c  # same
         # [Surface] surface parameters
-        Q_f_cap = self.params["Q_f_cap"]["value"]
+        # todo evaluate how this should work
+        Q_if_cap = self.params["Q_if_cap"]["value"]
         S_k = self.params["S_k"]["value"]
         S_ao = self.params["S_ao"]["value"]
         S_co = self.params["S_co"]["value"]
@@ -1758,7 +1938,7 @@ class Global(LSFAS):
         # [Surface] Compute effective underland flow activation level
         S_au_eff = S_au  # same
         # [Surface] Compute effective underland flow fragmentation level
-        S_cu_eff = S_cu  #
+        S_cu_eff = S_cu  # same
 
         # --- numerical solution
         # loop over (Euler Method)
@@ -1773,7 +1953,7 @@ class Global(LSFAS):
             # apply discount on the fly
             GB["C"].values[t] = GB["C"].values[t] - GB["E_c"].values[t]
 
-            # todo include root zone depth rationale
+            # todo include root zone depth rationale -- new parameter needed
             # [Evaporation] phreatic zone
             E_g_pot = GB["E_pot"].values[t] - GB["E_c"].values[t]  # discount actual Ec
             E_g_cap = GB["G"].values[t] * dt  # multiply by dt
@@ -1833,7 +2013,8 @@ class Global(LSFAS):
             with np.errstate(divide='ignore', invalid='ignore'):
                 GB["P_tf"].values[t] = C_out_act * np.where(C_out_pot == 0, 0, P_tf_pot / C_out_pot)
                 GB["P_sf"].values[t] = C_out_act * np.where(C_out_pot == 0, 0, P_sf_pot / C_out_pot)
-                GB["P_c"].values[t] = GB["P_tf"].values[t] + GB["P_sf"].values[t]
+            # [Canopy] Compute effective rain
+            GB["P_s"].values[t] = GB["P_tf"].values[t] + GB["P_sf"].values[t]
 
             # [Canopy Water Balance] ---- Apply water balance
             # C(t+1) = C(t) + P(t) - Psf(t) - P(tf) >>> Ec(t) discounted earlier
@@ -1876,7 +2057,7 @@ class Global(LSFAS):
             # [Surface -- infiltration] -- Infiltration flow
             # linear store upper bounded by infiltration capacity
             # todo integrate with downstream soil water control
-            Q_if_pot = np.min([GB["S"].values[t] * dt / S_k, Q_f_cap])
+            Q_if_pot = np.min([GB["S"].values[t] * dt / S_k, Q_if_cap])
 
             # [Surface] -- Full potential outflow
             S_out_pot = Q_of_pot + Q_uf_pot + Q_if_pot
@@ -1895,7 +2076,7 @@ class Global(LSFAS):
                 GB["Q_if"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_if_pot / S_out_pot)
 
             # [Surface Water Balance] ---- Apply water balance
-            GB["S"].values[t + 1] = GB["S"].values[t] + GB["P_c"].values[t] - GB["Q_of"].values[t] - GB["Q_uf"].values[t] - GB["Q_if"].values[t]
+            GB["S"].values[t + 1] = GB["S"].values[t] + GB["P_s"].values[t] - GB["Q_of"].values[t] - GB["Q_uf"].values[t] - GB["Q_if"].values[t]
 
             # todo CONTINUE HERE FOR SURFACE SPILLS
             # Compute compounded flows
@@ -1918,11 +2099,7 @@ class Global(LSFAS):
         return None
 
 
-    def print_canopy(self):
-        df = self.data.copy()
-        ls = [self.dtfield] + self.vars_canopy
-        df = df[ls]
-        print(df.round(3))
+
 
 if __name__ == "__main__":
     print("Hi")

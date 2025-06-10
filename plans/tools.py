@@ -91,7 +91,7 @@ def nowsep(sep="-"):
 
     def_now = datetime.datetime.now()
     yr = def_now.strftime("%Y")
-    mth = def_now.strftime("%m")
+    mth = def_now.strftime("%m0")
     dy = def_now.strftime("%d")
     hr = def_now.strftime("%H")
     mn = def_now.strftime("%M")

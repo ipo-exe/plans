@@ -73,14 +73,14 @@ class MbaE:
     .. code-block:: python
 
         # MbaE instantiation
-        m = MbaE(name="Algo", alias="al")
+        m0 = MbaE(name="Algo", alias="al")
 
     Retrieve metadata (not all attributes)
 
     .. code-block:: python
 
         # Retrieve metadata (not all attributes)
-        d = m.get_metadata()
+        d = m0.get_metadata()
         print(d)
 
     Retrieve metadata in a `pandas.DataFrame`
@@ -88,7 +88,7 @@ class MbaE:
     .. code-block:: python
 
         # Retrieve metadata in a `pandas.DataFrame`
-        df = m.get_metadata_df()
+        df = m0.get_metadata_df()
         print(df.to_string(index=False))
 
     Set new values for metadata
@@ -97,14 +97,14 @@ class MbaE:
 
         # Set new values for metadata
         d2 = {"Name": "Algo2", "Alias": "al2"}
-        m.set(dict_setter=d2)
+        m0.set(dict_setter=d2)
 
     Boot attributes from csv file:
 
     .. code-block:: python
 
         # Boot attributes from csv file:
-        m.boot(bootfile="/content/metadata.csv")
+        m0.boot(bootfile="/content/metadata.csv")
 
 
     """
@@ -747,7 +747,7 @@ class DataSet(MbaE):
 
     def _set_view_specs(self):
         """Set view specifications.
-        Expected to overwrite superior methods.
+        Expected to increment superior methods.
 
         :return: None
         :rtype: None
@@ -769,6 +769,12 @@ class DataSet(MbaE):
             "xmax": None,
             "ymin": None,
             "ymax": None,
+            "gs_wspace": 0.4,
+            "gs_hspace": 0.1,
+            "gs_left": 0.08,
+            "gs_right": 0.98,
+            "gs_bottom": 0.2,
+            "gs_top": 0.88,
         }
         return None
 
@@ -1527,12 +1533,12 @@ class RecordTable(DataSet):
     def _get_timestamp(self):
         """Return a string timestamp
 
-        :return: full timestamp text %Y-%m-%d %H:%M:%S
+        :return: full timestamp text %Y-%m0-%d %H:%M:%S
         :rtype: str
         """
         # compute timestamp
         _now = datetime.datetime.now()
-        return str(_now.strftime("%Y-%m-%d %H:%M:%S"))
+        return str(_now.strftime("%Y-%m0-%d %H:%M:%S"))
 
     def _last_id_int(self):
         """Compute the last ID integer in the record data table.

@@ -266,13 +266,13 @@ def shalstab_wetness(
     :type soil_phi: :class:`numpy.ndarray` or float
     :param soil_z: soil depth (meters)
     :type soil_z: :class:`numpy.ndarray` or float
-    :param soil_c: soil cohesion (Pa or N/m² or kg/ms²)
+    :param soil_c: soil cohesion (Pa or N/m0² or kg/ms²)
     :type soil_c: :class:`numpy.ndarray` or float
-    :param soil_p: soil density (kg/m³)
+    :param soil_p: soil density (kg/m0³)
     :type soil_p: :class:`numpy.ndarray` or float
-    :param water_p: water density (kg/m³)
+    :param water_p: water density (kg/m0³)
     :type water_p: float
-    :param g: gravity acceleration (m / s²)
+    :param g: gravity acceleration (m0 / s²)
     :type g: float
     :param degree: flag to note if slope and soil_phi are in degrees
     :type degree: bool
@@ -331,14 +331,14 @@ def shalstab_wetness(
 def usle_l(slope, cellsize):
     """Wischmeier & Smith (1978) L factor
 
-    L = (x / 22.13) ^ m
+    L = (x / 22.13) ^ m0
 
     where:
 
-    m = 0.2 when sinθ < 0.01;
-    m = 0.3 when 0.01 ≤ sinθ ≤ 0.03;
-    m = 0.4 when 0.03 < sinθ < 0.05;
-    m = 0.5 when sinθ ≥ 0.05
+    m0 = 0.2 when sinθ < 0.01;
+    m0 = 0.3 when 0.01 ≤ sinθ ≤ 0.03;
+    m0 = 0.4 when 0.03 < sinθ < 0.05;
+    m0 = 0.5 when sinθ ≥ 0.05
 
     x is the plot lenght taken as 1.4142 * cellsize  (diagonal length of cell)
 

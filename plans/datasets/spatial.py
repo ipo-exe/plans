@@ -21,7 +21,7 @@ class Elevation(Raster):
         self.varname = "Elevation"
         self.varalias = "DEM"
         self.description = "Height above sea level"
-        self.units = "m"
+        self.units = "m0"
         self._set_view_specs()
 
     def get_tpi(self, cell_radius):
@@ -87,7 +87,7 @@ class HAND(Raster):
         self.varname = "HAND"
         self.varalias = "HAND"
         self.description = "Height Above the Nearest Drainage"
-        self.units = "m"
+        self.units = "m0"
         self._set_view_specs()
 
 

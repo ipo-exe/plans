@@ -7,5 +7,5 @@ Description;Rainfall-Runoff model testing with evaporation
 RMSE;
 R2;
 Bias;
-File Parameters;./data/LSPQE/inputs/params.csv
-Folder Data;./data/LSPQE/inputs
+File Parameters;./data/LSRRE/inputs/params_0.csv
+Folder Data;./data/LSRRE/inputs

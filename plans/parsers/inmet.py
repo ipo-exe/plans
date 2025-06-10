@@ -93,7 +93,7 @@ class _StationINMET_:
         self.reading_skiprows = len(self.station_metadata) + 1
         self.reading_dtfields = ["Data Medicao", "Hora Medicao"]
         self.reading_encoding = "utf-8"
-        self.reading_dtformat = "%Y-%m-%d %H:%M:%S"
+        self.reading_dtformat = "%Y-%m0-%d %H:%M:%S"
         self.reading_nan = ["null", -9999]
 
     def get_metadata(self):
@@ -336,8 +336,8 @@ class _StationINMET_:
         :return: Path to the exported file.
         :rtype: str
         """
-        dts = self.start_data.strftime("%Y%m%d%H")
-        dte = self.end_data.strftime("%Y%m%d%H")
+        dts = self.start_data.strftime("%Y%m0%d%H")
+        dte = self.end_data.strftime("%Y%m0%d%H")
         filename = "{}_{}_DTS{}-DTE{}.csv".format(
             self.prefix, self.station_metadata["station_id"], dts, dte
         )
@@ -357,7 +357,7 @@ class _StationINMET_:
             _df[id_s] = (
                 _df["station_id"]
                 + "DT"
-                + _df["datetime"].dt.strftime("%Y%m%d%H")
+                + _df["datetime"].dt.strftime("%Y%m0%d%H")
                 + "0000"
             )
             # Arrange columns
@@ -480,7 +480,7 @@ class ConventionalHourly(_Conventional_):
 
         # reading
         self.reading_dtfields = ["Data Medicao", "Hora Medicao"]
-        self.reading_dtformat = "%Y-%m-%d %H%M"
+        self.reading_dtformat = "%Y-%m0-%d %H%M"
 
 
 # todo docstring
@@ -506,7 +506,7 @@ class ConventionalDaily(_Conventional_):
 
         # reading
         self.reading_dtfields = ["Data Medicao"]
-        self.reading_dtformat = "%Y-%m-%d %H:%M:%S"
+        self.reading_dtformat = "%Y-%m0-%d %H:%M:%S"
 
 
 class _Automatic_(_StationINMET_):
@@ -555,7 +555,7 @@ class Automatic(_Automatic_):
 
         # reading
         self.reading_metadata_splitter = ": "
-        self.reading_dtformat = "%Y-%m-%d %H%M"
+        self.reading_dtformat = "%Y-%m0-%d %H%M"
 
     def _metadata_util(self):
         d = {

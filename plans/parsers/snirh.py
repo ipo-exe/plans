@@ -114,7 +114,7 @@ class Stage:
         self.reading_skiprows = 15  # len(self.station_metadata) + 1
         self.reading_dtfields = ["Data", "hora"]
         self.reading_encoding = "utf-8"
-        self.reading_dtformat = "%d/%m/%Y %H:%M:%S"
+        self.reading_dtformat = "%d/%m0/%Y %H:%M:%S"
         self.reading_nan = ["null", -9999]
         self.reading_stage_fields = [
             "Cota01",

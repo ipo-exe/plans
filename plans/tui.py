@@ -36,7 +36,7 @@ def logger_setup(logger_name="plans", streamhandler=True, filehandler=False, log
     # Create a formatter and set it for both parsers
     formatter = logging.Formatter(
         "%(asctime)s  %(levelname)8s >>> %(message)s ",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        datefmt="%Y-%m0-%d %H:%M:%S",
     )
     if streamhandler:
         console_handler.setFormatter(formatter)

@@ -1,0 +1,11 @@
+Attribute;Value
+Name;LSFAS000
+Alias;LSFASM000
+Color;blue
+Source;Ipo
+Description;Rainfall-Runoff model with evaporation and fill-and-spill (FAS) mechanism
+RMSE;
+R2;
+Bias;
+File Parameters;./data/LSFAS/inputs/params_0.csv
+Folder Data;./data/LSFAS/inputs

@@ -453,7 +453,7 @@ class TimeSeries(Univar):
             df = df.dropna()
 
         # Convert datetime column to standard format
-        df[self.dtfield] = pd.to_datetime(df[self.dtfield], format="%Y-%m-%d %H:%M:%S")
+        df[self.dtfield] = pd.to_datetime(df[self.dtfield], format="%Y-%m0-%d %H:%M:%S")
 
         if filter_dates is None:
             pass
@@ -663,11 +663,11 @@ class TimeSeries(Univar):
         def _insert_epochs(df):
             # handle epochs
             epochs = {
-                "1min": ["%Y-%m-%d %H:%M", ""],
-                "20min": ["%Y-%m-%d %H", " :20"],
-                "h": ["%Y-%m-%d %H", ""],
-                "D": ["%Y-%m-%d", ""],
-                "MS": ["%Y-%m", ""],
+                "1min": ["%Y-%m0-%d %H:%M", ""],
+                "20min": ["%Y-%m0-%d %H", " :20"],
+                "h": ["%Y-%m0-%d %H", ""],
+                "D": ["%Y-%m0-%d", ""],
+                "MS": ["%Y-%m0", ""],
                 "YS": ["%Y", ""],
             }
             df[self.dtfield + "_epoch"] = (
@@ -1524,7 +1524,7 @@ class TimeSeries(Univar):
                 mdates.AutoDateLocator()
             )  # Automatically adjust based on range
             ax.xaxis.set_major_formatter(
-                mdates.DateFormatter("%Y-%m-%d")
+                mdates.DateFormatter("%Y-%m0-%d")
             )  # Format as YYYY-MM-DD
             ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Always keep 3 labels
 
@@ -1703,7 +1703,7 @@ class TimeSeries(Univar):
             mdates.AutoDateLocator()
         )  # Automatically adjust based on range
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%Y-%m-%d")
+            mdates.DateFormatter("%Y-%m0-%d")
         )  # Format as YYYY-MM-DD
         ax.xaxis.set_major_locator(MaxNLocator(nbins=3))  # Always keep 3 labels
 
@@ -1796,10 +1796,10 @@ class TimeSeriesCollection(Collection):
 
         # Set up date fields and special attributes in the catalog
         self.catalog["Start"] = pd.to_datetime(
-            self.catalog["Start"], format="%Y-%m-%d %H:%M:%S"
+            self.catalog["Start"], format="%Y-%m0-%d %H:%M:%S"
         )
         self.catalog["End"] = pd.to_datetime(
-            self.catalog["End"], format="%Y-%m-%d %H:%M:%S"
+            self.catalog["End"], format="%Y-%m0-%d %H:%M:%S"
         )
 
         # Set auto attributes
