@@ -881,6 +881,7 @@ class LSRR(LinearStorage):
                     "dtype": np.float64,
                     "description": "Downstream limiting control for Q",
                     "kind": "conceptual",
+                    "TeX": "$Q_{max}$"
                 },
             }
         )
@@ -893,26 +894,31 @@ class LSRR(LinearStorage):
                 "units": "{k}",
                 "description": "Accumulated time",
                 "kind": "time",
+                "TeX": "$t$"
             },
             "P": {
                 "units": "mm/{dt_freq}",
                 "description": "Inflow",
                 "kind": "flow",
+                "TeX": "$P$"
             },
             "S": {
                 "units": "mm",
                 "description": "Storage level",
                 "kind": "level",
+                "TeX": "$S$"
             },
             "Q": {
                 "units": "mm/{dt_freq}",
                 "description": "Outflow",
                 "kind": "flow",
+                "TeX": "$Q$"
             },
             "Q_obs": {
                 "units": "mm/d",
                 "description": "Outflow (observed evidence)",
                 "kind": "flow",
+                "TeX": "$Q_{obs}$"
             },
         }
         self.var_eval = "Q"
@@ -1166,7 +1172,8 @@ class LSRRE(LSRR):
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "LSRRE"
-        self.shutdown_epot = True
+        # controllers
+        self.shutdown_epot = False
 
     def _set_model_vars(self):
         super()._set_model_vars()
@@ -1176,11 +1183,14 @@ class LSRRE(LSRR):
                     "units": "mm/{dt_freq}",
                     "description": "External Outflow",
                     "kind": "flow",
+                    "TeX": "$E$"
+
                 },
                 "E_pot": {
                     "units": "mm/{dt_freq}",
                     "description": "Maximal External Outflow",
                     "kind": "flow",
+                    "TeX": "$E_{pot}$"
                 },
             }
         )
@@ -1329,27 +1339,32 @@ class LSFAS(LSRRE):
 
     def _set_model_vars(self):
         super()._set_model_vars()
+        # todo update TeX symbols
         self.vars.update(
             {
                 "SS": {
                     "units": "mm",
                     "description": "Spill storage",
                     "kind": "flow",
+                    "TeX": "TeX"
                 },
                 "Q_s": {
                     "units": "mm/{dt_freq}",
                     "description": "Spill flow (outflow)",
                     "kind": "flow",
+                    "TeX": "TeX"
                 },
                 "Q_s_f": {
                     "units": "mm/mm",
                     "description": "Spill flow coefficient",
                     "kind": "constant",
+                    "TeX": "TeX"
                 },
                 "Q_b": {
                     "units": "mm/{dt_freq}",
                     "description": "Base flow (outflow)",
                     "kind": "flow",
+                    "TeX": "TeX"
                 },
             }
         )
@@ -1373,6 +1388,7 @@ class LSFAS(LSRRE):
                     "dtype": np.float64,
                     "description": "Activation level for storage spill",
                     "kind": "conceptual",
+                    "TeX": "$s_{a}$"
                 },
                 "s_c": {
                     "value": None,
@@ -1380,6 +1396,7 @@ class LSFAS(LSRRE):
                     "dtype": np.float64,
                     "description": "Effective fragmentantion level of storage",
                     "kind": "conceptual",
+                    "TeX": "$s_{c}$"
                 },
             }
         )
@@ -1455,10 +1472,7 @@ class LSFAS(LSRRE):
 
             # compute dynamic runoff capacity
 
-            # -- old equation is only on spill storage
-            # qs_cap = ss_cap * dt  # multiply by dt (figure out why!)
-
-            # -- new equation includes P in the Qs capacity
+            # -- includes P in the Qs capacity
             qs_cap = (ss_cap * dt) + df["P"].values[t] # multiply by dt (figure out why!)
 
             # apply runoff coefficient over Qs
@@ -1546,6 +1560,7 @@ class LSFAS(LSRRE):
                 )
                 plt.savefig(file_path, dpi=specs["dpi"])
                 plt.close(fig)
+                return None
 
 class Global(LSFAS):
     """This is the global Rainfall-Runoff model of PLANS. Simulates the the catchment
@@ -1556,6 +1571,10 @@ class Global(LSFAS):
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "Global"
+        # controllers
+        self.shutdown_qif = False
+        self.shutdown_qbf = False
+        self.shutdown_dt = False
 
     def _set_model_vars(self):
         super()._set_model_vars()
@@ -1574,31 +1593,43 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Canopy storage",
                     "kind": "level",
+                    "TeX": "$C$",
                 },
                 "E_c": {
                     "units": "mm/{dt_freq}",
                     "description": "Canopy evaporation",
                     "kind": "flow",
+                    "TeX": "$E_{c}$",
                 },
                 "P_tf": {
                     "units": "mm/{dt_freq}",
                     "description": "Throughfall -- canopy spill water",
                     "kind": "flow",
+                    "TeX": "$P_{tf}$",
                 },
                 "P_tf_f": {
                     "units": "mm/mm",
                     "description": "Throughfall coefficient",
                     "kind": "constant",
+                    "TeX": "$P_{tf, f}$",
                 },
                 "P_sf": {
                     "units": "mm/{dt_freq}",
                     "description": "Stemflow -- canopy drained water",
                     "kind": "flow",
+                    "TeX": "$P_{sf}$",
+                },
+                "P_c": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Effective precipitation on canopy",
+                    "kind": "flow",
+                    "TeX": "$P_{c}$",
                 },
                 "P_s": {
                     "units": "mm/{dt_freq}",
-                    "description": "Effective precipitation",
+                    "description": "Effective precipitation on surface",
                     "kind": "flow",
+                    "TeX": "$P_{s}$",
                 },
                 #
                 #
@@ -1607,36 +1638,43 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Surface storage",
                     "kind": "level",
+                    "TeX": "$S$",
                 },
                 "E_s": {
                     "units": "mm/{dt_freq}",
                     "description": "Surface evaporation",
                     "kind": "flow",
+                    "TeX": "$E_{s}$",
                 },
                 "Q_of": {
                     "units": "mm/{dt_freq}",
-                    "description": "Surface spill flow -- surface overland flow",
+                    "description": "Overland flow  -- surface spill",
                     "kind": "flow",
+                    "TeX": "$Q_{of}$",
                 },
                 "Q_of_f": {
                     "units": "mm/mm",
-                    "description": "Surface spill flow coefficient",
+                    "description": "Overland flow coefficient",
                     "kind": "constant",
+                    "TeX": "$Q_{of, f}$",
                 },
                 "Q_uf": {
                     "units": "mm/{dt_freq}",
-                    "description": "Subsurface spill flow -- lateral flow on topsoil",
+                    "description": "Underland flow -- lateral leak in topsoil",
                     "kind": "flow",
+                    "TeX": "$Q_{uf}$",
                 },
                 "Q_uf_f": {
                     "units": "mm/mm",
-                    "description": "Surface spill flow coefficient",
+                    "description": "Underland flow coefficient",
                     "kind": "constant",
+                    "TeX": "$Q_{uf, f}$",
                 },
                 "Q_if": {
                     "units": "mm/{dt_freq}",
-                    "description": "Infiltration flow -- surface drainage flow",
+                    "description": "Infiltration flow -- drainage to mineral vadoze zone",
                     "kind": "flow",
+                    "TeX": "$Q_{if}$",
                 },
                 #
                 #
@@ -1645,16 +1683,25 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Vadose zone storage",
                     "kind": "level",
+                    "TeX": "$V$",
                 },
-                "E_v": {
-                    "units": "mm/{dt_freq}",
-                    "description": "Vadose zone transpiration",
-                    "kind": "flow",
-                },
-                "Q_v": {
+                "Q_vf": {
                     "units": "mm",
-                    "description": "Recharge flow",
+                    "description": "Recharge flow -- vertical flow to phreatic zone",
                     "kind": "flow",
+                    "TeX": "$Q_{v}$",
+                },
+                "Q_vf_f": {
+                    "units": "mm/mm",
+                    "description": "Recharge flow coefficient",
+                    "kind": "constant",
+                    "TeX": "$Q_{vf, f}$",
+                },
+                "D_v": {
+                    "units": "mm",
+                    "description": "Vadose zone storage deficit",
+                    "kind": "level",
+                    "TeX": "$D_{v}$",
                 },
                 #
                 #
@@ -1663,38 +1710,53 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Phreatic zone storage",
                     "kind": "level",
+                    "TeX": "$G$",
                 },
                 "D": {
                     "units": "mm",
                     "description": "Phreatic zone storage deficit",
                     "kind": "level",
+                    "TeX": "$D$",
                 },
-                "E_g": {
+                "E_t": {
                     "units": "mm/{dt_freq}",
                     "description": "Phreatic zone transpiration",
                     "kind": "flow",
+                    "TeX": "$E_{t}$",
                 },
-                "Q_g": {
+                "Q_bf": {
                     "units": "mm/{dt_freq}",
                     "description": "Baseflow from Groundwater/Phreatic zone",
                     "kind": "flow",
+                    "TeX": "$Q_{bf}$",
                 },
                 # routing
-                "R": {
+                "Q_hf": {
                     "units": "mm/{dt_freq}",
-                    "description": "Slope runoff (surface, subsurface and baseflow)",
+                    "description": "Hillslope flow (surface, subsurface and baseflow)",
                     "kind": "flow",
+                    "TeX": "$Q_{hf}$",
                 },
                 "Q": {
                     "units": "mm/{dt_freq}",
-                    "description": "River discharge at stage station",
+                    "description": "Stream flow at stage station",
                     "kind": "flow",
+                    "TeX": "$Q$",
                 },
             }
         self.vars.update(self.new_vars.copy())
 
         self.vars_canopy = [
             "P", "P_s", "P_sf", "P_tf", "P_tf_f", "E_pot", "E_c", "C"
+        ]
+        self.vars_surface = [
+            "P_s", "Q_of", "Q_of_f", "Q_uf", "Q_uf_f", "Q_if", "E_s", "S", "Q_hf", "Q"
+        ]
+        self.vars_soil = [
+            "Q_if", "Q_vf", "Q_vf_f", "Q_bf", "E_t", "V", "D_v", "G", "D"
+        ]
+        self.vars_levels = [
+            "C", "S", "V", "D_v", "G", "D"
         ]
 
         return None
@@ -1724,6 +1786,7 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Canopy storage initial conditions",
                     "kind": "conceptual",
+                    "TeX": "$C_{0}$",
                 },
                 "S0": {
                     "value": None,
@@ -1731,6 +1794,7 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Surface storage initial conditions",
                     "kind": "conceptual",
+                    "TeX": "$S_{0}$",
                 },
                 "V0": {
                     "value": None,
@@ -1738,6 +1802,7 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Vadose zone initial conditions",
                     "kind": "conceptual",
+                    "TeX": "$V_{0}$",
                 },
                 "G0": {
                     "value": None,
@@ -1745,6 +1810,7 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Phreatic zone initial conditions",
                     "kind": "conceptual",
+                    "TeX": "$G_{0}$",
                 },
                 #
                 #
@@ -1755,6 +1821,7 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Canopy residence time",
                     "kind": "conceptual",
+                    "TeX": "$C_{k}$",
                 },
                 "C_a": {
                     "value": None,
@@ -1762,13 +1829,7 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Activation level for canopy spill",
                     "kind": "conceptual",
-                },
-                "C_c": {
-                    "value": None,
-                    "units": "mm",
-                    "dtype": np.float64,
-                    "description": "Fragmentantion level of canopy",
-                    "kind": "conceptual",
+                    "TeX": "$C_{a}$",
                 },
                 #
                 #
@@ -1779,43 +1840,49 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Surface residence time",
                     "kind": "conceptual",
-                },
-                "Q_if_cap": {
-                    "value": None,
-                    "units": "mm/D",
-                    "dtype": np.float64,
-                    "description": "Infiltration capacity",
-                    "kind": "conceptual",
+                    "TeX": "$S_{k}$",
                 },
                 # subsurface spill
-                "S_au": {
+                "S_uf_cap": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Activation level for subsurface spill",
+                    "description": "Topsoil zone storage capacity",
                     "kind": "conceptual",
+                    "TeX": "$S_{uf, cap}$",
                 },
-                "S_cu": {
+                "S_uf_a": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Activation level for subsurface spill",
                     "kind": "conceptual",
+                    "TeX": "$S_{uf, a}$",
+                },
+                "S_uf_c": {
+                    "value": None,
+                    "units": "mm",
+                    "dtype": np.float64,
+                    "description": "Fragmentation level for subsurface spill",
+                    "kind": "conceptual",
+                    "TeX": "$S_{uf, c}$",
                 },
                 # surface spill
-                "S_ao": {
+                "S_of_a": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Activation level for surface overland spill",
                     "kind": "conceptual",
+                    "TeX": "$S_{of, a}$",
                 },
-                "S_co": {
+                "S_of_c": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Activation level for surface overland spill",
+                    "description": "Fragmentation level for surface overland spill",
                     "kind": "conceptual",
+                    "TeX": "$S_{of, c}$",
                 },
                 # recharge
                 "K": {
@@ -1824,21 +1891,24 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Effective hydraulic conductivity",
                     "kind": "conceptual",
+                    "TeX": "$K$",
                 },
                 # baseflow
-                "D_max": {
+                "D_et_a": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Maximal Deficit for root transpiration (effective root depth)",
+                    "description": "Effective root depth for full evapotranspiration activation",
                     "kind": "level",
+                    "TeX": "$D_{et, a}$",
                 },
-                "G_k": {
+                "G_et_cap": {
                     "value": None,
-                    "units": "D",
+                    "units": "mm",
                     "dtype": np.float64,
-                    "description": "Phreatic zone residence time",
-                    "kind": "conceptual",
+                    "description": "Evapotranspiration capacity at capilar zone",
+                    "kind": "level",
+                    "TeX": "$G_{et, cap}$",
                 },
                 "G_cap": {
                     "value": None,
@@ -1846,6 +1916,15 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Phreatic zone storage capacity",
                     "kind": "conceptual",
+                    "TeX": "$G_{cap}$",
+                },
+                "G_k": {
+                    "value": None,
+                    "units": "D",
+                    "dtype": np.float64,
+                    "description": "Phreatic zone residence time",
+                    "kind": "conceptual",
+                    "TeX": "$G_{k}$",
                 },
             }
         )
@@ -1853,6 +1932,39 @@ class Global(LSFAS):
         self.reference_dt_param = "G_k"
         return None
 
+
+    def _set_view_specs(self):
+        """Set view specifications.
+        Expected to increment superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_view_specs()
+        # cleanup useless entries
+
+        # add new specs
+        self.view_specs.update(
+            {
+                # new values
+                "width": 10,
+                "height": 6,
+                "gs_left": 0.1,
+                "gs_right": 0.9,
+                # new params
+                "color_P_s": "blue",
+                "color_P_sf": "green",
+                "color_C": "black",
+                "color_V": "steelblue",
+                "color_G": "navy",
+                "color_Q_if": "blue",
+                "ymax_C": None,
+                "ymax_V": None,
+                "ymax_G": None,
+                "ymax_Q_if": None,
+            }
+        )
+        return None
 
     def setup(self):
         """Set model simulation.
@@ -1873,21 +1985,9 @@ class Global(LSFAS):
             columns=["Q_s", "Q_s_f", "Q_b", "S"],
             inplace=True
         )
-
         # append variables
         for v in self.new_vars:
             self.data[v] = np.nan
-            # set initial conditions on storages
-            if self.vars[v]["kind"] == "level":
-                if v == "D":
-                    pass
-                else:
-                    self.data[v].values[0] = self.params["{}0".format(v)]["value"]
-        # compute deficit initial condition
-        self.data["D"].values[0] = self.params["G_cap"]["value"] - self.data["G"].values[0]
-
-        # organize table?
-
         return None
 
 
@@ -1901,124 +2001,132 @@ class Global(LSFAS):
         :return: None
         :rtype: None
         """
-        # --- simulation setup
+        #
+        # ---------------- initial conditions ----------------
+        #
+        for v in self.vars:
+            # set initial conditions on storages
+            if self.vars[v]["kind"] == "level":
+                if v == "D" or v == "D_v":
+                    pass
+                else:
+                    self.data[v].values[0] = self.params["{}0".format(v)]["value"]
+        # --- handle bounded initial conditions
+        # --- G storage
+        G0 = self.data["G"].values[0]
+        if G0 > self.params["G_cap"]["value"]:
+            self.data["G"].values[0] = self.params["G_cap"]["value"]
+        # --- V storage
+        V0 = self.data["V"].values[0]
+        G0 = self.data["G"].values[0]
+        G_cap = self.params["G_cap"]["value"]
+        if V0 > (G_cap - G0):
+            self.data["V"].values[0] = G_cap - G0
+        #
+        # ---------------- simulation setup ----------------
+        #
         # dt is the fraction of 1 Day/(1 simulation time step)
         dt = self.params["dt"]["value"]
         # global processes data
         GB = self.data.copy()
+        #
+        # ---------------- parameters alias ----------------
+        #
+        # [Canopy] canopy parameters
+        C_k = self.params["C_k"]["value"]
+        C_a = self.params["C_a"]["value"]
+        # [Surface] surface parameters
+        S_k = self.params["S_k"]["value"]
+        S_of_a = self.params["S_of_a"]["value"]
+        S_of_c = self.params["S_of_c"]["value"]
+        S_uf_a = self.params["S_uf_a"]["value"]
+        S_uf_c = self.params["S_uf_c"]["value"]
+        S_uf_cap = self.params["S_uf_cap"]["value"]
+        S_uf_ss_f = np.where(S_uf_cap <= S_uf_a, 0, 1)
+        # [Surface] Compute effective overland flow activation level
+        S_of_a_eff = S_uf_cap + S_of_a  # incremental with underland capacity (topsoil)
+        # [Soil] soil parameters
+        G_cap = self.params["G_cap"]["value"]
+        K = self.params["K"]["value"]
+        G_k = self.params["G_k"]["value"]
+        G_et_cap = self.params["G_et_cap"]["value"]
 
+        #
+        # ---------------- testing options ----------------
+        #
+        # remove E_pot (useful for testing)
+        if self.shutdown_epot:
+            GB["E_pot"] = 0.0
         # simulation steps (this is useful for testing and debug)
         if self.n_steps is None:
             n_steps = len(GB)
         else:
             n_steps = self.n_steps
-
-        # --- parameter setup ---
-
-        # [Canopy] canopy parameters
-        C_k = self.params["C_k"]["value"]
-        C_a = self.params["C_a"]["value"]
-        C_c = self.params["C_c"]["value"]
-        # [Canopy] Compute effective canopy activation level
-        C_a_eff = C_a # same
-        # [Canopy] Compute effective canopy fragmentation level
-        C_c_eff = C_c  # same
-        # [Surface] surface parameters
-        # todo evaluate how this should work
-        Q_if_cap = self.params["Q_if_cap"]["value"]
-        S_k = self.params["S_k"]["value"]
-        S_ao = self.params["S_ao"]["value"]
-        S_co = self.params["S_co"]["value"]
-        S_au = self.params["S_au"]["value"]
-        S_cu = self.params["S_cu"]["value"]
-        # [Surface] Compute effective overland flow activation level
-        S_ao_eff = S_au + S_ao  # incremental with underland (topsoil)
-        # [Surface] Compute effective overland flow fragmentation level
-        S_co_eff = S_co  # incremental with activation
-        # [Surface] Compute effective underland flow activation level
-        S_au_eff = S_au  # same
-        # [Surface] Compute effective underland flow fragmentation level
-        S_cu_eff = S_cu  # same
-
-        # --- numerical solution
+        #
+        # ---------------- numerical solution ----------------
+        #
         # loop over (Euler Method)
         for t in range(n_steps - 1):
+            # Compute defined variables
+            GB["D"].values[t] = G_cap - GB["G"].values[t]
+            GB["D_v"].values[t] = GB["D"].values[t] - GB["V"].values[t]
 
             # [Evaporation] ---- get evaporation flows first ---- #
 
-            # [Evaporation] canopy
+            # [Evaporation] on canopy
             E_c_pot = GB["E_pot"].values[t]
-            E_c_cap = GB["C"].values[t] * dt  # multiply by dt
-            GB["E_c"].values[t] = 0.0# np.min([E_c_pot, E_c_cap])
+            E_c_cap = GB["C"].values[t] * dt
+            GB["E_c"].values[t] = np.min([E_c_pot, E_c_cap])
             # apply discount on the fly
             GB["C"].values[t] = GB["C"].values[t] - GB["E_c"].values[t]
 
-            # todo include root zone depth rationale -- new parameter needed
-            # [Evaporation] phreatic zone
-            E_g_pot = GB["E_pot"].values[t] - GB["E_c"].values[t]  # discount actual Ec
-            E_g_cap = GB["G"].values[t] * dt  # multiply by dt
-            GB["E_g"].values[t] = np.min([E_g_pot, E_g_cap])
+            # todo [EVAPORATION] include root zone depth rationale -- new parameter needed
+            # [Evaporation] on phreatic zone
+            E_t_pot = GB["E_pot"].values[t] - GB["E_c"].values[t]  # discount actual Ec
+            E_t_cap = GB["G"].values[t] * dt
+            GB["E_t"].values[t] = np.min([E_t_pot, E_t_cap])
             # apply discount on the fly
-            GB["G"].values[t] = GB["G"].values[t] - GB["E_g"].values[t]
+            GB["G"].values[t] = GB["G"].values[t] - GB["E_t"].values[t]
 
-            # [Evaporation] vadose zone
-            E_v_pot = GB["E_pot"].values[t] - GB["E_c"].values[t] - GB["E_g"].values[t]
-            E_v_cap = GB["V"].values[t] * dt  # multiply by dt
-            GB["E_v"].values[t] = np.min([E_v_pot, E_v_cap])
-            # apply discount on the fly
-            GB["V"].values[t] = GB["V"].values[t] - GB["E_v"].values[t]
-
-            # [Evaporation] surface
-            E_s_pot = GB["E_pot"].values[t] - GB["E_c"].values[t] - GB["E_g"].values[t] - GB["E_v"].values[t]
-            E_s_cap = GB["S"].values[t] * dt  # multiply by dt
+            # [Evaporation] on surface
+            E_s_pot = GB["E_pot"].values[t] - GB["E_c"].values[t] - GB["E_t"].values[t]
+            E_s_cap = GB["S"].values[t] * dt
             GB["E_s"].values[t] = np.min([E_s_pot, E_s_cap])
             # apply discount on the fly
             GB["S"].values[t] = GB["S"].values[t] - GB["E_s"].values[t]
 
             # [Canopy] ---- Solve canopy water balance ---- #
-            # todo resume here ---- REDO CANOPY MODEL
+
             # [Canopy] ---- Potential flows
 
             # [Canopy] -- Throughfall
 
             # [Canopy] Compute canopy spill storage capacity
-            C_ss_cap = np.max([0, GB["C"].values[t] - C_a_eff])
-
-            # [Canopy] Compute dynamic throughfall capacity
-            P_tf_cap = C_ss_cap * dt  # multiply by dt
+            C_ss_cap = np.max([0, GB["C"].values[t] - C_a]) * dt # check dt
 
             # [Canopy] Compute throughfall coeficient
-            P_tf_f = (C_ss_cap / (C_ss_cap + C_c_eff))
+            with np.errstate(divide='ignore', invalid='ignore'):
+                P_tf_f = np.where(C_a <= 0, 1, np.min([1, GB["C"].values[t] / C_a]))
             GB["P_tf_f"].values[t] = P_tf_f
 
-            # [Canopy] Compute potential throughfall -- scale by the coefficient
-            P_tf_pot = P_tf_f * GB["P"].values[t] # todo P_tf_f * P_tf_cap
+            # [Canopy] Compute throughfall capacity
+            P_tf_cap = C_ss_cap + GB["P"].values[t]  # include P
+
+            # [Canopy] Compute throughfall -- scale by the coefficient
+            GB["P_tf"].values[t] = P_tf_f * P_tf_cap
 
             # [Canopy] -- Stemflow
-            # [Canopy] Compute potential stemflow -- spill storage does not contribute
-            P_sf_pot = (GB["C"].values[t] - C_ss_cap) * dt / C_k  # Linear storage Q = dt * S / k
+            # [Canopy] Compute potential stemflow -- only activated storage contributes
+            GB["P_sf"].values[t] = np.min([GB["C"].values[t], C_a]) * dt / C_k  # Linear storage Q = dt * S / k
 
-            # [Canopy] -- Full potential outflow
-            C_out_pot = P_tf_pot + P_sf_pot # by pass + E_c_pot
-
-            # [Canopy] ---- Actual flows
-
-            # [Canopy] Compute canopy maximum outflow
-            C_out_max = GB["C"].values[t]
-
-            # [Canopy] Compute Actual outflow
-            C_out_act = np.min([C_out_max, C_out_pot])
-
-            # [Canopy] Allocate outflows
-            with np.errstate(divide='ignore', invalid='ignore'):
-                GB["P_tf"].values[t] = C_out_act * np.where(C_out_pot == 0, 0, P_tf_pot / C_out_pot)
-                GB["P_sf"].values[t] = C_out_act * np.where(C_out_pot == 0, 0, P_sf_pot / C_out_pot)
-            # [Canopy] Compute effective rain
+                        # [Canopy] Compute effective rain on surface
             GB["P_s"].values[t] = GB["P_tf"].values[t] + GB["P_sf"].values[t]
+            # [Canopy] Compute effective rain on canopy
+            GB["P_c"].values[t] = GB["P"].values[t] * (1 - GB["P_tf_f"].values[t])
 
             # [Canopy Water Balance] ---- Apply water balance
-            # C(t+1) = C(t) + P(t) - Psf(t) - P(tf) >>> Ec(t) discounted earlier
-            GB["C"].values[t + 1] = GB["C"].values[t] + GB["P"].values[t] - GB["P_sf"].values[t] - GB["P_tf"].values[t]
+            # C(t+1) = C(t) + Pc(t) - Psf(t) >>> Ec(t) discounted earlier
+            GB["C"].values[t + 1] = GB["C"].values[t] + GB["P_c"].values[t] - GB["P_sf"].values[t]
 
             # [Surface] ---- Solve surface water balance ---- #
 
@@ -2027,14 +2135,15 @@ class Global(LSFAS):
             # [Surface -- overland] -- Overland flow
 
             # [Surface -- overland] Compute surface overland spill storage capacity
-            Sof_ss_cap = np.max([0, GB["S"].values[t] - S_ao_eff])
-
-            # [Surface -- overland] Compute dynamic overland flow capacity
-            Q_of_cap = Sof_ss_cap * dt  # multiply by dt
+            Sof_ss_cap = np.max([0, GB["S"].values[t] - S_of_a_eff])
 
             # [Surface -- overland] Compute overland flow coeficient
-            Q_of_f = Sof_ss_cap / (Sof_ss_cap + S_co_eff)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                Q_of_f = np.where((Sof_ss_cap + S_of_c) == 0, 0, (Sof_ss_cap / (Sof_ss_cap + S_of_c)))
             GB["Q_of_f"].values[t] = Q_of_f
+
+            # [Surface -- overland] Compute dynamic overland flow capacity
+            Q_of_cap = (Sof_ss_cap * dt) + GB["P_s"].values[t]  # include P_s # check dt
 
             # [Surface -- overland] Compute potential overland -- scale by the coefficient
             Q_of_pot = Q_of_f * Q_of_cap
@@ -2042,22 +2151,30 @@ class Global(LSFAS):
             # [Surface -- underland] -- Underland flow
 
             # [Surface -- underland] Compute surface underland spill storage capacity
-            Suf_ss_cap = np.max([0, GB["S"].values[t] - S_au_eff])
-
-            # [Surface -- underland] Compute dynamic underland flow capacity
-            Q_uf_cap = Suf_ss_cap * dt  # multiply by dt
+            Suf_ss_cap = np.max([0, GB["S"].values[t] - S_uf_a]) * S_uf_ss_f  # apply factor
 
             # [Surface -- underland] Compute underland flow coeficient
-            Q_uf_f = Suf_ss_cap / (Suf_ss_cap + S_cu_eff)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                Q_uf_f = np.where((Suf_ss_cap + S_uf_c) == 0, 0, (Suf_ss_cap / (Suf_ss_cap + S_uf_c)))
             GB["Q_uf_f"].values[t] = Q_uf_f
 
-            # [Surface -- underland] Compute potential overland -- scale by the coefficient
+            # [Surface -- underland] Compute dynamic underland flow capacity
+            Q_uf_cap = Suf_ss_cap * dt # check dt
+
+            # [Surface -- underland] Compute potential underland -- scale by the coefficient
             Q_uf_pot = Q_uf_f * Q_uf_cap
 
             # [Surface -- infiltration] -- Infiltration flow
-            # linear store upper bounded by infiltration capacity
-            # todo integrate with downstream soil water control
-            Q_if_pot = np.min([GB["S"].values[t] * dt / S_k, Q_if_cap])
+            # [Surface -- infiltration] -- Potential infiltration from downstream (soil)
+            Q_if_pot_down = (GB["D"].values[t] - GB["V"].values[t]) * dt  # check dt
+            # [Surface -- infiltration] -- Potential infiltration from upstream (hydraulic head)
+            Q_if_pot_up = GB["S"].values[t] * dt / S_k
+            # [Surface -- infiltration] -- Potential infiltration
+            Q_if_pot = np.min([Q_if_pot_down, Q_if_pot_up])
+
+            # [Surface -- infiltration] -- testing feature
+            if self.shutdown_qif:
+                Q_if_pot = 0.0
 
             # [Surface] -- Full potential outflow
             S_out_pot = Q_of_pot + Q_uf_pot + Q_if_pot
@@ -2078,28 +2195,413 @@ class Global(LSFAS):
             # [Surface Water Balance] ---- Apply water balance
             GB["S"].values[t + 1] = GB["S"].values[t] + GB["P_s"].values[t] - GB["Q_of"].values[t] - GB["Q_uf"].values[t] - GB["Q_if"].values[t]
 
-            # todo CONTINUE HERE FOR SURFACE SPILLS
-            # Compute compounded flows
-            GB["Q_g"].values[t] = 0.0
+            # [Soil]
 
-            # R - Hillslope runoff
-            GB["R"].values[t] = GB["Q_of"].values[t] + GB["Q_uf"].values[t] + GB["Q_g"].values[t]
+            # [Soil Vadose Zone]
+
+            # [Soil Vadose Zone] Compute Potential Recharge
+            # [Soil Vadose Zone] Get Recharge Factor
+            with np.errstate(divide='ignore', invalid='ignore'):
+                GB["Q_vf_f"].values[t] = np.where(GB["D"].values[t] <= 0, 1.0, (GB["V"].values[t] / GB["D"].values[t]))
+            Q_vf_pot = GB["Q_vf_f"].values[t] * K * dt
+
+            # [Soil Vadose Zone] Compute Maximal Recharge
+            Q_vf_max = GB["V"].values[t] * dt # check dt
+
+            # [Soil Vadose Zone] Compute Actual Recharge
+            GB["Q_vf"].values[t] = np.min([Q_vf_pot, Q_vf_max])
+
+            # [Vadose Water Balance] ---- Apply water balance
+            GB["V"].values[t + 1] = GB["V"].values[t] - GB["Q_vf"].values[t] + GB["Q_if"].values[t]
+
+            # [Soil Phreatic Zone]
+
+            # [Soil Phreatic Zone] Compute Base flow (blue water)
+            GB["Q_bf"].values[t] = (GB["G"].values[t] - G_et_cap) * dt / G_k
+            if self.shutdown_qbf:
+                GB["Q_bf"].values[t] = 0.0
+
+            # [Phreatic Water Balance] ---- Apply water balance
+            GB["G"].values[t + 1] = GB["G"].values[t] + GB["Q_vf"].values[t] - GB["Q_bf"].values[t]
+
+            # todo continue ----------
+            GB["Q"].values[t] = 0.0
+
+            #
+            #
+            # Compute compounded flows
+            # R - Hillslope flow
+            GB["Q_hf"].values[t] = GB["Q_of"].values[t] + GB["Q_uf"].values[t] + GB["Q_bf"].values[t]
             # E - Total E
-            GB["E"].values[t] = GB["E_c"].values[t] + GB["E_s"].values[t] + GB["E_v"].values[t] + GB["E_g"].values[t]
+            GB["E"].values[t] = GB["E_c"].values[t] + GB["E_s"].values[t] + GB["E_t"].values[t]
+
 
             # hacking schemes
             # todo remove hacks
-            GB["V"].values[t + 1] = GB["V"].values[t]
-            GB["G"].values[t + 1] = GB["G"].values[t]
-
 
         # reset data
         self.data = GB.copy()
 
         return None
 
+    def export(self, folder, filename, views=False, mode=None):
+        """Export object resources
+
+        :param folder: path to folder
+        :type folder: str
+        :param filename: file name without extension
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        # export model simulation data
+        super().export(folder, filename=filename + "_sim", views=False)
+
+        # export views
+        if views:
+            self.view_specs["folder"] = folder
+            self.view_specs["filename"] = filename
+            self.view(show=False, mode=mode)
+
+        # ... continues in downstream objects ... #
+
+    def view(self, show=True, return_fig=False, mode=None):
+        specs = self.view_specs.copy()
+        n_dt = self.params["dt"]["value"]
+        # start plot
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        plt.suptitle("{} | Model Global".format(self.name))
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            3,
+            1,
+            wspace=specs["gs_wspace"],
+            hspace=specs["gs_hspace"],
+            left=specs["gs_left"],
+            right=specs["gs_right"],
+            bottom=specs["gs_bottom"],
+            top=specs["gs_top"],
+        )  # nrows, ncols
+
+        first_date = self.data[self.dtfield].iloc[0]
+        last_date = self.data[self.dtfield].iloc[-1]
+        ls_dates = [first_date, last_date]
+        n_flow_max = np.max([self.data["P"].max(), self.data["Q"].max()])
+
+        if mode is None:
+            mode = "canopy"
+
+        if mode == "canopy":
+            # ------------ P plot ------------
+            n_pmax = self.data["P"].max() / n_dt
+            ax = fig.add_subplot(gs[0, 0])
+            plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
+                     zorder=2, label=self.vars["P"]["TeX"])
+            s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
+            plt.title(s_title1, loc="left")
+            # ax.set_xticks(ls_dates)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            # normalize Y axis
+            ymax_p = specs["ymax_P"]
+            if ymax_p is None:
+                ymax_p = 1.1 * n_pmax
+            plt.ylim(0, ymax_p)
+            plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+            # ------------ E plot ------------
+            e_sum = round(self.data["E_c"].sum(), 1)
+            ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
+            ax2.plot(self.data[self.dtfield], self.data["E_c"] / n_dt, c="tab:red", zorder=1, label=self.vars["E_c"]["TeX"])
+            e_max = self.data["E_c"].max()
+            if e_max == 0:
+                ax2.set_ylim(-1, 1)
+            else:
+                ax2.set_ylim(0, 1.2 * e_max / n_dt)
+            ax2.set_title("{} ({} mm)".format(self.vars["E_c"]["TeX"], e_sum), loc="right")
+            ax2.set_ylabel("mm/d")
+
+            # ------------ Ps plot ------------
+            n_emax = self.data["P_s"].max() / n_dt
+            ps_sum = round(self.data["P_s"].sum(), 1)
+            psf_sum = round(self.data["P_sf"].sum(), 1)
+            ax = fig.add_subplot(gs[1, 0], sharex=ax)
+            # titles
+            s_symbol1 = self.vars["P_s"]["TeX"]
+            s_symbol2 = self.vars["P_sf"]["TeX"]
+            plt.title(f"{s_symbol1} ({ps_sum} mm) and {s_symbol2} ({psf_sum} mm)", loc="left")
+            # plots
+            plt.plot(self.data[self.dtfield], self.data["P_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
+            plt.plot(self.data[self.dtfield], self.data["P_sf"] / n_dt, color=specs["color_P_sf"], label=s_symbol2)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            # normalize Y axis
+            ymax_p = specs["ymax_P"]
+            if ymax_p is None:
+                ymax_p = 1.1 * n_pmax
+            plt.ylim(0, ymax_p)
+            plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+            # ------------ C plot ------------
+            n_smax = self.data["C"].max()
+            ax = fig.add_subplot(gs[2, 0], sharex=ax)
+            s_symbol1 = self.vars["C"]["TeX"]
+            plt.title("{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["C"].mean(), 1)), loc="left")
+            plt.plot(self.data[self.dtfield], self.data["C"], color=specs["color_C"], label=s_symbol1)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            plt.ylabel("mm")
+            # normalize Y axis
+            ymax_s = specs["ymax_C"]
+            if ymax_s is None:
+                ymax_s = 1.1 * n_smax
+            if ymax_s <= 0:
+                plt.ylim(-1, 1)
+            else:
+                plt.ylim(0, ymax_s)
+
+        if mode == "surface":
+            # ------------ P plot ------------
+            n_pmax = self.data["P"].max() / n_dt
+            ax = fig.add_subplot(gs[0, 0])
+            plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
+                     zorder=2, label=self.vars["P"]["TeX"])
+            s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
+            plt.title(s_title1, loc="left")
+            # ax.set_xticks(ls_dates)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            # normalize Y axis
+            ymax_p = specs["ymax_P"]
+            if ymax_p is None:
+                ymax_p = 1.1 * n_pmax
+            plt.ylim(0, ymax_p)
+            plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+            # ------------ Ps plot ------------
+            n_emax = self.data["P_s"].max() / n_dt
+            ps_sum = round(self.data["P_s"].sum(), 1)
+            # titles
+            s_symbol1 = self.vars["P_s"]["TeX"]
+            s_title2 = "{} ({} mm)".format(s_symbol1, round(self.data["P_s"].sum(), 1))
+            plt.title(f"{s_title1} and {s_title2}", loc="left")
+            # plots
+            plt.plot(self.data[self.dtfield], self.data["P_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
+            plt.legend(loc="upper left")
+
+            # ------------ E plot ------------
+            s_symbol1 = self.vars["E_s"]["TeX"]
+            s_symbol2 = self.vars["E_c"]["TeX"]
+            es_sum = round(self.data["E_s"].sum(), 1)
+            ec_sum = round(self.data["E_c"].sum(), 1)
+            ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
+            ax2.plot(self.data[self.dtfield], self.data["E_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
+            ax2.plot(self.data[self.dtfield], self.data["E_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
+            es_max = np.max([self.data["E_s"].max(), self.data["E_c"].max()])
+            if es_max <= 0.001:
+                ax2.set_ylim(-1, 1)
+            else:
+                ax2.set_ylim(0, 1.2 * es_max / n_dt)
+            s_title1 = "{} ({} mm)".format(s_symbol1, ec_sum)
+            s_title2 = "{} ({} mm)".format(s_symbol2, es_sum)
+            ax2.set_title(f"{s_title1} and {s_title2}", loc="right")
+            ax2.set_ylabel("mm/d")
+            plt.legend(loc="upper right")
+
+            # ------------ Qof, Quf, Qif plot ------------
+            ax = fig.add_subplot(gs[1, 0], sharex=ax)
+            s_symbol1 = self.vars["Q_of"]["TeX"]
+            s_symbol2 = self.vars["Q_uf"]["TeX"]
+            s_symbol3 = self.vars["Q_if"]["TeX"]
+            s_symbol4 = self.vars["Q_hf"]["TeX"]
+            # titles
+            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["Q_of"].sum(), 1))
+            s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["Q_uf"].sum(), 1))
+            s_title3 = "{} ({} mm)".format(s_symbol3, round(self.data["Q_if"].sum(), 1))
+            plt.title(f"{s_title1}, {s_title2} and {s_title3}", loc="left")
+            plt.plot(self.data[self.dtfield], self.data["Q_hf"] / n_dt, color="navy", label=s_symbol4)
+            plt.plot(self.data[self.dtfield], self.data["Q_of"] / n_dt, color="magenta", label=s_symbol1)
+            plt.plot(self.data[self.dtfield], self.data["Q_uf"] / n_dt, color="red", label=s_symbol2)
+            plt.plot(self.data[self.dtfield], self.data["Q_if"] / n_dt, color="green", label=s_symbol3)
+            plt.ylim(0, ymax_p)
+            ax.set_ylabel("mm/d")
+            plt.legend(loc="upper left")
+
+            # ------------ Runoff coef plot ------------
+            ax2 = ax.twinx()
+            s_symbol1 = self.vars["Q_of_f"]["TeX"]
+            plt.plot(self.data[self.dtfield], self.data["Q_of_f"], color="gray", label=s_symbol1)
+            plt.ylim(-1, 2)
+            ax2.set_yticks([0, 1])
+            ax2.set_ylabel("mm/mm")
+            f_mean = round(self.data["Q_of_f"].mean(), 2)
+            f_max = round(self.data["Q_of_f"].max(), 2)
+            ax2.set_title(f"{s_symbol1} ($\mu$ = {f_mean}; max = {f_max})", loc="right")
+            plt.legend(loc="upper right")
+
+            # ------------ S plot ------------
+            n_smax = self.data["S"].max()
+            ax = fig.add_subplot(gs[2, 0], sharex=ax)
+            s_symbol1 = self.vars["S"]["TeX"]
+            plt.title("{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["S"].mean(), 1)), loc="left")
+            plt.plot(self.data[self.dtfield], self.data["S"], color=specs["color_S"], label=s_symbol1)
+            plt.hlines(
+                y=self.params["S_uf_a"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="orange",
+                label=self.params["S_uf_a"]["TeX"]
+            )
+            plt.hlines(
+                y=self.params["S_uf_cap"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="purple",
+                label=self.params["S_uf_cap"]["TeX"]
+            )
+            plt.hlines(
+                y=self.params["S_of_a"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="red",
+                label=self.params["S_of_a"]["TeX"]
+            )
+            plt.legend(loc="upper left")
+            # ticks
+            # ax.set_xticks(ls_dates)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            plt.ylabel("mm")
+            # normalize Y axis
+            ymax_s = specs["ymax_S"]
+            if ymax_s is None:
+                ymax_s = 1.1 * n_smax
+            if ymax_s <= 0:
+                plt.ylim(-1, 1)
+            else:
+                plt.ylim(0, ymax_s)
+
+        if mode == "soil":
+            # ------------ Qif plot ------------
+            ax = fig.add_subplot(gs[0, 0])
+            n_emax = self.data["Q_if"].max() / n_dt
+            ps_sum = round(self.data["Q_if"].sum(), 1)
+            # titles
+            s_symbol0 = self.vars["P_s"]["TeX"]
+            s_symbol1 = self.vars["Q_if"]["TeX"]
+            s_symbol2 = self.vars["Q_vf"]["TeX"]
+            s_title0 = "{} ({} mm)".format(s_symbol0, round(self.data["P_s"].sum(), 1))
+            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["Q_if"].sum(), 1))
+            s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["Q_vf"].sum(), 1))
+            plt.title(f"{s_title0}, {s_title1} and {s_title2}", loc="left")
+            # plots
+            plt.plot(self.data[self.dtfield], self.data["Q_if"] / n_dt, color=specs["color_Q_if"], label=s_symbol1)
+            plt.plot(self.data[self.dtfield], self.data["Q_vf"] / n_dt, color="steelblue", label=s_symbol2)
+            plt.legend(loc="upper left", ncols=3)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            plt.ylabel("mm/d")
+            # normalize Y axis
+            ymax_qif = specs["ymax_Q_if"]
+            if ymax_qif is None:
+                ymax_qif = 1.1 * n_emax
+            plt.ylim(0, ymax_qif)
+
+            # ------------ E plot ------------
+            s_symbol1 = self.vars["E_s"]["TeX"]
+            s_symbol2 = self.vars["E_c"]["TeX"]
+            s_symbol3 = self.vars["E_t"]["TeX"]
+            es_sum = round(self.data["E_s"].sum(), 1)
+            ec_sum = round(self.data["E_c"].sum(), 1)
+            et_sum = round(self.data["E_t"].sum(), 1)
+            ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
+            ax2.plot(self.data[self.dtfield], self.data["E_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
+            ax2.plot(self.data[self.dtfield], self.data["E_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
+            ax2.plot(self.data[self.dtfield], self.data["E_t"] / n_dt, c="tab:green", zorder=1, label=s_symbol3)
+            es_max = np.max([self.data["E_s"].max(), self.data["E_c"].max(), self.data["E_t"].max()])
+            if es_max <= 0.001:
+                ax2.set_ylim(-1, 1)
+            else:
+                ax2.set_ylim(0, 1.2 * es_max / n_dt)
+            s_title1 = "{} ({} mm)".format(s_symbol1, ec_sum)
+            s_title2 = "{} ({} mm)".format(s_symbol2, es_sum)
+            s_title3 = "{} ({} mm)".format(s_symbol3, et_sum)
+            ax2.set_title(f"{s_title1}, {s_title2} and {s_title3}", loc="right")
+            ax2.set_ylabel("mm/d")
+            plt.legend(loc="upper right", ncols=3)
+
+            # ------------ Qbf  ------------
+            ax = fig.add_subplot(gs[1, 0], sharex=ax)
+            s_symbol1 = self.vars["Q_bf"]["TeX"]
+            # titles
+            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["Q_bf"].sum(), 1))
+            plt.title(f"{s_title1}", loc="left")
+            plt.plot(self.data[self.dtfield], self.data["Q_bf"] / n_dt, color="navy", label=s_symbol1)
+            qb_max = self.data["Q_bf"].max() / n_dt
+            if qb_max == 0:
+                plt.ylim(-1, 1)
+            else:
+                plt.ylim(0, 1.1 * qb_max)
+            ax.set_ylabel("mm/d")
+            plt.legend(loc="upper left", ncols=1)
+
+            # ------------ G plot ------------
+            n_smax = self.data["G"].max()
+            ax = fig.add_subplot(gs[2, 0], sharex=ax)
+            s_symbol1 = self.vars["V"]["TeX"]
+            s_symbol2 = self.vars["G"]["TeX"]
+            s_symbol3 = self.vars["D"]["TeX"]
+            s_symbol4 = self.vars["D_v"]["TeX"]
+            s_title1 = "{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["V"].mean(), 1))
+            s_title2 = "{} ($\mu$ = {} mm)".format(s_symbol2, round(self.data["G"].mean(), 1))
+            s_title3 = "{} ($\mu$ = {} mm)".format(s_symbol3, round(self.data["D"].mean(), 1))
+            plt.title(f"{s_title1}, {s_title2} and {s_title3}", loc="left")
+            plt.plot(self.data[self.dtfield], self.data["V"], color=specs["color_V"], label=s_symbol1)
+            plt.plot(self.data[self.dtfield], self.data["G"], color=specs["color_G"], label=s_symbol2)
+            plt.plot(self.data[self.dtfield], self.data["D"], color="black", label=s_symbol3)
+            plt.plot(self.data[self.dtfield], self.data["D_v"], color="black", linestyle="--", label=s_symbol4)
+            plt.hlines(
+                y=self.params["G_cap"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="orange",
+                linestyles="--",
+                label=self.params["G_cap"]["TeX"]
+            )
+            plt.hlines(
+                y=self.params["G_cap"]["value"] - self.params["D_et_a"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="green",
+                linestyles="--",
+                label=self.params["D_et_a"]["TeX"]
+            )
+            plt.legend(loc="upper left", ncols=6)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            plt.ylabel("mm")
+            # normalize Y axis
+            ymax_s = specs["ymax_G"]
+            if ymax_s is None:
+                ymax_s = 1.1 * n_smax
+            plt.ylim(0, ymax_s)
 
 
+        ax.tick_params(axis='x', labelsize=10, labelcolor='black')
+
+        # handle return
+        if return_fig:
+            return fig
+        else:
+            if show:
+                plt.show()
+            else:
+                file_path = "{}/{}.{}".format(
+                    specs["folder"], specs["filename"], specs["fig_format"]
+                )
+                plt.savefig(file_path, dpi=specs["dpi"])
+                plt.close(fig)
+                return None
 
 if __name__ == "__main__":
     print("Hi")
