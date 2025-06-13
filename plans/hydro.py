@@ -1,11 +1,43 @@
 """
-PLANS - Planning Nature-based Solutions
+Description:
+    The ``hydro`` module provides objects useful for hydrology simulation.
 
-Module description:
-This module stores all hydrology functions of PLANS.
+License:
+    This software is released under the GNU General Public License v3.0 (GPL-3.0).
+    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
-Copyright (C) 2022 Iporã Brito Possantti
+Overview
+--------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis.
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
+
+>>> from plans import hydro
+
+Class aptent taciti sociosqu ad litora torquent per
+conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
+eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+
+Example
+--------
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis.
+
+.. code-block:: python
+
+    # todo [code example]
+    print("hello world!)
+
+
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl.
+
 """
+
 import os.path
 import shutil
 from pathlib import Path
@@ -21,12 +53,13 @@ from plans.analyst import Bivar
 
 
 class Model(DataSet):
+    # todo [optimize for DRY] move this class to root.py and make more abstract for all Models. Here can be a HydroModel(Model).
     """The core ``Model`` base object. Expected to hold one :class:`pandas.DataFrame` as simulation data and
-    a dictionary as parameters. This is a dummy object to be developed downstream.
+    a dictionary as parameters. This is a dummy class to be developed downstream.
 
     """
 
-    def __init__(self, name="MyHydroModel", alias="HM01"):
+    def __init__(self, name="MyModel", alias="HM01"):
         # ------------ call super ----------- #
         super().__init__(name=name, alias=alias)
 
@@ -34,7 +67,7 @@ class Model(DataSet):
         self.dtfield = "DateTime"
 
         # overwriters
-        self.object_alias = "HM"
+        self.object_alias = "M"
 
         # variables
         self._set_model_vars()
@@ -50,8 +83,6 @@ class Model(DataSet):
         self.filename_data_obs = "q_obs.csv"
         self.file_data_obs = None
         self.data_obs = None
-
-
 
         # evaluation parameters (model metrics)
         self.rmse = None
@@ -555,9 +586,10 @@ class Model(DataSet):
 
 
 class LinearStorage(Model):
-    """This is the Linear Storage Model. No inflow, only outflows. Simulates storage decay only."""
+    """Linear Storage Model. This is a Toy Model. No inflow, only outflows. Simulates storage decay only."""
 
     def __init__(self, name="MyLinearStorage", alias="LS01"):
+        # todo [docstring]
         # ------------ call super ----------- #
         super().__init__(name=name, alias=alias)
         # overwriters
@@ -566,6 +598,7 @@ class LinearStorage(Model):
         self.filename_data_obs = "S_obs.csv"
 
     def _set_model_vars(self):
+        # todo [docstring]
         self.vars = {
             "t": {
                 "units": "{k}",
@@ -650,7 +683,11 @@ class LinearStorage(Model):
         return None
 
     def load_params(self):
-        """Load parameter data
+        """Load parameter data from parameter file (stored in `self.file_params`)
+
+        .. warning::
+
+            This method overwrites model data.
 
         :return: None
         :rtype: None
@@ -688,7 +725,11 @@ class LinearStorage(Model):
         return None
 
     def load_data(self):
-        """Load simulation data from folder data. Expected to overwrite superior methods.
+        """Load simulation data from folder data (stored in `self.folder_data`). Overwrites superior methods.
+
+        .. warning::
+
+            This method overwrites model data.
 
         :return: None
         :rtype: None
@@ -770,6 +811,7 @@ class LinearStorage(Model):
         return None
 
     def get_evaldata(self):
+        # todo [docstring]
         # merge simulation and observation data based
         df = pd.merge(left=self.data, right=self.data_obs, on=self.dtfield, how="left")
 
@@ -808,7 +850,7 @@ class LinearStorage(Model):
         return None
 
     def export(self, folder, filename, views=False):
-        """Export object resources
+        """Export object resources.
 
         :param folder: path to folder
         :type folder: str
@@ -836,6 +878,7 @@ class LinearStorage(Model):
         # ... continues in downstream objects ... #
 
     def view(self, show=True):
+        # todo [docstring]
         specs = self.view_specs.copy()
         ts = TimeSeries(name=self.name, alias=self.alias)
         ts.set_data(input_df=self.data, input_dtfield=self.dtfield, input_varfield="S")
@@ -859,12 +902,13 @@ class LinearStorage(Model):
 
 
 class LSRR(LinearStorage):
-    """This is a Rainfall-Runoff model based on a Linear Storage.
-    Inflow (P) in a necessary data input.
+    # todo [major docstring improvement]
+    """Rainfall-Runoff model based on a Linear Storage. This is a Toy Model. Inflow rain (P) in a necessary data input.
 
     """
 
     def __init__(self, name="MyLSRR", alias="LSRR001"):
+        # todo [docstring]
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "LSRR"
@@ -902,6 +946,7 @@ class LSRR(LinearStorage):
         return None
 
     def _set_model_vars(self):
+        # todo [docstring]
         self.vars = {
             "t": {
                 "units": "{k}",
@@ -939,8 +984,7 @@ class LSRR(LinearStorage):
         return None
 
     def _set_view_specs(self):
-        """Set view specifications.
-        Expected to increment superior methods.
+        """Set view specifications. Expected to increment superior methods.
 
         :return: None
         :rtype: None
@@ -972,6 +1016,10 @@ class LSRR(LinearStorage):
 
     def load_data(self):
         """Load simulation data. Expected to overwrite superior methods.
+
+        .. warning::
+
+            This method overwrites model data.
 
         :return: None
         :rtype: None
@@ -1020,7 +1068,6 @@ class LSRR(LinearStorage):
         .. warning::
 
             This method overwrites model data.
-
 
         :return: None
         :rtype: None
@@ -1083,6 +1130,7 @@ class LSRR(LinearStorage):
         return None
 
     def view(self, show=True, return_fig=False):
+        # todo [docstring]
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
         # start plot
@@ -1179,10 +1227,10 @@ class LSRR(LinearStorage):
                 plt.savefig(file_path, dpi=specs["dpi"])
                 plt.close(fig)
 
-
 class LSRRE(LSRR):
-    """This is a Rainfall-Runoff model based on a Linear Storage.
-    Inflow (P) and External flow (E) are necessary data input.
+    # todo [major docstring improvement]
+    """Rainfall-Runoff-Evaporation model based on a Linear Storage. This is a Toy Model.
+    Inflow rain (P) and outflow potential evaporation (E_pot) are necessary data input.
 
     """
 
@@ -1340,11 +1388,10 @@ class LSRRE(LSRR):
                 plt.savefig(file_path, dpi=specs["dpi"])
                 plt.close(fig)
 
-
-
 class LSFAS(LSRRE):
-    """This is a Rainfall-Runoff model based on a Linear Storage with Fill-And-Spill (FAS) mechanism.
-    Inflow Precipitation (P) and Potential Evapotranspiration (E_pot) are necessary data input.
+    # todo [major docstring improvement]
+    """Rainfall-Runoff-Evaporation model based on Linear Storage and Fill-And-Spill (FAS) mechanism.
+    Inflow rain (P) and potential evapotranspiration (E_pot) are necessary data inputs.
 
     """
 
@@ -1357,7 +1404,7 @@ class LSFAS(LSRRE):
 
     def _set_model_vars(self):
         super()._set_model_vars()
-        # todo update TeX symbols
+        # todo [refactor] update TeX symbols
         self.vars.update(
             {
                 "SS": {
@@ -1581,11 +1628,17 @@ class LSFAS(LSRRE):
                 return None
 
 class Global(LSFAS):
-    """This is the global Rainfall-Runoff model of PLANS. Simulates the the catchment
-    as if is a global system. Precipitation (P) and Potential Evapotranspiration (E_pot) are necessary data input.
+    """This is a global Rainfall-Runoff model. Simulates the the catchment
+    as if is a global system. Expected inputs:
+
+    - `clim.csv` for Precipitation (P) and Potential Evapotranspiration (E_pot).
+    - `path_areas.csv` for deriving the geomorphic unit hydrograph.
+
+    # todo [major docstring] examples
 
     """
     def __init__(self, name="MyGlobal", alias="Glo001"):
+        # todo [docstring]
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "Global"
@@ -1841,11 +1894,11 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
-                "Q_bf": {
+                "Q_gf": {
                     "units": "mm/{dt_freq}",
-                    "description": "Baseflow from Groundwater/Phreatic zone",
+                    "description": "Groundwater flow (baseflow at hillslope)",
                     "kind": "flow",
-                    "TeX": "$Q_{bf}$",
+                    "TeX": "$Q_{gf}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1867,6 +1920,15 @@ class Global(LSFAS):
                     "TeX": "$Q$",
                     "canopy": False,
                     "surface": True,
+                    "soil": True,
+                },
+                "Q_bf": {
+                    "units": "mm/{dt_freq}",
+                    "description": "River baseflow (routed groundflow at river gauge)",
+                    "kind": "flow",
+                    "TeX": "$Q_{bf}$",
+                    "canopy": False,
+                    "surface": False,
                     "soil": True,
                 },
             }
@@ -2081,16 +2143,22 @@ class Global(LSFAS):
                 "gs_left": 0.1,
                 "gs_right": 0.9,
                 # new params
+                "color_P": "deepskyblue",
                 "color_P_s": "blue",
                 "color_P_sf": "green",
                 "color_C": "black",
                 "color_V": "steelblue",
                 "color_G": "navy",
                 "color_Q_if": "blue",
+                "color_Q_hf": "blue",
+                "color_Q_bf": "darkblue",
+                "color_Q": "blue",
                 "ymax_C": None,
                 "ymax_V": None,
                 "ymax_G": None,
                 "ymax_Q_if": None,
+                "ymax_Q": None,
+                "ymax_Q_hf": None,
             }
         )
         return None
@@ -2229,17 +2297,25 @@ class Global(LSFAS):
 
         # --- handle bad (unfeaseable) initial conditions
 
-        # --- G storage must not exceed G_cap
+        # --- G0 storage must not exceed G_cap
         G0 = self.data["G"].values[0]
         if G0 > self.params["G_cap"]["value"]:
             self.data["G"].values[0] = self.params["G_cap"]["value"]
 
-        # --- V storage must not exceed D (Gcap-G)
+        # --- V0 storage must not exceed D (Gcap-G)
         V0 = self.data["V"].values[0]
         G0 = self.data["G"].values[0]
         G_cap = self.params["G_cap"]["value"]
         if V0 > (G_cap - G0):
             self.data["V"].values[0] = G_cap - G0
+
+        # --- handle bad (unfeaseable) parameters
+
+        # --- D_et_cap must not exceed G_cap
+        G_cap = self.params["G_cap"]["value"]
+        D_et_a = self.params["D_et_a"]["value"]
+        if D_et_a > G_cap:
+            self.params["D_et_a"]["value"] = G_cap
 
         #
         # ---------------- simulation setup ----------------
@@ -2646,15 +2722,15 @@ class Global(LSFAS):
             Baseflow
             $$$
 
-            Q_{bf}(t) = \frac{1}{G_{k}} * (G(t) - G_{et, cap})
+            Q_{gf}(t) = \frac{1}{G_{k}} * (G(t) - G_{et, cap})
 
             $$$
             '''
-            GB["Q_bf"].values[t] = (GB["G"].values[t] - G_et_cap) * dt / G_k
+            GB["Q_gf"].values[t] = (GB["G"].values[t] - G_et_cap) * dt / G_k
 
             # [Testing feature]
             if self.shutdown_qbf:
-                GB["Q_bf"].values[t] = 0.0
+                GB["Q_gf"].values[t] = 0.0
 
             # [Phreatic Water Balance] ---- Apply water balance
             r'''
@@ -2666,7 +2742,7 @@ class Global(LSFAS):
 
             $$$
             '''
-            GB["G"].values[t + 1] = GB["G"].values[t] + GB["Q_vf"].values[t] - GB["Q_bf"].values[t]
+            GB["G"].values[t + 1] = GB["G"].values[t] + GB["Q_vf"].values[t] - GB["Q_gf"].values[t]
 
         #
         # [Streamflow] ---------- Solve flow routing to gauge station ---------- #
@@ -2682,13 +2758,21 @@ class Global(LSFAS):
 
         $$$
         '''
-        GB["Q_hf"] = GB["Q_bf"] + GB["Q_uf"] + GB["Q_of"]
+        GB["Q_hf"] = GB["Q_gf"] + GB["Q_uf"] + GB["Q_of"]
 
-        # [Streamflow] Compute Streamflow
-        GB["Q"] = self.propagate_inflow(
-            inflow=GB["Q_hf"].values,
+        # [Baseflow] Compute river base flow
+        GB["Q_bf"] = self.propagate_inflow(
+            inflow=GB["Q_gf"].values,
             unit_hydrograph=self.unit_hydrograph["q"].values,
         )
+
+        # [Fast Streamflow] Compute Streamflow
+        # todo [feature] evaluate to split into more components
+        Q_fast = self.propagate_inflow(
+            inflow=GB["Q_uf"].values + GB["Q_of"].values,
+            unit_hydrograph=self.unit_hydrograph["q"].values,
+        )
+        GB["Q"] = GB["Q_bf"].values + Q_fast
 
         #
         # [Total Flows] ---------- compute total flows ---------- #
@@ -2721,18 +2805,27 @@ class Global(LSFAS):
         :return: None
         :rtype: None
         """
-        # export model simulation data
+        # export model simulation data with views=False
         super().export(folder, filename=filename + "_sim", views=False)
 
-        # export views
+        # handle views
         if views:
             self.view_specs["folder"] = folder
             self.view_specs["filename"] = filename
+            # handle view mode
             self.view(show=False, mode=mode)
+
+        # handle to export paths and unit hydrograph
+        fpath = Path(folder + "/" + filename + "_path_areas" + self.file_csv_ext)
+        self.data_paths.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
 
         # ... continues in downstream objects ... #
 
     def view(self, show=True, return_fig=False, mode=None):
+        # todo [docstring]
+        # todo [optimize for DRY]
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
         # start plot
@@ -2753,10 +2846,111 @@ class Global(LSFAS):
         first_date = self.data[self.dtfield].iloc[0]
         last_date = self.data[self.dtfield].iloc[-1]
         ls_dates = [first_date, last_date]
-        n_flow_max = np.max([self.data["P"].max(), self.data["Q"].max()])
 
         if mode is None:
             mode = "canopy"
+
+        if mode == "river":
+            # ------------ P plot ------------
+            n_pmax = self.data["P"].max() / n_dt
+            ax = fig.add_subplot(gs[0, 0])
+            plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
+                     zorder=2, label=self.vars["P"]["TeX"])
+            s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
+            plt.title(s_title1, loc="left")
+            # normalize X axis
+            plt.xlim(ls_dates)
+            # normalize Y axis
+            ymax_p = specs["ymax_P"]
+            if ymax_p is None:
+                ymax_p = 1.2 * n_pmax
+            plt.ylim(0, ymax_p)
+            plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+            # ------------ E plot ------------
+            ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
+            e_sum = round(self.data["E"].sum(), 1)
+            s_symbol4 = self.vars["E_pot"]["TeX"]
+            ax2.plot(self.data[self.dtfield], self.data["E"] / n_dt, c="tab:red", zorder=1, label=self.vars["E"]["TeX"])
+            ax2.plot(self.data[self.dtfield], self.data["E_pot"] / n_dt, c="tab:gray", alpha=0.5, zorder=2,
+                     linestyle="--",
+                     label=s_symbol4)
+            e_max = self.data["E_pot"].max()
+            if e_max == 0:
+                ax2.set_ylim(-1, 1)
+            else:
+                ax2.set_ylim(0, 1.2 * e_max / n_dt)
+            ax2.set_title("{} ({} mm)".format(self.vars["E"]["TeX"], e_sum), loc="right")
+            ax2.set_ylabel("mm/d")
+
+            # ------------ Q plot ------------
+            n_qmax = np.max([self.data["Q_hf"].max() / n_dt, self.data_obs["Q_obs"].max()])
+            # n_qmax = self.data["Q"].max() / n_dt
+            q_sum = round(self.data["Q"].sum(), 1)
+            ax = fig.add_subplot(gs[1, 0])
+            s_symbol0 = self.vars["Q"]["TeX"]
+            s_symbol1 = self.vars["Q_bf"]["TeX"]
+            s_symbol2 = self.vars["Q_hf"]["TeX"]
+            # titles
+            plt.title("$Q$ ({} mm) ".format(q_sum), loc="left")
+            plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["Q_obs"].sum(), 1)), loc="right")
+            # plots
+            plt.plot(self.data[self.dtfield], self.data["Q"] / n_dt, color=specs["color_Q"], zorder=2, label=s_symbol0)
+            plt.plot(self.data[self.dtfield], self.data["Q_bf"] / n_dt, color=specs["color_Q_bf"], zorder=1, label=s_symbol1)
+            plt.plot(self.data[self.dtfield], self.data["Q_hf"] / n_dt, color="silver", zorder=0, label=s_symbol2)
+            plt.plot(
+                self.data_obs[self.dtfield],
+                self.data_obs["Q_obs"],
+                ".",
+                color=specs["color_Q_obs"],
+            )
+            plt.legend(loc="upper left")
+            # tic labels
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            ax.set_xticks(ls_dates)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            # normalize Y axis
+            ymax_q = specs["ymax_Q_hf"]
+            if ymax_q is None:
+                ymax_q = 1.1 * n_qmax
+            plt.ylim(0, 1.1 * ymax_q)
+            plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
+
+            # ------------ G plot ------------
+            n_smax = self.data["G"].max()
+            ax = fig.add_subplot(gs[2, 0])
+            plt.title("$G$ ($\mu$ = {} mm)".format(round(self.data["G"].mean(), 1)), loc="left")
+            plt.plot(self.data[self.dtfield], self.data["G"], color=specs["color_G"], label=self.vars["G"]["TeX"])
+            plt.hlines(
+                y=self.params["G_cap"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="orange",
+                linestyles="--",
+                label=self.params["G_cap"]["TeX"]
+            )
+            plt.hlines(
+                y=self.params["G_cap"]["value"] - self.params["D_et_a"]["value"],
+                xmin=self.data[self.dtfield].min(),
+                xmax=self.data[self.dtfield].max(),
+                colors="green",
+                linestyles="--",
+                label=self.params["D_et_a"]["TeX"]
+            )
+            plt.legend(loc="upper left", ncols=1)
+
+            # ticks
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            ax.set_xticks(ls_dates)
+            # normalize X axis
+            plt.xlim(ls_dates)
+            plt.ylabel("mm")
+            # normalize Y axis
+            ymax_s = specs["ymax_G"]
+            if ymax_s is None:
+                ymax_s = 1.1 * self.params["G_cap"]["value"]
+            plt.ylim(0, ymax_s)
 
         if mode == "canopy":
             # ------------ P plot ------------
@@ -2766,7 +2960,6 @@ class Global(LSFAS):
                      zorder=2, label=self.vars["P"]["TeX"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
             plt.title(s_title1, loc="left")
-            # ax.set_xticks(ls_dates)
             # normalize X axis
             plt.xlim(ls_dates)
             # normalize Y axis
@@ -2835,7 +3028,7 @@ class Global(LSFAS):
                      zorder=2, label=self.vars["P"]["TeX"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
             plt.title(s_title1, loc="left")
-            # ax.set_xticks(ls_dates)
+
             # normalize X axis
             plt.xlim(ls_dates)
             # normalize Y axis
@@ -2935,7 +3128,7 @@ class Global(LSFAS):
             )
             plt.legend(loc="upper left")
             # ticks
-            # ax.set_xticks(ls_dates)
+
             # normalize X axis
             plt.xlim(ls_dates)
             plt.ylabel("mm")
@@ -3057,7 +3250,6 @@ class Global(LSFAS):
                 ymax_s = 1.2 * n_smax
             plt.ylim(0, ymax_s)
 
-
         ax.tick_params(axis='x', labelsize=10, labelcolor='black')
 
         # handle return
@@ -3077,7 +3269,8 @@ class Global(LSFAS):
     @staticmethod
     def propagate_inflow(inflow, unit_hydrograph):
         """Flow routing model based on provided unit hydrograph.
-        Inflow and Unit Hydrograh are expected to be the same size.
+        Inflow and Unit Hydrograh arrays are expected to be the same size.
+        # todo [feature] improve so it can handle a smaller Unit Hydrograph (using slicing, etc)
 
         :param inflow: 1d numpy array of inflow
         :type inflow: :class:`numpy.ndarray`
@@ -3098,5 +3291,39 @@ class Global(LSFAS):
                 outflow[t:] = outflow[t:] + (inflow[t] * uh[:size - t])
         return outflow
 
+class Local(Global):
+    """This is a local Rainfall-Runoff model. Simulates the the catchment globally and locally
+    by applying downscaling methods. Expected inputs:
+
+    - `clim.csv` for Precipitation (P) and Potential Evapotranspiration (E_pot).
+    - `path_areas.csv` for deriving the geomorphic unit hydrograph.
+    - # todo [complete]
+
+    # todo [major docstring] examples
+
+    """
+
+    def __init__(self, name="MyLocal", alias="Loc001"):
+        # todo [docstring]
+        super().__init__(name=name, alias=alias)
+        # overwriters
+        self.object_alias = "Local"
+
+        # local input file
+        # todo [RESUME HERE]
+        print("Hello World!")
+        # lulc table
+        # soil table
+        # maps
+        # matrix
+        # todo [reentry note]
+        '''
+        Instructions: make a model that handles both G2G and HRU approach without.
+        The trick seems to have a area matrix that is the same...        
+        '''
+
+
+
+
 if __name__ == "__main__":
-    print("Hi")
+    print("Hello World!")

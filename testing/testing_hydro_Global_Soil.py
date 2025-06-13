@@ -57,19 +57,12 @@ if __name__ == "__main__":
     # run
     m.solve()
 
-    #m.view(mode="soil")
-
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,
         views=True,
         mode="soil"
     )
-
-    plt.plot(m.data[m.dtfield], m.data["Q_hf"]/m.params["dt"]["value"], "r")
-    plt.plot(m.data[m.dtfield], m.data["Q"]/m.params["dt"]["value"], "b")
-    plt.show()
-
 
 
 

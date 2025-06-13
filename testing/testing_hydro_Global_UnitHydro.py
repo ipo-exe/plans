@@ -18,7 +18,7 @@ if __name__ == "__main__":
     m.boot(bootfile="./data/bootfile_Global.csv")
     m.load()
 
-    m.params["K_Q"]["value"] = 500
+    #m.params["K_Q"]["value"] = 500
 
     # set up simulation data
     m.setup()
@@ -27,8 +27,6 @@ if __name__ == "__main__":
 
     m.solve()
 
-    plt.plot(m.data[m.dtfield], m.data["Q_hf"], "r")
-    plt.plot(m.data[m.dtfield], m.data["Q"], "b")
-    plt.show()
+    m.view(mode="river")
 
 

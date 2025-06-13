@@ -1223,16 +1223,16 @@ class Univar(DataSet):
         return _df
 
 
-# todo urgent >>> make it an instance of Dataset()
+# todo [upgrade] make it a child of Dataset()
 class Bivar:
+    # todo [docstring]
     """The Bivariate analyst object
 
-    # todo >>> make major docstring
+
 
     # [major docstring]
 
     """
-
     def __init__(self, df_data, x_name="x", y_name="y", name="myvars"):
 
         # set input attributes
@@ -1877,8 +1877,9 @@ class Bivar:
             np.sum(np.power(pred - obs, 2)) / np.sum(np.power(obs - np.mean(obs), 2))
         )
 
-
+# todo [upgrade] make it a child of some MbaE class
 class Bayes:
+    # todo [docstring] improve major docstring
     """
     The Bayes Theorem Analyst Object
     """
