@@ -161,6 +161,21 @@ class Univar(DataSet):
 
         return None
 
+    def set_array(self, array):
+        """Set array to data
+
+        :param array: Numpy array
+        :type array: :class:`numpy.ndarray`
+        :return: None
+        :rtype: None
+        """
+        self.data = pd.DataFrame(
+            {
+                self.varfield: array
+            }
+        )
+        return None
+
     def update(self):
         # ------------ call super ----------- #
         super().update()
@@ -1022,6 +1037,51 @@ class Univar(DataSet):
         return (ranks - 0.44) / (len(ranks) + 0.12)
 
     @staticmethod
+    def sample_gamma(size, shape=3, scale=1, shape_mode=None, n_min=None, n_max=None):
+        """Sample Gamma distribution
+
+        :param size: Sample size
+        :type size: int
+        :param shape: Shape parameter
+        :type shape: float
+        :param scale: Scale parameter
+        :type scale: float
+        :param shape_mode: Shape mode (overwrites shape value). See dict for options
+        :type shape_mode: str or None
+        :param n_min: Normalization lower value
+        :type n_min: float or None
+        :param n_max: Normalization upper value
+        :type n_max: float or None
+        :return: Sampled array
+        :rtype: :class:`numpy.ndarray`
+        """
+        from plans.geo import normalize
+        # set gamma shapes
+        dc_gamma_shapes = {
+            "decay": 1,
+            "asymmetrical_extra": 2,
+            "asymmetrical": 3,
+            "symmetrical": 20,
+        }
+        # handle shapemode
+        if shape_mode is not None:
+            shape = dc_gamma_shapes[shape_mode]
+
+        # sample
+        sample = np.random.gamma(shape=shape, scale=scale, size=size)
+
+        # handle normalization
+        if n_min is None:
+            n_min = np.min(sample)
+        if n_max is None:
+            n_max = np.max(sample)
+
+        # normalize
+        sample_norm = normalize(array=sample, min_value=n_min, max_value=n_max)
+
+        return sample_norm
+
+    @staticmethod
     def nbins_fd(data):
         """This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into
         account the interquartile range (IQR) of the sample, in addition to its range.
@@ -1088,6 +1148,10 @@ class Univar(DataSet):
                 pass
         return bins
 
+    def get_histogram(self, bins=None, rule=None):
+
+        df = Univar.histogram(data=self.data[self.varfield], bins=bins, rule=rule)
+
     @staticmethod
     def histogram(data, bins=100, rule=None):
         """Compute the histogram of the sample
@@ -1102,10 +1166,11 @@ class Univar(DataSet):
         :rtype: :class:`pandas.DataFrame`
         """
 
-        if rule is None:
-            pass
-        else:
-            bins = Univar.nbins_by_rule(rule=rule)
+        if bins is None:
+            if rule is None:
+                pass
+            else:
+                bins = Univar.nbins_by_rule(rule=rule)
         # compute histogram
         vct_hist, vct_bins = np.histogram(data, bins=bins)
         # get dataframe

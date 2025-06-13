@@ -28,11 +28,12 @@ if __name__ == "__main__":
     m.shutdown_epot = False
     m.shutdown_qif = False
     m.shutdown_qbf = False
-    m.shutdown_dt = False
+
     # set up simulation data
     m.setup()
+
     # set some viewspecs
-    m.view_specs["ymax_G"] = 200
+    m.view_specs["ymax_G"] = None
 
     # Forest
     m.name = "Global-Soil-forest"
@@ -51,26 +52,24 @@ if __name__ == "__main__":
     m.params["S_k"]["value"] = 2.5  # days, residence time
 
     # soil params
-    m.params["K"]["value"] = 20
+    m.params["K_V"]["value"] = 20
+    m.params["D_et_a"]["value"] = 60
     # run
     m.solve()
-    print_soil(m)
 
-    '''
-    plt.plot(m.data[m.dtfield], m.data["Q_vf"])
-    plt.show()
-    '''
-    m.view(mode="canopy")
-    m.view(mode="surface")
-    m.view(mode="soil")
-    '''
+    #m.view(mode="soil")
+
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,
         views=True,
         mode="soil"
     )
-    '''
+
+    plt.plot(m.data[m.dtfield], m.data["Q_hf"]/m.params["dt"]["value"], "r")
+    plt.plot(m.data[m.dtfield], m.data["Q"]/m.params["dt"]["value"], "b")
+    plt.show()
+
 
 
 

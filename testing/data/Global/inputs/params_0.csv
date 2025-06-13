@@ -1,5 +1,5 @@
 Parameter;Value;Min;Max;Units
-dt;10;5;30;min
+dt;20;5;30;min
 C0;0;0;500;mm
 S0;10;0;1000;mm
 V0;0;0;1000;mm
@@ -12,8 +12,9 @@ S_of_c;50;0;1000;mm
 S_uf_a;4;0;1000;mm
 S_uf_c;1;0;1000;mm
 S_uf_cap;5;0;1000;mm
-K;10;0;500;mm/D
+K_V;10;0;500;mm/D
 G_k;10;0.01;365;D
 G_cap;80;0;10000;mm
 D_et_a;20;0;10000;mm
 G_et_cap;10;0;10000;mm
+K_Q;1000;1;50000;m/D

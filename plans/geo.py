@@ -76,7 +76,7 @@ def find_array_bbox(image):
     return {"i_min": i_min, "i_max": i_max, "j_min": j_min, "j_max": j_max}
 
 
-# VECTOR FUNCTIONS
+# GEOMETRY FUNCTIONS
 def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     """Returns a WKT box from the given extents (xmin, ymin, xmax, ymax).
 
@@ -94,11 +94,11 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     return f"POLYGON(({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
 
 
-# RASTER FUNCTIONS
+# RASTER/MATRIX FUNCTIONS
 
 
 def convert_values(array, old_values, new_values):
-    """Convert values
+    """Convert values.
 
     :param array: 2d numpy array to convert values
     :type array: :class:`numpy.ndarray`
@@ -116,14 +116,40 @@ def convert_values(array, old_values, new_values):
         new = new + (_new * (array == _old))
     return new
 
+def normalize(array, min_value, max_value):
+    """Normalize array between min and max values
+
+    :param array: Input array or float
+    :type array: float or :class:`numpy.ndarray`
+    :param min_value: minimum vale
+    :type min_value: float
+    :param max_value: maximum value
+    :type max_value: float
+    :return: Output array or float
+    :rtype: :class:`numpy.ndarray`
+    """
+    # Find the minimum and maximum values in the original array
+    old_min = np.min(array)
+    old_max = np.max(array)
+
+    # Calculate the range of the original array
+    old_range = old_max - old_min
+    # Calculate the range of the desired new scale
+    new_range = max_value - min_value
+
+    # Apply the normalization formula using NumPy's broadcasting capabilities
+    # X_normalized = min_value + ((X - old_min) * new_range) / old_range
+    normalized = min_value + ((array - old_min) * new_range) / old_range
+
+    return normalized
 
 def reclassify(array, upvalues, classes):
     """Reclassify array based on list of upper values and list of classes values
 
-    :param array: 2d numpy array to reclassify
+    :param array: numpy array to reclassify
     :param upvalues: 1d numpy array of upper values
     :param classes: 1d array of classes values
-    :return: 2d numpy array reclassified
+    :return: numpy array reclassified
     """
     new = array * 0.0
     for i in range(len(upvalues)):
