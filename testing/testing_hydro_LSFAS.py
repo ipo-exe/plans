@@ -1,7 +1,7 @@
 import os
 import pprint
 from plans.hydro import LSFAS
-
+from testing.testing_hydro_utils import copy_inputs, delete_inputs
 
 # ensure here is the current dir for relative paths
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,6 +11,7 @@ if __name__ == "__main__":
     # instantiate
     m = LSFAS(name="LSFAS", alias="LSFAS000")
     m.boot(bootfile="./data/bootfile_LSFAS.csv")
+    copy_inputs(dst_folder=m.folder_data)
     m.load()
     # setup
     m.setup()
@@ -65,4 +66,6 @@ if __name__ == "__main__":
         views=True
     )
 
+    delete_inputs(dst_folder=m.folder_data)
+    print("\n>>> OK. PASSING.\n")
 

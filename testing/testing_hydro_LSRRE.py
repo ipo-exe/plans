@@ -1,5 +1,6 @@
 import os
 from plans.hydro import LSRRE
+from testing.testing_hydro_utils import copy_inputs, delete_inputs
 
 # ensure here is the current dir for relative paths
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -10,6 +11,7 @@ if __name__ == "__main__":
     print("loading")
     m = LSRRE(name="LSRRE", alias="LSRRE01")
     m.boot(bootfile="./data/bootfile_LSRRE.csv")
+    copy_inputs(dst_folder=m.folder_data)
     m.load()
     m.setup()
     m.view_specs["ymax_Q"] = 15
@@ -36,5 +38,6 @@ if __name__ == "__main__":
         filename=m.name,
         views=True
     )
-
+    delete_inputs(dst_folder=m.folder_data)
+    print("\n>>> OK. PASSING.\n")
 

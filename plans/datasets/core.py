@@ -3846,8 +3846,9 @@ class Raster:
             return None
         else:
             from plans.analyst import Univar
-
-            return Univar(data=self.get_grid_data()).assess_basic_stats()
+            uni = Univar()
+            uni.set_array(array=self.get_grid_data())
+            return uni.assess_basic_stats()
 
     def get_aoi(self, by_value_lo, by_value_hi):
         """Get the AOI map from an interval of values (values are expected to exist in the raster).
@@ -3918,7 +3919,8 @@ class Raster:
         from plans.analyst import Univar
 
         # get univar base_object
-        uni = Univar(data=self.get_grid_data())
+        uni = Univar()
+        uni.set_array(array=self.get_grid_data())
 
         specs = self.view_specs.copy()
 

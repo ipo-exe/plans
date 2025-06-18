@@ -232,7 +232,7 @@ class Model(DataSet):
         return None
 
     def get_params(self):
-        # todo [Make Docstring]
+        # todo [docstring]
         ls_param = [p for p in self.params]
         ls_values = [self.params[p]["value"] for p in self.params]
         ls_units = [self.params[p]["units"] for p in self.params]
@@ -2856,6 +2856,8 @@ class Global(LSFAS):
             ax = fig.add_subplot(gs[0, 0])
             plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
                      zorder=2, label=self.vars["P"]["TeX"])
+            plt.plot(self.data[self.dtfield], self.data["Q_if"] / n_dt, color=specs["color_Q_if"],
+                     zorder=2, label=self.vars["Q_if"]["TeX"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
             plt.title(s_title1, loc="left")
             # normalize X axis
