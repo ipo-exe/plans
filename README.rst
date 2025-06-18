@@ -33,7 +33,7 @@ It is uses simulation models for mapping *hydrological processes* such as `surfa
 Example of model outputs:
 
 .. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example.gif
-    :width: 200 px
+    :width: 600 px
     :align: center
     :alt: Example of use
 
