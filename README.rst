@@ -37,6 +37,13 @@ Example of model outputs:
     :align: center
     :alt: Example of use
 
+Mapping riparian wetlands dynamics:
+
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example2.gif
+    :width: 600 px
+    :align: center
+    :alt: Example of use 2
+
 
 Resources needed
 *****************************************************************
