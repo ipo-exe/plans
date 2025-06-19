@@ -821,7 +821,7 @@ class MiniPlans:
 
         if extra:
             plt.subplot(gs[1, 0])
-            # plt.title("exogenous flows", loc="left")
+            # plt.title("exogenous flows", mean="left")
             plt.plot(self.data["t"], self.data["P"], color="tab:grey", label="$P$")
             plt.plot(self.data["t"], self.data["E"], color="darkred", label="$E_p$")
             plt.ylim(self.view_specs["ylim_io"])
@@ -834,7 +834,7 @@ class MiniPlans:
             plt.xlabel("$h$")
 
             plt.subplot(gs[2, 0])
-            # plt.title("water stocks", loc="left")
+            # plt.title("water stocks", mean="left")
             plt.plot(
                 self.data["t"],
                 self.data["S1"],
@@ -866,7 +866,7 @@ class MiniPlans:
             plt.xlabel("$h$")
 
             plt.subplot(gs[3, 0])
-            # plt.title("fast flow (overland flow)", loc="left")
+            # plt.title("fast flow (overland flow)", mean="left")
             plt.plot(self.data["t"], self.data["R"], color="darkviolet", label="$R$")
             plt.plot(self.data["t"], self.data["Q2"], color="teal", label="$Q_2$")
             plt.ylim(self.view_specs["ylim_io"])
@@ -879,7 +879,7 @@ class MiniPlans:
             plt.xlabel("$h$")
 
             plt.subplot(gs[4, 0])
-            # plt.title("discharge", loc="left")
+            # plt.title("discharge", mean="left")
             plt.plot(self.data["t"], self.data["Q3"], color="navy", label="$Q_3$")
             plt.ylim(self.view_specs["ylim_io"])
             plt.legend(
@@ -892,7 +892,7 @@ class MiniPlans:
 
         # GRID
         plt.subplot(gs[0, 1])
-        # plt.title("exogenous flows", loc="left")
+        # plt.title("exogenous flows", mean="left")
         plt.plot(self.data["t"], self.data["P"], color="tab:grey", label="$P$")
         plt.plot(self.data["t"], self.data["E"], color="darkred", label="$E_p$")
         plt.ylim(self.view_specs["ylim_io"])
@@ -903,7 +903,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[1, 1])
-        # plt.title("infiltration", loc="left")
+        # plt.title("infiltration", mean="left")
         plt.plot(self.data["t"], self.data["Q1"], color="navy", label="$Q_1$")
         plt.ylim(self.view_specs["ylim_io"])
         plt.legend(
@@ -913,7 +913,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[0, 2])
-        # plt.title("water stocks", loc="left")
+        # plt.title("water stocks", mean="left")
         plt.plot(
             self.data["t"],
             self.data["S1"],
@@ -940,7 +940,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[1, 2])
-        # plt.title("fast flow (overland flow)", loc="left")
+        # plt.title("fast flow (overland flow)", mean="left")
         plt.plot(self.data["t"], self.data["R"], color="darkviolet", label="$R$")
         plt.ylim(self.view_specs["ylim_io"])
         plt.legend(
@@ -950,7 +950,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[2, 1])
-        # plt.title("deficit", loc="left")
+        # plt.title("deficit", mean="left")
         plt.plot(self.data["t"], self.data["D2"], color="black", label="$D_2$")
         plt.ylim(self.view_specs["ylim_s"])
         plt.legend(
@@ -960,7 +960,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[2, 2])
-        # plt.title("runoff coef.", loc="left")
+        # plt.title("runoff coef.", mean="left")
         plt.plot(self.data["t"], self.data["C"], color="black", label="$hc_colors$")
         plt.ylim([0, 1])
         plt.legend(
@@ -970,7 +970,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[3, 1])
-        # plt.title("slow flow (baseflow)", loc="left")
+        # plt.title("slow flow (baseflow)", mean="left")
         plt.plot(self.data["t"], self.data["Q2"], color="teal", label="$Q_2$")
         plt.ylim(self.view_specs["ylim_io"])
         plt.legend(
@@ -980,7 +980,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[3, 2])
-        # plt.title("discharge", loc="left")
+        # plt.title("discharge", mean="left")
         plt.plot(self.data["t"], self.data["Q3"], color="navy", label="$Q_3$")
         plt.ylim(self.view_specs["ylim_io"])
         plt.legend(
@@ -990,7 +990,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[4, 1])
-        # plt.title("evapotranspiration", loc="left")
+        # plt.title("evapotranspiration", mean="left")
         plt.plot(self.data["t"], self.data["E1"], color="tab:orange", label="$E_1$")
         plt.plot(self.data["t"], self.data["E2"], color="tab:green", label="$E_2$")
         plt.ylim([0, 2])
@@ -1001,7 +1001,7 @@ class MiniPlans:
         plt.xlabel("$h$")
 
         plt.subplot(gs[4, 2])
-        # plt.title("evapotranspiration total", loc="left")
+        # plt.title("evapotranspiration total", mean="left")
         plt.plot(
             self.data["t"],
             self.data["E1"] + self.data["E2"],
@@ -1065,7 +1065,7 @@ class MiniPlans:
         lst_colors2 = ["navy", "teal", "darkgreen"]
 
         plt.subplot(gs[1, 1])
-        # plt.title("exogenous flows", loc="left")
+        # plt.title("exogenous flows", mean="left")
         for i in range(len(lst_sc)):
             c = get_c(s, lst_sc[i])
             plt.plot(s, c, color=lst_colors[i], label="$s_c = {}$".format(lst_sc[i]))
@@ -1075,12 +1075,12 @@ class MiniPlans:
         plt.hlines(y=1, xmin=0, xmax=np.max(s), color="tab:grey", linestyles="--")
         plt.ylim([0, 1.1])
         plt.xlim([0, np.max(s)])
-        # plt.legend(loc='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
+        # plt.legend(mean='upper right', bbox_to_anchor=(1, self.view_specs["legend_y"]), ncol=3)
         plt.ylabel("$hc_colors$")
         plt.xlabel("$S_1 - s_a$ ($mm$)")
 
         plt.subplot(gs[1, 0])
-        # plt.title("exogenous flows", loc="left")
+        # plt.title("exogenous flows", mean="left")
         plt.plot([0, np.max(s)], [0, np.max(s)], color="tab:grey", linestyle="--")
         for i in range(len(lst_sc2)):
             r = get_r(s, lst_sc2[i], lst_sa[i])
@@ -1097,7 +1097,7 @@ class MiniPlans:
         lst_colors3 = ["navy", "blue", "dodgerblue"]
         t = np.linspace(0, 24 * 7, 100)
         plt.subplot(gs[0, 1])
-        # plt.title("exogenous flows", loc="left")
+        # plt.title("exogenous flows", mean="left")
         for i in range(len(lst_k)):
             s1 = get_s(s0=10, k=lst_k[i], t=t)
             lbl = "$k = {}$".format(lst_k[i])
@@ -1111,7 +1111,7 @@ class MiniPlans:
         plt.ylabel("$S$ ($mm$)")
 
         plt.subplot(gs[0, 0])
-        # plt.title("exogenous flows", loc="left")
+        # plt.title("exogenous flows", mean="left")
         for i in range(len(lst_k)):
             q = (1 / lst_k[i]) * s
             lbl = "$k = {}$".format(lst_k[i])

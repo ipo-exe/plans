@@ -96,17 +96,18 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
 
 # RASTER/MATRIX FUNCTIONS
 
+# --- basic processing of array values
 
 def convert_values(array, old_values, new_values):
     """Convert values.
 
-    :param array: 2d numpy array to convert values
+    :param array: Numpy array to convert values
     :type array: :class:`numpy.ndarray`
     :param old_values: iterable of old values
     :type old_values: :class:`numpy.ndarray`
     :param new_values: iterable of new values
     :type new_values: :class:`numpy.ndarray`
-    :return: converted map
+    :return: converted array
     :rtype: :class:`numpy.ndarray`
     """
     new = array * 0.0
@@ -116,7 +117,58 @@ def convert_values(array, old_values, new_values):
         new = new + (_new * (array == _old))
     return new
 
-def normalize(array, min_value, max_value):
+def prune_values(array, min_value=None, max_value=None):
+    """Inclusive prune values in array
+
+    :param array: Numpy array to prune values
+    :type array: :class:`numpy.ndarray`
+    :param min_value: minimum values to prune (inclusive)
+    :type min_value: float
+    :param max_value: maximum values to prude (inclusive)
+    :type max_value: float
+    :return: pruned array
+    :rtype: :class:`numpy.ndarray`
+    """
+    if min_value is not None:
+        array = np.where(array < min_value, min_value, array)
+    if max_value is not None:
+        array = np.where(array > max_value, max_value, array)
+    return array
+
+def downscale_value(mean, scale, array_covar, mirror=False):
+    """Downscale a scalar mean to a vector. Performs a disaggregation
+
+    :param mean: mean value to downscale (expected to be positive)
+    :type mean: float
+    :param scale: scale factor (expected to be positive)
+    :type scale: float
+    :param array_covar: Numpy array of a covariate
+    :type array_covar: :class:`numpy.ndarray`
+    :param mirror: flag to inverse the downscaling signal (mirror distribution)
+    :type mirror: bool
+    :return: downscaled array
+    :rtype: :class:`numpy.ndarray`
+    """
+    downler = downscaling_mask(scale=scale, array=array_covar)
+    signal = 1
+    if mirror:
+        signal = -1
+    return mean - (signal * downler)
+
+def downscaling_mask(array_covar, scale):
+    """Compute a downscaling mask by using a covariate array
+
+    :param array_covar: Numpy array of a covariate
+    :type array_covar: :class:`numpy.ndarray`
+    :param scale: scale factor (expected to be positive)
+    :type scale: float
+    :return: downscaling mask array
+    :rtype: :class:`numpy.ndarray`
+    """
+    downscaler = scale * (np.mean(array) - array_covar)
+    return downscaler
+
+def normalize_values(array, min_value, max_value):
     """Normalize array between min and max values
 
     :param array: Input array or float
@@ -143,7 +195,7 @@ def normalize(array, min_value, max_value):
 
     return normalized
 
-def reclassify(array, upvalues, classes):
+def reclassify_values(array, upvalues, classes):
     """Reclassify array based on list of upper values and list of classes values
 
     :param array: numpy array to reclassify
@@ -161,35 +213,19 @@ def reclassify(array, upvalues, classes):
             )
     return new
 
+# --- basic operation on array values
 
 def slope(dem, cellsize, degree=True):
     """Calculate slope using gradient-based algorithms on a 2D numpy array.
 
-    :param dem: :class:`numpy.ndarray`
-        2D numpy array representing the Digital Elevation Model (``DEM``).
+    :param dem: 2D numpy array representing the Digital Elevation Model (``DEM``).
     :type dem: :class:`numpy.ndarray`
-
-    :param cellsize: float
-        The size of a grid cell in the ``DEM`` (both in x and y directions).
+    :param cellsize: The size of a grid cell in the ``DEM`` (both in x and y directions).
     :type cellsize: float
-
-    :param degree: bool, optional
-        If True (default), the output slope values are in degrees. If False, output units are in radians.
+    :param degree: If True (default), the output slope values are in degrees. If False, output units are in radians.
     :type degree: bool
-
-    :return: :class:`numpy.ndarray`
-        2D numpy array representing the slope values.
+    :return: numpy array representing the slope values.
     :rtype: :class:`numpy.ndarray`
-
-    **Notes:**
-
-    - The slope is calculated based on the gradient using the built-in functions of numpy.
-
-    **Examples:**
-
-    >>> dem_array = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    >>> slope_result = slope(dem=dem_array, cellsize=1.0, degree=True)
-
     """
     grad = np.gradient(dem)
     gradx = grad[0] / cellsize
@@ -204,12 +240,9 @@ def slope(dem, cellsize, degree=True):
 def euclidean_distance(grd_input):
     """Calculate the Euclidean distance from pixels with value 1.
 
-    :param grd_input: :class:`numpy.ndarray`
-        Pseudo-boolean 2D numpy array where pixels with value 1 represent the foreground.
+    :param grd_input: Pseudo-boolean 2D numpy array where pixels with value 1 represent the foreground.
     :type grd_input: :class:`numpy.ndarray`
-
-    :return: :class:`numpy.ndarray`
-        2D numpy array representing the Euclidean distance.
+    :return: 2D numpy array representing the Euclidean distance.
     :rtype: :class:`numpy.ndarray`
 
     **Notes:**
@@ -217,14 +250,8 @@ def euclidean_distance(grd_input):
     - The function uses the `distance_transform_edt` from `scipy.ndimage` to compute the Euclidean distance.
     - The input array is treated as a binary mask, and the distance is calculated from foreground pixels (value 1).
 
-    **Examples:**
-
-    >>> binary_mask = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
-    >>> distance_result = euclidean_distance(grd_input=binary_mask)
-
     """
     from scipy.ndimage import distance_transform_edt
-
     grd_input = 1 * (grd_input == 0)  # reverse foreground values
     # Calculate the distance map
     return distance_transform_edt(grd_input)
@@ -233,20 +260,16 @@ def euclidean_distance(grd_input):
 def twi(slope, flowacc, cellsize):
     """Calculate the Topographic Wetness Index (``TWI``).
 
-    :param slope: :class:`numpy.ndarray`
-        2D numpy array representing the slope.
+    :param slope: 2D numpy array representing the slope.
     :type slope: :class:`numpy.ndarray`
 
-    :param flowacc: :class:`numpy.ndarray`
-        2D numpy array representing the flow accumulation.
+    :param flowacc: 2D numpy array representing the flow accumulation.
     :type flowacc: :class:`numpy.ndarray`
 
-    :param cellsize: float
-        The size of a grid cell (delta x = delta y).
+    :param cellsize: The size of a grid cell (delta x = delta y).
     :type cellsize: float
 
-    :return: :class:`numpy.ndarray`
-        2D numpy array representing the Topographic Wetness Index.
+    :return: 2D numpy array representing the Topographic Wetness Index.
     :rtype: :class:`numpy.ndarray`
 
     **Notes:**
@@ -254,13 +277,6 @@ def twi(slope, flowacc, cellsize):
     - The function uses the formula: TWI = ln( A / hc_colors tan(S)), where A is flow accumulation, hc_colors is the cell resolution and S is slope in radians.
     - The input arrays `slope` and `flowacc` should have the same dimensions.
     - The formula includes a small value (0.01) to prevent issues with tangent calculations for non-NaN values.
-
-    **Examples:**
-
-    >>> slope_data = np.array([[10, 15, 20], [8, 12, 18], [5, 10, 15]])
-    >>> flowacc_data = np.array([[100, 150, 200], [80, 120, 180], [50, 100, 150]])
-    >>> cell_size = 10.0
-    >>> twi_result = twi(slope=slope_data, flowacc=flowacc_data, cellsize=cell_size)
 
     """
     # +0.01 is a hack for non-nan values
@@ -338,7 +354,7 @@ def shalstab_wetness(
     # force non-negative
     q_t = q_t * (q_t > 0) + 0.0001
 
-    shalstab_classes = reclassify(
+    shalstab_classes = reclassify_values(
         array=np.log10(q_t),
         upvalues=np.array([-3.1, -2.8, -2.5, -2.2, 10]),
         classes=np.array([6, 5, 4, 3, 2]),
@@ -369,12 +385,15 @@ def usle_l(slope, cellsize):
     x is the plot lenght taken as 1.4142 * cellsize  (diagonal length of cell)
 
     :param slope: slope in degrees of terrain 2d array
+    :type slope: :class:`numpy.ndarray`
     :param cellsize: cell size in meters
+    :type cellsize: float
     :return: Wischmeier & Smith (1978) L factor 2d array
+    :rtype: :class:`numpy.ndarray`
     """
     slope_rad = np.pi * 2 * slope / 360
     lcl_grad = np.sin(slope_rad)
-    m = reclassify(
+    m = reclassify_values(
         lcl_grad,
         upvalues=(0.01, 0.03, 0.05, np.max(lcl_grad)),
         classes=(0.2, 0.3, 0.4, 0.5),
@@ -389,6 +408,7 @@ def usle_s(slope):
 
     :param slope: slope in degrees of terrain 2d array
     :return:
+    todo [complete] include types
     """
     slope_rad = np.pi * 2 * slope / 360
     lcl_grad = np.sin(slope_rad)
@@ -408,6 +428,7 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     :param p: 2d numpy array or float of USLE/RUSLE P factor
     :param cellsize: float of grid cell size in meters
     :return: 2d numpy array of Annual Soil Loss in ton / year
+    todo [complete] include types
     """
     return (q / prec) * r * k * l * s * c * p * (cellsize * cellsize / (100 * 100))
 
@@ -415,20 +436,13 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
 def rivers_wedge(grd_rivers, w=3, h=3):
     """Generate a wedge-like trench along the river lines.
 
-    :param grd_rivers: :class:`numpy.ndarray`
-        Pseudo-boolean grid indicating the presence of rivers.
+    :param grd_rivers: Pseudo-boolean grid indicating the presence of rivers.
     :type grd_rivers: :class:`numpy.ndarray`
-
-    :param w: int, optional
-        Width (single-sided) in pixels. Default is 3.
+    :param w: Width (single-sided) in pixels. Default is 3.
     :type w: int
-
-    :param h: float, optional
-        Height in meters. Default is 3.
+    :param h: Height in meters. Default is 3.
     :type h: float
-
-    :return: :class:`numpy.ndarray`
-        Grid of the wedge (positive).
+    :return: Grid of the wedge (positive).
     :rtype: :class:`numpy.ndarray`
 
     **Notes:**
@@ -436,11 +450,6 @@ def rivers_wedge(grd_rivers, w=3, h=3):
     - The function generates a wedge-like trench along the river lines based on distance transform.
     - The input array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
     - The width `w` controls the width of the trench, and `h` controls its height.
-
-    **Examples:**
-
-    >>> rivers_grid = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
-    >>> wedge_result = rivers_wedge(grd_rivers=rivers_grid, w=3, h=5)
 
     """
     grd_dist = euclidean_distance(grd_input=grd_rivers)
@@ -450,23 +459,15 @@ def rivers_wedge(grd_rivers, w=3, h=3):
 def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     """Burn a ``DEM`` map with river lines.
 
-    :param grd_dem: :class:`numpy.ndarray`
-        DEM map.
+    :param grd_dem: ``DEM`` map.
     :type grd_dem: :class:`numpy.ndarray`
-
-    :param grd_rivers: :class:`numpy.ndarray`
-        River map (pseudo-boolean).
-
-    :param w: int, optional
-        Width parameter in pixels. Default is 3.
+    :param grd_rivers: River map (pseudo-boolean).
+    :type grd_rivers: :class:`numpy.ndarray`
+    :param w: Width parameter in pixels. Default is 3.
     :type w: int
-
-    :param h: float, optional
-        Height parameter. Default is 10.
+    :param h: Height parameter. Default is 10.
     :type h: float
-
-    :return: :class:`numpy.ndarray`
-        Burned ``DEM``.
+    :return: Burned ``DEM``.
     :rtype: :class:`numpy.ndarray`
 
     **Notes:**
@@ -474,12 +475,6 @@ def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     - The function burns a ``DEM`` map with river lines, creating a wedge-like trench along the rivers.
     - The input array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
     - The width `w` controls the width of the trench, and `h` controls its height.
-
-    **Examples:**
-
-    >>> dem = np.array([[10, 20, 30], [15, 25, 35], [5, 15, 25]])
-    >>> rivers_grid = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
-    >>> burned_dem = burn_dem(grd_dem=dem, grd_rivers=rivers_grid, w=3, h=10)
 
     """
     grd_wedge = rivers_wedge(grd_rivers, w=w, h=h)
@@ -489,7 +484,7 @@ def burn_dem(grd_dem, grd_rivers, w=3, h=10):
 def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
     """Compute i and j downstream cell coordinates based on cell flow direction.
 
-    D8 - Direction convention:
+    d8 - Direction convention:
 
     .. code-block:: text
 
@@ -497,7 +492,7 @@ def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
         5   0   1
         6   7   8
 
-    LDD - Direction convention:
+    ldd - Direction convention:
 
     .. code-block:: text
 
@@ -505,20 +500,16 @@ def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
         4   5   6
         1   2   3
 
-    :param n_dir: int
-        Flow direction code.
-
-    :param i: int
-        i (row) array index.
-
-    :param j: int
-        j (column) array index.
-
-    :param s_convention: str, optional
-        String of flow direction convention. Options: 'ldd' and 'd8'. Default is 'ldd'.
-
-    :return: dict
-        Dictionary of downstream i, j, and distance factor.
+    :param n_dir: Flow direction code.
+    :type n_dir: int
+    :param i: i (row) array index.
+    :type i: int
+    :param j: j (column) array index.
+    :type j: int
+    :param s_convention: String of flow direction convention. Options: 'ldd' and 'd8'. Default is 'ldd'.
+    :type s_convention: str
+    :return: Dictionary of downstream i, j, and distance factor.
+    :rtype: dict
 
     **Notes:**
 
@@ -561,7 +552,7 @@ def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
         },
     }
     # set dir dict
-    dct_dir = dct_dirs[s_convention]
+    dct_dir = dct_dirs[s_convention.lower()]
     di = dct_dir[str(n_dir)]["di"]
     dj = dct_dir[str(n_dir)]["dj"]
     dist = np.sqrt(np.power(di, 2) + np.power(dj, 2))
@@ -574,15 +565,10 @@ def outlet_distance(grd_ldd, n_res=30, s_convention="ldd"):
 
     :param grd_ldd: 2d numpy array of flow direction LDD
     :type grd_ldd: :class:`numpy.ndarray`
-
-    :param n_res: int, optional
-        Resolution factor for the output distance raster. Default is 30.
+    :param n_res: Resolution factor for the output distance raster. Default is 30.
     :type n_res: int
-
-    :param s_convention: str, optional
-        String of flow direction convention. Options: 'ldd' and 'd8'. Default is 'ldd'.
+    :param s_convention: String of flow direction convention. Options: 'ldd' and 'd8'. Default is 'ldd'.
     :type s_convention: str
-
     :return: 2d numpy array distance
     :rtype: :class:`numpy.ndarray`
 

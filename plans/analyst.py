@@ -174,6 +174,7 @@ class Univar(DataSet):
                 self.varfield: array
             }
         )
+        self.update()
         return None
 
     def update(self):
@@ -668,7 +669,7 @@ class Univar(DataSet):
         )
         return None
 
-    def view(self, show=True, return_fig=False):
+    def view(self, show=True, return_fig=False, plot_mean=True):
         """Get a basic visualization.
         Expected to overwrite superior methods.
 
@@ -679,6 +680,22 @@ class Univar(DataSet):
         :return: None or file path to figure
         :rtype: None or str
         """
+
+        def _plot_mean(xmin, xmax):
+            plt.hlines(
+                y=y_mu,
+                xmin=xmin,
+                xmax=xmax,
+                colors="red",
+            )
+            plt.annotate(
+                "$\mu$ = {}".format(round(y_mu, 2)),
+                xy=(0, y_mu),
+                xytext=(1, 3), textcoords='offset points',
+                color="red",
+                fontsize=10
+            )
+
         specs = self.view_specs.copy()
 
         # start plot
@@ -698,8 +715,10 @@ class Univar(DataSet):
 
         # ------------ scatter plot ------------
         ax = fig.add_subplot(gs[0, :3])
+        x_values = np.arange(len(self.data))
+        y_mu = np.mean(self.data[self.varfield])
         plt.scatter(
-            np.arange(len(self.data)),
+            x_values,
             self.data[self.varfield].values,
             marker=".",
             color="tab:grey",
@@ -713,13 +732,18 @@ class Univar(DataSet):
         plt.ylabel(specs["ylabel"])
         plt.xlim(0, len(self.data))
         plt.grid(specs["plot_grid"])
+        if plot_mean:
+            _plot_mean(
+                xmin=np.min(x_values),
+                xmax=np.max(x_values),
+            )
 
         # ------------ hist ------------
         ax2 = fig.add_subplot(gs[0, 3], sharey=ax)
         # ensure clean data
         df_clean = self.data.dropna()
         data = df_clean[self.varfield].values
-        plt.hist(
+        h = plt.hist(
             data,
             bins=Univar.nbins_fd(data=data),
             color=specs["color_b"],
@@ -733,6 +757,11 @@ class Univar(DataSet):
             plt.ylim(specs["ylim"])
         plt.xlabel(specs["xlabel_b"])
         plt.grid(specs["plot_grid"])
+        if plot_mean:
+            _plot_mean(
+                xmin=0,
+                xmax=np.max(h[0]),
+            )
 
         # ------------ cdf ------------
         ax3 = fig.add_subplot(gs[0, 4], sharey=ax)
@@ -743,6 +772,11 @@ class Univar(DataSet):
             plt.title(specs["subtitle_c"])
         plt.xlabel(specs["xlabel_c"])
         plt.grid(specs["plot_grid"])
+        if plot_mean:
+            _plot_mean(
+                xmin=0,
+                xmax=1,
+            )
 
         # ------------ return object, show or save
         if return_fig:
@@ -1055,7 +1089,7 @@ class Univar(DataSet):
         :return: Sampled array
         :rtype: :class:`numpy.ndarray`
         """
-        from plans.geo import normalize
+        from plans.geo import normalize_values
         # set gamma shapes
         dc_gamma_shapes = {
             "decay": 1,
@@ -1077,9 +1111,10 @@ class Univar(DataSet):
             n_max = np.max(sample)
 
         # normalize
-        sample_norm = normalize(array=sample, min_value=n_min, max_value=n_max)
+        sample_norm = normalize_values(array=sample, min_value=n_min, max_value=n_max)
 
         return sample_norm
+
 
     @staticmethod
     def nbins_fd(data):

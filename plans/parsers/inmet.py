@@ -157,9 +157,9 @@ class _StationINMET_:
         return new_metadata
 
     def _get_columns_gls(self):
-        """Retrieve the glossary mapping and its inverse.
+        """Retrieve the glossary mapping and its mirror.
 
-        :return: A tuple containing the glossary mapping and its inverse.
+        :return: A tuple containing the glossary mapping and its mirror.
         :rtype: tuple[dict, dict]
         """
         # compute the opposite

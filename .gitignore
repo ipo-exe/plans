@@ -1,3 +1,10 @@
+# Ignore all files and folders starting with "_"
+_*
+bench*.py
+
+# EXCEPT __init__.py files
+!__init__.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -130,6 +137,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
 # other folders
 /docs/datasets/
 /testing/outputs/
