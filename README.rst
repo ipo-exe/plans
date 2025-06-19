@@ -32,7 +32,7 @@ It is uses a simulation model for estimating *hydrological processes* such as `s
 
 Example of model outputs:
 
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example.gif
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example1.gif
     :width: 600 px
     :align: center
     :alt: Example of use
