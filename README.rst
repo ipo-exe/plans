@@ -30,7 +30,10 @@ The ``plans`` tool is a software designed to help watershed conservation project
 
 It is uses a simulation model for estimating *hydrological processes* such as `surface runoff`_ and infiltration_ for a given area of interest. Model outputs include simulated hydrological processes in time (tables) and space (maps). Those results then can be used by water resource managers for effectively planning the expansion of `Nature-based Solutions for Water`_ (*e.g.*, reforestation and soil-conservation agriculture).
 
-Example of model outputs:
+Example of model outputs
+*****************************************************************
+
+Mapping infiltration potential:
 
 .. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example1.gif
     :width: 600 px
