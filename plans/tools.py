@@ -1,31 +1,19 @@
 """
-Input-output processes.
+Input-output processing routines.
 
-Description:
-    The ``tools`` module provides objects to handle all ``plans`` input-output processes.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
 
 Overview
 --------
 
-todo
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
 -------
 
-todo
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.
@@ -33,16 +21,7 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. code-block:: python
 
     import numpy as np
-    from plans import analyst
-
-    # get data to a vector
-    data_vector = np.random.rand(1000)
-
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
-
-    # view data
-    uni.view()
+    print("Hello World!")
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
@@ -214,7 +193,7 @@ def DEMO(
 
     # ---------------------- EXPORTING - INPUTS ----------------------
     if export_inputs:
-        s_step = "exporting input"
+        s_step = "exporting inputs"
         logger.info("{} {} data ...".format(prompt, s_step))
         start_time = time.time()
 
@@ -798,7 +777,7 @@ def TSC(
     :type regionalize: bool
 
     :param export_inputs: bool, optional
-        If True, export input data, default is False.
+        If True, export inputs data, default is False.
     :type export_inputs: bool
 
     :param export_views: bool, optional
@@ -908,16 +887,16 @@ def TSC(
 
     # ---------------------- EXPORTING - INPUTS ----------------------
     if export_inputs:
-        s_step = "exporting input"
+        s_step = "exporting inputs"
         logger.info("{} {} ...".format(prompt, s_step))
         start_time = time.time()
 
         # make dir
         inpdir = "{}/inputs".format(outdir)
         os.mkdir(path=inpdir)
-        logger.info("{} {} --- input folder at ./input".format(prompt, s_step))
+        logger.info("{} {} --- inputs folder at ./inputs".format(prompt, s_step))
 
-        # export input main data
+        # export inputs main data
         logger.info("{} {} --- info table".format(prompt, s_step))
         # copy info table
         src = file_infotable
@@ -1005,7 +984,7 @@ def DTO(
     :type talk: bool
 
     :param export_inputs: bool, optional
-        If True, export input data, default is False.
+        If True, export inputs data, default is False.
     :type export_inputs: bool
 
     :param export_views: bool, optional
@@ -1020,7 +999,7 @@ def DTO(
 
     - Generates a Distance to Outlet (``DTO``) raster map from Local Drain Direction (``LDD``).
     - Calculates the hydrological distance from each grid cell to the nearest outlet.
-    - Supports export of input ``LDD`` map, ``LDD`` views, DTO map, and DTO views.
+    - Supports export of inputs ``LDD`` map, ``LDD`` views, DTO map, and DTO views.
 
 
     **Examples:**
@@ -1097,14 +1076,14 @@ def DTO(
 
     # ---------------------- EXPORTING - INPUTS ----------------------
     if export_inputs:
-        s_step = "exporting input"
+        s_step = "exporting inputs"
         logger.info("{} {} data ...".format(prompt, s_step))
         start_time = time.time()
 
         # make dir
         inpdir = "{}/inputs".format(outdir)
         os.mkdir(path=inpdir)
-        logger.info("{} input folder at {}".format(prompt, inpdir))
+        logger.info("{} inputs folder at {}".format(prompt, inpdir))
 
         filename = "ldd_{}".format(project_name)
 

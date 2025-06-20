@@ -1,31 +1,21 @@
 """
-Description:
-    The ``analyst`` module provides objects to handle data analysis.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Classes designed to handle statistical analysis.
 
 Overview
 --------
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import analyst
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
---------
+-------
 
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 .. code-block:: python
 
@@ -58,7 +48,7 @@ import os
 def linear(x, c0, c1):
     """Linear function f(x) = c0 + c1 * x
 
-    :param x: function input
+    :param x: function inputs
     :type x: float | :class:`numpy.ndarray`
     :param c0: translational parameter
     :type c0: float
@@ -73,7 +63,7 @@ def linear(x, c0, c1):
 def power(x, c0, c1, c2):
     """Power function f(x) =  c2 * ((x + c0)^c1)
 
-    :param x: function input
+    :param x: function inputs
     :type x: float | :class:`numpy.ndarray`
     :param c0: translational parameter
     :type c0: float
@@ -90,7 +80,7 @@ def power(x, c0, c1, c2):
 def power_zero(x, c0, c1):
     """Power function with root in zero f(x) =  c1 * ((x)^c0)
 
-    :param x: function input
+    :param x: function inputs
     :type x: float | :class:`numpy.ndarray`
     :param c0: exponent parameter
     :type c0: float
@@ -134,7 +124,7 @@ class Univar(DataSet):
         :rtype: None
         """
 
-        # -------------- overwrite relative path input -------------- #
+        # -------------- overwrite relative path inputs -------------- #
         self.file_data = os.path.abspath(file_data)
 
         # -------------- implement loading logic -------------- #
@@ -312,7 +302,7 @@ class Univar(DataSet):
     def assess_weibull_cdf(self):
         """Get the Weibull model
 
-        :param x: function input
+        :param x: function inputs
         :type x: :class:`numpy.ndarray`
         :return: model dataframe
         :rtype: :class:`pandas.DataFrame`
@@ -514,7 +504,7 @@ class Univar(DataSet):
             "grid": False,
             "quantiles": True,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -823,7 +813,7 @@ class Univar(DataSet):
             "xlim": (-3, 3),
             "subtitle": None,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -972,7 +962,7 @@ class Univar(DataSet):
     def gumbel_fx(x, a, b):
         """Gumbel probability distribution F(X)
 
-        :param x: function input
+        :param x: function inputs
         :type x: float | :class:`numpy.ndarray`
         :param a: distribution parameter a
         :type a: float
@@ -990,7 +980,7 @@ class Univar(DataSet):
     def gumbel_tx(x, a, b):
         """Gumbel return period distribution T(X)
 
-        :param x: function input
+        :param x: function inputs
         :type x: float | :class:`numpy.ndarray`
         :param a: distribution parameter a
         :type a: float
@@ -1270,7 +1260,7 @@ class Bivar:
     """
     def __init__(self, df_data, x_name="x", y_name="y", name="myvars"):
 
-        # set input attributes
+        # set inputs attributes
         self.xname = x_name
         self.yname = y_name
         self.name = name
@@ -1433,7 +1423,7 @@ class Bivar:
             "xlabel": self.xname,
             "ylabel": self.yname,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -1551,7 +1541,7 @@ class Bivar:
             "alpha_xy": 0.75,
             "alpha_e": 0.75,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -2128,7 +2118,7 @@ class Bayes:
             "xlim": (0, 1),
             "subtitle": None,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -2436,7 +2426,7 @@ class _Univar:
             "grid": False,
             "quantiles": True,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -2584,7 +2574,7 @@ class _Univar:
             "subtitle_2": "Histogram",
         }
 
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -2660,7 +2650,7 @@ class _Univar:
             "xlim": (-3, 3),
             "subtitle": None,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default

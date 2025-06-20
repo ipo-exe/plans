@@ -1,23 +1,21 @@
 """
 Parse data from ``INMET`` files (Brazillian Meteorological Office)
 
-Description:
-    The ``inmet`` module provides data parsers for the ``INMET`` ``.csv`` data files.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
-
-
 Overview
 --------
 
-To import from outside the plans module:
-
->>> from plans.parsers import inmet
+# todo [major docstring improvement] -- overview
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Pellentesque habitant morbi tristique senectus
+et netus et malesuada fames ac turpis egestas.
 
 Example
 -------
+
+# todo [major docstring improvement] -- examples
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 .. code-block:: python
 
@@ -42,14 +40,8 @@ Example
 
 
 """
-
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 
-plt.style.use("seaborn-v0_8")
-
-from plans.datasets import get_random_colors
 
 
 class _StationINMET_:
@@ -181,7 +173,7 @@ class _StationINMET_:
     def fix_text(self, text, remove_spaces=False):
         """Standardize text by converting to uppercase and replacing specific characters.
 
-        :param text: The input text to be processed.
+        :param text: The inputs text to be processed.
         :type text: str
         :param remove_spaces: Whether to remove spaces from the text.
         :type remove_spaces: bool, optional
@@ -579,7 +571,9 @@ class Automatic(_Automatic_):
 
 
 if __name__ == "__main__":
-
+    print("Hello")
+    # todo [testing]
+    '''
     # file path
     f = "_inmet_auto_src.csv"
 
@@ -597,3 +591,4 @@ if __name__ == "__main__":
 
     # export to folder
     auto.export_data(folder="C:/data", append_id=True)
+    '''

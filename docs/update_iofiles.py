@@ -40,13 +40,13 @@ df = pd.read_csv("../plans/iofiles.csv", sep=";")
 
 # INPUT CATALOG
 
-df_input = df.query("io == 'input'")
+df_input = df.query("io == 'inputs'")
 
 df_input_rst = df_input.drop_duplicates(subset="File")
 print(dataframe_to_rst(df_input_rst[["File", "Structure", "Description"]]))
 
 
-# input lines
+# inputs lines
 lst_input = []
 
 # RASTER files

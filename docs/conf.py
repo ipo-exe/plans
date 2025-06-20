@@ -48,7 +48,7 @@ autodoc_mock_imports = [
     'qgis',
     'osgeo',
     'geopandas',
-    'PyPDF2'
+    'PyPDF2',
 ]
 
 autodoc_member_order = 'bysource'

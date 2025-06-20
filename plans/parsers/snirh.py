@@ -1,31 +1,18 @@
 """
-Parse data from ``SNIRH`` Hidroweb files (Sistema Nacional de Informacoes de Recursos Hidricos)
-
-Description:
-    The ``snirh`` module provides data parsers for the ``SNIRH`` ``.csv`` data files.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Parse data from ``SNIRH`` Hidroweb files (Brazillian offical hydrological database)
 
 Overview
 --------
 
-todo overview
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans.parsers import snirh
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
 -------
 
-todo examples
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.
@@ -33,68 +20,18 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. code-block:: python
 
     import numpy as np
-    from plans import analyst
-
-    # get data to a vector
-    data_vector = np.random.rand(1000)
-
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
-
-    # view data
-    uni.view()
+    print("Hello World!)
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
-
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-plt.style.use("seaborn-v0_8")
-
 
 class Stage:
-    """
-    Overview
-    --------
-
-    todo overview
-    Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-    In a lacinia nisl. Pellentesque habitant morbi tristique senectus
-    et netus et malesuada fames ac turpis egestas.
-
-    Example
-    -------
-
-    todo example
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-    Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
-    in porttitor lacus lobortis vitae. In a lacinia nisl.
-
-    .. code-block:: python
-
-        import numpy as np
-        from plans import analyst
-
-        # get data to a vector
-        data_vector = np.random.rand(1000)
-
-        # instantiate the Univar object
-        uni = analyst.Univar(data=data_vector, name="my_data")
-
-        # view data
-        uni.view()
-
-    Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-    In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-    In a lacinia nisl.
-    """
-
-    # todo doctring
+    # todo [major doctring]
     def __init__(self, name="MyStage"):
+        # todo [doctring]
         # Object attributes
         self.name = name
         self.dtfield = "DateTime"
@@ -150,7 +87,6 @@ class Stage:
             "Cota31",
         ]
 
-    # todo doctring
     def load_data(self, file_path):
         """Load data from incoming data
 
@@ -163,7 +99,6 @@ class Stage:
         # self.update()
         return None
 
-    # todo doctring
     def read_data(self, file_path):
         """Handle data import
 
@@ -247,8 +182,9 @@ class Stage:
 
 
 if __name__ == "__main__":
-
     print("Hello world!")
+    # todo [testing]
+    '''
     d = "C:/gis/snirh/rhn/src/Estacao_87382000_CSV_2025-02-27T18_02_48.292Z"
     f = f"{d}/87382000_Cotas.csv"
     c = Stage(name="SaoLeo")
@@ -263,6 +199,7 @@ if __name__ == "__main__":
         sep=";",
         encoding="utf-8",
     )
-
     plt.plot(c.data["DateTime"], c.data["Stage"], ".")
     plt.show()
+    '''
+

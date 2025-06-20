@@ -1,10 +1,4 @@
 import os
-import pprint as pp
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.interpolate import interp1d
-from scipy.interpolate import CubicSpline
 from plans.hydro import Global
 from testing.testing_hydro_utils import copy_inputs, delete_inputs
 
@@ -29,6 +23,7 @@ if __name__ == "__main__":
     print(m.unit_hydrograph["q"].sum())
 
     m.solve()
+    m.view(mode="river")
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,

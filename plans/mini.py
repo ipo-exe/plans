@@ -154,7 +154,7 @@ class SingleStock:
 
         # Euler Method loop
         for t in range(1, len(t_nsol)):
-            # compute input flow rate
+            # compute inputs flow rate
             i_nsol[t - 1] = (
                 c1 * (1 / self.k1) * np.exp(self.m1 * s_nsol[t - 1]) * s_nsol[t - 1]
             )
@@ -353,7 +353,7 @@ class DoubleStock:
 
         # Euler Method loop
         for t in range(1, len(t_nsol)):
-            # ---------- compute input flows rate ---------- #
+            # ---------- compute inputs flows rate ---------- #
             s1_i[t - 1] = (
                 s1_c1 * (1 / self.s1_k1) * np.exp(self.s1_m1 * s1[t - 1]) * s1[t - 1]
             )

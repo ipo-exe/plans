@@ -94,14 +94,24 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
+   plans.parsers
+
+.. autosummary::
+   :toctree: generated
+
    plans.parsers.inmet
 
 .. autosummary::
    :toctree: generated
 
-   plans.iamlazy
+   plans.parsers.snirh
 
 .. autosummary::
    :toctree: generated
 
    plans.project
+
+.. autosummary::
+   :toctree: generated
+
+   plans.iamlazy

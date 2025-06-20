@@ -1,33 +1,18 @@
 """
-The core module for datasets.
-
-Description:
-    The ``datasets.core`` module provides primitive (abstract) objects to handle ``plans`` data.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Primitive classes for handling datasets.
 
 Overview
 --------
 
-todo
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans.datasets.core import *
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
 -------
 
-todo
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.
@@ -35,16 +20,7 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. code-block:: python
 
     import numpy as np
-    from plans import analyst
-
-    # get data to a vector
-    data_vector = np.random.rand(1000)
-
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
-
-    # view data
-    uni.view()
+    print("Hello World!")
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
@@ -397,18 +373,18 @@ class TimeSeries(Univar):
     def set_data(
         self, input_df, input_dtfield, input_varfield, filter_dates=None, dropnan=True
     ):
-        """Set time series data from an input DataFrame.
+        """Set time series data from an inputs DataFrame.
 
         :param input_df: pandas DataFrame
             Input DataFrame containing time series data.
         :type input_df: :class:`pandas.DataFrame`
 
         :param input_dtfield: str
-            Name of the datetime field in the input DataFrame.
+            Name of the datetime field in the inputs DataFrame.
         :type input_dtfield: str
 
         :param input_varfield: str
-            Name of the variable field in the input DataFrame.
+            Name of the variable field in the inputs DataFrame.
         :type input_varfield: str
 
         :param filter_dates: list, optional
@@ -424,7 +400,7 @@ class TimeSeries(Univar):
 
         **Notes:**
 
-        - Assumes the input DataFrame has a datetime column in the format "YYYY-mm-DD HH:MM:SS".
+        - Assumes the inputs DataFrame has a datetime column in the format "YYYY-mm-DD HH:MM:SS".
         - Renames columns to standard format (datetime: ``self.dtfield``, variable: ``self.varfield``).
         - Converts the datetime column to standard format.
 
@@ -437,7 +413,7 @@ class TimeSeries(Univar):
         >>> ts.set_data(input_data, input_dtfield='Date', input_varfield='Temperature')
 
         """
-        # Get a copy of the input DataFrame
+        # Get a copy of the inputs DataFrame
         df = input_df.copy()
 
         # Rename columns to standard format
@@ -482,7 +458,7 @@ class TimeSeries(Univar):
         """Load data from file. Expected to overwrite superior methods.
 
         :param file_data: str
-            Absolute Path to the ``csv`` input file.
+            Absolute Path to the ``csv`` inputs file.
         :type file_data: str
 
         :param input_varfield: str
@@ -506,7 +482,7 @@ class TimeSeries(Univar):
 
         **Notes:**
 
-        - Assumes the input file is in ``csv`` format.
+        - Assumes the inputs file is in ``csv`` format.
         - Expects a datetime column in the format ``YYYY-mm-DD HH:MM:SS``.
 
         **Examples:**
@@ -529,7 +505,7 @@ class TimeSeries(Univar):
 
         """
 
-        # -------------- overwrite relative path input -------------- #
+        # -------------- overwrite relative path inputs -------------- #
         file_data = os.path.abspath(file_data)
 
         # -------------- implement loading logic -------------- #
@@ -1907,7 +1883,7 @@ class TimeSeriesCollection(Collection):
         :type df_info: class:`pandas.DataFrame`
 
         :param src_dir: str, optional
-            Path for input directory in the case for only file names in ``File`` column.
+            Path for inputs directory in the case for only file names in ``File`` column.
         :type src_dir: str
 
         :param filter_dates: list, optional
@@ -1942,7 +1918,7 @@ class TimeSeriesCollection(Collection):
             ts = self.baseobject(name=df_info["Name"].values[i])
             ts.alias = df_info["Alias"].values[i]
             ts.units = df_info[dict_m_fields["Units"]].values[i]
-            # handle input file
+            # handle inputs file
             input_file = df_info[dict_m_fields["File"]].values[i]
             # if is a path:
             if os.path.exists(input_file):
@@ -6006,7 +5982,7 @@ class QualiRasterSeries(RasterSeries):
             "annotate": False,
             "annotate_by_id": None,
         }
-        # handle input specs
+        # handle inputs specs
         if specs is None:
             pass
         else:  # override default
@@ -6156,8 +6132,10 @@ class QualiRasterSeries(RasterSeries):
 
 
 if __name__ == "__main__":
+    print("Hello World!")
+    # todo [testing]
+    '''
     import matplotlib.pyplot as plt
-
     plt.style.use("seaborn-v0_8")
 
     r = Raster()
@@ -6166,3 +6144,5 @@ if __name__ == "__main__":
         prj_file="C:/plans/docs/datasets/topo/slope.prj",
     )
     r.view()
+    '''
+

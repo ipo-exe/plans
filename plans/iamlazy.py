@@ -2,7 +2,7 @@
 Pre-processing routines for QGIS 3.x Python console
 
 Description:
-    The ``iamlazy`` module provides useful template routines for pre-processing input data
+    The ``iamlazy`` module provides useful template routines for pre-processing inputs data
     in QGIS 3.x Python console.
 
 License:
@@ -265,7 +265,7 @@ def get_cellsize(file_input):
 def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     """get a blank raster copy from other raster
 
-    :param file_input: path to input raster file
+    :param file_input: path to inputs raster file
     :type file_input: str
     :param file_output: path to output raster file
     :type file_output: str

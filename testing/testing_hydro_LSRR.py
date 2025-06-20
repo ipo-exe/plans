@@ -15,7 +15,7 @@ if __name__ == "__main__":
     m0.boot(bootfile="./data/bootfile_LSRR_0.csv")
     # copy inputs
     copy_inputs(dst_folder=m0.folder_data)
-    # load() handles heavy-loading of data (parameter data and input data)
+    # load() handles heavy-loading of data (parameter data and inputs data)
     m0.load()
     # setup() creates the variables that will hold the simulation (may be intensive!)
     m0.params["S0"]["value"] = 14

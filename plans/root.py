@@ -1,50 +1,37 @@
 """
-The root of everything. Here is the most basic objects for the whole ontology of objects.
-
-Description:
-    The ``root`` module provides the most basic objects for the whole ontology of objects.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+This module provides a set of the primitive classes used.
 
 Overview
 --------
 
-todo
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+Example
+-------
 
-
-Examples
---------
-
-todo
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
-Mauris gravida ex quam, in porttitor lacus lobortis vitae.
-In a lacinia nisl. Pellentesque habitant morbi tristique senectus
-et netus et malesuada fames ac turpis egestas.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
 
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
+.. code-block:: python
+
+    import numpy as np
+    print("Hello World!")
+
+Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl.
 
 """
-
 import glob, re
 import os, copy, shutil, datetime, pprint
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
-import PyPDF2
 
 
 class MbaE:
@@ -53,7 +40,7 @@ class MbaE:
 
     .. important::
 
-        **Mba'e is the origin**. The the very-basic almost-zero level object.
+        **Mba'e is the origin**. The very-basic almost-zero level object.
         Deeper than here is only the Python builtin ``object`` class.
 
 
@@ -880,7 +867,7 @@ class DataSet(MbaE):
         :rtype: None
         """
 
-        # -------------- overwrite relative path input -------------- #
+        # -------------- overwrite relative path inputs -------------- #
         self.file_data = os.path.abspath(file_data)
 
         # -------------- implement loading logic -------------- #
@@ -1361,7 +1348,7 @@ class RecordTable(DataSet):
         d2 = {
             "Name": "k",
             "Size": 177,
-            "Type": 'input',
+            "Type": 'inputs',
             "File_P": "/filee.pdf",
         }
         rt.insert_record(dict_rec=d2)
@@ -1563,9 +1550,9 @@ class RecordTable(DataSet):
         return next_id
 
     def _filter_dict_rec(self, input_dict):
-        """Filter input record dictionary based on the expected table data columns.
+        """Filter inputs record dictionary based on the expected table data columns.
 
-        :param input_dict: input record dictionary
+        :param input_dict: inputs record dictionary
         :type input_dict: dict
         :return: filtered record dictionary
         :rtype: dict
@@ -1688,7 +1675,7 @@ class RecordTable(DataSet):
         :return: None
         :rtype: None
         """
-        # -------------- overwrite relative path input -------------- #
+        # -------------- overwrite relative path inputs -------------- #
         self.file_data = os.path.abspath(file_data)
         # -------------- implement loading logic -------------- #
 
@@ -1763,7 +1750,7 @@ class RecordTable(DataSet):
     def insert_record(self, dict_rec):
         """Insert a record in the RT
 
-        :param dict_rec: input record dictionary
+        :param dict_rec: inputs record dictionary
         :type dict_rec: dict
         :return: None
         :rtype: None
@@ -1803,7 +1790,7 @@ class RecordTable(DataSet):
         :return: None
         :rtype: None
         """
-        # input dict rec data
+        # inputs dict rec data
         if filter_dict:
             dict_rec_filter = self._filter_dict_rec(input_dict=dict_rec)
         else:
@@ -2449,7 +2436,7 @@ class FileSys(DataSet):
         :return: None
         :rtype: None
         """
-        # -------------- overwrite relative path input -------------- #
+        # -------------- overwrite relative path inputs -------------- #
         file_data = os.path.abspath(file_data)
 
         # -------------- implement loading logic -------------- #
@@ -2565,36 +2552,6 @@ class FileSys(DataSet):
         # Create a zip archive from the directory
         shutil.make_archive(dst_dir, "zip", src_dir)
         return None
-
-    @staticmethod
-    def merge_pdfs(lst_pdfs, dst_dir, output_filename):
-        """Merge PDF files to a single PDF
-
-        :param lst_pdfs: list of PDFs file paths
-        :type lst_pdfs: list
-        :param dst_dir: path to destination folder
-        :type dst_dir: str
-        :param output_filename: name of output file (without extension)
-        :type output_filename: str
-        :return: path to output file
-        :rtype: str
-        """
-        if len(lst_pdfs) == 0:
-            return None
-        else:
-            output_pdf = f"{dst_dir}/{output_filename}.pdf"
-            pdf_writer = PyPDF2.PdfWriter()
-            for pdf in lst_pdfs:
-                with open(pdf, "rb") as pdf_file:
-                    pdf_reader = PyPDF2.PdfReader(pdf_file)
-                    for page_num in range(len(pdf_reader.pages)):
-                        page = pdf_reader.pages[page_num]
-                        pdf_writer.add_page(page)
-
-            with open(output_pdf, "wb") as output_file:
-                pdf_writer.write(output_file)
-
-            return output_pdf
 
     @staticmethod
     def get_extensions():

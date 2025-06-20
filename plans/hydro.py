@@ -1,43 +1,32 @@
 """
-Description:
-    The ``hydro`` module provides objects useful for hydrology simulation.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Classes designed for hydrological simulation.
 
 Overview
 --------
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import hydro
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
---------
+-------
 
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
+in porttitor lacus lobortis vitae. In a lacinia nisl.
 
 .. code-block:: python
 
-    # todo [code example]
-    print("hello world!)
-
+    import numpy as np
+    print("Hello World!")
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
+In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
-
 import os.path
 import shutil
 from pathlib import Path
@@ -45,7 +34,6 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-plt.rcParams['font.family'] = 'Arial'
 import matplotlib.dates as mdates
 from plans.root import DataSet
 from plans.datasets import TimeSeries, RainSeries
@@ -53,7 +41,8 @@ from plans.analyst import Bivar
 
 
 class Model(DataSet):
-    # todo [optimize for DRY] move this class to root.py and make more abstract for all Models. Here can be a HydroModel(Model).
+    # todo [optimize for DRY] move this class to root.py and make more abstract for all Models.
+    #  Here can be a HydroModel(Model).
     """The core ``Model`` base object. Expected to hold one :class:`pandas.DataFrame` as simulation data and
     a dictionary as parameters. This is a dummy class to be developed downstream.
 
@@ -147,7 +136,7 @@ class Model(DataSet):
         self.var_eval = "S"
 
     def _set_model_params(self):
-        """Intenal method for setting up model parameters data
+        """Internal method for setting up model parameters data
 
         :return: None
         :rtype: None
@@ -327,7 +316,7 @@ class Model(DataSet):
         # todo actually this is more like a bad bugfix so it would be nice
         #  to remove the flag and optimize this process.
         if self.update_dt_flag:
-            # handle input dt
+            # handle inputs dt
             s_dt_unit_tag = str(self.params["dt"]["value"]) + self.params["dt"]["units"]
 
             # handle all good condition
@@ -554,7 +543,7 @@ class Model(DataSet):
 
     @staticmethod
     def get_gaussian_signal(value_max, size, sigma=50, position_factor=5, reverse=False):
-        """Generates a vector of normally (gaussian) distributed values. Useful for testing input inflows.
+        """Generates a vector of normally (gaussian) distributed values. Useful for testing inputs inflows.
 
         :param value_max: actual maximum value in the vector
         :type value_max: float
@@ -719,7 +708,7 @@ class LinearStorage(Model):
                 ].values[0])
 
 
-        # handle input dt
+        # handle inputs dt
         self.update_dt()
 
         return None
@@ -775,7 +764,7 @@ class LinearStorage(Model):
         return None
 
     def solve(self):
-        """Solve the model for input and initial conditions by numerical methods.
+        """Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -879,6 +868,7 @@ class LinearStorage(Model):
 
     def view(self, show=True):
         # todo [docstring]
+        plt.rcParams['font.family'] = 'Arial'
         specs = self.view_specs.copy()
         ts = TimeSeries(name=self.name, alias=self.alias)
         ts.set_data(input_df=self.data, input_dtfield=self.dtfield, input_varfield="S")
@@ -903,7 +893,7 @@ class LinearStorage(Model):
 
 class LSRR(LinearStorage):
     # todo [major docstring improvement]
-    """Rainfall-Runoff model based on a Linear Storage. This is a Toy Model. Inflow rain (P) in a necessary data input.
+    """Rainfall-Runoff model based on a Linear Storage. This is a Toy Model. Inflow rain (P) in a necessary data inputs.
 
     """
 
@@ -916,7 +906,7 @@ class LSRR(LinearStorage):
         # observation data
         self.filename_data_obs = "q_obs.csv"
 
-        # input data
+        # inputs data
         self.data_clim = None
         self.file_data_clim = None
         self.filename_data_clim = "clim.csv"
@@ -1025,7 +1015,7 @@ class LSRR(LinearStorage):
         :rtype: None
         """
 
-        # -------------- load climate input data -------------- #
+        # -------------- load climate inputs data -------------- #
         self.file_data_clim = Path(f"{self.folder_data}/{self.filename_data_clim}")
         df_data_input = pd.read_csv(
             self.file_data_clim,
@@ -1043,7 +1033,7 @@ class LSRR(LinearStorage):
         self.params["t0"]["value"] = df_data_input["DT_str"].values[0]
         self.params["tN"]["value"] = df_data_input["DT_str"].values[-1]
 
-        # set the data input for climate
+        # set the data inputs for climate
         self.data_clim = df_data_input[[self.dtfield] + self.var_inputs].copy()
 
         # -------------- load observation data -------------- #
@@ -1077,13 +1067,13 @@ class LSRR(LinearStorage):
         # drop superior meaningless columns
         self.data.drop(columns=["S_a"], inplace=True)
 
-        # handle input P values
+        # handle inputs P values
         rs = RainSeries()
         rs.set_data(
             input_df=self.data_clim.copy(), input_varfield="P", input_dtfield="DateTime"
         )
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
-        # set interpolated input variables
+        # set interpolated inputs variables
 
         self.data["P"] = df_downscaled["P"].values
         # organize table
@@ -1093,7 +1083,7 @@ class LSRR(LinearStorage):
         return None
 
     def solve(self):
-        """Solve the model for input and initial conditions by numerical methods.
+        """Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -1230,7 +1220,7 @@ class LSRR(LinearStorage):
 class LSRRE(LSRR):
     # todo [major docstring improvement]
     """Rainfall-Runoff-Evaporation model based on a Linear Storage. This is a Toy Model.
-    Inflow rain (P) and outflow potential evaporation (E_pot) are necessary data input.
+    Inflow rain (P) and outflow potential evaporation (E_pot) are necessary data inputs.
 
     """
 
@@ -1279,7 +1269,7 @@ class LSRRE(LSRR):
         # set E (actual)
         self.data["E"] = np.nan
 
-        # handle input E_pot values
+        # handle inputs E_pot values
         rs = RainSeries() # todo best practice is to have a EvapoSeries() object
         rs.varfield = "E_pot"
         rs.varname = "E_pot"
@@ -1288,7 +1278,7 @@ class LSRRE(LSRR):
         )
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
 
-        # set interpolated input variables
+        # set interpolated inputs variables
         self.data["E_pot"] = df_downscaled["E_pot"].values
 
         # organize table
@@ -1298,7 +1288,7 @@ class LSRRE(LSRR):
         return None
 
     def solve(self):
-        """Solve the model for input and initial conditions by numerical methods.
+        """Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -1494,7 +1484,7 @@ class LSFAS(LSRRE):
 
         return None
     def solve(self):
-        """Solve the model for input and initial conditions by numerical methods.
+        """Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -1589,6 +1579,7 @@ class LSFAS(LSRRE):
 
 
     def view(self, show=True, return_fig=False):
+        # todo [docstring]
         specs = self.view_specs.copy()
         fig = super().view(show=False, return_fig=True)
         plt.suptitle("{} | Model LSFAS - R2: {}".format(self.name, round(self.rsq, 1)))
@@ -2172,7 +2163,7 @@ class Global(LSFAS):
         """
         super().load_data()
 
-        # -------------- load path areas input data -------------- #
+        # -------------- load path areas inputs data -------------- #
         self.file_data_paths = Path(f"{self.folder_data}/{self.filename_data_paths}")
         self.data_paths_input = pd.read_csv(
             self.file_data_paths,
@@ -2273,7 +2264,7 @@ class Global(LSFAS):
 
 
     def solve(self):
-        """Solve the model for input and initial conditions by numerical methods.
+        """Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -2826,6 +2817,7 @@ class Global(LSFAS):
     def view(self, show=True, return_fig=False, mode=None):
         # todo [docstring]
         # todo [optimize for DRY]
+        plt.rcParams['font.family'] = 'Arial'
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
         # start plot
@@ -3311,7 +3303,7 @@ class Local(Global):
         # overwriters
         self.object_alias = "Local"
 
-        # local input file
+        # local inputs file
         # todo [RESUME HERE]
         print("Hello World!")
         # lulc table
@@ -3321,7 +3313,12 @@ class Local(Global):
         # todo [reentry note]
         '''
         Instructions: make a model that handles both G2G and HRU approach without.
-        The trick seems to have a area matrix that is the same...        
+        The trick seems to have a area matrix that is the same...   
+        
+        - Use downscale_values() functions from plans.geo
+        - Downscaling may include parameter maps as proxys.
+        - 
+             
         '''
 
 

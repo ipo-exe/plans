@@ -1,31 +1,18 @@
 """
-Custom standalone geoprocessing routines with minimal dependencies.
-
-Description:
-    The ``geo`` module provides custom geoprocessing routines.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Standalone geoprocessing routines with minimal dependencies.
 
 Overview
 --------
 
-todo overview
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import geo
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
 -------
 
-todo examples
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.
@@ -33,16 +20,7 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. code-block:: python
 
     import numpy as np
-    from plans import analyst
-
-    # get data to a vector
-    data_vector = np.random.rand(1000)
-
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
-
-    # view data
-    uni.view()
+    print("Hello World!")
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
@@ -149,11 +127,11 @@ def downscale_value(mean, scale, array_covar, mirror=False):
     :return: downscaled array
     :rtype: :class:`numpy.ndarray`
     """
-    downler = downscaling_mask(scale=scale, array=array_covar)
+    downler = downscaling_mask(array_covar=array_covar, scale=scale)
     signal = 1
     if mirror:
         signal = -1
-    return mean - (signal * downler)
+    return mean + (signal * downler)
 
 def downscaling_mask(array_covar, scale):
     """Compute a downscaling mask by using a covariate array
@@ -165,8 +143,7 @@ def downscaling_mask(array_covar, scale):
     :return: downscaling mask array
     :rtype: :class:`numpy.ndarray`
     """
-    downscaler = scale * (np.mean(array) - array_covar)
-    return downscaler
+    return scale * (array_covar - np.mean(array_covar))
 
 def normalize_values(array, min_value, max_value):
     """Normalize array between min and max values
@@ -248,7 +225,7 @@ def euclidean_distance(grd_input):
     **Notes:**
 
     - The function uses the `distance_transform_edt` from `scipy.ndimage` to compute the Euclidean distance.
-    - The input array is treated as a binary mask, and the distance is calculated from foreground pixels (value 1).
+    - The inputs array is treated as a binary mask, and the distance is calculated from foreground pixels (value 1).
 
     """
     from scipy.ndimage import distance_transform_edt
@@ -258,24 +235,21 @@ def euclidean_distance(grd_input):
 
 
 def twi(slope, flowacc, cellsize):
-    """Calculate the Topographic Wetness Index (``TWI``).
+    """Calculate the Topographic Wetness Index ``TWI``.
 
     :param slope: 2D numpy array representing the slope.
     :type slope: :class:`numpy.ndarray`
-
     :param flowacc: 2D numpy array representing the flow accumulation.
     :type flowacc: :class:`numpy.ndarray`
-
     :param cellsize: The size of a grid cell (delta x = delta y).
     :type cellsize: float
-
     :return: 2D numpy array representing the Topographic Wetness Index.
     :rtype: :class:`numpy.ndarray`
 
     **Notes:**
 
     - The function uses the formula: TWI = ln( A / hc_colors tan(S)), where A is flow accumulation, hc_colors is the cell resolution and S is slope in radians.
-    - The input arrays `slope` and `flowacc` should have the same dimensions.
+    - The inputs arrays `slope` and `flowacc` should have the same dimensions.
     - The formula includes a small value (0.01) to prevent issues with tangent calculations for non-NaN values.
 
     """
@@ -448,7 +422,7 @@ def rivers_wedge(grd_rivers, w=3, h=3):
     **Notes:**
 
     - The function generates a wedge-like trench along the river lines based on distance transform.
-    - The input array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
+    - The inputs array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
     - The width `w` controls the width of the trench, and `h` controls its height.
 
     """
@@ -473,7 +447,7 @@ def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     **Notes:**
 
     - The function burns a ``DEM`` map with river lines, creating a wedge-like trench along the rivers.
-    - The input array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
+    - The inputs array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
     - The width `w` controls the width of the trench, and `h` controls its height.
 
     """

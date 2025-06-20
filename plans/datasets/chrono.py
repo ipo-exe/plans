@@ -1,31 +1,18 @@
 """
-Handle chronological datasets.
-
-Description:
-    The ``datasets.chrono`` module provides objects to handle chronological (time series) data.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Handle chronological (time series) datasets.
 
 Overview
 --------
 
-todo
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
+# todo [major docstring improvement] -- overview
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
 -------
 
-todo
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.
@@ -33,16 +20,7 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. code-block:: python
 
     import numpy as np
-    from plans import analyst
-
-    # get data to a vector
-    data_vector = np.random.rand(1000)
-
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
-
-    # view data
-    uni.view()
+    print("Hello World!")
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
@@ -760,7 +738,10 @@ class __StageSeries(TimeSeries):
         return (ranks - 0.44) / (len(ranks) + 0.12)
 
 
-def main():
+if __name__ == "__main__":
+    print("Hello World")
+    # todo [move to testing]
+    '''
     import matplotlib.pyplot as plt
 
     plt.style.use("seaborn-v0_8")
@@ -783,7 +764,4 @@ def main():
     FlowSeries.view_cfcs(
         freqs=[freq, freq2], specs=specs, colors=["blue", "red"], show=False
     )
-
-
-if __name__ == "__main__":
-    main()
+    '''
