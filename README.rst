@@ -35,14 +35,14 @@ Example of model outputs
 
 Mapping infiltration potential:
 
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example1.gif
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/htwi_pif_animation.gif
     :width: 600 px
     :align: center
     :alt: Example of use
 
 Mapping riparian wetlands dynamics:
 
-.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/example2.gif
+.. image:: https://raw.githubusercontent.com/ipo-exe/plans/main/docs/figs/htwi_rw_animation.gif
     :width: 600 px
     :align: center
     :alt: Example of use 2

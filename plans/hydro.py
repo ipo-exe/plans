@@ -1190,7 +1190,7 @@ class LSRR(LinearStorage):
         # ------------ S plot ------------
         n_smax = self.data["S"].max()
         ax = fig.add_subplot(gs[2, 0])
-        plt.title("$S$ ($\mu$ = {} mm)".format(round(self.data["S"].mean(), 1)), loc="left")
+        plt.title(r"$S$ ($\mu$ = {} mm)".format(round(self.data["S"].mean(), 1)), loc="left")
         plt.plot(self.data[self.dtfield], self.data["S"], color=specs["color_S"])
         # ticks
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
@@ -2914,7 +2914,7 @@ class Global(LSFAS):
             # ------------ G plot ------------
             n_smax = self.data["G"].max()
             ax = fig.add_subplot(gs[2, 0])
-            plt.title("$G$ ($\mu$ = {} mm)".format(round(self.data["G"].mean(), 1)), loc="left")
+            plt.title(r"$G$ ($\mu$ = {} mm)".format(round(self.data["G"].mean(), 1)), loc="left")
             plt.plot(self.data[self.dtfield], self.data["G"], color=specs["color_G"], label=self.vars["G"]["TeX"])
             plt.hlines(
                 y=self.params["G_cap"]["value"],
@@ -3000,7 +3000,7 @@ class Global(LSFAS):
             n_smax = self.data["C"].max()
             ax = fig.add_subplot(gs[2, 0], sharex=ax)
             s_symbol1 = self.vars["C"]["TeX"]
-            plt.title("{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["C"].mean(), 1)), loc="left")
+            plt.title(r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["C"].mean(), 1)), loc="left")
             plt.plot(self.data[self.dtfield], self.data["C"], color=specs["color_C"], label=s_symbol1)
             # normalize X axis
             plt.xlim(ls_dates)
@@ -3090,14 +3090,14 @@ class Global(LSFAS):
             ax2.set_ylabel("mm/mm")
             f_mean = round(self.data["Q_of_f"].mean(), 2)
             f_max = round(self.data["Q_of_f"].max(), 2)
-            ax2.set_title(f"{s_symbol1} ($\mu$ = {f_mean}; max = {f_max})", loc="right")
+            ax2.set_title(rf"{s_symbol1} ($\mu$ = {f_mean}; max = {f_max})", loc="right")
             plt.legend(loc="upper right")
 
             # ------------ S plot ------------
             n_smax = self.data["S"].max()
             ax = fig.add_subplot(gs[2, 0], sharex=ax)
             s_symbol1 = self.vars["S"]["TeX"]
-            plt.title("{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["S"].mean(), 1)), loc="left")
+            plt.title(r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["S"].mean(), 1)), loc="left")
             plt.plot(self.data[self.dtfield], self.data["S"], color=specs["color_S"], label=s_symbol1)
             plt.hlines(
                 y=self.params["S_uf_a"]["value"],
@@ -3210,9 +3210,9 @@ class Global(LSFAS):
             s_symbol2 = self.vars["G"]["TeX"]
             s_symbol3 = self.vars["D"]["TeX"]
             s_symbol4 = self.vars["D_v"]["TeX"]
-            s_title1 = "{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["V"].mean(), 1))
-            s_title2 = "{} ($\mu$ = {} mm)".format(s_symbol2, round(self.data["G"].mean(), 1))
-            s_title3 = "{} ($\mu$ = {} mm)".format(s_symbol3, round(self.data["D"].mean(), 1))
+            s_title1 = r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["V"].mean(), 1))
+            s_title2 = r"{} ($\mu$ = {} mm)".format(s_symbol2, round(self.data["G"].mean(), 1))
+            s_title3 = r"{} ($\mu$ = {} mm)".format(s_symbol3, round(self.data["D"].mean(), 1))
             plt.title(f"{s_title1}, {s_title2} and {s_title3}", loc="left")
             plt.plot(self.data[self.dtfield], self.data["V"], color=specs["color_V"], label=s_symbol1)
             plt.plot(self.data[self.dtfield], self.data["G"], color=specs["color_G"], label=s_symbol2)

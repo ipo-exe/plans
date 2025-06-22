@@ -1,20 +1,10 @@
 """
-Pre-processing routines for QGIS 3.x Python console
-
-Description:
-    The ``iamlazy`` module provides useful template routines for pre-processing inputs data
-    in QGIS 3.x Python console.
-
-License:
-    This software is released under the GNU General Public License v3.0 (GPL-3.0).
-    For details, see: https://www.gnu.org/licenses/gpl-3.0.html
+Utility routines for QGIS 3.x Python console
 
 Overview
 --------
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Nulla mollis tincidunt erat eget iaculis.
-Required dependencies:
+Required dependencies in QGIS:
 
 - pcraster
 - saga
@@ -26,15 +16,10 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Pellentesque habitant morbi tristique senectus
 et netus et malesuada fames ac turpis egestas.
 
->>> from plans import iamlazy
-
-Class aptent taciti sociosqu ad litora torquent per
-conubia nostra, per inceptos himenaeos. Nulla facilisi. Mauris eget nisl
-eu eros euismod sodales. Cras pulvinar tincidunt enim nec semper.
-
 Example
 -------
 
+# todo [major docstring improvement] -- examples
 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 Nulla mollis tincidunt erat eget iaculis. Mauris gravida ex quam,
 in porttitor lacus lobortis vitae. In a lacinia nisl.
@@ -42,16 +27,7 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. code-block:: python
 
     import numpy as np
-    from plans import analyst
-
-    # get data to a vector
-    data_vector = np.random.rand(1000)
-
-    # instantiate the Univar object
-    uni = analyst.Univar(data=data_vector, name="my_data")
-
-    # view data
-    uni.view()
+    print("Hello World!")
 
 Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
