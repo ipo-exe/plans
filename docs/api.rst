@@ -114,4 +114,4 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
-   plans.iamlazy
+   plans.qutils

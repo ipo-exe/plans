@@ -237,7 +237,7 @@ def euclidean_distance(grd_input):
 def twi(slope, flowacc, cellsize):
     """Calculate the Topographic Wetness Index ``TWI``.
 
-    :param slope: 2D numpy array representing the slope.
+    :param slope: 2D numpy array representing the slope in degrees.
     :type slope: :class:`numpy.ndarray`
     :param flowacc: 2D numpy array representing the flow accumulation.
     :type flowacc: :class:`numpy.ndarray`
@@ -407,17 +407,8 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     return (q / prec) * r * k * l * s * c * p * (cellsize * cellsize / (100 * 100))
 
 
-def rivers_wedge(grd_rivers, w=3, h=3):
+def rivers_wedge(grd_rivers, wedge_width=3, wedge_depth=3):
     """Generate a wedge-like trench along the river lines.
-
-    :param grd_rivers: Pseudo-boolean grid indicating the presence of rivers.
-    :type grd_rivers: :class:`numpy.ndarray`
-    :param w: Width (single-sided) in pixels. Default is 3.
-    :type w: int
-    :param h: Height in meters. Default is 3.
-    :type h: float
-    :return: Grid of the wedge (positive).
-    :rtype: :class:`numpy.ndarray`
 
     **Notes:**
 
@@ -425,22 +416,31 @@ def rivers_wedge(grd_rivers, w=3, h=3):
     - The inputs array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
     - The width `w` controls the width of the trench, and `h` controls its height.
 
+    :param grd_rivers: Pseudo-boolean grid indicating the presence of rivers.
+    :type grd_rivers: :class:`numpy.ndarray`
+    :param wedge_width: Width (single-sided) in pixels. Default is 3.
+    :type wedge_width: int
+    :param wedge_depth: Depth in meters. Default is 3.
+    :type wedge_depth: float
+    :return: Grid of the wedge (positive).
+    :rtype: :class:`numpy.ndarray`
+
     """
     grd_dist = euclidean_distance(grd_input=grd_rivers)
-    return (((-h / w) * grd_dist) + h) * (grd_dist <= w)
+    return (((-wedge_depth / wedge_width) * grd_dist) + wedge_depth) * (grd_dist <= wedge_width)
 
 
-def burn_dem(grd_dem, grd_rivers, w=3, h=10):
+def carve_dem(grd_dem, grd_rivers, wedge_width=3, wedge_depth=10):
     """Burn a ``DEM`` map with river lines.
 
     :param grd_dem: ``DEM`` map.
     :type grd_dem: :class:`numpy.ndarray`
     :param grd_rivers: River map (pseudo-boolean).
     :type grd_rivers: :class:`numpy.ndarray`
-    :param w: Width parameter in pixels. Default is 3.
-    :type w: int
-    :param h: Height parameter. Default is 10.
-    :type h: float
+    :param wedge_width: Width parameter in cells. Default is 3.
+    :type wedge_width: int
+    :param wedge_depth: Depth parameter. Default is 10.
+    :type wedge_depth: float
     :return: Burned ``DEM``.
     :rtype: :class:`numpy.ndarray`
 
@@ -451,8 +451,8 @@ def burn_dem(grd_dem, grd_rivers, w=3, h=10):
     - The width `w` controls the width of the trench, and `h` controls its height.
 
     """
-    grd_wedge = rivers_wedge(grd_rivers, w=w, h=h)
-    return (grd_dem + h) - grd_wedge
+    grd_wedge = rivers_wedge(grd_rivers, wedge_width=wedge_width, wedge_depth=wedge_depth)
+    return (grd_dem + wedge_depth) - grd_wedge
 
 
 def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
