@@ -46,50 +46,54 @@ def get_file_size_mb(file_path):
     file_size_mb = file_size_bytes / (1024 * 1024)
     return file_size_mb
 
-
-def make_dir(str_path):
-    """Util function for making a diretory
-
-    :param str_path: path to dir
-    :type str_path: str
-    :return: None
-    :rtype: None
-    """
-    if os.path.isdir(str_path):
-        pass
-    else:
-        os.mkdir(str_path)
-    return None
-
-
-def fill_dir_strucuture(dict_struct, local_root):
-    """Recursive function for filling a directory structure
-
-    :param dict_struct: dicitonary of directory structure
-    :type dict_struct: dict
-    :param local_root: path to local folder
-    :type local_root: str
-    :return: None
-    :rtype: None
-    """
-    for k in dict_struct:
-        if isinstance(dict_struct[k], dict):
-            # make a dir
-            _d = local_root + "/" + k
-            make_dir(str_path=_d)
-            # now move down:
-            fill_dir_strucuture(dict_struct=dict_struct[k], local_root=_d)
-        else:  # is file
-            pass
-    return None
-
-
 class Project(FileSys):
 
     def __init__(self, root, name):
         super().__init__(folder_base=root, name=name, alias=None)
+
+        self.structure = {
+            "inputs": {
+                "topo":
+                    {
+                        "_aux": {0:0},
+                        "htwi": {0: 0},
+                    },
+                "lulc":
+                    {
+                        "bsl": {
+                                "_aux": {0:0},
+                        },
+                        "bau": {
+                            "_aux": {0:0},
+                        }
+                    },
+                "clim":
+                    {
+                        "bsl": {
+                            "_aux": {0:0},
+                        },
+                        "bau": {
+                            "_aux": {0:0},
+                        }
+                    },
+                "basins":
+                    {
+                        "_aux": {0:0},
+                    },
+                "soils":
+                    {
+                        "_aux": {0: 0},
+                    },
+            },
+            "outputs": {0:0}
+        }
+        self.make_dir(str_path=self.folder_main)
+        self.fill(
+            dict_struct=self.structure, folder=self.folder_main, handle_files=False
+        )
+
         # load standard data
-        self.load_data()
+        #self.load_data()
 
     def load_data(self):
         """Load data from file. Expected to overwrite superior methods.
@@ -114,7 +118,7 @@ class Project(FileSys):
 
         return None
 
-
+# todo [refactor] -- here we got some very interesting stuff
 class Project_(FileSys):
 
     def __init__(self, name, folder_base, alias=None):

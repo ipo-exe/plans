@@ -1,0 +1,35 @@
+id;plans;alias;color;type;id_mapbiomas;name_mapbiomas;alias_mapbiomas;color_mapbiomas
+1;Forest Formation;Fr;#1f8d49;Natural cover;3;Forest Formation;Fr;#1f8d49
+2;Savanna Formation;Sv;#7dc975;Natural cover;4;Savanna Formation;Sv;#7dc975
+3;Mangrove;Mg;#04381d;Natural cover;5;Mangrove;Mg;#04381d
+4;Floodable Forest;Fl;#026975;Natural cover;6;Floodable Forest;Fl;#026975
+5;Wooded Sandbank Vegetation;Ws;#02d659;Natural cover;49;Wooded Sandbank Vegetation;Ws;#02d659
+6;Wetland;We;#519799;Natural cover;11;Wetland;We;#519799
+7;Grassland;Gr;#d6bc74;Natural cover;12;Grassland;Gr;#d6bc74
+8;Hypersaline Tidal Flat;Sf;#fc8114;Natural cover;32;Hypersaline Tidal Flat;Sf;#fc8114
+9;Rocky Outcrop;Ro;#ffaa5f;Natural cover;29;Rocky Outcrop;Ro;#ffaa5f
+10;Herbaceous Sandbank Vegetation;Hs;#ad5100;Natural cover;50;Herbaceous Sandbank Vegetation;Hs;#ad5100
+11;Other non Forest Formations;Nf;#d89f5c;Natural cover;13;Other non Forest Formations;Nf;#d89f5c
+12;Beach, Dune and Sand Spot;Sd;#ffa07a;Natural cover;23;Beach, Dune and Sand Spot;Sd;#ffa07a
+13;River, Lake and Ocean;W;#2532e4;Natural cover;33;River, Lake and Ocean;W;#2532e4
+14;Pasture;Ps;#edde8e;Extensive use;15;Pasture;Ps;#edde8e
+15;Soybean;Sy;#f5b3c8;Extensive use;39;Soybean;Sy;#f5b3c8
+16;Sugar cane;Sc;#db7093;Extensive use;20;Sugar cane;Sc;#db7093
+17;Rice;Rc;#c71585;Extensive use;40;Rice;Rc;#c71585
+18;Cotton (beta);Ct;#ff69b4;Extensive use;62;Cotton;Ct;#ff69b4
+19;Other Temporary Crops;Tc;#f54ca9;Extensive use;41;Other Temporary Crops;Tc;#f54ca9
+20;Coffee;Cf;#d68fe2;Extensive use;46;Coffee;Cf;#d68fe2
+21;Citrus;Ci;#9932cc;Extensive use;47;Citrus;Ci;#9932cc
+22;Palm Oil;Po;#9065d0;Extensive use;35;Palm Oil;Po;#9065d0
+23;Other Perennial Crops;Pc;#e6ccff;Extensive use;48;Other Perennial Crops;Pc;#e6ccff
+24;Forest Plantation;Fp;#7a5900;Extensive use;9;Forest Plantation;Fp;#7a5900
+25;Mosaic of Uses;Mu;#ffefc3;Extensive use;21;Mosaic of Uses;Mu;#ffefc3
+26;Urban Area;Ur;#d4271e;Intensive use;24;Urban Area;Ur;#d4271e
+27;Mining;Mi;#9c0027;Intensive use;30;Mining;Mi;#9c0027
+28;Other non Vegetated Areas;Nv;#db4d4f;Intensive use;25;Other non Vegetated Areas;Nv;#db4d4f
+29;Aquaculture;Aq;#091077;Intensive use;31;Aquaculture;Aq;#091077
+30;Dirty Road;Rd;#D2CFC0;Intensive use;;none;;
+31;Paved Road;Rs;#D4AD9B;Intensive use;;none;;
+32;Railway;Rr;#B5A295;Intensive use;;none;;
+255;Not Observed;No;#ffffff;Not Observed;27;Not Observed;No;#ffffff
+255;No Data;Na;#ffffff;No Data;0;No Data;Na;#ffffff

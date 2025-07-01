@@ -2708,18 +2708,19 @@ class FileSys(DataSet):
         # structure loop:
         for k in dict_struct:
             # get current folder or file
-            _d = folder + "/" + k
+            _d = folder + "/" + str(k)
 
             # [case 1] bottom is a folder
             if isinstance(dict_struct[k], dict):
                 # make a dir
                 FileSys.make_dir(str_path=_d)
                 # now move down:
-                FileSys.fill(dict_struct=dict_struct[k], folder=_d)
+                FileSys.fill(dict_struct=dict_struct[k], folder=_d, handle_files=handle_files)
 
             # bottom is an expected file
             else:
                 if handle_files:
+                    print("HEY")
                     handle_file(dst_name=k, lst_specs=dict_struct[k], dst_folder=folder)
 
         return None

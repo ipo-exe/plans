@@ -169,8 +169,9 @@ def normalize_values(array, min_value, max_value):
     # Apply the normalization formula using NumPy's broadcasting capabilities
     # X_normalized = min_value + ((X - old_min) * new_range) / old_range
     normalized = min_value + ((array - old_min) * new_range) / old_range
-
     return normalized
+
+
 
 def reclassify_values(array, upvalues, classes):
     """Reclassify array based on list of upper values and list of classes values
@@ -213,6 +214,19 @@ def slope(dem, cellsize, degree=True):
         slope_array = slope_array * 360 / (2 * np.pi)
     return slope_array
 
+def buffer(grd_input, n_radius):
+    """Calculate a buffer mask
+
+    :param grd_input: Pseudo-boolean 2D numpy array where pixels with value 1 represent the foreground.
+    :type grd_input: :class:`numpy.ndarray`
+    :param n_radius: number of pixels for buffer (inclusive)
+    :type n_radius: int
+    :return: Pseudo-boolean 2D numpy array representing buffer area.
+    :rtype: :class:`numpy.ndarray`
+    """
+    grd_distance = euclidean_distance(grd_input)
+    grd_buffer = np.where(grd_distance <= n_radius, 1, 0)
+    return grd_buffer
 
 def euclidean_distance(grd_input):
     """Calculate the Euclidean distance from pixels with value 1.
