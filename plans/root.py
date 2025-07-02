@@ -580,7 +580,8 @@ class Collection(MbaE):
 
 
 class DataSet(MbaE):
-    """The core ``DataSet`` base/demo object.
+    """
+    The core ``DataSet`` base/demo object.
     Expected to hold one :class:`pandas.DataFrame`.
     This is a Base and Dummy object. Expected to be implemented downstream for
     custom applications.
@@ -665,14 +666,13 @@ class DataSet(MbaE):
     """
 
     def __init__(self, name="MyDataSet", alias="DS0"):
-        """Initialize the ``DataSet`` object.
+        """
+        Initialize the ``DataSet`` object.
         Expected to increment superior methods.
 
         :param name: unique object name
         :type name: str
-
-        :param alias: unique object alias.
-            If None, it takes the first and last characters from name
+        :param alias: unique object alias. If None, it takes the first and last characters from name
         :type alias: str
 
         """
@@ -699,7 +699,8 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
 
     def __str__(self):
-        """The ``DataSet`` string.
+        """
+        The ``DataSet`` string.
         Expected to overwrite superior methods.
 
         """
@@ -717,7 +718,8 @@ class DataSet(MbaE):
         return str_out
 
     def _set_fields(self):
-        """Set fields names.
+        """
+        Set fields names.
         Expected to increment superior methods.
 
         """
@@ -733,8 +735,8 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
 
     def _set_view_specs(self):
-        """Set view specifications.
-        Expected to increment superior methods.
+        """
+        Set view specifications. Expected to increment superior methods.
 
         :return: None
         :rtype: None
@@ -766,7 +768,8 @@ class DataSet(MbaE):
         return None
 
     def get_metadata(self):
-        """Get a dictionary with object metadata.
+        """
+        Get a dictionary with object metadata.
         Expected to increment superior methods.
 
         .. note::
@@ -792,8 +795,9 @@ class DataSet(MbaE):
         return dict_meta
 
     def update(self):
-        """Refresh all mutable attributes based on data (includins paths).
-        Base method. Expected to be incremented downstrem.
+        """
+        Refresh all mutable attributes based on data (includins paths).
+        Expected to be incremented downstream.
 
         :return: None
         :rtype: None
@@ -821,7 +825,8 @@ class DataSet(MbaE):
         return None
 
     def setter(self, dict_setter, load_data=True):
-        """Set selected attributes based on an incoming dictionary.
+        """
+        Set selected attributes based on an incoming dictionary.
         Expected to increment superior methods.
 
         :param dict_setter: incoming dictionary with attribute values
@@ -859,7 +864,9 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
 
     def load_data(self, file_data):
-        """Load data from file. Expected to overwrite superior methods.
+        """
+        Load data from file.
+        Expected to overwrite superior methods.
 
         :param file_data: file path to data.
         :type file_data: str
@@ -896,7 +903,8 @@ class DataSet(MbaE):
         return None
 
     def export(self, folder, filename):
-        """Export object resources.
+        """
+        Export object resources (e.g., data and metadata).
 
         :param folder: path to folder
         :type folder: str
@@ -913,12 +921,12 @@ class DataSet(MbaE):
         # ... continues in downstream objects ... #
 
     def view(self, show=True):
-        """Get a basic visualization.
+        """
+        Get a basic visualization.
         Expected to overwrite superior methods.
 
         :param show: option for showing instead of saving.
         :type show: bool
-
         :return: None or file path to figure
         :rtype: None or str
 
@@ -942,7 +950,6 @@ class DataSet(MbaE):
             ds.view_specs["title"] = "My Custom Title"
             ds.view_specs["xlabel"] = "The X variable"
             ds.view(show=True)
-
 
         Save the figure:
 

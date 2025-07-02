@@ -44,6 +44,7 @@ from osgeo import gdal
 from qgis.core import QgsCoordinateReferenceSystem
 # plugin imports
 from plans import geo
+from plans.parsers import qgdal
 
 # ----------------- MODULE CONSTANTS ----------------- #
 
@@ -233,22 +234,6 @@ def get_basins_areas(file_basins, ids_basins):
     return {"Id": ids_basins, "UpstreamArea": basin_areas}
 
 
-def get_cellsize(file_input):
-    """Get the cell size in map units (degrees or meters)
-
-    :param file_input: path to raster file
-    :type file_input: str or Path
-    :return: number of cell resolution in map units
-    :rtype: float
-    """
-    # Open the raster file using gdal
-    raster_input = gdal.Open(file_input)
-    raster_geotransform = raster_input.GetGeoTransform()
-    cellsize = raster_geotransform[1]
-    # -- Close the raster
-    raster_input = None
-    return cellsize
-
 
 def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     """Get a blank raster copy from other raster
@@ -264,65 +249,28 @@ def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     :return: file path of output (echo)
     :rtype: str
     """
+
     # -------------------------------------------------------------------------
     # LOAD
-
-    # Open the raster file using gdal
-    raster_input = gdal.Open(file_input)
-
-    # Get the raster band
-    band_input = raster_input.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grid_input = band_input.ReadAsArray()
-
-    # -- Collect useful metadata
-
-    raster_x_size = raster_input.RasterXSize
-    raster_y_size = raster_input.RasterYSize
-    raster_projection = raster_input.GetProjection()
-    raster_geotransform = raster_input.GetGeoTransform()
-
-    # -- Close the raster
-    raster_input = None
+    dc_raster = qgdal.read_raster(file_input=file_input)
+    grid_input = dc_raster["grid"]
 
     # -------------------------------------------------------------------------
     # PROCESS
     # get ones to byte integer
-    grid_input = np.ones(shape=grid_input.shape, dtype=np.uint8)
-
-    grid_output = grid_input * blank_value
+    grid_ones = np.ones(shape=grid_input.shape, dtype=np.uint8)
+    grid_output = grid_ones * blank_value
 
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
-    driver = gdal.GetDriverByName("GTiff")
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype=dtype,
+    )
 
-    if dtype == "byte":
-        # Create a new raster with the same dimensions as the original
-        raster_output = driver.Create(
-            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Byte
-        )
-    elif dtype == "int":
-        # Create a new raster with the same dimensions as the original
-        raster_output = driver.Create(
-            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Int16
-        )
-    else:
-        # Create a new raster with the same dimensions as the original
-        raster_output = driver.Create(
-            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
-        )
-
-    # Set the projection and geotransform of the new raster to match the original
-    raster_output.SetProjection(raster_projection)
-    raster_output.SetGeoTransform(raster_geotransform)
-
-    # Write the new data to the new raster
-    raster_output.GetRasterBand(1).WriteArray(grid_output)
-
-    # Close
-    raster_output = None
     return file_output
 
 def retrieve_raster_tiles(
@@ -617,43 +565,16 @@ def get_carved_dem(file_dem, file_rivers, file_output, wedge_width=3, wedge_dept
     """
     # -------------------------------------------------------------------------
     # LOAD DEM
-
-    # Open the raster file using gdal
-    raster_dem = gdal.Open(file_dem)
-
-    # Get the raster band
-    band_dem = raster_dem.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_dem = band_dem.ReadAsArray()
-
-    # -- Collect useful metadata
-
-    raster_x_size = raster_dem.RasterXSize
-    raster_y_size = raster_dem.RasterYSize
-    raster_projection = raster_dem.GetProjection()
-    raster_geotransform = raster_dem.GetGeoTransform()
-
-    # -- Close the raster
-    raster_dem = None
+    dc_raster = qgdal.read_raster(file_input=file_dem)
+    grd_dem = dc_raster["grid"]
 
     # -------------------------------------------------------------------------
     # LOAD RIVERs
-
-    # Open the raster file using gdal
-    raster_rivers = gdal.Open(file_rivers)
-
-    # Get the raster band
-    band_rivers = raster_rivers.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_rivers = band_rivers.ReadAsArray()
-
+    dc_raster2 = qgdal.read_raster(file_input=file_rivers)
+    grd_rivers = dc_raster2["grid"]
     # truncate to byte integer
     grd_rivers = grd_rivers.astype(np.uint8)
 
-    # -- Close the raster
-    raster_rivers = None
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -662,86 +583,12 @@ def get_carved_dem(file_dem, file_rivers, file_output, wedge_width=3, wedge_dept
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
-    driver = gdal.GetDriverByName("GTiff")
-
-    # Create a new raster with the same dimensions as the original
-    raster_output = driver.Create(
-        file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype="float",
     )
-
-    # Set the projection and geotransform of the new raster to match the original
-    raster_output.SetProjection(raster_projection)
-    raster_output.SetGeoTransform(raster_geotransform)
-
-    # Write the new data to the new raster
-    raster_output.GetRasterBand(1).WriteArray(grid_output)
-
-    # Close
-    raster_output = None
-    return file_output
-
-
-
-def get_slope(file_dem, file_output, degree=True):
-    """Get the Slope map in degrees from a DEM raster
-
-    :param file_dem: file path to DEM raster
-    :type file_dem: str
-    :param file_output: file path to output raster
-    :type file_output: str
-    :param degree: If True (default), the output slope values are in degrees. If False, output units are in radians.
-    :type degree: bool
-    :return: file path of output (echo)
-    :rtype: str
-
-    # todo [script example]
-
-    """
-    # -------------------------------------------------------------------------
-    # LOAD DEM
-
-    # Open the raster file using gdal
-    raster_dem = gdal.Open(file_dem)
-
-    # Get the raster band
-    band_dem = raster_dem.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_dem = band_dem.ReadAsArray()
-
-    # -- Collect useful metadata
-
-    raster_x_size = raster_dem.RasterXSize
-    raster_y_size = raster_dem.RasterYSize
-    raster_projection = raster_dem.GetProjection()
-    raster_geotransform = raster_dem.GetGeoTransform()
-    cellsize = raster_geotransform[1]
-    # -- Close the raster
-    raster_dem = None
-
-    # -------------------------------------------------------------------------
-    # PROCESS
-    grid_output = geo.slope(dem=grd_dem, cellsize=cellsize, degree=degree)
-
-    # -------------------------------------------------------------------------
-    # EXPORT RASTER FILE
-    # Get the driver to create the new raster
-    driver = gdal.GetDriverByName("GTiff")
-
-    # Create a new raster with the same dimensions as the original
-    raster_output = driver.Create(
-        file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
-    )
-
-    # Set the projection and geotransform of the new raster to match the original
-    raster_output.SetProjection(raster_projection)
-    raster_output.SetGeoTransform(raster_geotransform)
-
-    # Write the new data to the new raster
-    raster_output.GetRasterBand(1).WriteArray(grid_output)
-
-    # Close
-    raster_output = None
     return file_output
 
 
@@ -866,35 +713,13 @@ def get_tps(file_tpi, file_upa, file_output, upa_min=0.01, upa_max=2, tpi_v=-2, 
     """
     # -------------------------------------------------------------------------
     # LOAD TPI
-
-    # Open the raster file using gdal
-    raster_input = gdal.Open(file_tpi)
-
-    # Get the raster band
-    band_input = raster_input.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grid_tpi = band_input.ReadAsArray()
-
-    # -- Collect useful metadata
-    raster_x_size = raster_input.RasterXSize
-    raster_y_size = raster_input.RasterYSize
-    raster_projection = raster_input.GetProjection()
-    raster_geotransform = raster_input.GetGeoTransform()
-    # -- Close the raster
-    raster_input = None
+    dc_raster1 = qgdal.read_raster(file_input=file_tpi, metadata=True)
+    grid_tpi = dc_raster1["grid"]
 
     # -------------------------------------------------------------------------
     # LOAD UPA
-
-    # Open the raster file using gdal
-    raster_input = gdal.Open(file_upa)
-    # Get the raster band
-    band_input = raster_input.GetRasterBand(1)
-    # Read the raster data as a numpy array
-    grid_upa = band_input.ReadAsArray()
-    # -- Close the raster
-    raster_input = None
+    dc_raster2 = qgdal.read_raster(file_input=file_upa, metadata=False)
+    grid_upa = dc_raster2["grid"]
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -912,22 +737,12 @@ def get_tps(file_tpi, file_upa, file_output, upa_min=0.01, upa_max=2, tpi_v=-2, 
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
-    driver = gdal.GetDriverByName("GTiff")
-
-    # Create a new raster with the same dimensions as the original
-    raster_output = driver.Create(
-        file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Byte
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster1["metadata"],
+        file_output=file_output,
+        dtype="float",
     )
-
-    # Set the projection and geotransform of the new raster to match the original
-    raster_output.SetProjection(raster_projection)
-    raster_output.SetGeoTransform(raster_geotransform)
-
-    # Write the new data to the new raster
-    raster_output.GetRasterBand(1).WriteArray(grid_output)
-
-    # Close
-    raster_output = None
     return file_output
 
 
@@ -948,64 +763,28 @@ def get_twi(file_slope, file_upa, file_output):
     """
     # -------------------------------------------------------------------------
     # LOAD SLOPE
-
-    # Open the raster file using gdal
-    raster_slope = gdal.Open(file_slope)
-
-    # Get the raster band
-    band_slope = raster_slope.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_slope = band_slope.ReadAsArray()
-
-    # -- Collect useful metadata
-
-    raster_x_size = raster_slope.RasterXSize
-    raster_y_size = raster_slope.RasterYSize
-    raster_projection = raster_slope.GetProjection()
-    raster_geotransform = raster_slope.GetGeoTransform()
-    cellsize = raster_geotransform[1]
-    # -- Close the raster
-    raster_slope = None
+    dc_raster = qgdal.read_raster(file_input=file_slope)
+    grd_slope = dc_raster["grid"]
 
     # -------------------------------------------------------------------------
-    # LOAD Flowacc
-
-    # Open the raster file using gdal
-    raster_upa = gdal.Open(file_upa)
-
-    # Get the raster band
-    band_upa = raster_upa.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_upa = band_upa.ReadAsArray()
-
-    # -- Close the raster
-    raster_upa = None
+    # LOAD UPA
+    dc_raster2 = qgdal.read_raster(file_input=file_upa, metadata=False)
+    grd_upa = dc_raster2["grid"]
 
     # -------------------------------------------------------------------------
     # PROCESS
+    cellsize = dc_raster["metadata"]["cellsize"]
     grid_output = geo.twi(slope=grd_slope, flowacc=grd_upa, cellsize=cellsize)
 
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
-    driver = gdal.GetDriverByName("GTiff")
-
-    # Create a new raster with the same dimensions as the original
-    raster_output = driver.Create(
-        file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype="float",
     )
-
-    # Set the projection and geotransform of the new raster to match the original
-    raster_output.SetProjection(raster_projection)
-    raster_output.SetGeoTransform(raster_geotransform)
-
-    # Write the new data to the new raster
-    raster_output.GetRasterBand(1).WriteArray(grid_output)
-
-    # Close
-    raster_output = None
     return file_output
 
 
@@ -1057,40 +836,13 @@ def get_htwi(file_ftwi, file_fhand, file_output, hand_w):
     """
     # -------------------------------------------------------------------------
     # LOAD F-TWI
-
-    # Open the raster file using gdal
-    raster_twi = gdal.Open(file_ftwi)
-
-    # Get the raster band
-    band_twi = raster_twi.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_ftwi = band_twi.ReadAsArray()
-
-    # -- Collect useful metadata
-
-    raster_x_size = raster_twi.RasterXSize
-    raster_y_size = raster_twi.RasterYSize
-    raster_projection = raster_twi.GetProjection()
-    raster_geotransform = raster_twi.GetGeoTransform()
-    cellsize = raster_geotransform[1]
-    # -- Close the raster
-    raster_twi = None
+    dc_raster = qgdal.read_raster(file_input=file_ftwi, metadata=True)
+    grd_ftwi = dc_raster["grid"]
 
     # -------------------------------------------------------------------------
     # LOAD F-HAND
-
-    # Open the raster file using gdal
-    raster_fhand = gdal.Open(file_fhand)
-
-    # Get the raster band
-    band_fhand = raster_fhand.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grd_fhand = band_fhand.ReadAsArray()
-
-    # -- Close the raster
-    raster_fhand = None
+    dc_raster2 = qgdal.read_raster(file_input=file_fhand, metadata=False)
+    grd_fhand = dc_raster2["grid"]
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -1102,22 +854,12 @@ def get_htwi(file_ftwi, file_fhand, file_output, hand_w):
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
-    driver = gdal.GetDriverByName("GTiff")
-
-    # Create a new raster with the same dimensions as the original
-    raster_output = driver.Create(
-        file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Float32
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype="float",
     )
-
-    # Set the projection and geotransform of the new raster to match the original
-    raster_output.SetProjection(raster_projection)
-    raster_output.SetGeoTransform(raster_geotransform)
-
-    # Write the new data to the new raster
-    raster_output.GetRasterBand(1).WriteArray(grid_output)
-
-    # Close
-    raster_output = None
     return file_output
 
 
@@ -1197,7 +939,7 @@ def get_hand(
 
     if file_drainage is None:
         # -- PCRaster - create material layer with cell x cell (area)
-        cellsize = get_cellsize(file_input=file_dem_filled)
+        cellsize = qgdal.get_cellsize(file_input=file_dem_filled)
         print("[pc-raster] get material (constant)...")
         file_material = "{}/material.map".format(folder_aux)
         processing.run(
@@ -1581,7 +1323,7 @@ def get_topo(
     }
 
     # get cellsize
-    cellsize = get_cellsize(file_input=dict_files["dem"])
+    cellsize = qgdal.get_cellsize(file_input=dict_files["dem"])
 
     # 4) get rivers blank
     print("get main rivers...")
@@ -1947,7 +1689,7 @@ def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, 
     """
     # handle folders
     folder_lulc = "{}/inputs/lulc/bsl".format(folder_project)
-    output_folder_interm = "{}/_aux".format(folder_lulc)
+    folder_aux = "{}/_aux".format(folder_lulc)
 
     # print("retrieve source-lulc years to intermediate folder -- align to dem raster")
 
@@ -1967,19 +1709,19 @@ def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, 
     )
 
     # find cellsize from target file
-    cellsize = get_cellsize(file_input=file_target)
+    cellsize = qgdal.get_cellsize(file_input=file_target)
 
     # loop over years
-    list_main_files = glob.glob(f"{folder_src}/*_*-*-*.tif")
+    list_main_files = glob.glob(f"{folder_src}/*_*.tif")
 
     print("clip-n-warp lulc ... ")
     for i in range(len(list_main_files)):
         file_main_lulc = str(Path(list_main_files[i]))
-        date = os.path.basename(file_main_lulc).replace(".tif", "").split("_")[-1]
+        date = os.path.basename(file_main_lulc).replace(".tif", "").split("_")[-1] + "-01-01"
         str_filename = "lulc_{}".format(date)
-        file_output1 = "{}/src_raw_{}.tif".format(output_folder_interm, str_filename)
+        file_output1 = "{}/src_raw_{}.tif".format(folder_aux, str_filename)
         # run warp
-        print("warp ... {}".format(str_filename))
+        print("[gdal] warp ... {}".format(str_filename))
         processing.run(
             "gdal:warpreproject",
             {
@@ -2004,10 +1746,10 @@ def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, 
                 "OUTPUT": file_output1,
             },
         )
-        print("fill nodata ... {}".format(str_filename))
+        print("[gdal] fill ... {}".format(str_filename))
         # fill no data
         s_prefix = "src_fill"
-        file_output = "{}/{}_{}.tif".format(output_folder_interm, s_prefix, str_filename)
+        file_output = "{}/{}_{}.tif".format(folder_aux, s_prefix, str_filename)
         processing.run(
             "gdal:fillnodata",
             {
@@ -2025,20 +1767,19 @@ def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, 
         if file_style_src is not None:
             shutil.copy(
                 src=file_style_src,
-                dst=f"{output_folder_interm}/{s_prefix}_{str_filename}.qml"
+                dst=f"{folder_aux}/{s_prefix}_{str_filename}.qml"
             )
         # delete warp
         #os.remove(file_output1)
         # handle styles
 
-
-    return  None
+    return folder_aux
 
 
 def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="src_fill", id_src="id_mapbiomas", file_style=None):
     """Convert lulc values from source map
 
-    :param folder_src:
+    :param folder_src: path to sourced maps
     :type folder_src: str
     :param folder_project: path to project
     :type folder_project: str
@@ -2095,18 +1836,8 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
         # -------------------------------------------------------------------------
         # LOAD
         # Open the raster file using gdal
-        raster_input = gdal.Open(file_input)
-        # Get the raster band
-        band_input = raster_input.GetRasterBand(1)
-        # Read the raster data as a numpy array
-        grid_input = band_input.ReadAsArray()
-        # -- Collect useful metadata
-        raster_x_size = raster_input.RasterXSize
-        raster_y_size = raster_input.RasterYSize
-        raster_projection = raster_input.GetProjection()
-        raster_geotransform = raster_input.GetGeoTransform()
-        # -- Close the raster
-        raster_input = None
+        dc_raster = qgdal.read_raster(file_input=file_input)
+        grid_input = dc_raster["grid"]
 
         print(f"[geo] {s_date} -- apply conversion")
         #
@@ -2123,19 +1854,12 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
         # EXPORT RASTER FILE
         file_output_name = f"lulc_{s_date}"
         file_output = f"{folder_lulc}/{file_output_name}.tif"
-        # Get the driver to create the new raster
-        driver = gdal.GetDriverByName("GTiff")
-        # Create a new raster with the same dimensions as the original
-        raster_output = driver.Create(
-            file_output, raster_x_size, raster_y_size, 1, gdal.GDT_Byte
+        qgdal.write_raster(
+            grid_output=grid_output,
+            dc_metadata=dc_raster["metadata"],
+            file_output=file_output,
+            dtype="byte",
         )
-        # Set the projection and geotransform of the new raster to match the original
-        raster_output.SetProjection(raster_projection)
-        raster_output.SetGeoTransform(raster_geotransform)
-        # Write the new data to the new raster
-        raster_output.GetRasterBand(1).WriteArray(grid_output)
-        # Close
-        raster_output = None
         #
         # handle style
         if file_style is not None:
@@ -2146,10 +1870,12 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
     print("conversion --DONE")
     return None
 
-
-def rasterize_roads():
-    print("-- reproject from source")
+# todo [develop]
+'''
+def rasterize_roads():    
+    print("-- reproject from source to local vector database")
     print("rasterize to maps")
+'''
 
 def get_lulc(
         folder_src,
@@ -2161,6 +1887,9 @@ def get_lulc(
         id_src="id_mapbiomas",
         file_style_src=None,
         file_style=None,
+        db_roads=None,
+        layer_roads="roads",
+
 ):
     """Get lulc maps from source and convert to plans
 
@@ -2185,13 +1914,10 @@ def get_lulc(
     :return: None
     :rtype: None
 
-
-
-
     """
 
     print("retrieve lulc maps from source")
-    retrieve_lulc(
+    folder_lulc = retrieve_lulc(
         folder_src=folder_src,
         folder_project=folder_project,
         crs_target=crs_target,
@@ -2201,15 +1927,21 @@ def get_lulc(
     )
     print("convert lulc indexing")
     convert_lulc(
-        folder_src=folder_src,
+        folder_src=folder_lulc,
         folder_project=folder_project,
         file_conversion_table=file_conversion_table,
         prefix_src="src_fill",
         id_src=id_src,
         file_style=file_style
     )
-    return None
+    # clean up aux folder
+    ls_files = glob.glob(f"{folder_lulc}/*_lulc_*.tif")
+    for f in ls_files:
+        os.remove(f)
 
+    # todo [improvements] -- setup a way to rasterize OSM roads
+
+    return None
 
 
 # todo -- Basin -- refactor in a simpler way but still allow multi-basin routing
@@ -2594,7 +2326,7 @@ def get_lulc_old(
         DC_PROVIDERS[crs_target],
         crs_target,
     )
-    cellsize = get_cellsize(file_input=target_file)
+    cellsize = qgdal.get_cellsize(file_input=target_file)
     list_output_files = list()
     list_filenames = list()
     print("clip-n-warp lulc ... ")

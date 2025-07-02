@@ -37,8 +37,6 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
     # export to folder
     auto.export_data(folder="C:/data", append_id=True)
 
-
-
 """
 import pandas as pd
 

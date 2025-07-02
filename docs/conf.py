@@ -49,6 +49,7 @@ autodoc_mock_imports = [
     'osgeo',
     'geopandas',
     'PyPDF2',
+    'rasterio',
 ]
 
 autodoc_member_order = 'bysource'

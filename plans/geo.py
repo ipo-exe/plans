@@ -31,7 +31,8 @@ import numpy as np
 
 
 def find_array_bbox(image):
-    """Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
+    """
+    Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
 
     Parameters:
     - image: 2D numpy array with values 1 (content) and 0 (background)
@@ -56,7 +57,8 @@ def find_array_bbox(image):
 
 # GEOMETRY FUNCTIONS
 def extents_to_wkt_box(xmin, ymin, xmax, ymax):
-    """Returns a WKT box from the given extents (xmin, ymin, xmax, ymax).
+    """
+    Returns a WKT box from the given extents (xmin, ymin, xmax, ymax).
 
     :param xmin: Minimum x-coordinate (left)
     :type xmin: float
@@ -77,7 +79,8 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
 # --- basic processing of array values
 
 def convert_values(array, old_values, new_values):
-    """Convert values.
+    """
+    Convert values.
 
     :param array: Numpy array to convert values
     :type array: :class:`numpy.ndarray`
@@ -96,7 +99,8 @@ def convert_values(array, old_values, new_values):
     return new
 
 def prune_values(array, min_value=None, max_value=None):
-    """Inclusive prune values in array
+    """
+    Inclusive prune values in array
 
     :param array: Numpy array to prune values
     :type array: :class:`numpy.ndarray`
@@ -114,7 +118,8 @@ def prune_values(array, min_value=None, max_value=None):
     return array
 
 def downscale_value(mean, scale, array_covar, mirror=False):
-    """Downscale a scalar mean to a vector. Performs a disaggregation
+    """
+    Downscale a scalar mean to a vector. Performs a disaggregation
 
     :param mean: mean value to downscale (expected to be positive)
     :type mean: float
@@ -134,7 +139,8 @@ def downscale_value(mean, scale, array_covar, mirror=False):
     return mean + (signal * downler)
 
 def downscaling_mask(array_covar, scale):
-    """Compute a downscaling mask by using a covariate array
+    """
+    Compute a downscaling mask by using a covariate array
 
     :param array_covar: Numpy array of a covariate
     :type array_covar: :class:`numpy.ndarray`
@@ -146,7 +152,8 @@ def downscaling_mask(array_covar, scale):
     return scale * (array_covar - np.mean(array_covar))
 
 def normalize_values(array, min_value, max_value):
-    """Normalize array between min and max values
+    """
+    Normalize array between min and max values
 
     :param array: Input array or float
     :type array: float or :class:`numpy.ndarray`
@@ -174,7 +181,8 @@ def normalize_values(array, min_value, max_value):
 
 
 def reclassify_values(array, upvalues, classes):
-    """Reclassify array based on list of upper values and list of classes values
+    """
+    Reclassify array based on list of upper values and list of classes values
 
     :param array: numpy array to reclassify
     :param upvalues: 1d numpy array of upper values
@@ -194,7 +202,8 @@ def reclassify_values(array, upvalues, classes):
 # --- basic operation on array values
 
 def slope(dem, cellsize, degree=True):
-    """Calculate slope using gradient-based algorithms on a 2D numpy array.
+    """
+    Calculate slope using gradient-based algorithms on a 2D numpy array.
 
     :param dem: 2D numpy array representing the Digital Elevation Model (``DEM``).
     :type dem: :class:`numpy.ndarray`
@@ -215,7 +224,8 @@ def slope(dem, cellsize, degree=True):
     return slope_array
 
 def buffer(grd_input, n_radius):
-    """Calculate a buffer mask
+    """
+    Calculate a buffer mask
 
     :param grd_input: Pseudo-boolean 2D numpy array where pixels with value 1 represent the foreground.
     :type grd_input: :class:`numpy.ndarray`
@@ -229,7 +239,8 @@ def buffer(grd_input, n_radius):
     return grd_buffer
 
 def euclidean_distance(grd_input):
-    """Calculate the Euclidean distance from pixels with value 1.
+    """
+    Calculate the Euclidean distance from pixels with value 1.
 
     :param grd_input: Pseudo-boolean 2D numpy array where pixels with value 1 represent the foreground.
     :type grd_input: :class:`numpy.ndarray`
@@ -249,7 +260,8 @@ def euclidean_distance(grd_input):
 
 
 def twi(slope, flowacc, cellsize):
-    """Calculate the Topographic Wetness Index ``TWI``.
+    """
+    Calculate the Topographic Wetness Index ``TWI``.
 
     :param slope: 2D numpy array representing the slope in degrees.
     :type slope: :class:`numpy.ndarray`
@@ -284,7 +296,8 @@ def shalstab_wetness(
     degree=True,
     kPa=True,
 ):
-    """Calculate the SHALSTAB wetness model
+    """
+    Calculate the SHALSTAB wetness model
 
     :param flowacc: flow accumulation map (square meters)
     :type flowacc: :class:`numpy.ndarray`
@@ -359,7 +372,8 @@ def shalstab_wetness(
 
 
 def usle_l(slope, cellsize):
-    """Wischmeier & Smith (1978) L factor
+    """
+    Wischmeier & Smith (1978) L factor
 
     L = (x / 22.13) ^ m0
 
@@ -390,7 +404,8 @@ def usle_l(slope, cellsize):
 
 
 def usle_s(slope):
-    """Wischmeier & Smith (1978) S factor
+    """
+    Wischmeier & Smith (1978) S factor
 
     S = 65.41(sinθ)^2 + 4.56sinθ + 0.065
 
@@ -404,7 +419,8 @@ def usle_s(slope):
 
 
 def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
-    """USLE-M Annual Soil Loss (Kinnell & Risse, 1998)
+    """
+    USLE-M Annual Soil Loss (Kinnell & Risse, 1998)
 
     :param q: 2d numpy array of annual runoff in mm / year
     :param prec: 2d numpy array or float of annual precipitation in mm / year
@@ -422,9 +438,10 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
 
 
 def rivers_wedge(grd_rivers, wedge_width=3, wedge_depth=3):
-    """Generate a wedge-like trench along the river lines.
+    """
+    Generate a wedge-like trench along the river lines.
 
-    **Notes:**
+    Notes:
 
     - The function generates a wedge-like trench along the river lines based on distance transform.
     - The inputs array `grd_rivers` should be a pseudo-boolean grid where rivers are represented as 1 and others as 0.
@@ -445,7 +462,8 @@ def rivers_wedge(grd_rivers, wedge_width=3, wedge_depth=3):
 
 
 def carve_dem(grd_dem, grd_rivers, wedge_width=3, wedge_depth=10):
-    """Burn a ``DEM`` map with river lines.
+    """
+    Burn a ``DEM`` map with river lines.
 
     :param grd_dem: ``DEM`` map.
     :type grd_dem: :class:`numpy.ndarray`
@@ -470,7 +488,8 @@ def carve_dem(grd_dem, grd_rivers, wedge_width=3, wedge_depth=10):
 
 
 def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
-    """Compute i and j downstream cell coordinates based on cell flow direction.
+    """
+    Compute i and j downstream cell coordinates based on cell flow direction.
 
     d8 - Direction convention:
 
@@ -549,7 +568,8 @@ def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
 
 
 def outlet_distance(grd_ldd, n_res=30, s_convention="ldd"):
-    """Compute the distance to outlet ``DTO`` raster of a given basin.
+    """
+    Compute the distance to outlet ``DTO`` raster of a given basin.
 
     :param grd_ldd: 2d numpy array of flow direction LDD
     :type grd_ldd: :class:`numpy.ndarray`
@@ -560,13 +580,9 @@ def outlet_distance(grd_ldd, n_res=30, s_convention="ldd"):
     :return: 2d numpy array distance
     :rtype: :class:`numpy.ndarray`
 
-    **Notes:**
+    Notes:
 
     - The distance is set to 0 outside the basin area.
-
-    **Examples:**
-
-    >>> out_distance = outlet_distance(grd_ldd, n_res=30, s_convention='ldd')
 
     """
 

@@ -36,9 +36,11 @@ import matplotlib as mpl
 import matplotlib.dates as mdates
 from matplotlib.ticker import MaxNLocator
 import warnings
+import rasterio
 from plans.root import Collection, DataSet
 from plans.analyst import Univar
 from plans import geo
+
 
 
 def dataframe_prepro(dataframe):
@@ -2758,14 +2760,15 @@ class Raster:
     """
 
     def __init__(self, name="myRasterMap", dtype="float32"):
-        """Deploy a basic raster map object.
+        """
+        Deploy a basic raster map object.
 
         :param name: Map name, defaults to "myRasterMap"
         :type name: str
         :param dtype: Data type of raster cells. Options: byte, uint8, int16, int32, float32, etc., defaults to "float32"
         :type dtype: str
 
-        **Attributes:**
+        Attributes:
 
         - ``grid`` (None): Main grid of the raster.
         - ``backup_grid`` (None): Backup grid for AOI operations.
@@ -2786,14 +2789,6 @@ class Raster:
         - ``path_ascfile`` (None): Path to the .asc raster file.
         - ``path_prjfile`` (None): Path to the .prj projection file.
         - ``view_specs`` (None): View specifications for visualization.
-
-        **Examples:**
-
-        >>> # Create a raster map with default settings
-        >>> raster = Raster()
-
-        >>> # Create a raster map with custom name and data type
-        >>> custom_raster = Raster(name="CustomRaster", dtype="int16")
         """
         # -------------------------------------
         # set basic attributes
@@ -2837,7 +2832,8 @@ class Raster:
         return "\n".join(lst_)
 
     def _set_view_specs(self):
-        """Set default view specs.
+        """
+        Set default view specs.
 
         :return: None
         :rtype: None
@@ -2892,11 +2888,6 @@ class Raster:
         - The function overwrites the existing data grid in the raster object with the incoming grid, ensuring that the data type matches the raster's dtype.
         - Nodata values are masked after setting the grid.
 
-        **Examples:**
-
-        >>> # Example of setting a new grid
-        >>> new_grid = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-        >>> raster.set_grid(new_grid)
         """
         # overwrite incoming dtype
         self.grid = grid.astype(self.dtype)
@@ -3455,36 +3446,20 @@ class Raster:
 
         This function creates a new grid based on a provided reference raster. Both rasters are expected to be in the same coordinate system and have overlapping bounding boxes.
 
-        :param base_raster: :class:`datasets.Raster`
-            The reference raster used for rebase. It should be in the same coordinate system and have overlapping bounding boxes.
+        :param base_raster: The reference raster used for rebase. It should be in the same coordinate system and have overlapping bounding boxes.
         :type base_raster: :class:`datasets.Raster`
-
-        :param inplace: bool, optional
-            If True, the rebase operation will be performed in-place, and the original raster's grid will be modified. If False, a new rebased grid will be returned, and the original data will remain unchanged. Default is False.
+        :param inplace: If True, the rebase operation will be performed in-place, and the original raster's grid will be modified. If False, a new rebased grid will be returned, and the original data will remain unchanged. Default is False.
         :type inplace: bool
-
-        :param method: str, optional
-            Interpolation method for rebasing the grid. Options include "linear_model," "nearest," and "cubic." Default is "linear_model."
+        :param method: Interpolation method for rebasing the grid. Options include "linear_model," "nearest," and "cubic." Default is "linear_model."
         :type method: str
-
-        :return: :class:`numpy.ndarray`` or None
-            If inplace is False, a new rebased grid as a NumPy array.
-            If inplace is True, returns None, and the original raster's grid is modified in-place.
+        :return: If inplace is False, a new rebased grid as a NumPy array. If inplace is True, returns None, and the original raster's grid is modified in-place.
         :rtype: :class:`numpy.ndarray`` or None
 
-        **Notes:**
+        Notes:
 
         - The rebase operation involves interpolating the values of the original grid to align with the reference raster's grid.
         - The method parameter specifies the interpolation method and can be "linear_model," "nearest," or "cubic."
         - The rebase assumes that both rasters are in the same coordinate system and have overlapping bounding boxes.
-
-        **Examples:**
-
-        >>> # Example with inplace=True
-        >>> raster.rebase_grid(base_raster=reference_raster, inplace=True)
-
-        >>> # Example with inplace=False
-        >>> rebased_grid = raster.rebase_grid(base_raster=reference_raster, inplace=False)
         """
         from scipy.interpolate import griddata
 
@@ -3532,10 +3507,6 @@ class Raster:
         - If inplace is True, the main grid is modified. If False, a backup of the grid is created before modification.
         - This function is useful for focusing analysis or visualization on a specific area within the raster map.
 
-        **Examples:**
-
-        >>> # Example of applying an AOI mask to the raster map
-        >>> raster.apply_aoi_mask(grid_aoi=aoi_mask, inplace=True)
         """
         if self.nodatavalue is None or self.grid is None:
             pass
@@ -3556,7 +3527,8 @@ class Raster:
         return None
 
     def release_aoi_mask(self):
-        """Release AOI mask from the main grid. Backup grid is restored.
+        """
+        Release AOI mask from the main grid. Backup grid is restored.
 
         This function releases the AOI (area of interest) mask from the main grid, restoring the original values from the backup grid.
 
@@ -3569,10 +3541,6 @@ class Raster:
         - If no AOI mask has been applied, the function has no effect.
         - After releasing the AOI mask, the backup grid is set to None, and the raster object is no longer considered to have an AOI mask.
 
-        **Examples:**
-
-        >>> # Example of releasing the AOI mask from the main grid
-        >>> raster.release_aoi_mask()
         """
         if self.isaoi:
             self.set_grid(grid=self.backup_grid)
@@ -3581,7 +3549,8 @@ class Raster:
         return None
 
     def cut_edges(self, upper, lower, inplace=False):
-        """Cutoff upper and lower values of the raster grid.
+        """
+        Cutoff upper and lower values of the raster grid.
 
         :param upper: float or int
             The upper value for the cutoff.
@@ -3607,12 +3576,6 @@ class Raster:
         - If inplace is False, a processed copy of the grid is returned, leaving the original grid unchanged.
         - This function is useful for clipping extreme values in the raster grid.
 
-        **Examples:**
-
-        >>> # Example of cutting off upper and lower values in the raster grid
-        >>> processed_grid = raster.cut_edges(upper=100, lower=0, inplace=False)
-        >>> # Alternatively, modify the main grid in-place
-        >>> raster.cut_edges(upper=100, lower=0, inplace=True)
         """
         if self.grid is None:
             return None
@@ -3628,7 +3591,8 @@ class Raster:
                 return new_grid
 
     def get_metadata(self):
-        """Get all metadata from the base object.
+        """
+        Get all metadata from the base object.
 
         :return: Metadata dictionary.
 
@@ -3967,7 +3931,7 @@ class Raster:
         plt.text(
             x=n_mean - 20 * (specs["vmax"] - specs["vmin"]) / 100,
             y=0.9 * specs["hist_vmax"],
-            s="$\mu$ = {:.2f}".format(n_mean),
+            s=r"$\mu$ = {:.2f}".format(n_mean),
             color="red",
         )
 
@@ -4105,10 +4069,98 @@ class Raster:
                 )
             return file_path
 
+    @staticmethod
+    def read_raster_metadata(file_input, n_band=1):
+        """
+        Read raster metadata from a file.
+
+        :param file_input: Path to the input raster file.
+        :param type: str
+        :param n_band: [optional] Band number to read. Default value = 1
+        :param type: int
+        :return: Dictionary containing raster metadata.
+        :rtype: dict
+        """
+        raster_input = rasterio.open(file_input)
+        dc_metatada = {
+            "ncols": raster_input.width,
+            "nrows": raster_input.height,
+            "xllcorner" : raster_input.bounds.left,
+            "yllcorner": raster_input.bounds.bottom,
+            "cellsize": raster_input.res[0],
+            "NODATA_value": raster_input.nodata,
+            "crs": raster_input.crs,
+            "transform": raster_input.transform
+        }
+        raster_input.close()
+        return dc_metatada
+
+
+    @staticmethod
+    def read_raster(file_input, n_band=1, dtype="float", metadata=True):
+        """
+        Read a raster band from a file.
+
+        :param file_input: Path to the input raster file.
+        :param type: str
+        :param n_band: Band number to read. Default value = 1
+        :param type: int
+        :param dtype: Data type for the output grid. Default value = "float"
+        :param type: str
+        :param metadata: Whether to include metadata in the output dictionary. Default value = True
+        :param type: bool
+        :return: Dictionary containing the raster grid and optionally its metadata.
+        :rtype: dict
+        """
+        raster_input = rasterio.open(file_input)
+        dc_raster = {
+            "grid": np.astype(raster_input.read(n_band), dtype)
+        }
+        if metadata:
+            dc_metadata = Raster.read_raster_metadata(file_input, n_band)
+            dc_raster["metadata"] = dc_metadata
+        raster_input.close()
+        return dc_raster
+
+    @staticmethod
+    def write_raster(grid_output, dc_metadata, file_output, dtype="float", n_bands=1, id_band=1):
+        """
+        Write a raster band to a file.
+
+        :param grid_output: The grid data to write.
+        :param type: :class:`numpy.ndarray`
+        :param dc_metadata: Dictionary containing the raster metadata.
+        :param type: dict
+        :param file_output: Path to the output raster file.
+        :param type: str
+        :param dtype: Data type for the output grid. Default value = "float"
+        :param type: str
+        :param n_bands: Number of bands in the output raster. Default value = 1
+        :param type: int
+        :param id_band: Band ID to write the data to. Default value = 1
+        :param type: int
+        :return: None
+        :rtype: None
+        """
+        # Define the profile for the new GeoTIFF
+        profile = {
+            'driver': 'GTiff',
+            'height': dc_metadata["nrows"],
+            'width': dc_metadata["ncols"],
+            'count': n_bands,
+            'dtype': dtype,
+            'crs': dc_metadata["crs"],
+            'transform': dc_metadata["transform"],
+            'nodata': dc_metadata["NODATA_value"],
+            'compress': 'lzw',  # Using LZW compression
+        }
+        # write
+        with rasterio.open(file_output, 'w', **profile) as dst:
+            dst.write(grid_data, id_band)
+
 
 class QualiRaster(Raster):
-    """
-    Basic qualitative raster map dataset.
+    """Basic qualitative raster map dataset.
 
     Attributes dataframe must at least have:
     * :class:`Id`` field
