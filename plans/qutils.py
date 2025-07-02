@@ -45,6 +45,7 @@ from qgis.core import QgsCoordinateReferenceSystem
 # plugin imports
 from plans import geo
 from plans.parsers import qgdal
+from plans.datasets.spatial import DC_NODATA
 
 # ----------------- MODULE CONSTANTS ----------------- #
 
@@ -253,7 +254,7 @@ def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     # -------------------------------------------------------------------------
     # LOAD
     dc_raster = qgdal.read_raster(file_input=file_input)
-    grid_input = dc_raster["grid"]
+    grid_input = dc_raster["data"]
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -264,6 +265,9 @@ def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
+    # overwrite no data
+    if dtype in DC_NODATA:
+        dc_raster["metadata"]["NODATA_value"] = DC_NODATA[dtype]
     qgdal.write_raster(
         grid_output=grid_output,
         dc_metadata=dc_raster["metadata"],
@@ -566,12 +570,12 @@ def get_carved_dem(file_dem, file_rivers, file_output, wedge_width=3, wedge_dept
     # -------------------------------------------------------------------------
     # LOAD DEM
     dc_raster = qgdal.read_raster(file_input=file_dem)
-    grd_dem = dc_raster["grid"]
+    grd_dem = dc_raster["data"]
 
     # -------------------------------------------------------------------------
     # LOAD RIVERs
     dc_raster2 = qgdal.read_raster(file_input=file_rivers)
-    grd_rivers = dc_raster2["grid"]
+    grd_rivers = dc_raster2["data"]
     # truncate to byte integer
     grd_rivers = grd_rivers.astype(np.uint8)
 
@@ -583,11 +587,13 @@ def get_carved_dem(file_dem, file_rivers, file_output, wedge_width=3, wedge_dept
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
+    # overwrite no data
+    dc_raster["metadata"]["NODATA_value"] = DC_NODATA["float32"]
     qgdal.write_raster(
         grid_output=grid_output,
         dc_metadata=dc_raster["metadata"],
         file_output=file_output,
-        dtype="float",
+        dtype="float32",
     )
     return file_output
 
@@ -713,13 +719,13 @@ def get_tps(file_tpi, file_upa, file_output, upa_min=0.01, upa_max=2, tpi_v=-2, 
     """
     # -------------------------------------------------------------------------
     # LOAD TPI
-    dc_raster1 = qgdal.read_raster(file_input=file_tpi, metadata=True)
-    grid_tpi = dc_raster1["grid"]
+    dc_raster = qgdal.read_raster(file_input=file_tpi, metadata=True)
+    grid_tpi = dc_raster["data"]
 
     # -------------------------------------------------------------------------
     # LOAD UPA
     dc_raster2 = qgdal.read_raster(file_input=file_upa, metadata=False)
-    grid_upa = dc_raster2["grid"]
+    grid_upa = dc_raster2["data"]
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -737,11 +743,12 @@ def get_tps(file_tpi, file_upa, file_output, upa_min=0.01, upa_max=2, tpi_v=-2, 
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
+    dc_raster["metadata"]["NODATA_value"] = DC_NODATA["byte"]
     qgdal.write_raster(
         grid_output=grid_output,
-        dc_metadata=dc_raster1["metadata"],
+        dc_metadata=dc_raster["metadata"],
         file_output=file_output,
-        dtype="float",
+        dtype="byte",
     )
     return file_output
 
@@ -764,12 +771,12 @@ def get_twi(file_slope, file_upa, file_output):
     # -------------------------------------------------------------------------
     # LOAD SLOPE
     dc_raster = qgdal.read_raster(file_input=file_slope)
-    grd_slope = dc_raster["grid"]
+    grd_slope = dc_raster["data"]
 
     # -------------------------------------------------------------------------
     # LOAD UPA
     dc_raster2 = qgdal.read_raster(file_input=file_upa, metadata=False)
-    grd_upa = dc_raster2["grid"]
+    grd_upa = dc_raster2["data"]
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -779,11 +786,12 @@ def get_twi(file_slope, file_upa, file_output):
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
+    dc_raster["metadata"]["NODATA_value"] = DC_NODATA["float32"]
     qgdal.write_raster(
         grid_output=grid_output,
         dc_metadata=dc_raster["metadata"],
         file_output=file_output,
-        dtype="float",
+        dtype="float32",
     )
     return file_output
 
@@ -837,12 +845,12 @@ def get_htwi(file_ftwi, file_fhand, file_output, hand_w):
     # -------------------------------------------------------------------------
     # LOAD F-TWI
     dc_raster = qgdal.read_raster(file_input=file_ftwi, metadata=True)
-    grd_ftwi = dc_raster["grid"]
+    grd_ftwi = dc_raster["data"]
 
     # -------------------------------------------------------------------------
     # LOAD F-HAND
     dc_raster2 = qgdal.read_raster(file_input=file_fhand, metadata=False)
-    grd_fhand = dc_raster2["grid"]
+    grd_fhand = dc_raster2["data"]
 
     # -------------------------------------------------------------------------
     # PROCESS
@@ -854,11 +862,12 @@ def get_htwi(file_ftwi, file_fhand, file_output, hand_w):
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
     # Get the driver to create the new raster
+    dc_raster["metadata"]["NODATA_value"] = DC_NODATA["float32"]
     qgdal.write_raster(
         grid_output=grid_output,
         dc_metadata=dc_raster["metadata"],
         file_output=file_output,
-        dtype="float",
+        dtype="float32",
     )
     return file_output
 
@@ -1055,7 +1064,7 @@ def get_hand(
             "FORMULA": "A - B",
             "NO_DATA": None,
             "PROJWIN": None,
-            "RTYPE": 1,
+            "RTYPE": 5, # float32
             "OPTIONS": "",
             "EXTRA": "",
             "OUTPUT": file_hand,
@@ -1688,7 +1697,7 @@ def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, 
 
     """
     # handle folders
-    folder_lulc = "{}/inputs/lulc/bsl".format(folder_project)
+    folder_lulc = "{}/inputs/lulc/obs".format(folder_project)
     folder_aux = "{}/_aux".format(folder_lulc)
 
     # print("retrieve source-lulc years to intermediate folder -- align to dem raster")
@@ -1813,7 +1822,7 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
 
     """
     # handle folders
-    folder_lulc = "{}/inputs/lulc/bsl".format(folder_project)
+    folder_lulc = "{}/inputs/lulc/obs".format(folder_project)
     print("[pandas] read table")
     df = pd.read_csv(file_conversion_table, sep=";", encoding="utf-8")
     # print("get values lists")
@@ -1837,7 +1846,7 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
         # LOAD
         # Open the raster file using gdal
         dc_raster = qgdal.read_raster(file_input=file_input)
-        grid_input = dc_raster["grid"]
+        grid_input = dc_raster["data"]
 
         print(f"[geo] {s_date} -- apply conversion")
         #
@@ -1854,6 +1863,7 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
         # EXPORT RASTER FILE
         file_output_name = f"lulc_{s_date}"
         file_output = f"{folder_lulc}/{file_output_name}.tif"
+        dc_raster["metadata"]["NODATA_value"] = DC_NODATA["byte"]
         qgdal.write_raster(
             grid_output=grid_output,
             dc_metadata=dc_raster["metadata"],
@@ -2556,7 +2566,7 @@ def get_basins_old(
     gauge_raster = "{}/gauges.tif".format(output_folder_gdal)
     # get blanks
     get_blank_raster(
-        file_input=ldd_file, file_output=gauge_raster, blank_value=0, dtype="float"
+        file_input=ldd_file, file_output=gauge_raster, blank_value=0, dtype="float32"
     )
     print("rasterize...")
     # rasterize

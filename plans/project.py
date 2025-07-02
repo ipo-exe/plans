@@ -60,6 +60,9 @@ class Project(FileSys):
                     },
                 "lulc":
                     {
+                        "obs": {
+                            "_aux": {0: 0},
+                        },
                         "bsl": {
                                 "_aux": {0:0},
                         },
@@ -69,6 +72,9 @@ class Project(FileSys):
                     },
                 "clim":
                     {
+                        "obs": {
+                            "_aux": {0: 0},
+                        },
                         "bsl": {
                             "_aux": {0:0},
                         },

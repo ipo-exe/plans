@@ -27,8 +27,16 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
-
 from plans.datasets.core import *
+
+
+DC_NODATA = {
+    "byte": 255, # boolean maps
+    "uint16": 0, # categorical maps
+    "float16": -99999, # fuzzy maps
+    "float32": -99999, # scientific maps
+}
+
 
 # -----------------------------------------
 # Derived Raster data structures
@@ -185,8 +193,8 @@ class NDVI(Raster):
         self.view_specs["vmin"] = -1
         self.view_specs["vmax"] = 1
 
-    def set_grid(self, grid):
-        super().set_grid(grid)
+    def set_data(self, grid):
+        super().set_data(grid)
         self.cut_edges(upper=1, lower=-1)
         return None
 
@@ -221,8 +229,8 @@ class ET24h(Raster):
         self.view_specs["vmin"] = 0
         self.view_specs["vmax"] = 15
 
-    def set_grid(self, grid):
-        super().set_grid(grid)
+    def set_data(self, grid):
+        super().set_data(grid)
         self.cut_edges(upper=100, lower=0)
         return None
 
@@ -369,14 +377,14 @@ class HabQuality(Raster):
         :rtype: Raster
         """
         s = self.cellsize
-        grid_ba = b_a * np.square(s) * self.grid / 10000
+        grid_ba = b_a * np.square(s) * self.data / 10000
         # instantiate output
         output_raster = EBA(name=self.name, date=self.date, q_a=b_a)
         # set raster
-        output_raster.set_asc_metadata(metadata=self.asc_metadata)
+        output_raster.set_raster_metadata(metadata=self.raster_metadata)
         output_raster.prj = self.prj
         # set grid
-        output_raster.set_grid(grid=grid_ba)
+        output_raster.set_data(grid=grid_ba)
         return output_raster
 
 
@@ -430,8 +438,8 @@ class EBA(Raster):
         self.eba_global = None
         self._set_view_specs()
 
-    def set_grid(self, grid):
-        super(EBA, self).set_grid(grid)
+    def set_data(self, grid):
+        super(EBA, self).set_data(grid)
         self.eba_global = np.sum(grid)
         return None
 
@@ -482,20 +490,20 @@ class Basins(QualiRaster):
         # set aoi map
         aoi = AOI(name=self.name + "_" + str(basin_id))
         aoi.prj = self.prj
-        aoi.set_asc_metadata(metadata=self.asc_metadata)
+        aoi.set_raster_metadata(metadata=self.raster_metadata)
         # get grid
         lst_ids = [basin_id]
-        grd_aoi = 1.0 * (self.grid == basin_id)
+        grd_aoi = 1.0 * (self.data == basin_id)
         # get extra upstream basins
         upstream_ids = Basins.get_upstream_ids(
             basin_id=basin_id, topology_df=self.table
         )
         if len(upstream_ids) > 0:
             for up_id in upstream_ids:
-                grd_aoi = grd_aoi + (1 * (self.grid == up_id))
+                grd_aoi = grd_aoi + (1 * (self.data == up_id))
 
         grd_aoi = grd_aoi.astype(np.uint16)
-        aoi.set_grid(grid=grd_aoi)
+        aoi.set_data(grid=grd_aoi)
         return aoi
 
 
@@ -609,17 +617,17 @@ class Soils(QualiRaster):
         :rtype: None
         """
         # process grid
-        grd_soils = map_lito.grid.copy()
+        grd_soils = map_lito.data.copy()
         # this assumes that there is less than 10 lito classes:
-        grd_slopes = 10 * (map_slope.grid > n_slope)
+        grd_slopes = 10 * (map_slope.data > n_slope)
         # append colluvial (+10)
         grd_soils = grd_soils + grd_slopes
         # append alluvial
-        grd_soils = grd_soils * (map_hand.grid > n_hand)
+        grd_soils = grd_soils * (map_hand.data > n_hand)
         n_all_id = np.max(grd_soils) + 1
-        grd_alluvial = n_all_id * (map_hand.grid <= n_hand)
+        grd_alluvial = n_all_id * (map_hand.data <= n_hand)
         grd_soils = grd_soils + grd_alluvial
-        self.set_grid(grid=grd_soils)
+        self.set_data(grid=grd_soils)
 
         # edit table
         # get table copy from lito
@@ -645,7 +653,7 @@ class Soils(QualiRaster):
         self.set_random_colors()
         # set more attributes
         self.prj = map_lito.prj
-        self.set_asc_metadata(metadata=map_lito.asc_metadata)
+        self.set_raster_metadata(metadata=map_lito.raster_metadata)
 
         # reclassify
         df_new_table = self.table.copy()
@@ -711,15 +719,15 @@ class AOI(QualiHard):
         map_aoi_aux.units = self.units
         map_aoi_aux.set_table(dataframe=self.table)
         map_aoi_aux.view_specs = self.view_specs
-        map_aoi_aux.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi_aux.set_raster_metadata(metadata=self.raster_metadata)
         map_aoi_aux.prj = self.prj
 
         # process grid
         self.insert_nodata()
-        grd_new = 2 * np.ones(shape=self.grid.shape, dtype="byte")
-        grd_new = grd_new - (1 * (self.grid == 1))
+        grd_new = 2 * np.ones(shape=self.data.shape, dtype="byte")
+        grd_new = grd_new - (1 * (self.data == 1))
         self.mask_nodata()
-        map_aoi_aux.set_grid(grid=grd_new)
+        map_aoi_aux.set_data(grid=grd_new)
         # this will call the view
 
         map_aoi_aux.view_specs["folder"] = folder
@@ -827,11 +835,11 @@ class NDVISeries(RasterSeries):
         # create raster
         rst_aux = NDVI(name=name, date=date)
         # read file
-        rst_aux.load_asc_raster(file=asc_file)
+        rst_aux.load_asc(file=asc_file)
         # append to test_collection
         self.append(new_object=rst_aux)
         # load prj file
-        rst_aux.load_prj_file(file=prj_file)
+        rst_aux.load_prj(file=prj_file)
         # delete aux
         del rst_aux
         return None
@@ -868,11 +876,11 @@ class ETSeries(RasterSeries):
         # create raster
         rst_aux = ET24h(name=name, date=date)
         # read file
-        rst_aux.load_asc_raster(file=asc_file)
+        rst_aux.load_asc(file=asc_file)
         # append to test_collection
         self.append(new_object=rst_aux)
         # load prj file
-        rst_aux.load_prj_file(file=prj_file)
+        rst_aux.load_prj(file=prj_file)
         # delete aux
         del rst_aux
         return None
@@ -914,12 +922,12 @@ class LULCSeries(QualiRasterSeries):
         # create raster
         rst_aux = LULC(name=name, date=date)
         # read file
-        rst_aux.load_asc_raster(file=asc_file)
+        rst_aux.load_asc(file=asc_file)
         # load prj
         if prj_file is None:
             pass
         else:
-            rst_aux.load_prj_file(file=prj_file)
+            rst_aux.load_prj(file=prj_file)
         # set table
         if table_file is None:
             pass
@@ -954,11 +962,11 @@ class LULCSeries(QualiRasterSeries):
         ]
 
         # compute lulc change grid
-        grd_lulcc = (1 * (self.collection[s_name_end].grid == by_lulc_id)) - (
-            1 * (self.collection[s_name_start].grid == by_lulc_id)
+        grd_lulcc = (1 * (self.collection[s_name_end].data == by_lulc_id)) - (
+            1 * (self.collection[s_name_start].data == by_lulc_id)
         )
-        grd_all = (1 * (self.collection[s_name_end].grid == by_lulc_id)) + (
-            1 * (self.collection[s_name_start].grid == by_lulc_id)
+        grd_all = (1 * (self.collection[s_name_end].data == by_lulc_id)) + (
+            1 * (self.collection[s_name_start].data == by_lulc_id)
         )
         grd_all = 1 * (grd_all > 0)
         grd_lulcc = (grd_lulcc + 2) * grd_all
@@ -975,9 +983,9 @@ class LULCSeries(QualiRasterSeries):
             date_start=date_start,
             date_end=date_end,
         )
-        map_lulc_change.set_grid(grid=grd_lulcc)
-        map_lulc_change.set_asc_metadata(
-            metadata=self.collection[s_name_start].asc_metadata
+        map_lulc_change.set_data(grid=grd_lulcc)
+        map_lulc_change.set_raster_metadata(
+            metadata=self.collection[s_name_start].raster_metadata
         )
         map_lulc_change.prj = self.collection[s_name_start].prj
 
@@ -1059,19 +1067,19 @@ class LULCSeries(QualiRasterSeries):
             #
             # instantiate new LULC map
             map_lulc = LULC(name="Conversion", date=s_date_end)
-            map_lulc.set_grid(grid=self.collection[s_name_end].grid)
-            map_lulc.set_asc_metadata(
-                metadata=self.collection[s_name_start].asc_metadata
+            map_lulc.set_data(grid=self.collection[s_name_end].data)
+            map_lulc.set_raster_metadata(
+                metadata=self.collection[s_name_start].raster_metadata
             )
             map_lulc.set_table(dataframe=self.collection[s_name_start].table)
             map_lulc.prj = self.collection[s_name_start].prj
             #
             # apply aoi
-            grd_aoi = 1 * (self.collection[s_name_start].grid == _id)
+            grd_aoi = 1 * (self.collection[s_name_start].data == _id)
             map_lulc.apply_aoi_mask(grid_aoi=grd_aoi, inplace=True)
             #
             # bypass all-masked aois
-            if np.sum(map_lulc.grid) is np.ma.masked:
+            if np.sum(map_lulc.data) is np.ma.masked:
                 grd_conv[i] = np.zeros(len(df_conv))
             else:
                 df_areas = map_lulc.get_areas()

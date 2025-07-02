@@ -33,11 +33,11 @@ def slice_cmap(cmap_name, start_slice, end_slice):
 
 def plot_frame(df, specs, raster, folder, tsi, step=0, show=False, mode="pif"):
     dstamp = df["DateTime"].iloc[step]
-    dstamp_n = str(dstamp.timestamp()).replace(".0", "")
+    dstamp_n = str(dstamp.datetime()).replace(".0", "")
     tmin = df["DateTime"].min()
     tmax = df["DateTime"].max()
     ls_dates = [tmin, tmax]
-    dates2 = pd.to_datetime(np.linspace(tmin.timestamp(), tmax.timestamp(), 5), unit='s')
+    dates2 = pd.to_datetime(np.linspace(tmin.datetime(), tmax.datetime(), 5), unit='s')
     # If you need them as a list
     ls_dates2 = dates2.tolist()
 
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         'cellsize': 30,
         'NODATA_value': -1
     }
-    r.set_asc_metadata(metadata=meta)
+    r.set_raster_metadata(metadata=meta)
     r.view_specs["cmap"] = "gist_earth"
     s_cap = 80
     # m_param = 80
@@ -169,8 +169,8 @@ if __name__ == "__main__":
 
     for tst in dc_tests:
         # todo change source dir to project
-        r.load_tif_raster(file="C:/gis/_projects_/plans/{}.tif".format(dc_tests[tst][0]))
-        scalar_grid = dc_tests[tst][1] * (np.mean(r.grid) - r.grid)
+        r.load_image(file="C:/gis/_projects_/plans/{}.tif".format(dc_tests[tst][0]))
+        scalar_grid = dc_tests[tst][1] * (np.mean(r.data) - r.data)
 
         for s in dc_folders:
             gif_folder = f"{tst}/{s}"

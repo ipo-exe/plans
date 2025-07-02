@@ -693,6 +693,7 @@ class DataSet(MbaE):
 
         # ------------ set defaults ----------- #
         self.color = "blue"
+
         # UPDATE
         self.update()
 
@@ -731,7 +732,6 @@ class DataSet(MbaE):
         self.field_color = "Color"
         self.field_source = "Source"
         self.field_description = "Description"
-
         # ... continues in downstream objects ... #
 
     def _set_view_specs(self):

@@ -28,8 +28,9 @@ from osgeo import gdal
 DC_GDAL_TYPES = {
     "byte": gdal.GDT_Byte,
     "int": gdal.GDT_Int16,
+    "uint16": gdal.GDT_UInt16,
     "int16": gdal.GDT_Int16,
-    "float": gdal.GDT_Float32,
+    "float16": gdal.GDT_Float32,
     "float32": gdal.GDT_Float32,
 }
 
@@ -61,7 +62,7 @@ def read_raster(file_input, n_band=1, metadata=True):
     :type n_band: int
     :param metadata: option to return
     :type metadata: bool
-    :return: dictionary with "grid" and (optional) "metadata"
+    :return: dictionary with "data" and (optional) "metadata"
     :rtype: dict
     """
     # -------------------------------------------------------------------------
@@ -73,7 +74,7 @@ def read_raster(file_input, n_band=1, metadata=True):
     # Read the raster data as a numpy array
     grid_input = band_input.ReadAsArray()
     dc_output = {
-        "grid": grid_input
+        "data": grid_input
     }
     # -- Collect useful metadata
     if metadata:
@@ -90,7 +91,7 @@ def read_raster(file_input, n_band=1, metadata=True):
 
     return dc_output
 
-def write_raster(grid_output, dc_metadata, file_output, dtype="float", n_band=1):
+def write_raster(grid_output, dc_metadata, file_output, dtype="float32", n_band=1):
     """
     Write a numpy array to raster
 
@@ -100,7 +101,7 @@ def write_raster(grid_output, dc_metadata, file_output, dtype="float", n_band=1)
     :type dc_metadata: dict
     :param file_output: path to output raster file
     :type file_output: str
-    :param dtype: output raster data type ("byte", "int" -- else defaults to float)
+    :param dtype: output raster data type ("byte", "int" -- else defaults to float32)
     :type dtype: str
     :param n_band: number of the band to read
     :type n_band: int

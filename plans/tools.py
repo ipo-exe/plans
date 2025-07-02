@@ -518,7 +518,7 @@ def VTOPO(
                         prompt, "processing", topo, b
                     )
                 )
-                m.apply_aoi_mask(grid_aoi=basins_dct[b].grid)
+                m.apply_aoi_mask(grid_aoi=basins_dct[b].data)
 
                 # run sub views
                 logger.info(
@@ -653,7 +653,7 @@ def VLULC(
                 os.mkdir(folder_basin)
 
             logger.info("{} {:<12} -- basin_{} ...".format(prompt, "processing", b))
-            lulc_series.apply_aoi_masks(grid_aoi=basins_dct[b].grid)
+            lulc_series.apply_aoi_masks(grid_aoi=basins_dct[b].data)
             # run sub views
             logger.info(
                 "{} {:<12} -- basin_{} ...".format(prompt, "exporting views", b)
@@ -1064,7 +1064,7 @@ def DTO(
     logger.info("{} {} ...".format(prompt, s_step))
     start_time = time.time()
 
-    grd_outdist = outlet_distance(grd_ldd=ldd.grid, n_res=ldd.cellsize, b_tui=talk)
+    grd_outdist = outlet_distance(grd_ldd=ldd.data, n_res=ldd.cellsize, b_tui=talk)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -1111,12 +1111,12 @@ def DTO(
     dto = DTO(name=project_name)
     # set metadata
     logger.info("{} {} --- DTO setup".format(prompt, s_step))
-    _asc_metadata = ldd.asc_metadata.copy()
+    _asc_metadata = ldd.raster_metadata.copy()
     _asc_metadata["NODATA_value"] = -1
-    dto.set_asc_metadata(metadata=_asc_metadata)
+    dto.set_raster_metadata(metadata=_asc_metadata)
     dto.prj = ldd.prj
     # set data
-    dto.set_grid(grid=grd_outdist)
+    dto.set_data(grid=grd_outdist)
 
     filename = "dto_{}".format(project_name)
 

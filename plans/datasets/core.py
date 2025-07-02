@@ -42,7 +42,6 @@ from plans.analyst import Univar
 from plans import geo
 
 
-
 def dataframe_prepro(dataframe):
     """Utility function for dataframe pre-processing.
 
@@ -669,7 +668,7 @@ class TimeSeries(Univar):
         df_data.rename(columns={self.agg: self.varfield}, inplace=True)
 
         # Standardize incoming start and end
-        start_std = self.start.date()  # the start of date
+        start_std = self.start.datetime()  # the start of date
         end_std = self.end + pd.Timedelta(days=1)  # the next day
         end_std = end_std.date()
 
@@ -1517,7 +1516,7 @@ class TimeSeries(Univar):
         ax.set_ylabel(specs["ylabel"])
         ax.set_xlim(specs["xmin"], specs["xmax"])
         ax.set_ylim(specs["ymin"], 1.2 * specs["ymax"])
-        ax.grid(specs["plot_grid"])
+        ax.data(specs["plot_grid"])
 
         if include_eva:
             if self.eva is not None:
@@ -1596,7 +1595,7 @@ class TimeSeries(Univar):
                 ax3.set_xlim(1, 1000)
                 ax3.set_xscale("log")
                 ax3.set_xlabel("T(X)")
-                ax3.grid(specs["plot_grid"])
+                ax3.data(specs["plot_grid"])
 
         # --------------------- end --------------------- #
         # return object, show or save
@@ -2751,15 +2750,14 @@ class TimeSeriesSpatialSamples(TimeSeriesSamples):
 
 
 # ------------- SPATIAL OBJECTS -------------  #
-# todo refactor to MbaE paradigm
 
 
-class Raster:
+class Raster(DataSet):
     """
     The basic raster map dataset.
     """
 
-    def __init__(self, name="myRasterMap", dtype="float32"):
+    def __init__(self, name="myRasterMap", alias="Rst", dtype="float32"):
         """
         Deploy a basic raster map object.
 
@@ -2767,59 +2765,39 @@ class Raster:
         :type name: str
         :param dtype: Data type of raster cells. Options: byte, uint8, int16, int32, float32, etc., defaults to "float32"
         :type dtype: str
-
-        Attributes:
-
-        - ``grid`` (None): Main grid of the raster.
-        - ``backup_grid`` (None): Backup grid for AOI operations.
-        - ``isaoi`` (False): Flag indicating whether an AOI mask is applied.
-        - ``asc_metadata`` (dict): Metadata dictionary with keys: ncols, nrows, xllcorner, yllcorner, cellsize, NODATA_value.
-        - ``nodatavalue`` (None): NODATA value from asc_metadata.
-        - ``cellsize`` (None): Cell size from asc_metadata.
-        - ``name`` (str): Name of the raster map.
-        - ``dtype`` (str): Data type of raster cells.
-        - ``cmap`` ("jet"): Default color map for visualization.
-        - ``varname`` ("Unknown variable"): Variable name associated with the raster.
-        - ``varalias`` ("Var"): Variable alias.
-        - ``description`` (None): Description of the raster map.
-        - ``units`` ("units"): Measurement units of the raster values.
-        - ``date`` (None): Date associated with the raster map.
-        - ``source`` (None): Source data information.
-        - ``prj`` (None): Projection information.
-        - ``path_ascfile`` (None): Path to the .asc raster file.
-        - ``path_prjfile`` (None): Path to the .prj projection file.
-        - ``view_specs`` (None): View specifications for visualization.
         """
-        # -------------------------------------
-        # set basic attributes
-        self.grid = None  # main grid
-        self.backup_grid = None
-        self.isaoi = False
-        self.asc_metadata = {
+        self.raster_metadata = {
             "ncols": None,
             "nrows": None,
             "xllcorner": None,
             "yllcorner": None,
             "cellsize": None,
             "NODATA_value": None,
+            "crs": None,
+            "transform": None
         }
-        self.nodatavalue = self.asc_metadata["NODATA_value"]
-        self.cellsize = self.asc_metadata["cellsize"]
-        self.name = name
-        self.dtype = dtype
         self.cmap = "jet"
+        # extra
         self.varname = "Unknown variable"
         self.varalias = "Var"
-        self.description = None
         self.units = "units"
-        self.date = None  # "2020-01-01"
-        self.source_data = None
+        self.datetime = None  # "2020-01-01"
+
+        # ------------ call super ----------- #
+        super().__init__(name=name, alias=alias)
+        # -------------------------------------
+        # set basic attributes
+        self.dtype = dtype
+        self.backup_data = None
+        self.is_masked = False
+        self.file_prj = None
         self.prj = None
-        self.path_ascfile = None
-        self.path_prjfile = None
-        # get view specs
-        self.view_specs = None
-        self._set_view_specs()
+        # accessible values
+        self.nodatavalue = self.raster_metadata["NODATA_value"]
+        self.cellsize = self.raster_metadata["cellsize"]
+
+
+
 
     def __str__(self):
         dct_meta = self.get_metadata()
@@ -2830,6 +2808,753 @@ class Raster:
         for k in dct_meta:
             lst_.append("\t{}: {}".format(k, dct_meta[k]))
         return "\n".join(lst_)
+
+
+    def _set_fields(self):
+        """
+        Set fields names.
+        Expected to increment superior methods.
+
+        """
+        # ------------ call super ----------- #
+        super()._set_fields()
+        # Attribute fields
+        self.field_varname = "VarName"
+        self.field_varalias = "VarAlias"
+        self.field_units = "Color"
+        self.field_datetime = "DateTime"
+        self.field_cellsize = "Resolution"
+        self.field_nrows = "Rows"
+        self.field_ncols = "Columns"
+        self.field_xll = "XLL"
+        self.field_yll = "YLL"
+        self.field_nodatavalue = "NODATA_value"
+        self.field_crs = "CRS"
+        self.field_file_prj = "File_PRJ"
+        # ... continues in downstream objects ... #
+
+
+    def get_metadata(self):
+        """
+        Get a dictionary with object metadata.
+        Expected to increment superior methods.
+
+        .. note::
+
+            Metadata does **not** necessarily inclue all object attributes.
+
+        :return: dictionary with all metadata
+        :rtype: dict
+        """
+        # ------------ call super ----------- #
+        dict_meta = super().get_metadata()
+
+        # customize local metadata:
+        dict_meta_local = {
+            self.field_varname: self.varname,
+            self.field_varalias: self.varalias,
+            self.field_units: self.units,
+            self.field_datetime: self.datetime,
+            self.field_cellsize: self.raster_metadata["cellsize"],
+            self.field_nrows: self.raster_metadata["nrows"],
+            self.field_ncols: self.raster_metadata["ncols"],
+            self.field_xll: self.raster_metadata["xllcorner"],
+            self.field_yll: self.raster_metadata["yllcorner"],
+            self.field_nodatavalue: self.raster_metadata["NODATA_value"],
+            self.field_crs: self.raster_metadata["crs"],
+            self.field_file_prj: self.file_prj
+        }
+        # update
+        dict_meta.update(dict_meta_local)
+        return dict_meta
+
+
+    def update(self):
+        """
+        Refresh all mutable attributes based on data (includins paths).
+        Expected to be incremented downstream.
+
+        :return: None
+        :rtype: None
+        """
+        super().update()
+        # refresh all mutable attributes
+
+        if self.data is not None:
+            # data size
+            self.size = self.raster_metadata["nrows"] * self.raster_metadata["ncols"]
+
+        self.nodatavalue = self.raster_metadata["NODATA_value"]
+        self.cellsize = self.raster_metadata["cellsize"]
+
+        # ... continues in downstream objects ... #
+        return None
+
+
+    # refactor ok
+    def set_data(self, grid):
+        """
+        Set the data grid for the raster object.
+        This function allows setting the data grid for the raster object.
+        The incoming grid should be a NumPy array.
+
+        :param grid: The data grid to be set for the raster.
+        :type grid: :class:`numpy.ndarray`
+
+        **Notes:**
+
+        - The function overwrites the existing data grid in the raster object with the incoming grid, ensuring that the data type matches the raster's dtype.
+        - Nodata values are masked after setting the grid.
+
+        """
+        # overwrite incoming dtype
+        self.data = grid.astype(self.dtype)
+        # mask nodata values
+        self.mask_nodata()
+        return None
+
+
+    def set_raster_metadata(self, metadata):
+        """
+        Set metadata for the raster object based on incoming metadata.
+        This function allows setting metadata for the raster object from an incoming metadata dictionary.
+        The metadata should include information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
+
+        :param metadata: A dictionary containing metadata for the raster.
+        :type metadata: dict
+        :return: None
+        :rtype: None
+
+        """
+        for k in self.raster_metadata:
+            if k in metadata:
+                self.raster_metadata[k] = metadata[k]
+        # update nodata value and cellsize
+        self.nodatavalue = self.raster_metadata["NODATA_value"]
+        self.cellsize = self.raster_metadata["cellsize"]
+        return None
+
+
+    def load(self, file_raster, file_prj=None, id_band=1):
+        """
+        Load data from files to the raster object.
+        This function loads data from ``.asc`` raster and '.prj' projection files into the raster object.
+
+        :param file_raster: The path to the raster file.
+        :type file_raster: str
+        :param file_prj: The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the ``.asc`` file with the '.prj' extension.
+        :type file_prj: str
+        :param id_band: Band id to read for GeoTIFF. Default value = 1
+        :type id_band: int
+        :return: None
+        :rtype: None
+        """
+        # handle extension
+        s_extension = os.path.basename(file_raster).split(".")[-1]
+        if s_extension == "asc":
+            self.load_asc(file_input=file_raster)
+        else:
+            self.load_tif(file_input=file_raster, id_band=id_band)
+        self.load_prj(file_input=file_prj)
+        return None
+
+
+    def load_image(self, file_input, xxl=False):
+        """
+        Load data from an image '.tif' raster files.
+
+        :param file_input: The file path of the '.tif' raster file.
+        :type file_input: str
+        :param xxl: option flag for very large images
+        :type xxl: bool
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function uses the Pillow (PIL) library to open the '.tif' file and converts it to a NumPy array.
+        - Metadata may need to be provided separately, as this function focuses on loading raster data.
+        - The loaded data grid is set using the ``set_grid`` method of the raster object.
+
+        """
+        from PIL import Image
+        if xxl:
+            Image.MAX_IMAGE_PIXELS = None
+        # Open the TIF file
+        img_data = Image.open(file_input)
+        # Convert the PIL image to a NumPy array
+        grd_data = np.array(img_data)
+        # set grid
+        self.set_data(grid=grd_data)
+        return None
+
+
+    def load_tif(self, file_input, id_band=1):
+        """
+        Load data and metadata from `.tif` raster file.
+
+        :param file_input: The file path to the ``.tif`` raster file.
+        :type file_input: str
+        :return: None
+        :rtype: None
+        """
+        dc_raster = Raster.read_tif(file_input=file_input, dtype=self.dtype, id_band=id_band, metadata=True)
+        # Set metadata and grid
+        self.set_raster_metadata(metadata=dc_raster["metadata"].copy())
+        self.set_data(grid=dc_raster["data"])
+        return None
+
+
+    def load_asc(self, file_input):
+        """
+        Load data and metadata from `.asc` raster file.
+
+        :param file_input: The file path to the ``.asc`` raster file.
+        :type file_input: str
+        :return: None
+        :rtype: None
+        """
+        dc_raster = Raster.read_asc(file_input=file_input, dtype=self.dtype, metadata=True)
+        # Set metadata and grid
+        self.set_raster_metadata(metadata=dc_raster["metadata"].copy())
+        self.set_data(grid=dc_raster["data"])
+        return None
+
+
+    def load_asc_metadata(self, file_input):
+        """
+        Load only metadata from ``.asc`` raster files.
+
+        :param file_input: The file path to the ``.asc`` raster file.
+        :type file_input: str
+        :return: None
+        :rtype: None
+
+        """
+        meta_dct = Raster.read_asc_metadata(file_input=file_input)
+        # set attribute
+        self.set_raster_metadata(metadata=meta_dct)
+        return None
+
+    # refactor ok
+    def load_prj(self, file_input):
+        """
+        Load '.prj' auxiliary file to the 'prj' attribute.
+        This function loads the content of a '.prj' auxiliary file and sets it as the 'prj' attribute in the raster object.
+
+        :param file_input: The file path to the '.prj' auxiliary file.
+        :type file_input: str
+        :return: None
+        :rtype: None
+
+        """
+        if file_input is not None:
+            if os.path.isfile(file_input):
+                self.file_prj = file_input
+                with open(file_input) as f:
+                    self.prj = f.readline().strip("\n")
+        return None
+
+
+    def copy_structure(self, raster_ref, n_nodatavalue=None):
+        """
+        Copy structure (metadata and prj) from another raster object.
+
+        :param raster_ref: The reference incoming raster object from which to copy.
+        :type raster_ref: :class:`datasets.Raster`
+        :param n_nodatavalue: The new nodata value for different raster objects. If None, the nodata value remains unchanged.
+        :type n_nodatavalue: float
+        :return: None
+        :rtype: None
+
+        """
+        dict_meta = raster_ref.raster_metadata.copy()
+        # handle new nodatavalue
+        if n_nodatavalue is None:
+            pass
+        else:
+            dict_meta["NODATA_value"] = n_nodatavalue
+        self.set_raster_metadata(metadata=dict_meta)
+        self.prj = raster_ref.prj[:]
+        return None
+
+
+    def export(self, folder, filename=None, mode="tif"):
+        """
+        Exports the raster to a specified file format and location.
+
+        :param folder: The destination folder for the exported file.
+        :type folder: str
+        :param filename: [optional] The name of the output file. If None, the original raster name is used.
+        :type filename: str
+        :param mode: The export format, either "tif" (default) or "asc". Default value = "tif"
+        :type mode: str
+        :return: None
+        :rtype: None
+        """
+        if filename is None:
+            filename = self.name
+        # handle mode
+        if mode == "asc":
+            self.export_asc(folder=folder, filename=filename)
+        else:
+            self.export_tif(folder=folder, filename=filename)
+        # export prj
+        self.export_prj(folder=folder, filename=filename)
+        return None
+
+
+    def export_tif(self, folder, filename=None):
+        """
+        Export an ``.tif`` raster file..
+
+        :param folder: The directory path to export the raster file.
+        :type folder: str
+        :param filename: The name of the exported file without extension. If None, the name of the raster object is used.
+        :type filename: str
+        :return: The full file name (path and extension) of the exported raster file.
+        :rtype: str
+        """
+        if self.data is None or self.raster_metadata is None:
+            return None
+        else:
+            if filename is None:
+                filename = self.name
+            flenm = folder + "/" + filename + ".tif"
+            Raster.write_tif(
+                grid_output=self.data,
+                dc_metadata=self.raster_metadata,
+                file_output=flenm,
+                dtype=self.dtype,
+                n_bands=1,
+                id_band=1
+            )
+            return flenm
+
+
+    def export_asc(self, folder, filename=None):
+        """
+        Export an ``.asc`` raster file.
+
+        :param folder: The directory path to export the raster file.
+        :type folder: str
+        :param filename: The name of the exported file without extension. If None, the name of the raster object is used.
+        :type filename: str
+        :return: The full file name (path and extension) of the exported raster file.
+        :rtype: str
+        """
+        if self.data is None or self.raster_metadata is None:
+            return None
+        else:
+            if filename is None:
+                filename = self.name
+            flenm = folder + "/" + filename + ".asc"
+            Raster.write_asc(
+                grid_output=self.data,
+                dc_metadata=self.raster_metadata,
+                file_output=flenm,
+                dtype=self.dtype
+            )
+            return flenm
+
+
+    def export_prj(self, folder, filename=None):
+        """
+        Export a '.prj' file. This function exports the coordinate system information to a '.prj' file in the specified folder.
+
+        :param folder: The directory path to export the '.prj' file.
+        :type folder: str
+        :param filename: The name of the exported file without extension. If None, the name of the raster object is used.
+        :type filename: str
+        :return: The full file name (path and extension) of the exported '.prj' file, or None if no coordinate system information is available.
+        :rtype: str or None
+        """
+        if self.prj is None:
+            return None
+        else:
+            if filename is None:
+                filename = self.name
+            flenm = folder + "/" + filename + ".prj"
+            fle = open(flenm, "w+")
+            fle.writelines([self.prj])
+            fle.close()
+            return flenm
+
+
+    def mask_nodata(self):
+        """
+        Mask grid cells as NaN where data is NODATA.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function masks grid cells as NaN where the data is equal to the specified NODATA value.
+        - If NODATA value is not set, no masking is performed.
+
+        """
+        if self.nodatavalue is None:
+            pass
+        else:
+            if self.data.dtype.kind in ["i", "u"]:
+                # for integer grid
+                self.data = np.ma.masked_where(self.data == self.nodatavalue, self.data)
+            else:
+                # for floating point grid:
+                self.data[self.data == self.nodatavalue] = np.nan
+        return None
+
+    # deprecated
+    def __insert_nodata(self):
+        """
+        Set grid cells as NODATA where data is NaN.
+
+        :return: None
+        :rtype: None
+
+        """
+        if self.nodatavalue is None:
+            pass
+        else:
+            if self.data.dtype.kind in ["i", "u"]:
+                # for integer grid
+                self.data = np.ma.filled(self.data, fill_value=self.nodatavalue)
+            else:
+                # for floating point grid:
+                self.data = np.nan_to_num(self.data, nan=self.nodatavalue)
+        return None
+
+
+    def insert_nodata(self):
+        """
+        Set grid cells as NODATA where data is NaN using the static method.
+
+        :return: None
+        :rtype: None
+
+        """
+        # Call the static method and update the instance's grid
+        self.data = Raster.apply_nodata(self.data, self.nodatavalue)
+        return None
+
+
+    def rebase_grid(self, base_raster, inplace=False, method="linear_model"):
+        """
+        Rebase the grid of a raster.
+        This function creates a new grid based on a provided reference raster.
+        Both rasters are expected to be in the same coordinate system and have overlapping bounding boxes.
+
+        :param base_raster: The reference raster used for rebase. It should be in the same coordinate system and have overlapping bounding boxes.
+        :type base_raster: :class:`datasets.Raster`
+        :param inplace: If True, the rebase operation will be performed in-place, and the original raster's grid will be modified. If False, a new rebased grid will be returned, and the original data will remain unchanged. Default is False.
+        :type inplace: bool
+        :param method: Interpolation method for rebasing the grid. Options include "linear_model," "nearest," and "cubic." Default is "linear_model."
+        :type method: str
+        :return: If inplace is False, a new rebased grid as a NumPy array. If inplace is True, returns None, and the original raster's grid is modified in-place.
+        :rtype: :class:`numpy.ndarray`` or None
+
+        Notes:
+
+        - The rebase operation involves interpolating the values of the original grid to align with the reference raster's grid.
+        - The method parameter specifies the interpolation method and can be "linear_model," "nearest," or "cubic."
+        - The rebase assumes that both rasters are in the same coordinate system and have overlapping bounding boxes.
+        """
+        from scipy.interpolate import griddata
+
+        # get data points
+        _df = self.get_grid_datapoints(drop_nan=True)
+        # get base grid data points
+        _dfi = base_raster.get_grid_datapoints(drop_nan=False)
+        # set data points
+        grd_points = np.array([_df["x"].values, _df["y"].values]).transpose()
+        grd_new_points = np.array([_dfi["x"].values, _dfi["y"].values]).transpose()
+        _dfi["zi"] = griddata(
+            points=grd_points, values=_df["z"].values, xi=grd_new_points, method=method
+        )
+        grd_zi = np.reshape(_dfi["zi"].values, newshape=base_raster.data.shape)
+        if inplace:
+            # set
+            self.set_data(grid=grd_zi)
+            self.set_raster_metadata(metadata=base_raster.raster_metadata)
+            self.prj = base_raster.prj
+            return None
+        else:
+            return grd_zi
+
+
+    def apply_aoi_mask(self, grid_aoi, inplace=False):
+        """
+        Apply AOI (area of interest) mask to the raster map.
+        This function applies an AOI (area of interest) mask to the raster map,
+        replacing values outside the AOI with the NODATA value.
+
+        :param grid_aoi: Map of AOI (masked array or pseudo-boolean). Expected to have the same grid shape as the raster.
+        :type grid_aoi: :class:`numpy.ndarray`
+        :param inplace: If True, overwrite the main grid with the masked values.
+        If False, create a backup and modify a copy of the grid. Default is False.
+        :type inplace: bool
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - The function replaces values outside the AOI (where grid_aoi is 0) with the NODATA value.
+        - If NODATA value is not set, no replacement is performed.
+        - If inplace is True, the main grid is modified. If False, a backup of the grid is created before modification.
+        - This function is useful for focusing analysis or visualization on a specific area within the raster map.
+
+        """
+        if self.nodatavalue is None or self.data is None:
+            pass
+        else:
+            # ensure fill on masked values
+            grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
+            # replace
+            grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.data)
+
+            if inplace:
+                pass
+            else:
+                # pass a copy to backup grid
+                self.backup_data = self.data.copy()
+            # set main grid
+            self.set_data(grid=grd_mask)
+            self.is_masked = True
+        return None
+
+
+    def release_aoi_mask(self):
+        """
+        Release AOI mask from the main grid. Backup grid is restored.
+
+        This function releases the AOI (area of interest) mask from the main grid, restoring the original values from the backup grid.
+
+        :return: None
+        :rtype: None
+
+        **Notes:**
+
+        - If an AOI mask has been applied, this function restores the original values to the main grid from the backup grid.
+        - If no AOI mask has been applied, the function has no effect.
+        - After releasing the AOI mask, the backup grid is set to None, and the raster object is no longer considered to have an AOI mask.
+
+        """
+        if self.is_masked:
+            self.set_data(grid=self.backup_data)
+            self.backup_data = None
+            self.is_masked = False
+        return None
+
+
+    def cut_edges(self, upper, lower, inplace=False):
+        """
+        Cutoff upper and lower values of the raster grid.
+
+        :param upper: The upper value for the cutoff.
+        :type upper: float or int
+        :param lower: The lower value for the cutoff.
+        :type lower: float or int
+        :param inplace: If True, modify the main grid in-place. If False, create a processed copy of the grid.
+            Default is False.
+        :type inplace: bool
+        :return: The processed grid if inplace is False. If inplace is True, returns None.
+        :rtype: Union[None, np.ndarray]
+
+        **Notes:**
+
+        - Values in the raster grid below the lower value are set to the lower value.
+        - Values in the raster grid above the upper value are set to the upper value.
+        - If inplace is False, a processed copy of the grid is returned, leaving the original grid unchanged.
+        - This function is useful for clipping extreme values in the raster grid.
+
+        """
+        if self.data is None:
+            return None
+        else:
+            new_grid = geo.prune_values(array=self.data, min_value=lower, max_value=upper)
+            if inplace:
+                self.set_data(grid=new_grid)
+                return None
+            else:
+                return new_grid
+
+
+    def get_bbox(self):
+        """
+        Get the Bounding Box of the map.
+
+        :return: Dictionary of xmin, xmax, ymin, and ymax.
+            - "xmin" (float): Minimum x-coordinate.
+            - "xmax" (float): Maximum x-coordinate.
+            - "ymin" (float): Minimum y-coordinate.
+            - "ymax" (float): Maximum y-coordinate.
+        :rtype: dict
+        """
+        return {
+            "xmin": self.raster_metadata["xllcorner"],
+            "xmax": self.raster_metadata["xllcorner"]
+            + (self.raster_metadata["ncols"] * self.cellsize),
+            "ymin": self.raster_metadata["yllcorner"],
+            "ymax": self.raster_metadata["yllcorner"]
+            + (self.raster_metadata["nrows"] * self.cellsize),
+        }
+
+
+    def get_extent(self):
+        """
+        Get the Extent of the map. See get_bbox.
+
+        :return: list of [xmin, xmax, ymin, ymax]
+        :rtype: list
+        """
+        d = self.get_bbox()
+        extent = [d["xmin"], d["xmax"], d["ymin"], d["ymax"]]
+        return extent
+
+
+    def get_grid_datapoints(self, drop_nan=False):
+        """
+        Get flat and cleared grid data points (x, y, and z).
+
+        :param drop_nan: Option to ignore nan values.
+        :type drop_nan: bool
+        :return: DataFrame of x, y, and z fields.
+        :rtype: :class:`pandas.DataFrame``` or None. If the grid is None, returns None.
+
+        **Notes:**
+
+        - This function extracts coordinates (x, y, and z) from the raster grid.
+        - The x and y coordinates are determined based on the grid cell center positions.
+        - If drop_nan is True, nan values are ignored in the resulting DataFrame.
+        - The resulting DataFrame includes columns for x, y, z, i, and j coordinates.
+
+        """
+        if self.data is None:
+            return None
+        else:
+            # get coordinates
+            vct_i = np.zeros(self.data.shape[0] * self.data.shape[1])
+            vct_j = vct_i.copy()
+            vct_z = vct_i.copy()
+            _c = 0
+            for i in range(len(self.data)):
+                for j in range(len(self.data[i])):
+                    vct_i[_c] = i
+                    vct_j[_c] = j
+                    vct_z[_c] = self.data[i][j]
+                    _c = _c + 1
+
+            # transform
+            n_height = self.data.shape[0] * self.cellsize
+            vct_y = (
+                self.raster_metadata["yllcorner"]
+                + (n_height - (vct_i * self.cellsize))
+                - (self.cellsize / 2)
+            )
+            vct_x = (
+                self.raster_metadata["xllcorner"]
+                + (vct_j * self.cellsize)
+                + (self.cellsize / 2)
+            )
+
+            # drop nan or masked values:
+            if drop_nan:
+                vct_j = vct_j[~np.isnan(vct_z)]
+                vct_i = vct_i[~np.isnan(vct_z)]
+                vct_x = vct_x[~np.isnan(vct_z)]
+                vct_y = vct_y[~np.isnan(vct_z)]
+                vct_z = vct_z[~np.isnan(vct_z)]
+            # built dataframe
+            _df = pd.DataFrame(
+                {
+                    "x": vct_x,
+                    "y": vct_y,
+                    "z": vct_z,
+                    "i": vct_i,
+                    "j": vct_j,
+                }
+            )
+            return _df
+
+
+    def get_grid_data(self):
+        """
+        Get flat and cleared grid values.
+
+        :return: 1D vector of cleared sample.
+        :rtype: :class:`numpy.ndarray`` or None. If the grid is None, returns None.
+
+        **Notes:**
+
+        - This function extracts and flattens the grid, removing any masked or NaN values.
+        - For integer grids, the masked values are ignored.
+        - For floating-point grids, both masked and NaN values are ignored.
+
+        """
+        if self.data is None:
+            return None
+        else:
+            if self.data.dtype.kind in ["i", "u"]:
+                # for integer grid
+                _grid = self.data[~self.data.mask]
+                return _grid
+            else:
+                # for floating point grid:
+                _grid = self.data.ravel()[~np.isnan(self.data.ravel())]
+                return _grid
+
+
+    def get_grid_stats(self):
+        """Get basic statistics from flat and cleared grid.
+
+        :return: DataFrame of basic statistics. If the grid is None, returns None.
+        :rtype: :class:`pandas.DataFrame``` or None
+
+        **Notes:**
+
+        - This function computes basic statistics from the flattened and cleared grid sample.
+        - Basic statistics include measures such as mean, median, standard deviation, minimum, and maximum.
+        - Requires the 'plans.analyst' module for statistical analysis.
+
+        """
+        if self.data is None:
+            return None
+        else:
+            from plans.analyst import Univar
+            uni = Univar()
+            uni.set_array(array=self.get_grid_data())
+            return uni.assess_basic_stats()
+
+
+    def get_aoi(self, by_value_lo, by_value_hi):
+        """
+        Get the AOI map from an interval of values (values are expected to exist in the raster).
+
+        :param by_value_lo: Number for the lower bound (inclusive).
+        :type by_value_lo: float
+        :param by_value_hi: Number for the upper bound (inclusive).
+        :type by_value_hi: float
+        :return: AOI map.
+        :rtype: :class:`AOI`` object
+
+        **Notes:**
+
+        - This function creates an AOI (Area of Interest) map based on a specified value range.
+        - The AOI map is constructed as a binary grid where values within the specified range are set to 1, and others to 0.
+
+        """
+        map_aoi = AOI(name="{} {}-{}".format(self.varname, by_value_lo, by_value_hi))
+        map_aoi.set_raster_metadata(metadata=self.raster_metadata)
+        map_aoi.prj = self.prj
+        # set grid
+        self.insert_nodata()
+        map_aoi.set_data(
+            grid=1 * (self.data >= by_value_lo) * (self.data <= by_value_hi)
+        )
+        self.mask_nodata()
+        return map_aoi
+
 
     def _set_view_specs(self):
         """
@@ -2874,953 +3599,6 @@ class Raster:
         }
         return None
 
-    def set_grid(self, grid):
-        """Set the data grid for the raster object.
-
-        This function allows setting the data grid for the raster object. The incoming grid should be a NumPy array.
-
-        :param grid: :class:`numpy.ndarray`
-            The data grid to be set for the raster.
-        :type grid: :class:`numpy.ndarray`
-
-        **Notes:**
-
-        - The function overwrites the existing data grid in the raster object with the incoming grid, ensuring that the data type matches the raster's dtype.
-        - Nodata values are masked after setting the grid.
-
-        """
-        # overwrite incoming dtype
-        self.grid = grid.astype(self.dtype)
-        # mask nodata values
-        self.mask_nodata()
-        return None
-
-    def set_asc_metadata(self, metadata):
-        """Set metadata for the raster object based on incoming metadata.
-
-        This function allows setting metadata for the raster object from an incoming metadata dictionary. The metadata should include information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
-
-        :param metadata: dict
-            A dictionary containing metadata for the raster. Example metadata for a ``.asc`` file raster:
-
-            .. code-block:: python
-
-                meta = {
-                    'ncols': 366,
-                    'nrows': 434,
-                    'xllcorner': 559493.08,
-                    'yllcorner': 6704832.2,
-                    'cellsize': 30,
-                    'NODATA_value': -1
-                }
-
-        :type metadata: dict
-
-        **Notes:**
-
-        - The function updates the raster object's metadata based on the provided dictionary, ensuring that existing metadata keys are preserved.
-        - It specifically updates nodata value and cell size attributes in the raster object.
-
-        **Examples:**
-
-        >>> # Example of setting metadata
-        >>> metadata_dict = {'ncols': 200, 'nrows': 300, 'xllcorner': 500000.0, 'yllcorner': 6000000.0, 'cellsize': 25, 'NODATA_value': -9999}
-        >>> raster.set_asc_metadata(metadata_dict)
-        """
-        for k in self.asc_metadata:
-            if k in metadata:
-                self.asc_metadata[k] = metadata[k]
-        # update nodata value and cellsize
-        self.nodatavalue = self.asc_metadata["NODATA_value"]
-        self.cellsize = self.asc_metadata["cellsize"]
-        return None
-
-    def load(self, asc_file, prj_file=None):
-        """Load data from files to the raster object.
-
-        This function loads data from ``.asc`` raster and '.prj' projection files into the raster object.
-
-        :param asc_file: str
-            The path to the ``.asc`` raster file.
-        :type asc_file: str
-
-        :param prj_file: str, optional
-            The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the ``.asc`` file with the '.prj' extension.
-        :type prj_file: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function first loads the raster data from the ``.asc`` file using the ``load_asc_raster`` method.
-        - If a '.prj' file is not explicitly provided, the function attempts to use a '.prj' file with the same path and name as the ``.asc`` file.
-        - The function then loads the projection information from the '.prj' file using the ``load_prj_file`` method.
-
-        **Examples:**
-
-        >>> # Example of loading data
-        >>> raster.boot(asc_file="path/to/raster.asc")
-
-        >>> # Example of loading data with a specified projection file
-        >>> raster.boot(asc_file="path/to/raster.asc", prj_file="path/to/raster.prj")
-        """
-        self.load_asc_raster(file=asc_file)
-        if prj_file is None:
-            # try to use the same path and name
-            prj_file = asc_file.split(".")[0] + ".prj"
-            if os.path.isfile(prj_file):
-                self.load_prj_file(file=prj_file)
-        else:
-            self.load_prj_file(file=prj_file)
-        return None
-
-    def load_tif_raster(self, file, xxl=False):
-        """Load data from '.tif' raster files.
-
-        This function loads data from '.tif' raster files into the raster object. Note that metadata may be provided from other sources.
-
-        :param file: str
-            The file path of the '.tif' raster file.
-        :type file: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function uses the Pillow (PIL) library to open the '.tif' file and converts it to a NumPy array.
-        - Metadata may need to be provided separately, as this function focuses on loading raster data.
-        - The loaded data grid is set using the ``set_grid`` method of the raster object.
-
-        **Examples:**
-
-        >>> # Example of loading data from a '.tif' file
-        >>> raster.load_tif_raster(file="path/to/raster.tif")
-        """
-        from PIL import Image
-
-        if xxl:
-            Image.MAX_IMAGE_PIXELS = None
-
-        # Open the TIF file
-        img_data = Image.open(file)
-        # Convert the PIL image to a NumPy array
-        grd_data = np.array(img_data)
-        # set grid
-        self.set_grid(grid=grd_data)
-        return None
-
-    def load_asc_raster(self, file):
-        """Load data and metadata from `.asc` raster files.
-
-        This function loads both data and metadata from ``.asc`` raster files into the raster object.
-
-        :param file: str
-            The file path to the ``.asc`` raster file.
-        :type file: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function reads the content of the ``.asc`` file, extracts metadata, and constructs the data grid.
-        - The metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
-        - The data grid is constructed from the array information provided in the ``.asc`` file.
-        - The function depends on the existence of a properly formatted ``.asc`` file.
-        - No additional dependencies beyond standard Python libraries are required.
-
-        **Examples:**
-
-        >>> # Example of loading data and metadata from a ``.asc`` file
-        >>> raster.load_asc_raster(file="path/to/raster.asc")
-
-
-        """
-        # Get metadata and grid data
-        with open(file) as f_file:
-            lst_file = f_file.readlines()
-
-        # Metadata extraction
-        tpl_meta_labels = (
-            "ncols",
-            "nrows",
-            "xllcorner",
-            "yllcorner",
-            "cellsize",
-            "NODATA_value",
-        )
-        tpl_meta_format = ("int", "int", "float", "float", "float", "float")
-        dct_meta = {
-            tpl_meta_labels[i]: (int if tpl_meta_format[i] == "int" else float)(
-                lst_file[i].split()[-1]
-            )
-            for i in range(6)
-        }
-        # Grid construction using numpy
-        grd_data = np.genfromtxt(lst_file[6:], dtype=self.dtype)
-        # Set metadata and grid
-        self.set_asc_metadata(metadata=dct_meta)
-        self.set_grid(grid=grd_data)
-
-    # legacy function
-    def __load_asc_raster(self, file):
-        """Load data and metadata from ``.asc`` raster files.
-
-        This function loads both data and metadata from ``.asc`` raster files into the raster object.
-
-        :param file: str
-            The file path to the ``.asc`` raster file.
-        :type file: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function reads the content of the ``.asc`` file, extracts metadata, and constructs the data grid.
-        - The metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
-        - The data grid is constructed from the array information provided in the ``.asc`` file.
-        - The function depends on the existence of a properly formatted ``.asc`` file.
-        - No additional dependencies beyond standard Python libraries are required.
-
-        **Examples:**
-
-        >>> # Example of loading data and metadata from a ``.asc`` file
-        >>> raster.load_asc_raster(file="path/to/raster.asc")
-        """
-        # get file
-        self.path_ascfile = file
-        f_file = open(file)
-        lst_file = f_file.readlines()
-        f_file.close()
-        #
-        # get metadata constructor loop
-        tpl_meta_labels = (
-            "ncols",
-            "nrows",
-            "xllcorner",
-            "yllcorner",
-            "cellsize",
-            "NODATA_value",
-        )
-        tpl_meta_format = ("int", "int", "float", "float", "float", "float")
-        dct_meta = dict()
-        for i in range(6):
-            lcl_lst = lst_file[i].split(" ")
-            lcl_meta_str = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
-            if tpl_meta_format[i] == "int":
-                dct_meta[tpl_meta_labels[i]] = int(lcl_meta_str)
-            else:
-                dct_meta[tpl_meta_labels[i]] = float(lcl_meta_str)
-        #
-        # array constructor loop:
-        lst_grid = list()
-        for i in range(6, len(lst_file)):
-            lcl_lst = lst_file[i].split(" ")[1:]
-            lcl_lst[len(lcl_lst) - 1] = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
-            lst_grid.append(lcl_lst)
-        # create grid file
-        grd_data = np.array(lst_grid, dtype=self.dtype)
-        #
-        self.set_asc_metadata(metadata=dct_meta)
-        self.set_grid(grid=grd_data)
-        return None
-
-    def load_asc_metadata(self, file):
-        """Load only metadata from ``.asc`` raster files.
-
-        This function extracts metadata from ``.asc`` raster files and sets it as attributes in the raster object.
-
-        :param file: str
-            The file path to the ``.asc`` raster file.
-        :type file: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function reads the first six lines of the ``.asc`` file to extract metadata.
-        - Metadata includes information such as the number of columns, number of rows, corner coordinates, cell size, and nodata value.
-        - The function sets the metadata as attributes in the raster object using the ``set_asc_metadata`` method.
-        - This function is useful when only metadata needs to be loaded without the entire data grid.
-
-        **Examples:**
-
-        >>> # Example of loading metadata from a ``.asc`` file
-        >>> raster.load_asc_metadata(file="path/to/raster.asc")
-        """
-        with open(file) as f:
-            def_lst = []
-            for i, line in enumerate(f):
-                if i >= 6:
-                    break
-                def_lst.append(line.strip())  # append each line to the list
-        #
-        # get metadata constructor loop
-        meta_lbls = (
-            "ncols",
-            "nrows",
-            "xllcorner",
-            "yllcorner",
-            "cellsize",
-            "NODATA_value",
-        )
-        meta_format = ("int", "int", "float", "float", "float", "float")
-        meta_dct = dict()
-        for i in range(6):
-            lcl_lst = def_lst[i].split(" ")
-            lcl_meta_str = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
-            if meta_format[i] == "int":
-                meta_dct[meta_lbls[i]] = int(lcl_meta_str)
-            else:
-                meta_dct[meta_lbls[i]] = float(lcl_meta_str)
-        # set attribute
-        self.set_asc_metadata(metadata=meta_dct)
-        return None
-
-    def load_prj_file(self, file):
-        """Load '.prj' auxiliary file to the 'prj' attribute.
-
-        This function loads the content of a '.prj' auxiliary file and sets it as the 'prj' attribute in the raster object.
-
-        :param file: str
-            The file path to the '.prj' auxiliary file.
-        :type file: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function reads the content of the '.prj' file and assigns it to the 'prj' attribute.
-        - The 'prj' attribute typically contains coordinate system information in Well-Known Text (WKT) format.
-        - This function is useful for associating coordinate system information with raster data.
-
-        **Examples:**
-
-        >>> # Example of loading coordinate system information from a '.prj' file
-        >>> raster.load_prj_file(file="path/to/raster.prj")
-        """
-        self.path_prjfile = file
-        with open(file) as f:
-            self.prj = f.readline().strip("\n")
-        return None
-
-    def copy_structure(self, raster_ref, n_nodatavalue=None):
-        """Copy structure (asc_metadata and prj file) from another raster object.
-
-        This function copies the structure, including asc_metadata and prj, from another raster object to the current raster object.
-
-        :param raster_ref: :class:`datasets.Raster`
-            The reference incoming raster object from which to copy asc_metadata and prj.
-        :type raster_ref: :class:`datasets.Raster`
-
-        :param n_nodatavalue: float, optional
-            The new nodata value for different raster objects. If None, the nodata value remains unchanged.
-        :type n_nodatavalue: float
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function copies the asc_metadata and prj attributes from the reference raster object to the current raster object.
-        - If a new nodata value is provided, it updates the 'NODATA_value' in the copied asc_metadata.
-        - This function is useful for ensuring consistency in metadata and coordinate system information between raster objects.
-
-        **Examples:**
-
-        >>> # Example of copying structure from a reference raster object
-        >>> new_raster.copy_structure(raster_ref=reference_raster, n_nodatavalue=-9999.0)
-        """
-        dict_meta = raster_ref.asc_metadata.copy()
-        # handle new nodatavalue
-        if n_nodatavalue is None:
-            pass
-        else:
-            dict_meta["NODATA_value"] = n_nodatavalue
-        self.set_asc_metadata(metadata=dict_meta)
-        self.prj = raster_ref.prj[:]
-        return None
-
-    def export(self, folder, filename=None):
-        """Export raster data to a folder.
-
-        This function exports raster data, including the ``.asc`` raster file and '.prj' projection file, to the specified folder.
-
-        :param folder: str
-            The directory path to export the raster data.
-        :type folder: str
-
-        :param filename: str, optional
-            The name of the exported files without extension. If None, the name of the raster object is used.
-        :type filename: str
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function exports the raster data to the specified folder, creating ``.asc`` and '.prj' files.
-        - If a filename is not provided, the function uses the name of the raster object.
-        - The exported files will have the same filename with different extensions (``.asc`` and '.prj').
-        - This function is useful for saving raster data to a specified directory.
-
-        **Examples:**
-
-        >>> # Example of exporting raster data to a folder
-        >>> raster.export(folder="path/to/export_folder", filename="exported_raster")
-        """
-        if filename is None:
-            filename = self.name
-        self.export_asc_raster(folder=folder, filename=filename)
-        self.export_prj_file(folder=folder, filename=filename)
-        return None
-
-    def export_asc_raster(self, folder, filename=None):
-        """Export an ``.asc`` raster file.
-
-        This function exports the raster data as an ``.asc`` file to the specified folder.
-
-        :param folder: str
-            The directory path to export the ``.asc`` raster file.
-        :type folder: str
-
-        :param filename: str, optional
-            The name of the exported file without extension. If None, the name of the raster object is used.
-        :type filename: str
-
-        :return: str
-            The full file name (path and extension) of the exported ``.asc`` raster file.
-        :rtype: str
-
-        **Notes:**
-
-        - The function exports the raster data to an ``.asc`` file in the specified folder.
-        - If a filename is not provided, the function uses the name of the raster object.
-        - The exported ``.asc`` file contains metadata and data information.
-        - This function is useful for saving raster data in ASCII format.
-
-        **Examples:**
-
-        >>> # Example of exporting an ``.asc`` raster file to a folder
-        >>> raster.export_asc_raster(folder="path/to/export_folder", filename="exported_raster")
-        """
-        if self.grid is None or self.asc_metadata is None:
-            pass
-        else:
-            meta_lbls = (
-                "ncols",
-                "nrows",
-                "xllcorner",
-                "yllcorner",
-                "cellsize",
-                "NODATA_value",
-            )
-            ndv = float(self.asc_metadata["NODATA_value"])
-            exp_lst = list()
-            for i in range(len(meta_lbls)):
-                line = "{}    {}\n".format(
-                    meta_lbls[i], self.asc_metadata[meta_lbls[i]]
-                )
-                exp_lst.append(line)
-
-            # ----------------------------------
-            # data constructor loop:
-            self.insert_nodata()  # insert nodatavalue
-
-            def_array = np.array(self.grid, dtype=self.dtype)
-            for i in range(len(def_array)):
-                # replace np.nan to no data values
-                lcl_row_sum = np.sum((np.isnan(def_array[i])) * 1)
-                if lcl_row_sum > 0:
-                    # print('Yeas')
-                    for j in range(len(def_array[i])):
-                        if np.isnan(def_array[i][j]):
-                            def_array[i][j] = int(ndv)
-                str_join = " " + " ".join(np.array(def_array[i], dtype="str")) + "\n"
-                exp_lst.append(str_join)
-
-            if filename is None:
-                filename = self.name
-            flenm = folder + "/" + filename + ".asc"
-            fle = open(flenm, "w+")
-            fle.writelines(exp_lst)
-            fle.close()
-
-            # mask again
-            self.mask_nodata()
-
-            return flenm
-
-    def export_prj_file(self, folder, filename=None):
-        """Export a '.prj' file.
-
-        This function exports the coordinate system information to a '.prj' file in the specified folder.
-
-        :param folder: str
-            The directory path to export the '.prj' file.
-        :type folder: str
-
-        :param filename: str, optional
-            The name of the exported file without extension. If None, the name of the raster object is used.
-        :type filename: str
-
-        :return: str or None
-            The full file name (path and extension) of the exported '.prj' file, or None if no coordinate system information is available.
-        :rtype: str or None
-
-        **Notes:**
-
-        - The function exports the coordinate system information to a '.prj' file in the specified folder.
-        - If a filename is not provided, the function uses the name of the raster object.
-        - The exported '.prj' file contains coordinate system information in Well-Known Text (WKT) format.
-        - This function is useful for saving coordinate system information associated with raster data.
-
-        **Examples:**
-
-        >>> # Example of exporting a '.prj' file to a folder
-        >>> raster.export_prj_file(folder="path/to/export_folder", filename="exported_prj")
-        """
-        if self.prj is None:
-            return None
-        else:
-            if filename is None:
-                filename = self.name
-
-            flenm = folder + "/" + filename + ".prj"
-            fle = open(flenm, "w+")
-            fle.writelines([self.prj])
-            fle.close()
-            return flenm
-
-    def mask_nodata(self):
-        """Mask grid cells as NaN where data is NODATA.
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function masks grid cells as NaN where the data is equal to the specified NODATA value.
-        - If NODATA value is not set, no masking is performed.
-        """
-        if self.nodatavalue is None:
-            pass
-        else:
-            if self.grid.dtype.kind in ["i", "u"]:
-                # for integer grid
-                self.grid = np.ma.masked_where(self.grid == self.nodatavalue, self.grid)
-            else:
-                # for floating point grid:
-                self.grid[self.grid == self.nodatavalue] = np.nan
-        return None
-
-    def insert_nodata(self):
-        """Insert grid cells as NODATA where data is NaN.
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function inserts NODATA values into grid cells where the data is NaN.
-        - If NODATA value is not set, no insertion is performed.
-        """
-        if self.nodatavalue is None:
-            pass
-        else:
-            if self.grid.dtype.kind in ["i", "u"]:
-                # for integer grid
-                self.grid = np.ma.filled(self.grid, fill_value=self.nodatavalue)
-            else:
-                # for floating point grid:
-                self.grid = np.nan_to_num(self.grid, nan=self.nodatavalue)
-        return None
-
-    def rebase_grid(self, base_raster, inplace=False, method="linear_model"):
-        """Rebase the grid of a raster.
-
-        This function creates a new grid based on a provided reference raster. Both rasters are expected to be in the same coordinate system and have overlapping bounding boxes.
-
-        :param base_raster: The reference raster used for rebase. It should be in the same coordinate system and have overlapping bounding boxes.
-        :type base_raster: :class:`datasets.Raster`
-        :param inplace: If True, the rebase operation will be performed in-place, and the original raster's grid will be modified. If False, a new rebased grid will be returned, and the original data will remain unchanged. Default is False.
-        :type inplace: bool
-        :param method: Interpolation method for rebasing the grid. Options include "linear_model," "nearest," and "cubic." Default is "linear_model."
-        :type method: str
-        :return: If inplace is False, a new rebased grid as a NumPy array. If inplace is True, returns None, and the original raster's grid is modified in-place.
-        :rtype: :class:`numpy.ndarray`` or None
-
-        Notes:
-
-        - The rebase operation involves interpolating the values of the original grid to align with the reference raster's grid.
-        - The method parameter specifies the interpolation method and can be "linear_model," "nearest," or "cubic."
-        - The rebase assumes that both rasters are in the same coordinate system and have overlapping bounding boxes.
-        """
-        from scipy.interpolate import griddata
-
-        # get data points
-        _df = self.get_grid_datapoints(drop_nan=True)
-        # get base grid data points
-        _dfi = base_raster.get_grid_datapoints(drop_nan=False)
-        # set data points
-        grd_points = np.array([_df["x"].values, _df["y"].values]).transpose()
-        grd_new_points = np.array([_dfi["x"].values, _dfi["y"].values]).transpose()
-        _dfi["zi"] = griddata(
-            points=grd_points, values=_df["z"].values, xi=grd_new_points, method=method
-        )
-        grd_zi = np.reshape(_dfi["zi"].values, newshape=base_raster.grid.shape)
-        if inplace:
-            # set
-            self.set_grid(grid=grd_zi)
-            self.set_asc_metadata(metadata=base_raster.asc_metadata)
-            self.prj = base_raster.prj
-            return None
-        else:
-            return grd_zi
-
-    def apply_aoi_mask(self, grid_aoi, inplace=False):
-        """Apply AOI (area of interest) mask to the raster map.
-
-        This function applies an AOI (area of interest) mask to the raster map, replacing values outside the AOI with the NODATA value.
-
-        :param grid_aoi: :class:`numpy.ndarray`
-            Map of AOI (masked array or pseudo-boolean). Expected to have the same grid shape as the raster.
-        :type grid_aoi: :class:`numpy.ndarray`
-
-        :param inplace: bool, optional
-            If True, overwrite the main grid with the masked values. If False, create a backup and modify a copy of the grid.
-            Default is False.
-        :type inplace: bool
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - The function replaces values outside the AOI (where grid_aoi is 0) with the NODATA value.
-        - If NODATA value is not set, no replacement is performed.
-        - If inplace is True, the main grid is modified. If False, a backup of the grid is created before modification.
-        - This function is useful for focusing analysis or visualization on a specific area within the raster map.
-
-        """
-        if self.nodatavalue is None or self.grid is None:
-            pass
-        else:
-            # ensure fill on masked values
-            grid_aoi = np.ma.filled(grid_aoi, fill_value=0)
-            # replace
-            grd_mask = np.where(grid_aoi == 0, self.nodatavalue, self.grid)
-
-            if inplace:
-                pass
-            else:
-                # pass a copy to backup grid
-                self.backup_grid = self.grid.copy()
-            # set main grid
-            self.set_grid(grid=grd_mask)
-            self.isaoi = True
-        return None
-
-    def release_aoi_mask(self):
-        """
-        Release AOI mask from the main grid. Backup grid is restored.
-
-        This function releases the AOI (area of interest) mask from the main grid, restoring the original values from the backup grid.
-
-        :return: None
-        :rtype: None
-
-        **Notes:**
-
-        - If an AOI mask has been applied, this function restores the original values to the main grid from the backup grid.
-        - If no AOI mask has been applied, the function has no effect.
-        - After releasing the AOI mask, the backup grid is set to None, and the raster object is no longer considered to have an AOI mask.
-
-        """
-        if self.isaoi:
-            self.set_grid(grid=self.backup_grid)
-            self.backup_grid = None
-            self.isaoi = False
-        return None
-
-    def cut_edges(self, upper, lower, inplace=False):
-        """
-        Cutoff upper and lower values of the raster grid.
-
-        :param upper: float or int
-            The upper value for the cutoff.
-        :type upper: float or int
-
-        :param lower: float or int
-            The lower value for the cutoff.
-        :type lower: float or int
-
-        :param inplace: bool, optional
-            If True, modify the main grid in-place. If False, create a processed copy of the grid.
-            Default is False.
-        :type inplace: bool
-
-        :return: :class:`numpy.ndarray`` or None
-            The processed grid if inplace is False. If inplace is True, returns None.
-        :rtype: Union[None, np.ndarray]
-
-        **Notes:**
-
-        - Values in the raster grid below the lower value are set to the lower value.
-        - Values in the raster grid above the upper value are set to the upper value.
-        - If inplace is False, a processed copy of the grid is returned, leaving the original grid unchanged.
-        - This function is useful for clipping extreme values in the raster grid.
-
-        """
-        if self.grid is None:
-            return None
-        else:
-            new_grid = self.grid
-            new_grid[new_grid < lower] = lower
-            new_grid[new_grid > upper] = upper
-
-            if inplace:
-                self.set_grid(grid=new_grid)
-                return None
-            else:
-                return new_grid
-
-    def get_metadata(self):
-        """
-        Get all metadata from the base object.
-
-        :return: Metadata dictionary.
-
-            - "Name" (str): Name of the raster.
-            - "Variable" (str): Variable name.
-            - "VarAlias" (str): Variable alias.
-            - "Units" (str): Measurement units.
-            - "Date" (str): Date information.
-            - "Source" (str): Data source.
-            - "Description" (str): Description of the raster.
-            - "cellsize" (float): Cell size of the raster.
-            - "ncols" (int): Number of columns in the raster grid.
-            - "nrows" (int): Number of rows in the raster grid.
-            - "xllcorner" (float): X-coordinate of the lower-left corner.
-            - "yllcorner" (float): Y-coordinate of the lower-left corner.
-            - "NODATA_value" (Union[float, None]): NODATA value in the raster.
-            - "Prj" (str): Projection information.
-            - "Path_ASC" (str): File path to the ASC raster file.
-            - "Path_PRJ" (str): File path to the PRJ projection file.
-        :rtype: dict
-        """
-        return {
-            "Name": self.name,
-            "Variable": self.varname,
-            "VarAlias": self.varalias,
-            "Units": self.units,
-            "Date": self.date,
-            "Source": self.source_data,
-            "Description": self.description,
-            "cellsize": self.cellsize,
-            "ncols": self.asc_metadata["ncols"],
-            "nrows": self.asc_metadata["nrows"],
-            "xllcorner": self.asc_metadata["xllcorner"],
-            "yllcorner": self.asc_metadata["yllcorner"],
-            "NODATA_value": self.nodatavalue,
-            "Prj": self.prj,
-            "Path_ASC": self.path_ascfile,
-            "Path_PRJ": self.path_prjfile,
-        }
-
-    def get_bbox(self):
-        """Get the Bounding Box of the map.
-
-        :return: Dictionary of xmin, xmax, ymin, and ymax.
-
-            - "xmin" (float): Minimum x-coordinate.
-            - "xmax" (float): Maximum x-coordinate.
-            - "ymin" (float): Minimum y-coordinate.
-            - "ymax" (float): Maximum y-coordinate.
-        :rtype: dict
-        """
-        return {
-            "xmin": self.asc_metadata["xllcorner"],
-            "xmax": self.asc_metadata["xllcorner"]
-            + (self.asc_metadata["ncols"] * self.cellsize),
-            "ymin": self.asc_metadata["yllcorner"],
-            "ymax": self.asc_metadata["yllcorner"]
-            + (self.asc_metadata["nrows"] * self.cellsize),
-        }
-
-    def get_extent(self):
-        """Get the Extent of the map. See get_bbox.
-
-        :return: list of [xmin, xmax, ymin, ymax]
-        :rtype: list
-        """
-        d = self.get_bbox()
-        extent = [d["xmin"], d["xmax"], d["ymin"], d["ymax"]]
-        return extent
-
-    def get_grid_datapoints(self, drop_nan=False):
-        """Get flat and cleared grid data points (x, y, and z).
-
-        :param drop_nan: Option to ignore nan values.
-        :type drop_nan: bool
-
-        :return: DataFrame of x, y, and z fields.
-        :rtype: :class:`pandas.DataFrame``` or None
-            If the grid is None, returns None.
-
-        **Notes:**
-
-        - This function extracts coordinates (x, y, and z) from the raster grid.
-        - The x and y coordinates are determined based on the grid cell center positions.
-        - If drop_nan is True, nan values are ignored in the resulting DataFrame.
-        - The resulting DataFrame includes columns for x, y, z, i, and j coordinates.
-
-        **Examples:**
-
-        >>> # Get grid data points with nan values included
-        >>> datapoints_df = raster.get_grid_datapoints(drop_nan=False)
-        >>> # Get grid data points with nan values ignored
-        >>> clean_datapoints_df = raster.get_grid_datapoints(drop_nan=True)
-        """
-        if self.grid is None:
-            return None
-        else:
-            # get coordinates
-            vct_i = np.zeros(self.grid.shape[0] * self.grid.shape[1])
-            vct_j = vct_i.copy()
-            vct_z = vct_i.copy()
-            _c = 0
-            for i in range(len(self.grid)):
-                for j in range(len(self.grid[i])):
-                    vct_i[_c] = i
-                    vct_j[_c] = j
-                    vct_z[_c] = self.grid[i][j]
-                    _c = _c + 1
-
-            # transform
-            n_height = self.grid.shape[0] * self.cellsize
-            vct_y = (
-                self.asc_metadata["yllcorner"]
-                + (n_height - (vct_i * self.cellsize))
-                - (self.cellsize / 2)
-            )
-            vct_x = (
-                self.asc_metadata["xllcorner"]
-                + (vct_j * self.cellsize)
-                + (self.cellsize / 2)
-            )
-
-            # drop nan or masked values:
-            if drop_nan:
-                vct_j = vct_j[~np.isnan(vct_z)]
-                vct_i = vct_i[~np.isnan(vct_z)]
-                vct_x = vct_x[~np.isnan(vct_z)]
-                vct_y = vct_y[~np.isnan(vct_z)]
-                vct_z = vct_z[~np.isnan(vct_z)]
-            # built dataframe
-            _df = pd.DataFrame(
-                {
-                    "x": vct_x,
-                    "y": vct_y,
-                    "z": vct_z,
-                    "i": vct_i,
-                    "j": vct_j,
-                }
-            )
-            return _df
-
-    def get_grid_data(self):
-        """Get flat and cleared grid sample.
-
-        :return: 1D vector of cleared sample.
-        :rtype: :class:`numpy.ndarray`` or None
-            If the grid is None, returns None.
-
-        **Notes:**
-
-        - This function extracts and flattens the grid sample, removing any masked or NaN values.
-        - For integer grids, the masked values are ignored.
-        - For floating-point grids, both masked and NaN values are ignored.
-
-        **Examples:**
-
-        >>> # Get flattened and cleared grid sample
-        >>> data_vector = raster.get_grid_data()
-        """
-        if self.grid is None:
-            return None
-        else:
-            if self.grid.dtype.kind in ["i", "u"]:
-                # for integer grid
-                _grid = self.grid[~self.grid.mask]
-                return _grid
-            else:
-                # for floating point grid:
-                _grid = self.grid.ravel()[~np.isnan(self.grid.ravel())]
-                return _grid
-
-    def get_grid_stats(self):
-        """Get basic statistics from flat and cleared sample.
-
-        :return: DataFrame of basic statistics.
-        :rtype: :class:`pandas.DataFrame``` or None
-            If the grid is None, returns None.
-
-        **Notes:**
-
-        - This function computes basic statistics from the flattened and cleared grid sample.
-        - Basic statistics include measures such as mean, median, standard deviation, minimum, and maximum.
-        - Requires the 'plans.analyst' module for statistical analysis.
-
-        **Examples:**
-
-        >>> # Get basic statistics from the raster grid
-        >>> stats_dataframe = raster.get_grid_stats()
-        """
-        if self.grid is None:
-            return None
-        else:
-            from plans.analyst import Univar
-            uni = Univar()
-            uni.set_array(array=self.get_grid_data())
-            return uni.assess_basic_stats()
-
-    def get_aoi(self, by_value_lo, by_value_hi):
-        """Get the AOI map from an interval of values (values are expected to exist in the raster).
-
-        :param by_value_lo: Number for the lower bound (inclusive).
-        :type by_value_lo: float
-        :param by_value_hi: Number for the upper bound (inclusive).
-        :type by_value_hi: float
-
-        :return: AOI map.
-        :rtype: :class:`AOI`` object
-
-        **Notes:**
-
-        - This function creates an AOI (Area of Interest) map based on a specified value range.
-        - The AOI map is constructed as a binary grid where values within the specified range are set to 1, and others to 0.
-
-        **Examples:**
-
-        >>> # Get AOI map for values between 10 and 20
-        >>> aoi_map = raster.get_aoi(by_value_lo=10, by_value_hi=20)
-        """
-        map_aoi = AOI(name="{} {}-{}".format(self.varname, by_value_lo, by_value_hi))
-        map_aoi.set_asc_metadata(metadata=self.asc_metadata)
-        map_aoi.prj = self.prj
-        # set grid
-        self.insert_nodata()
-        map_aoi.set_grid(
-            grid=1 * (self.grid >= by_value_lo) * (self.grid <= by_value_hi)
-        )
-        self.mask_nodata()
-        return map_aoi
 
     def view(
         self,
@@ -3831,7 +3609,8 @@ class Raster:
         return_fig=False,
         helper_geometry=None,
     ):
-        """Plot a basic panel of the raster map.
+        """
+        Plot a basic panel of the raster map.
 
         :param accum: boolean to include an accumulated probability plot, defaults to True
         :type accum: bool
@@ -3847,13 +3626,6 @@ class Raster:
         - The panel includes various customization options such as color, titles, dimensions, and more.
         - The resulting plot can be displayed or saved based on the specified parameters.
 
-        **Examples:**
-
-        >>> # Show the plot without saving
-        >>> raster.view()
-
-        >>> # Save the plot to a file
-        >>> raster.view(show=False, folder="./output", filename="raster_plot", dpi=300, fig_format="png")
         """
         import matplotlib.ticker as mtick
         from plans.analyst import Univar
@@ -3865,9 +3637,9 @@ class Raster:
         specs = self.view_specs.copy()
 
         if specs["vmin"] is None:
-            specs["vmin"] = np.min(self.grid)
+            specs["vmin"] = np.nanmin(self.data)
         if specs["vmax"] is None:
-            specs["vmax"] = np.max(self.grid)
+            specs["vmax"] = np.nanmax(self.data)
 
         # Deploy figure
         fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
@@ -3880,9 +3652,9 @@ class Raster:
         ax = plt.subplot(gs[:3, :3])
         # handle zoom window
         i_min = 0
-        i_max = len(self.grid)
+        i_max = len(self.data)
         j_min = 0
-        j_max = len(self.grid[0])
+        j_max = len(self.data[0])
         if specs["zoom_window"] is not None:
             i_min = specs["zoom_window"]["i_min"]
             i_max = specs["zoom_window"]["i_max"]
@@ -3890,7 +3662,7 @@ class Raster:
             j_max = specs["zoom_window"]["j_max"]
         # plot image
         im = plt.imshow(
-            self.grid[i_min:i_max, j_min:j_max],
+            self.data[i_min:i_max, j_min:j_max],
             cmap=specs["cmap"],
             vmin=specs["vmin"],
             vmax=specs["vmax"],
@@ -3961,9 +3733,12 @@ class Raster:
         df_stats = self.get_grid_stats()
         lst_meta = []
         lst_value = []
-        for k in self.asc_metadata:
-            lst_value.append(self.asc_metadata[k])
-            lst_meta.append(k)
+        for k in self.raster_metadata:
+            if k == "crs" or k == "transform":
+                pass
+            else:
+                lst_value.append(self.raster_metadata[k])
+                lst_meta.append(k)
         df_meta = pd.DataFrame({"Raster": lst_meta, "Value": lst_value})
         # metadata
         n_y = 0.25
@@ -4070,14 +3845,14 @@ class Raster:
             return file_path
 
     @staticmethod
-    def read_raster_metadata(file_input, n_band=1):
+    def read_tif_metadata(file_input, n_band=1):
         """
         Read raster metadata from a file.
 
         :param file_input: Path to the input raster file.
-        :param type: str
+        :type file_input: str
         :param n_band: [optional] Band number to read. Default value = 1
-        :param type: int
+        :type n_band: int
         :return: Dictionary containing raster metadata.
         :rtype: dict
         """
@@ -4095,52 +3870,51 @@ class Raster:
         raster_input.close()
         return dc_metatada
 
-
     @staticmethod
-    def read_raster(file_input, n_band=1, dtype="float", metadata=True):
+    def read_tif(file_input, dtype="float", id_band=1, metadata=True):
         """
         Read a raster band from a file.
 
         :param file_input: Path to the input raster file.
-        :param type: str
-        :param n_band: Band number to read. Default value = 1
-        :param type: int
+        :type file_input: str
         :param dtype: Data type for the output grid. Default value = "float"
-        :param type: str
+        :type dtype: str
+        :param id_band: Band id to read. Default value = 1
+        :type id_band: int
         :param metadata: Whether to include metadata in the output dictionary. Default value = True
-        :param type: bool
+        :type metadata: bool
         :return: Dictionary containing the raster grid and optionally its metadata.
         :rtype: dict
         """
         raster_input = rasterio.open(file_input)
         dc_raster = {
-            "grid": np.astype(raster_input.read(n_band), dtype)
+            "data": np.astype(raster_input.read(id_band), dtype)
         }
         if metadata:
-            dc_metadata = Raster.read_raster_metadata(file_input, n_band)
+            dc_metadata = Raster.read_tif_metadata(file_input, id_band)
             dc_raster["metadata"] = dc_metadata
         raster_input.close()
         return dc_raster
 
     @staticmethod
-    def write_raster(grid_output, dc_metadata, file_output, dtype="float", n_bands=1, id_band=1):
+    def write_tif(grid_output, dc_metadata, file_output, dtype="float32", n_bands=1, id_band=1):
         """
         Write a raster band to a file.
 
         :param grid_output: The grid data to write.
-        :param type: :class:`numpy.ndarray`
+        :type grid_output: :class:`numpy.ndarray`
         :param dc_metadata: Dictionary containing the raster metadata.
-        :param type: dict
+        :type dc_metadata: dict
         :param file_output: Path to the output raster file.
-        :param type: str
-        :param dtype: Data type for the output grid. Default value = "float"
-        :param type: str
+        :type file_output: str
+        :param dtype: Data type alias for the output grid (numpy standard). Default value = "float32"
+        :type dtype: str
         :param n_bands: Number of bands in the output raster. Default value = 1
-        :param type: int
+        :type n_bands: int
         :param id_band: Band ID to write the data to. Default value = 1
-        :param type: int
-        :return: None
-        :rtype: None
+        :type id_band: int
+        :return: Path to the output raster file. (echo)
+        :rtype: str
         """
         # Define the profile for the new GeoTIFF
         profile = {
@@ -4156,7 +3930,150 @@ class Raster:
         }
         # write
         with rasterio.open(file_output, 'w', **profile) as dst:
-            dst.write(grid_data, id_band)
+            dst.write(grid_output, id_band)
+        return file_output
+
+    @staticmethod
+    def read_asc_metadata(file_input):
+        """
+        Reads metadata from an ASCII raster file.
+
+        :param file_input: Path to the input ASCII file.
+        :type file_input: str
+        :return: A dictionary containing the metadata.
+        :rtype: dict
+        """
+        with open(file_input) as f:
+            def_lst = []
+            for i, line in enumerate(f):
+                if i >= 6:
+                    break
+                def_lst.append(line.strip())  # append each line to the list
+        #
+        # get metadata constructor loop
+        meta_lbls = (
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "cellsize",
+            "NODATA_value",
+        )
+        meta_format = ("int", "int", "float", "float", "float", "float")
+        dc_metadata = dict()
+        for i in range(6):
+            lcl_lst = def_lst[i].split(" ")
+            lcl_meta_str = lcl_lst[len(lcl_lst) - 1].split("\n")[0]
+            if meta_format[i] == "int":
+                dc_metadata[meta_lbls[i]] = int(lcl_meta_str)
+            else:
+                dc_metadata[meta_lbls[i]] = float(lcl_meta_str)
+        # append missing params
+        dc_metadata["crs"] = None
+        dc_metadata["transform"] = None
+        return dc_metadata
+
+    @staticmethod
+    def read_asc(file_input, dtype="float32", metadata=True):
+        """
+        Reads an ASCII raster file into a dictionary.
+
+        :param file_input: Path to the input ASCII file.
+        :type file_input: str
+        :param dtype: Data type for the raster data. Default value = "float32"
+        :type dtype: str
+        :param metadata: Whether to read and include metadata from the ASCII file. Default value = True
+        :type metadata: bool
+        :return: A dictionary containing the raster data and optionally its metadata.
+        :rtype: dict
+        """
+        # read
+        with open(file_input) as f_file:
+            lst_file = f_file.readlines()
+        # Grid construction using numpy
+        grd_data = np.genfromtxt(lst_file[6:], dtype=dtype)
+        dc_raster = {
+            "data": grd_data
+        }
+        if metadata:
+            dc_raster["metadata"] = Raster.read_asc_metadata(file_input=file_input)
+        return dc_raster
+
+    @staticmethod
+    def write_asc(grid_output, dc_metadata, file_output, dtype="float32"):
+        """
+        Writes a raster grid and its metadata to an ASCII file.
+
+        :param grid_output: The raster data to write.
+        :type grid_output: :class:`numpy.ndarray`
+        :param dc_metadata: Dictionary containing the metadata for the ASCII file.
+        :type dc_metadata: dict
+        :param file_output: Path for the output ASCII file.
+        :type file_output: str
+        :param dtype: Data type for the raster data in the output file. Default value = "float32"
+        :type dtype: str
+        :return: The path of the generated output ASCII file.
+        :rtype: str
+        """
+        # metadata construct heading
+        meta_lbls = (
+            "ncols",
+            "nrows",
+            "xllcorner",
+            "yllcorner",
+            "cellsize",
+            "NODATA_value",
+        )
+        ndv = float(dc_metadata["NODATA_value"])
+        exp_lst = list()
+        for i in range(len(meta_lbls)):
+            line = "{}    {}\n".format(
+                meta_lbls[i], dc_metadata[meta_lbls[i]]
+            )
+            exp_lst.append(line)
+
+        # ----------------------------------
+        # data constructor loop:
+        grid_output_fix = Raster.apply_nodata(grid_input=grid_output, nodatavalue=ndv)  # insert nodatavalue
+        # force dtype
+        grid_output_fix2 = np.astype(grid_output_fix, dtype)
+        for i in range(len(grid_output_fix2)):
+            # replace np.nan to no data values
+            lcl_row_sum = np.sum((np.isnan(grid_output_fix2[i])) * 1)
+            if lcl_row_sum > 0:
+                # print('Yeas')
+                for j in range(len(grid_output_fix2[i])):
+                    if np.isnan(grid_output_fix2[i][j]):
+                        grid_output_fix2[i][j] = int(ndv)
+            str_join = " " + " ".join(np.array(grid_output_fix2[i], dtype="str")) + "\n"
+            exp_lst.append(str_join)
+
+        fle = open(file_output, "w+")
+        fle.writelines(exp_lst)
+        fle.close()
+        return file_output
+
+    @staticmethod
+    def apply_nodata(grid_input, nodatavalue=None):
+        """
+        Applies a nodata value to the input grid.
+
+        :param grid_input: The input grid.
+        :type grid_input: :class:`numpy.ndarray`
+        :param nodatavalue: [optional] The nodata value to apply. Default value = None
+        :type nodatavalue: int or float
+        :return: The grid with the nodata value applied.
+        :rtype: :class:`numpy.ndarray`
+        """
+        if nodatavalue is None:
+            return grid_input  # Return original grid if no nodatavalue is provided
+        else:
+            if grid_input.dtype.kind in ["i", "u"]:
+                # for integer grid
+                return np.ma.filled(grid_input, fill_value=nodatavalue)
+            else:
+                # for floating point grid:
+                return np.nan_to_num(grid_input, nan=nodatavalue)
 
 
 class QualiRaster(Raster):
@@ -4200,11 +4117,11 @@ class QualiRaster(Raster):
     def _overwrite_nodata(self):
         """No data in QualiRaster is set by default to 0"""
         self.nodatavalue = 0
-        self.asc_metadata["NODATA_value"] = self.nodatavalue
+        self.raster_metadata["NODATA_value"] = self.nodatavalue
         return None
 
-    def set_asc_metadata(self, metadata):
-        super().set_asc_metadata(metadata)
+    def set_raster_metadata(self, metadata):
+        super().set_raster_metadata(metadata)
         self._overwrite_nodata()
         return None
 
@@ -4224,7 +4141,7 @@ class QualiRaster(Raster):
         :return: None
         :rtype: None
         """
-        grid_new = self.grid.copy()
+        grid_new = self.data.copy()
         for i in range(len(dict_ids["Old_Id"])):
             n_old_id = dict_ids["Old_Id"][i]
             n_new_id = dict_ids["New_Id"][i]
@@ -4234,7 +4151,7 @@ class QualiRaster(Raster):
                 n_new_id * (grid_new == n_old_id)
             )
         # set new grid
-        self.set_grid(grid=grid_new)
+        self.set_data(grid=grid_new)
         # reset table
         self.set_table(dataframe=df_new_table)
         return None
@@ -4312,11 +4229,11 @@ class QualiRaster(Raster):
 
     def clear_table(self):
         """Clear the unfound values in the map from the table."""
-        if self.grid is None:
+        if self.data is None:
             pass
         else:
             # found values:
-            lst_ids = np.unique(self.grid)
+            lst_ids = np.unique(self.data)
             # filter dataframe
             filtered_df = self.table[self.table[self.idfield].isin(lst_ids)]
             # reset table
@@ -4343,7 +4260,7 @@ class QualiRaster(Raster):
         :return: export_areas dataframe
         :rtype: :class:`pandas.DataFrame`
         """
-        if self.table is None or self.grid is None or self.prj is None:
+        if self.table is None or self.data is None or self.prj is None:
             return None
         else:
             # get unit area in meters
@@ -4357,7 +4274,7 @@ class QualiRaster(Raster):
             # iterate categories
             for i in range(len(df_aux)):
                 _n_id = df_aux[self.idfield].values[i]
-                _n_count = np.sum(1 * (self.grid == _n_id))
+                _n_count = np.sum(1 * (self.data == _n_id))
                 _lst_count.append(_n_count)
             # set area fields
             lst_area_fields = []
@@ -4423,21 +4340,21 @@ class QualiRaster(Raster):
         ##### df_aux = self.table[["Id", "Name", "Alias"]].copy()
 
         # store copy of raster
-        grid_raster = raster_sample.grid
+        grid_raster = raster_sample.data
         varname = raster_sample.varname
         # collect statistics
         lst_stats = []
         for i in range(len(df_aux)):
             n_id = df_aux["Id"].values[i]
             # apply mask
-            grid_aoi = 1 * (self.grid == n_id)
+            grid_aoi = 1 * (self.data == n_id)
             raster_sample.apply_aoi_mask(grid_aoi=grid_aoi, inplace=True)
             # get basic stats
             raster_uni = Univar(data=raster_sample.get_grid_data(), name=varname)
             df_stats = raster_uni.assess_basic_stats()
             lst_stats.append(df_stats.copy())
             # restore
-            raster_sample.grid = grid_raster
+            raster_sample.data = grid_raster
 
         # create empty fields
         lst_stats_field = []
@@ -4475,20 +4392,20 @@ class QualiRaster(Raster):
         from plans.datasets import AOI
 
         map_aoi = AOI(name="{} {}".format(self.varname, by_value_id))
-        map_aoi.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi.set_raster_metadata(metadata=self.raster_metadata)
         map_aoi.prj = self.prj
         # set grid
         self.insert_nodata()
         if by_value_id:
-            map_aoi.set_grid(grid=1 * (self.grid == by_value_id))
+            map_aoi.set_data(grid=1 * (self.data == by_value_id))
         else:
-            map_aoi.set_grid(grid=1 * (self.grid != self.nodatavalue))
+            map_aoi.set_data(grid=1 * (self.data != self.nodatavalue))
         self.mask_nodata()
         return map_aoi
 
     def apply_values(self, table_field):
         new_grid = geo.convert_values(
-            array=self.grid,
+            array=self.data,
             old_values=self.table["Id"].values,
             new_values=self.table[table_field].values,
         )
@@ -4668,9 +4585,9 @@ class QualiRaster(Raster):
         plt.subplot(gs[:5, :3])
         # handle zoom window
         i_min = 0
-        i_max = len(self.grid)
+        i_max = len(self.data)
         j_min = 0
-        j_max = len(self.grid[0])
+        j_max = len(self.data[0])
         if specs["zoom_window"] is not None:
             i_min = specs["zoom_window"]["i_min"]
             i_max = specs["zoom_window"]["i_max"]
@@ -4678,7 +4595,7 @@ class QualiRaster(Raster):
             j_max = specs["zoom_window"]["j_max"]
         # plot image
         im = plt.imshow(
-            self.grid[i_min:i_max, j_min:j_max],
+            self.data[i_min:i_max, j_min:j_max],
             cmap=specs["cmap"],
             vmin=specs["vmin"],
             vmax=specs["vmax"],
@@ -4749,8 +4666,8 @@ class QualiRaster(Raster):
         if specs["plot_metadata"]:
             lst_meta = []
             lst_value = []
-            for k in self.asc_metadata:
-                lst_value.append(self.asc_metadata[k])
+            for k in self.raster_metadata:
+                lst_value.append(self.raster_metadata[k])
                 lst_meta.append(k)
             df_meta = pd.DataFrame({"Raster": lst_meta, "Value": lst_value})
             # metadata
@@ -4840,14 +4757,14 @@ class QualiHard(QualiRaster):
         :return: None
         :rtype: None
         """
-        self.load_asc_raster(file=asc_file)
+        self.load_asc(file=asc_file)
         if prj_file is None:
             # try to use the same path and name
             prj_file = asc_file.split(".")[0] + ".prj"
             if os.path.isfile(prj_file):
-                self.load_prj_file(file=prj_file)
+                self.load_prj(file=prj_file)
         else:
-            self.load_prj_file(file=prj_file)
+            self.load_prj(file=prj_file)
         return None
 
 
@@ -4865,12 +4782,12 @@ class Zones(QualiRaster):
         self.table = None
 
     def compute_table(self):
-        if self.grid is None:
+        if self.data is None:
             self.table = None
         else:
             self.insert_nodata()
             # get unique values
-            vct_unique = np.unique(self.grid)
+            vct_unique = np.unique(self.data)
             # reapply mask
             self.mask_nodata()
             # set table
@@ -4888,7 +4805,7 @@ class Zones(QualiRaster):
                 }
             )
             self.table = self.table.drop(
-                self.table[self.table["Id"] == self.asc_metadata["NODATA_value"]].index
+                self.table[self.table["Id"] == self.raster_metadata["NODATA_value"]].index
             )
             self.table["Id"] = self.table["Id"].astype(int)
             self.table = self.table.sort_values(by="Id")
@@ -4901,8 +4818,8 @@ class Zones(QualiRaster):
             del vct_unique
             return None
 
-    def set_grid(self, grid):
-        super().set_grid(grid)
+    def set_data(self, grid):
+        super().set_data(grid)
         self.compute_table()
         return None
 
@@ -4916,8 +4833,8 @@ class Zones(QualiRaster):
         :return: None
         :rtype: None
         """
-        self.load_asc_raster(file=asc_file)
-        self.load_prj_file(file=prj_file)
+        self.load_asc(file=asc_file)
+        self.load_prj(file=prj_file)
         return None
 
     def get_aoi(self, zone_id):
@@ -4931,11 +4848,11 @@ class Zones(QualiRaster):
         from plans.datasets.spatial import AOI
 
         map_aoi = AOI(name="{} {}".format(self.varname, zone_id))
-        map_aoi.set_asc_metadata(metadata=self.asc_metadata)
+        map_aoi.set_raster_metadata(metadata=self.raster_metadata)
         map_aoi.prj = self.prj
         # set grid
         self.insert_nodata()
-        map_aoi.set_grid(grid=1 * (self.grid == zone_id))
+        map_aoi.set_data(grid=1 * (self.data == zone_id))
         self.mask_nodata()
         return map_aoi
 
@@ -4969,13 +4886,13 @@ class Zones(QualiRaster):
         map_zones_aux.varname = self.varname
         map_zones_aux.varalias = self.varalias
         map_zones_aux.units = self.units
-        map_zones_aux.set_asc_metadata(metadata=self.asc_metadata)
+        map_zones_aux.set_raster_metadata(metadata=self.raster_metadata)
         map_zones_aux.prj = self.prj
         map_zones_aux.cmap = "tab20"
 
         # grid setup
         self.insert_nodata()
-        map_zones_aux.set_grid(grid=self.grid)
+        map_zones_aux.set_data(grid=self.data)
         self.mask_nodata()
         map_zones_aux._set_view_specs()
         map_zones_aux.view_specs["vmin"] = self.table["Id"].min()
@@ -5052,17 +4969,17 @@ class RasterCollection(Collection):
         rst_aux.varname = varname
         rst_aux.varalias = varalias
         rst_aux.units = units
-        rst_aux.date = date
+        rst_aux.datetime = date
         # load prj file
         if prj_file is None:
             pass
         else:
-            rst_aux.load_prj_file(file=prj_file)
+            rst_aux.load_prj(file=prj_file)
         # read asc file
         if skip_grid:
             rst_aux.load_asc_metadata(file=asc_file)
         else:
-            rst_aux.load_asc_raster(file=asc_file)
+            rst_aux.load_asc(file=asc_file)
         # append to test_collection
         self.append(new_object=rst_aux)
         # delete aux
@@ -5108,8 +5025,8 @@ class RasterCollection(Collection):
             n = len(self.catalog)
             _first = self.catalog["Name"].values[0]
             n_flat = (
-                self.collection[_first].grid.shape[0]
-                * self.collection[_first].grid.shape[1]
+                self.collection[_first].data.shape[0]
+                * self.collection[_first].data.shape[1]
             )
 
             # create the merged grid
@@ -5117,7 +5034,7 @@ class RasterCollection(Collection):
             # insert the flat arrays
             for i in range(n):
                 _name = self.catalog["Name"].values[i]
-                _vct_flat = self.collection[_name].grid.flatten()
+                _vct_flat = self.collection[_name].data.flatten()
                 grd_merged[i] = _vct_flat
             # transpose
             grd_merged_T = grd_merged.transpose()
@@ -5140,11 +5057,11 @@ class RasterCollection(Collection):
 
             # reshape
             grd_stats = np.reshape(
-                a=vct_stats, newshape=self.collection[_first].grid.shape
+                a=vct_stats, newshape=self.collection[_first].data.shape
             )
             # return set up
             output_raster = copy.deepcopy(self.collection[_first])
-            output_raster.set_grid(grd_stats)
+            output_raster.set_data(grd_stats)
             output_raster.name = reduction_name
             return output_raster
         else:
@@ -5467,12 +5384,12 @@ class QualiRasterCollection(RasterCollection):
         # create raster
         rst_aux = QualiRaster(name=name)
         # read file
-        rst_aux.load_asc_raster(file=asc_file)
+        rst_aux.load_asc(file=asc_file)
         # load prj
         if prj_file is None:
             pass
         else:
-            rst_aux.load_prj_file(file=prj_file)
+            rst_aux.load_prj(file=prj_file)
         # set table
         if table_file is None:
             pass
@@ -5528,16 +5445,16 @@ class RasterSeries(RasterCollection):
         rst_aux.varname = self.varname
         rst_aux.varalias = self.varalias
         rst_aux.units = self.units
-        rst_aux.date = date
+        rst_aux.datetime = date
         # read file
-        rst_aux.load_asc_raster(file=asc_file)
+        rst_aux.load_asc(file=asc_file)
         # append to test_collection
         self.append(new_object=rst_aux)
         # load prj file
         if prj_file is None:
             pass
         else:
-            rst_aux.load_prj_file(file=prj_file)
+            rst_aux.load_prj(file=prj_file)
         # delete aux
         del rst_aux
         return None
@@ -5818,14 +5735,14 @@ class QualiRasterSeries(RasterSeries):
         # create raster
         rst_aux = QualiRaster(name=name)
         # set attributes
-        rst_aux.date = date
+        rst_aux.datetime = date
         # read file
-        rst_aux.load_asc_raster(file=asc_file)
+        rst_aux.load_asc(file=asc_file)
         # load prj
         if prj_file is None:
             pass
         else:
-            rst_aux.load_prj_file(file=prj_file)
+            rst_aux.load_prj(file=prj_file)
         # set table
         if table_file is None:
             pass
