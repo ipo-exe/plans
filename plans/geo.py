@@ -117,6 +117,7 @@ def prune_values(array, min_value=None, max_value=None):
         array = np.where(array > max_value, max_value, array)
     return array
 
+
 def downscale_value(mean, scale, array_covar, mirror=False):
     """
     Downscale a scalar mean to a vector. Performs a disaggregation
@@ -138,6 +139,7 @@ def downscale_value(mean, scale, array_covar, mirror=False):
         signal = -1
     return mean + (signal * downler)
 
+
 def downscaling_mask(array_covar, scale):
     """
     Compute a downscaling mask by using a covariate array
@@ -150,6 +152,7 @@ def downscaling_mask(array_covar, scale):
     :rtype: :class:`numpy.ndarray`
     """
     return scale * (array_covar - np.mean(array_covar))
+
 
 def normalize_values(array, min_value, max_value):
     """
@@ -177,7 +180,6 @@ def normalize_values(array, min_value, max_value):
     # X_normalized = min_value + ((X - old_min) * new_range) / old_range
     normalized = min_value + ((array - old_min) * new_range) / old_range
     return normalized
-
 
 
 def reclassify_values(array, upvalues, classes):
@@ -223,6 +225,7 @@ def slope(dem, cellsize, degree=True):
         slope_array = slope_array * 360 / (2 * np.pi)
     return slope_array
 
+
 def buffer(grd_input, n_radius):
     """
     Calculate a buffer mask
@@ -237,6 +240,7 @@ def buffer(grd_input, n_radius):
     grd_distance = euclidean_distance(grd_input)
     grd_buffer = np.where(grd_distance <= n_radius, 1, 0)
     return grd_buffer
+
 
 def euclidean_distance(grd_input):
     """
@@ -567,7 +571,7 @@ def downstream_coordinates(n_dir, i, j, s_convention="ldd"):
     return dct_output
 
 
-def outlet_distance(grd_ldd, n_res=30, s_convention="ldd"):
+def distance_to_outlet(grd_ldd, n_res=30, s_convention="ldd"):
     """
     Compute the distance to outlet ``DTO`` raster of a given basin.
 

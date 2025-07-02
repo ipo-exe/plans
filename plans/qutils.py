@@ -45,6 +45,7 @@ from qgis.core import QgsCoordinateReferenceSystem
 # plugin imports
 from plans import geo
 from plans.parsers import qgdal
+from plans.datasets import Raster
 from plans.datasets.spatial import DC_NODATA
 
 # ----------------- MODULE CONSTANTS ----------------- #
@@ -67,8 +68,9 @@ DC_OPERATIONS = {
     "102033": "+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=push +v_3 +step +proj=cart +ellps=WGS84 +step +proj=helmert +x=57 +y=-1 +z=41 +step +inv +proj=cart +ellps=aust_SA +step +proj=pop +v_3 +step +proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=aust_SA",
 }
 
-# ----------------- MODULE CONSTANTS ----------------- #
-
+# -------------------------------------------------------------------------------------
+# STANDALONE ROUTINES
+# This routines work without expecting any sort of folder struture
 
 def clip_layer(db_input, layer_input, db_overlay, layer_overlay, db_output, layer_output):
     processing.run("native:clip",
@@ -82,7 +84,8 @@ def clip_layer(db_input, layer_input, db_overlay, layer_overlay, db_output, laye
 
 
 def reproject_layer(db_input, layer_name, crs_target, db_output=None, layer_output=None):
-    """Reproject a vector layer
+    """
+    Reproject a vector layer
 
     :param db_input: path to geopackage database
     :type db_input: str
@@ -90,7 +93,7 @@ def reproject_layer(db_input, layer_name, crs_target, db_output=None, layer_outp
     :type crs_target: str
     :param layer_name: name of the layer in database
     :type layer_name: str
-    :return: new layer name
+    :return: new layer name (echo)
     :rtype: str
     """
     input_file = "{}|layername={}".format(db_input, layer_name)
@@ -119,7 +122,8 @@ def reproject_layer(db_input, layer_name, crs_target, db_output=None, layer_outp
 
 
 def is_bounded_by(extent_a, extent_b):
-    """Check if extent B is bounded by extent A
+    """
+    Check if extent B is bounded by extent A
 
     :param extent_a: extent A
     :type extent_a: dict
@@ -135,7 +139,8 @@ def is_bounded_by(extent_a, extent_b):
 
 
 def get_extent_from_raster(file_input):
-    """Get the extent from a raster layer
+    """
+    Get the extent from a raster layer
 
     :param file_input: file path to raster layer
     :type file_input: str
@@ -157,7 +162,8 @@ def get_extent_from_raster(file_input):
 
 
 def get_extent_from_vector(db_input, layer_name):
-    """Get the extent from a vector layer
+    """
+    Get the extent from a vector layer
 
     :param db_input: path to geopackage database
     :type db_input: str
@@ -181,7 +187,8 @@ def get_extent_from_vector(db_input, layer_name):
 
 
 def count_vector_features(input_db, layer_name):
-    """Get the number of features from a vector layer
+    """
+    Get the number of features from a vector layer
 
     :param input_db: path to geopackage database
     :type input_db: str or Path
@@ -198,85 +205,6 @@ def count_vector_features(input_db, layer_name):
     )
     return int(layer.featureCount())
 
-
-def get_basins_areas(file_basins, ids_basins):
-    # todo [docstring]
-    # -------------------------------------------------------------------------
-    # LOAD BASINS
-
-    # Open the raster file using gdal
-    raster_input = gdal.Open(file_basins)
-
-    # Get the raster band
-    band_input = raster_input.GetRasterBand(1)
-
-    # Read the raster data as a numpy array
-    grid_basins = band_input.ReadAsArray()
-    # truncate to byte integer
-    grid_basins = grid_basins.astype(np.uint8)
-
-    # get the cell sizes
-    raster_geotransform = raster_input.GetGeoTransform()
-    cellsize = raster_geotransform[1]
-
-    # -- Close the raster
-    raster_input = None
-
-    # -------------------------------------------------------------------------
-    # PROCESS
-    basin_areas = []
-    for i in ids_basins:
-        grid_basin = 1 * (grid_basins == i)
-        area_sqkm = cellsize * cellsize * np.sum(grid_basin) / (1000 * 1000)
-        basin_areas.append(area_sqkm)
-
-    # -------------------------------------------------------------------------
-    # RETURN
-    return {"Id": ids_basins, "UpstreamArea": basin_areas}
-
-
-
-def get_blank_raster(file_input, file_output, blank_value=0, dtype="byte"):
-    """Get a blank raster copy from other raster
-
-    :param file_input: path to inputs raster file
-    :type file_input: str
-    :param file_output: path to output raster file
-    :type file_output: str
-    :param blank_value: value for constant blank raster
-    :type blank_value: int
-    :param dtype: output raster data type ("byte", "int" -- else defaults to float)
-    :type dtype: str
-    :return: file path of output (echo)
-    :rtype: str
-    """
-
-    # -------------------------------------------------------------------------
-    # LOAD
-    dc_raster = qgdal.read_raster(file_input=file_input)
-    grid_input = dc_raster["data"]
-
-    # -------------------------------------------------------------------------
-    # PROCESS
-    # get ones to byte integer
-    grid_ones = np.ones(shape=grid_input.shape, dtype=np.uint8)
-    grid_output = grid_ones * blank_value
-
-    # -------------------------------------------------------------------------
-    # EXPORT RASTER FILE
-    # Get the driver to create the new raster
-    # overwrite no data
-    if dtype in DC_NODATA:
-        dc_raster["metadata"]["NODATA_value"] = DC_NODATA[dtype]
-    qgdal.write_raster(
-        grid_output=grid_output,
-        dc_metadata=dc_raster["metadata"],
-        file_output=file_output,
-        dtype=dtype,
-    )
-
-    return file_output
-
 def retrieve_raster_tiles(
     db_aoi,
     layer_aoi,
@@ -287,7 +215,8 @@ def retrieve_raster_tiles(
     name_output,
     tile_field="tile_code",
 ):
-    """Retrieve and merge raster tiles into single raster
+    """
+    Retrieve and merge raster tiles into single raster
 
     :param db_aoi: path to Area Of Interest database (geopackage)
     :type db_aoi: str
@@ -378,6 +307,149 @@ def retrieve_raster_tiles(
     print("merging --DONE")
     return output_file
 
+
+def get_basins_areas(file_basins, ids_basins):
+    # todo [docstring]
+    # -------------------------------------------------------------------------
+    # LOAD BASINS
+
+    # Open the raster file using gdal
+    raster_input = gdal.Open(file_basins)
+
+    # Get the raster band
+    band_input = raster_input.GetRasterBand(1)
+
+    # Read the raster data as a numpy array
+    grid_basins = band_input.ReadAsArray()
+    # truncate to byte integer
+    grid_basins = grid_basins.astype(np.uint8)
+
+    # get the cell sizes
+    raster_geotransform = raster_input.GetGeoTransform()
+    cellsize = raster_geotransform[1]
+
+    # -- Close the raster
+    raster_input = None
+
+    # -------------------------------------------------------------------------
+    # PROCESS
+    basin_areas = []
+    for i in ids_basins:
+        grid_basin = 1 * (grid_basins == i)
+        area_sqkm = cellsize * cellsize * np.sum(grid_basin) / (1000 * 1000)
+        basin_areas.append(area_sqkm)
+
+    # -------------------------------------------------------------------------
+    # RETURN
+    return {"Id": ids_basins, "UpstreamArea": basin_areas}
+
+
+def get_blank(file_input, file_output, blank_value=0, dtype="byte"):
+    """
+    Get a blank raster copy from other raster
+
+    :param file_input: path to inputs raster file
+    :type file_input: str
+    :param file_output: path to output raster file
+    :type file_output: str
+    :param blank_value: value for constant blank raster
+    :type blank_value: int
+    :param dtype: output raster data type ("byte", "int" -- else defaults to float)
+    :type dtype: str
+    :return: file path of output (echo)
+    :rtype: str
+    """
+
+    # -------------------------------------------------------------------------
+    # LOAD
+    dc_raster = qgdal.read_raster(file_input=file_input)
+    grid_input = dc_raster["data"]
+
+    # -------------------------------------------------------------------------
+    # PROCESS
+    # get ones to byte integer
+    grid_ones = np.ones(shape=grid_input.shape, dtype=np.uint8)
+    grid_output = grid_ones * blank_value
+
+    # -------------------------------------------------------------------------
+    # EXPORT RASTER FILE
+    # Get the driver to create the new raster
+    # overwrite no data
+    if dtype in DC_NODATA:
+        dc_raster["metadata"]["NODATA_value"] = DC_NODATA[dtype]
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype=dtype,
+    )
+
+    return file_output
+
+
+def get_boolean(file_input, file_output, bool_value, condition="ET"):
+    # todo [docstring]
+    # -------------------------------------------------------------------------
+    # LOAD
+    dc_raster = qgdal.read_raster(file_input=file_input)
+    grid_input = dc_raster["data"]
+
+    # -------------------------------------------------------------------------
+    # PROCESS
+    # get ones to byte integer
+    if condition == "GT":
+        grid_output = 1 * (grid_input > bool_value)
+    elif condition == "LT":
+        grid_output = 1 * (grid_input < bool_value)
+    else:
+        grid_output = 1 * (grid_input == bool_value)
+
+    grid_output = grid_output.astype("byte")
+
+    # -------------------------------------------------------------------------
+    # EXPORT RASTER FILE
+    # Get the driver to create the new raster
+    # overwrite no data
+    dc_raster["metadata"]["NODATA_value"] = DC_NODATA["byte"]
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype="byte",
+    )
+    return file_output
+
+
+def get_fuzzy(file_input, file_output, low_bound, high_bound):
+    """
+    Get the Fuzzy map of a linear membership. Reverse bounds to reverse membership.
+
+    :param file_input: path to raster file input
+    :type file_input: str
+    :param file_output: path to raster file output
+    :type file_output: str
+    :param low_bound: value of low bound
+    :type low_bound: float
+    :param high_bound: value of high bound
+    :type high_bound: float
+    :return: path of output (echo)
+    :rtype: str
+
+    # todo [script example]
+
+    """
+    processing.run("native:fuzzifyrasterlinearmembership",
+        {
+            'INPUT': file_input,
+            'BAND': 1,
+            'FUZZYLOWBOUND': low_bound,
+            'FUZZYHIGHBOUND': high_bound,
+            'OUTPUT': file_output,
+        }
+    )
+    return file_output
+
+
 def get_dem(
     file_src_dem,
     file_output,
@@ -386,7 +458,8 @@ def get_dem(
     target_cellsize=30,
     source_crs="4326",
 ):
-    """Get a reprojected DEM raster from a larger DEM dataset
+    """
+    Get a reprojected DEM raster from a larger DEM dataset
 
     :param file_src_dem: file path to sourced (larger) DEM dataset raster
     :type file_src_dem: str
@@ -444,7 +517,8 @@ def get_dem(
 
 
 def get_downstream_ids(file_ldd, file_basins, file_outlets):
-    """Get the basin Ids from downstream cells.
+    """
+    Get the basin Ids from downstream cells.
 
     ldd - Direction convention:
 
@@ -464,11 +538,10 @@ def get_downstream_ids(file_ldd, file_basins, file_outlets):
     :return: dictionaty with lists of "Id" and "Downstream_Id"
     :rtype: dict
 
-
     # todo [script example]
 
     """
-
+    # todo [optimize] using qgdal
     # -------------------------------------------------------------------------
     # LOAD LDD
 
@@ -549,7 +622,8 @@ def get_downstream_ids(file_ldd, file_basins, file_outlets):
 
 
 def get_carved_dem(file_dem, file_rivers, file_output, wedge_width=3, wedge_depth=10):
-    """Apply a carving method to DEM raster
+    """
+    Apply a carving method to DEM raster
 
     :param file_dem: file path to DEM raster
     :type file_dem: str
@@ -579,10 +653,14 @@ def get_carved_dem(file_dem, file_rivers, file_output, wedge_width=3, wedge_dept
     # truncate to byte integer
     grd_rivers = grd_rivers.astype(np.uint8)
 
-
     # -------------------------------------------------------------------------
     # PROCESS
-    grid_output = geo.carve_dem(grd_dem=grd_dem, grd_rivers=grd_rivers, wedge_width=wedge_width, wedge_depth=wedge_depth)
+    grid_output = geo.carve_dem(
+        grd_dem=grd_dem,
+        grd_rivers=grd_rivers,
+        wedge_width=wedge_width,
+        wedge_depth=wedge_depth
+    )
 
     # -------------------------------------------------------------------------
     # EXPORT RASTER FILE
@@ -611,6 +689,7 @@ def get_shalstab(
     water_p=997,
 ):
     # todo [docstring]
+    # todo [optimize]
     # -------------------------------------------------------------------------
     # LOAD SLOPE
 
@@ -700,7 +779,8 @@ def get_shalstab(
 
 
 def get_tps(file_tpi, file_upa, file_output, upa_min=0.01, upa_max=2, tpi_v=-2, tpi_r=10):
-    """Get the drainage boolean mask using TPS method
+    """
+    Get the drainage boolean mask using TPS method
 
     :param file_tpi: path to tpi raster file
     :type file_tpi: str
@@ -754,7 +834,8 @@ def get_tps(file_tpi, file_upa, file_output, upa_min=0.01, upa_max=2, tpi_v=-2, 
 
 
 def get_twi(file_slope, file_upa, file_output):
-    """Get the TWI map from Slope and Upslope Area
+    """
+    Get the TWI map from Slope and Upslope Area
 
     :param file_slope: file path to Slope raster map
     :type file_slope: str
@@ -796,37 +877,72 @@ def get_twi(file_slope, file_upa, file_output):
     return file_output
 
 
-def get_fuzzy(file_input, file_output, low_bound, high_bound):
-    """Get the Fuzzy map of a linear membership. Reverse bounds to reverse membership.
+def get_dto(file_ldd, file_output):
+    # todo [docstring]
+    # -------------------------------------------------------------------------
+    # LOAD LDD
+    dc_raster = qgdal.read_raster(file_input=file_ldd)
+    grd_ldd = dc_raster["data"]
 
-    :param file_input: path to raster file input
-    :type file_input: str
-    :param file_output: path to raster file output
-    :type file_output: str
-    :param low_bound: value of low bound
-    :type low_bound: float
-    :param high_bound: value of high bound
-    :type high_bound: float
-    :return: path of output (echo)
-    :rtype: str
+    # -------------------------------------------------------------------------
+    # PROCESS
+    cellsize = dc_raster["metadata"]["cellsize"]
+    grid_output = geo.distance_to_outlet(grd_ldd=grd_ldd, n_res=cellsize, s_convention="ldd")
 
-    # todo [script example]
-
-    """
-    processing.run("native:fuzzifyrasterlinearmembership",
-        {
-            'INPUT': file_input,
-            'BAND': 1,
-            'FUZZYLOWBOUND': low_bound,
-            'FUZZYHIGHBOUND': high_bound,
-            'OUTPUT': file_output,
-        }
+    # -------------------------------------------------------------------------
+    # EXPORT RASTER FILE
+    # Get the driver to create the new raster
+    dc_raster["metadata"]["NODATA_value"] = DC_NODATA["float32"]
+    qgdal.write_raster(
+        grid_output=grid_output,
+        dc_metadata=dc_raster["metadata"],
+        file_output=file_output,
+        dtype="float32",
     )
+    return file_output
+
+def get_path_areas(file_dto, dc_basins, file_output, n_bins=100):
+    # todo [docstring]
+    # -------------------------------------------------------------------------
+    # LOAD DTO
+    dc_raster = Raster.read_tif(file_input=file_dto,)
+    grd_dto = dc_raster["data"]
+    n_cell_size = dc_raster["metadata"]["cellsize"]
+    n_cell_area = n_cell_size * n_cell_size / (100 * 100) # ha units
+    n_max = round(np.nanmax(grd_dto), 1) + 1.0
+    vct_bins = np.linspace(start=0.0, stop=n_max, num=n_bins)
+    dc_output = {
+        "Path (m)": vct_bins[1:],
+    }
+    for basin_code in dc_basins:
+        # -------------------------------------------------------------------------
+        # LOAD BASIN
+        file_basin = dc_basins[basin_code]
+        dc_raster2 = Raster.read_tif(file_input=file_basin, dtype="byte")
+        grd_basin = dc_raster2["data"]
+        # -------------------------------------------------------------------------
+        # PROCESS
+        grd_output = grd_dto * grd_basin
+        # remove zeros
+        grd_output = np.where(grd_output == 0, np.nan, grd_output)
+        # get minimal distance
+        n_min_dist = np.nanmin(grd_output)
+        # correction of distance
+        grd_output = grd_output - n_min_dist
+        #
+        vct_output = grd_output.ravel()[~np.isnan(grd_output.ravel())]
+        counts, edges = np.histogram(a=vct_output, bins=vct_bins, density=False)
+        vct_areas = n_cell_area * counts
+        dc_output[f"basin_{basin_code} (ha)"] = vct_areas[:]
+
+    df = pd.DataFrame(dc_output)
+    df.to_csv(file_output, sep=";", index=False)
     return file_output
 
 
 def get_htwi(file_ftwi, file_fhand, file_output, hand_w):
-    """Get the HAND-enhanced TWI map from HAND, TWI and HAND weight
+    """
+    Get the HAND-enhanced TWI map from HAND, TWI and HAND weight
 
     :param file_ftwi: path to TWI raster (expected to be fuzzified)
     :type file_ftwi: str
@@ -873,7 +989,8 @@ def get_htwi(file_ftwi, file_fhand, file_output, hand_w):
 
 
 def get_htwi_list(file_ftwi, file_fhand, folder_output, ls_weights=[0, 50, 100]):
-    """Get a list of HTWI based on many weights
+    """
+    Get a list of HTWI based on many weights
 
     :param file_ftwi: path to TWI raster (expected to be fuzzified)
     :type file_ftwi: str
@@ -901,10 +1018,17 @@ def get_htwi_list(file_ftwi, file_fhand, folder_output, ls_weights=[0, 50, 100])
     return None
 
 
+# -------------------------------------------------------------------------------------
+# PROJECT-BASED ROUTINES
+# This routines expect a pre-set folder structure
+
 def get_hand(
     folder_project, file_dem_filled, file_dem_sample=None, file_drainage=None, hand_min_upa=0.01
 ):
-    """Get the HAND raster map from a DEM. The DEM must be hydrologically consistent (no sinks).
+    """
+    Get the HAND raster map from a DEM.
+    The DEM must be hydrologically consistent (no sinks).
+    PLANS-based folder structure is expected
 
     :param folder_project: path to output folder
     :type folder_project: str
@@ -996,8 +1120,6 @@ def get_hand(
             },
         )
 
-
-
     # -- PCRaster - create unique ids Map
     print("[pc-raster] get outlets scalar...")
     file_outlets_1 = "{}/hsl_outlets_scalar.map".format(folder_aux)
@@ -1076,7 +1198,6 @@ def get_hand(
     return d_files
 
 
-
 def setup_topo(
     folder_project,
     file_src_dem,
@@ -1090,7 +1211,9 @@ def setup_topo(
     target_cellsize=30,
     translate_to_ascii=False,
 ):
-    """Setup protocols for getting ``topo`` datasets
+    """
+    Setup protocols for getting ``topo`` datasets.
+    PLANS-based folder structure is expected
 
     :param folder_project: path to main plans project folder
     :type folder_project: str
@@ -1243,7 +1366,7 @@ def setup_topo(
 def get_topo(
     folder_project,
     file_dem,
-    input_db,
+    db_rivers,
     layer_rivers,
     wedge_width=3,
     wedge_depth=10,
@@ -1253,7 +1376,9 @@ def get_topo(
     translate_to_ascii=False,
     style_folder=None
 ):
-    """Get all ``topo`` datasets for running PLANS.
+    """
+    Get all ``topo`` datasets for running PLANS.
+    PLANS-based folder structure is expected.
 
     .. warning::
 
@@ -1263,8 +1388,8 @@ def get_topo(
     :type folder_project: str
     :param file_dem: file path to larger DEM dataset raster -- expected to be in WGS-84
     :type file_dem: str
-    :param input_db: path to geopackage database
-    :type input_db: str
+    :param db_rivers: path to geopackage database
+    :type db_rivers: str
     :param layer_rivers: name of main rivers layers (lines) in target CRS.
     :type layer_rivers: str
     :param wedge_width: carving dem parameter -- width parameter in unit cells
@@ -1291,7 +1416,7 @@ def get_topo(
         qutils.get_topo(
             folder_project="/path/to/folder", # change paths!
             file_dem="/path/to/dem.tif",
-            input_db="/path/to/database.gpkg",
+            db_rivers="/path/to/database.gpkg",
             layer_rivers='rivers',
             wedge_width=3,
             wedge_depth=10,
@@ -1306,7 +1431,6 @@ def get_topo(
     folder_topo = "{}/inputs/topo".format(folder_project)
     folder_aux = "{}/inputs/topo/_aux".format(folder_project)
 
-
     dict_files = {
         "dem": file_dem,
         "main_rivers": "{}/main_rivers.tif".format(folder_aux),
@@ -1320,6 +1444,7 @@ def get_topo(
         "upa": "{}/upa.tif".format(folder_topo),
         "tps": "{}/tps.tif".format(folder_topo),
         "twi": "{}/twi.tif".format(folder_topo),
+        "dto": "{}/dto.tif".format(folder_topo),
         "ftwi": "{}/ftwi.tif".format(folder_topo),
         "ldd": "{}/ldd.tif".format(folder_topo),
         "hand": "{}/hnd.tif".format(folder_topo),
@@ -1336,7 +1461,7 @@ def get_topo(
 
     # 4) get rivers blank
     print("get main rivers...")
-    file_rivers = get_blank_raster(
+    file_rivers = get_blank(
         file_input=file_dem,
         file_output=dict_files["main_rivers"],
         blank_value=0
@@ -1347,7 +1472,7 @@ def get_topo(
     processing.run(
         "gdal:rasterize_over_fixed_value",
         {
-            "INPUT": "{}|layername={}".format(input_db, layer_rivers),
+            "INPUT": "{}|layername={}".format(db_rivers, layer_rivers),
             "INPUT_RASTER": dict_files["main_rivers"],
             "BURN": 1,
             "ADD": False,
@@ -1618,6 +1743,12 @@ def get_topo(
         ls_weights=[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
     )
 
+    print("[geo] get DTO")
+    get_dto(
+        file_ldd=dict_files["ldd"],
+        file_output=dict_files["dto"]
+    )
+
     # translate
     if translate_to_ascii:
         # append to dict
@@ -1660,7 +1791,9 @@ def get_topo(
     return None
 
 def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, file_style_src=None):
-    """Retrieve lulc series maps from source folder
+    """
+    Retrieve lulc series maps from a source folder.
+    PLANS-based folder structure is expected.
 
     :param folder_src: folder path to source maps -- Files are expected to end with _YYYY-MM-DD.tif
     :type folder_src: str
@@ -1786,7 +1919,9 @@ def retrieve_lulc(folder_src, folder_project, crs_target, crs_src, file_target, 
 
 
 def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="src_fill", id_src="id_mapbiomas", file_style=None):
-    """Convert lulc values from source map
+    """
+    Convert lulc values from source map.
+    PLANS-based folder structure is expected.
 
     :param folder_src: path to sourced maps
     :type folder_src: str
@@ -1901,7 +2036,9 @@ def get_lulc(
         layer_roads="roads",
 
 ):
-    """Get lulc maps from source and convert to plans
+    """
+    Get lulc maps from source and convert to plans-format.
+    PLANS-based folder structure is expected.
 
     :param folder_src: folder path to source maps -- Files are expected to end with _YYYY-MM-DD.tif
     :type folder_src: str
@@ -1923,7 +2060,6 @@ def get_lulc(
     :type file_style: str
     :return: None
     :rtype: None
-
     """
 
     print("retrieve lulc maps from source")
@@ -1954,12 +2090,65 @@ def get_lulc(
     return None
 
 
-# todo -- Basin -- refactor in a simpler way but still allow multi-basin routing
-def get_basins():
-    print("reproject outlets layers to vectors database")
-    print("get a blank copy from dem map and name it outlets")
-    print("rasterize outlets by id number over the blank raster -- outlets_aprox.tif")
+def get_basins(
+        folder_project,
+        db_outlets,
+        layer_outlets,
+        code_outlets,
+        crs_target
+):
+    # todo [docstring]
+    # ----- SETUP -----
+    # these folders and files are expected to exist
+    folder_topo = "{}/inputs/topo".format(folder_project)
+    folder_basins = "{}/inputs/basins".format(folder_project)
+    folder_aux = "{}/_aux".format(folder_basins)
+    db_project = f"{folder_project}/inputs/vectors.gpkg"
+    ldd_file_pc = f"{folder_topo}/_aux/ldd.map"
+    dto_file = f"{folder_topo}/dto.tif"
 
+    print("[gdal] reproject outlets layers")
+    layer_outlets_project = reproject_layer(
+        db_input=db_outlets,
+        layer_name=layer_outlets,
+        crs_target=crs_target,
+        db_output=db_project,
+        layer_output="outlets"
+    )
+
+    # add a id field
+    print("[geopandas] assign id basin")
+    gdf = gpd.read_file(filename=db_project, layer=layer_outlets_project)
+    # Add a new field with unique IDs
+    gdf['id_basin'] = np.arange(1, len(gdf) + 1).astype(int) # Create unique integer IDs
+    # Save the updated geopackage
+    gdf.to_file(db_project, layer=layer_outlets_project, driver='GPKG')
+
+    print("[gdal] get a blank copy")
+    file_outlets_aprx = get_blank(
+        file_input=f"{folder_topo}/dem.tif",
+        file_output=f"{folder_aux}/outlets_aprx.tif",
+        blank_value=0,
+        dtype="uint16"
+    )
+
+    print("[gdal] rasterize outlets by id")
+    processing.run("gdal:rasterize_over",
+        {
+            'INPUT': "{}|layername={}".format(db_project, layer_outlets_project),
+            'INPUT_RASTER': file_outlets_aprx,
+            'FIELD': 'id_basin',
+            'ADD': False,
+            'EXTRA': ''
+        }
+    )
+    # enter loop
+    # todo [improvement] -- implement a algorithm for handling bad-positioned outlets
+    #  this wil require to first sample the UPA value at each point
+    #  then select only those problematic that are below a certain are threshold
+    #  for these selected, apply a searching procedure using proximity and map algebra
+    #  save a new outlet_code.tif and delete the old one
+    '''
     print("-- compute the exact outlet map -- outlets")
     print("load aprox outlets grid")
     print("load upa grid")
@@ -1975,41 +2164,71 @@ def get_basins():
     print("multiply the max-bool to the outlet id")
     print("add to the exact outlet grid")
     print("save to geotiff with code -- outlet_<code>.tif")
-    print("exit loop")
+    print("exit loop")    
+    '''
+    dc_basins = {}
+    for i in range(len(gdf)):
+        id_basin = gdf["id_basin"].values[i]
+        code_basin = gdf[code_outlets].values[i]
+        print(f"[gdal] get boolean of outlet {code_basin}")
+        file_outlet = get_boolean(
+            file_input=file_outlets_aprx,
+            file_output=f"{folder_aux}/outlet_{code_basin}.tif",
+            bool_value=id_basin,
+            condition="ET"
+        )
+        # convert to pc raster
+        print("[pc-raster] get outlets...")
+        outlets_raster_pc = "{}/outlet_{}.map".format(folder_aux, code_basin)
+        processing.run(
+            "pcraster:converttopcrasterformat",
+            {"INPUT": file_outlet, "INPUT2": 1, "OUTPUT": outlets_raster_pc},
+        )
+        # get basins        
+        basins_file_pc = "{}/basin_{}.map".format(folder_aux, code_basin)
+        print("[pc-raster] get basins...")
+        processing.run(
+            "pcraster:subcatchment",
+            {
+                "INPUT1": ldd_file_pc,
+                "INPUT2": outlets_raster_pc, 
+                "OUTPUT": basins_file_pc
+            },
+        )
+        print("[gdal] convert basin...")
+        basins_raster = "{}/basins_{}.tif".format(folder_basins, code_basin)
+        processing.run(
+            "gdal:translate",
+            {
+                "INPUT": basins_file_pc,
+                "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:{}".format(crs_target)),
+                "NODATA": 255,
+                "COPY_SUBDATASETS": False,
+                "OPTIONS": "",
+                "EXTRA": "",
+                "DATA_TYPE": 1,
+                "OUTPUT": basins_raster,
+            },
+        )
+        dc_basins[code_basin] = basins_raster
 
-    print("-- compute basins maps")
-    print("retrieve a list for each outlet map")
-    print("enter a loop for each outlet map")
-    print("convert outlet to pcraster")
-    print("run pcraster:subcatchment")
-    print("translate to geotiff -- basin_<code>.tif")
+    print("[plans] get path-areas")
+    get_path_areas(
+        file_dto=dto_file,
+        dc_basins=dc_basins,
+        file_output=f"{folder_basins}/path_areas.csv",
+        n_bins=100,
+    )
 
-    print("-- compute full Distance-To-Outlet map")
-
-    print("-- compute path_areas table")
-    print("load dto grid")
-    print("get max value of dto")
-    print("compute the histogram bins from 0 to max_value")
-    print("set a dataframe with Path (m) column")
-    print("enter a loop for each basin")
-    print("load basin_<code> grid")
-    print("enter in numpy processing")
-    print("get a boolean for the basin")
-    print("multiply the boolean to the dto grid")
-    print("compute the max value for the dto-masked")
-    print("subtract from the dto-masked the max value - dto-basin")
-    print("set all 0 values as nan in dto-basin")
-    print("compute the histogram counts for the dto-basin")
-    print("convert the histogram counts to ha (hectares)")
-    print("append to dataframe")
-    print("exit loop")
-    print("save dataframe")
+    print("basins -- DONE")
+    return None
 
 
 
-# --- code below is not deprecated but somehow outdated (seems too complicated)
+# ------------------------------------------------------------------------------------------
+# code below is not deprecated but somehow outdated (seems too complicated)
 
-def get_rain(
+def get_rain_old(
     output_folder,
     src_folder,
     input_db,
@@ -2207,7 +2426,7 @@ def get_rain(
     print("get zones raster...")
     zones_raster = "{}/rain_zones.tif".format(output_folder_interm)
     # >> create constant raster layer
-    get_blank_raster(
+    get_blank(
         file_input=target_file, file_output=zones_raster, blank_value=dict_blank[s_type]
     )
     # rasterize target raster
@@ -2477,8 +2696,6 @@ def get_lulc_old(
     return None
 
 
-
-
 def get_basins_old(
     output_folder,
     input_db,
@@ -2565,7 +2782,7 @@ def get_basins_old(
     print("blank raster...")
     gauge_raster = "{}/gauges.tif".format(output_folder_gdal)
     # get blanks
-    get_blank_raster(
+    get_blank(
         file_input=ldd_file, file_output=gauge_raster, blank_value=0, dtype="float32"
     )
     print("rasterize...")

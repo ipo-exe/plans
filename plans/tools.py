@@ -800,7 +800,7 @@ def TSC(
 
     """
     from plans import datasets
-    from plans.geo import outlet_distance
+    from plans.geo import distance_to_outlet
 
     # ---------------------- START ----------------------
     start_start = time.time()
@@ -1021,7 +1021,7 @@ def DTO(
 
     """
     from plans.datasets import Raster, LDD, DTO
-    from plans.geo import outlet_distance
+    from plans.geo import distance_to_outlet
 
     # ---------------------- START ----------------------
     start_start = time.time()
@@ -1064,7 +1064,7 @@ def DTO(
     logger.info("{} {} ...".format(prompt, s_step))
     start_time = time.time()
 
-    grd_outdist = outlet_distance(grd_ldd=ldd.data, n_res=ldd.cellsize, b_tui=talk)
+    grd_outdist = distance_to_outlet(grd_ldd=ldd.data, n_res=ldd.cellsize, b_tui=talk)
 
     end_time = time.time()
     elapsed_time = end_time - start_time

@@ -3887,8 +3887,9 @@ class Raster(DataSet):
         :rtype: dict
         """
         raster_input = rasterio.open(file_input)
+        grid_input = raster_input.read(id_band)
         dc_raster = {
-            "data": np.astype(raster_input.read(id_band), dtype)
+            "data": grid_input.astype(dtype)
         }
         if metadata:
             dc_metadata = Raster.read_tif_metadata(file_input, id_band)
@@ -4156,31 +4157,35 @@ class QualiRaster(Raster):
         self.set_table(dataframe=df_new_table)
         return None
 
-    def load(self, asc_file, prj_file, table_file):
+    def load(self, file_raster, file_table, file_prj=None, id_band=1):
         """
-        Load data from files to raster
-        :param asc_file: folder_main to ``.asc`` raster file
-        :type asc_file: str
-        :param prj_file: folder_main to ``.prj`` projection file
-        :type prj_file: str
-        :param table_file: folder_main to ``.txt`` table file
-        :type table_file: str
+        Load data from files to the raster object.
+        This function loads data from ``.asc`` raster and '.prj' projection files into the raster object.
+
+        :param file_raster: The path to the raster file.
+        :type file_raster: str
+        :param file_table: path to table file
+        :type file_table: str
+        :param file_prj: The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the ``.asc`` file with the '.prj' extension.
+        :type file_prj: str
+        :param id_band: Band id to read for GeoTIFF. Default value = 1
+        :type id_band: int
         :return: None
         :rtype: None
         """
-        super().load(asc_file=asc_file, prj_file=prj_file)
-        self.load_table(file=table_file)
+        super().load(file_raster=file_raster, file_prj=file_prj, id_band=id_band)
+        self.load_table(file_table=file_table)
         return None
 
-    def load_table(self, file):
+    def load_table(self, file_table):
         """Load attributes dataframe from ``csv`` ``.txt`` file (separator must be ;).
 
-        :param file: folder_main to file
-        :type file: str
+        :param file_table: folder_main to file
+        :type file_table: str
         """
-        self.path_csvfile = file
+        self.path_csvfile = file_table
         # read raw file
-        df_aux = pd.read_csv(file, sep=";")
+        df_aux = pd.read_csv(file_table, sep=";")
         # set to self
         self.set_table(dataframe=df_aux)
         return None
@@ -4747,24 +4752,27 @@ class QualiHard(QualiRaster):
         )
         return df_aux
 
-    def load(self, asc_file, prj_file=None):
-        """Load data from files to raster
+    def load(self, file_raster, file_prj=None, id_band=1):
+        """
+        Load data from files to the raster object.
+        This function loads data from ``.asc`` raster and '.prj' projection files into the raster object.
 
-        :param asc_file: folder_main to ``.asc`` raster file
-        :type asc_file: str
-        :param prj_file: folder_main to ``.prj`` projection file
-        :type prj_file: str
+        :param file_raster: The path to the raster file.
+        :type file_raster: str
+        :param file_prj: The path to the '.prj' projection file. If not provided, an attempt is made to use the same path and name as the ``.asc`` file with the '.prj' extension.
+        :type file_prj: str
+        :param id_band: Band id to read for GeoTIFF. Default value = 1
+        :type id_band: int
         :return: None
         :rtype: None
         """
-        self.load_asc(file=asc_file)
-        if prj_file is None:
-            # try to use the same path and name
-            prj_file = asc_file.split(".")[0] + ".prj"
-            if os.path.isfile(prj_file):
-                self.load_prj(file=prj_file)
+        # handle extension
+        s_extension = os.path.basename(file_raster).split(".")[-1]
+        if s_extension == "asc":
+            self.load_asc(file_input=file_raster)
         else:
-            self.load_prj(file=prj_file)
+            self.load_tif(file_input=file_raster, id_band=id_band)
+        self.load_prj(file_input=file_prj)
         return None
 
 
@@ -5394,7 +5402,7 @@ class QualiRasterCollection(RasterCollection):
         if table_file is None:
             pass
         else:
-            rst_aux.load_table(file=table_file)
+            rst_aux.load_table(file_table=table_file)
         # append to test_collection
         self.append(new_object=rst_aux)
         # delete aux
@@ -5747,7 +5755,7 @@ class QualiRasterSeries(RasterSeries):
         if table_file is None:
             pass
         else:
-            rst_aux.load_table(file=table_file)
+            rst_aux.load_table(file_table=table_file)
         # append to test_collection
         self.append(new_object=rst_aux)
         # delete aux

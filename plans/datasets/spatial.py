@@ -932,7 +932,7 @@ class LULCSeries(QualiRasterSeries):
         if table_file is None:
             pass
         else:
-            rst_aux.load_table(file=table_file)
+            rst_aux.load_table(file_table=table_file)
         # append to test_collection
         self.append(raster=rst_aux)
         # delete aux
