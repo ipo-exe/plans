@@ -682,10 +682,10 @@ class AOI(QualiHard):
     def get_table(self):
         df_aux = pd.DataFrame(
             {
-                "Id": [1, 2],
-                "Alias": ["AOI", "EZ"],
-                "Name": ["Area of Interest", "Exclusion Zone"],
-                "Color": ["magenta", "silver"],
+                self.idfield: [1, 2],
+                self.aliasfield: ["AOI", "EZ"],
+                self.namefield: ["Area of Interest", "Exclusion Zone"],
+                self.colorfield: ["magenta", "silver"],
             }
         )
         return df_aux
@@ -765,8 +765,8 @@ class LDD(QualiHard):
     def get_table(self):
         df_aux = pd.DataFrame(
             {
-                "Id": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-                "Alias": [
+                self.idfield: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                self.aliasfield: [
                     "1-SW",
                     "2-S",
                     "3-SE",
@@ -777,7 +777,7 @@ class LDD(QualiHard):
                     "8-N",
                     "9-NE",
                 ],
-                "Name": [
+                self.namefield: [
                     "South-west",
                     "South",
                     "South-east",
@@ -788,16 +788,16 @@ class LDD(QualiHard):
                     "North",
                     "North-east",
                 ],
-                "Color": [
-                    "#8c564b",
-                    "#9edae5",
-                    "#98df8a",
-                    "#dbdb8d",
-                    "#d62728",
-                    "#ff7f0e",
-                    "#1f77b4",
-                    "#f7b6d2",
-                    "#98df8a",
+                self.colorfield: [
+                    "olive",
+                    "blue",
+                    "teal",
+                    "orange",
+                    "purple",
+                    "green",
+                    "orangered",
+                    "red",
+                    "goldenrod",
                 ],
             }
         )

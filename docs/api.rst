@@ -59,6 +59,11 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
+   plans.viewer
+
+.. autosummary::
+   :toctree: generated
+
    plans.geo
 
 .. autosummary::

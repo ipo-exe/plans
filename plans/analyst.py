@@ -40,6 +40,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from plans import viewer
 from plans.root import DataSet
 import os
 
@@ -116,7 +117,8 @@ class Univar(DataSet):
         self.weibull_df = None
 
     def load_data(self, file_data):
-        """Load data from file. Expected to overwrite superior methods.
+        """
+        Load data from file. Expected to overwrite superior methods.
 
         :param file_data: file path to data.
         :type file_data: str
@@ -152,7 +154,8 @@ class Univar(DataSet):
         return None
 
     def set_array(self, array):
-        """Set array to data
+        """
+        Set array to data
 
         :param array: Numpy array
         :type array: :class:`numpy.ndarray`
@@ -168,6 +171,7 @@ class Univar(DataSet):
         return None
 
     def update(self):
+        # todo [docstring]
         # ------------ call super ----------- #
         super().update()
 
@@ -183,12 +187,12 @@ class Univar(DataSet):
     # Assessing methods
 
     def assess_normality(self, clevel=0.95):
-        """Assessment on normality using standard tests
+        """
+        Assessment on normality using standard tests
 
         :return: dataframe of assessment results
         :rtype: :class:`pandas.DataFrame`
         """
-
         df_clean = self.data.dropna()
         data = df_clean[self.varfield].values
 
@@ -221,7 +225,8 @@ class Univar(DataSet):
         return df_result
 
     def assess_frequency(self):
-        """Assessment on data frequencies
+        """
+        Assessment on data frequencies
 
         :return: result dataframe
         :rtype: :class:`pandas.DataFrame`
@@ -257,6 +262,12 @@ class Univar(DataSet):
         return df_result
 
     def assess_basic_stats(self):
+        """
+        Assesses basic statistics of the variable field.
+
+        :return: DataFrame with statistics (Count, Sum, Mean, SD, Min, percentiles, Max) and their values.
+        :rtype: :class:`pandas.DataFrame`
+        """
         def _compute(data):
             return {
                 "Count": len(data),
@@ -300,7 +311,8 @@ class Univar(DataSet):
         return df_result
 
     def assess_weibull_cdf(self):
-        """Get the Weibull model
+        """
+        Get the Weibull model
 
         :param x: function inputs
         :type x: :class:`numpy.ndarray`
@@ -317,7 +329,8 @@ class Univar(DataSet):
         return result_df
 
     def assess_gumbel_cdf(self):
-        """Assess the Gumbel CDF for the data (it assumes that is a maxima dataset)
+        """
+        Assess the Gumbel CDF for the data (it assumes that is a maxima dataset)
 
         :return: multiple results from the assessment
         :rtype: dict
@@ -444,7 +457,7 @@ class Univar(DataSet):
         return {"Data": df, "Data_T(X)": df_tx, "Data_QQ": df_qq, "Metadata": df_meta}
 
     # Plotting methods
-
+    # todo [DRY] evaluate to discard or refactor for viewer styles
     def plot_hist(
         self,
         bins=100,
@@ -457,7 +470,8 @@ class Univar(DataSet):
         specs=None,
         dpi=300,
     ):
-        """Plot histogram of sample
+        """
+        Plot histogram of sample
 
         :param bins: number of bins
         :type bins: int
@@ -590,7 +604,7 @@ class Univar(DataSet):
         plt.text(
             mu,
             plt.gca().get_ylim()[1] * 0.92,
-            f"$\mu$ = {mu:.1f}",
+            fr"$\mu$ = {mu:.1f}",
             ha="left",
             va="bottom",
             fontsize=10,
@@ -623,8 +637,8 @@ class Univar(DataSet):
             )
 
     def _set_view_specs(self):
-        """Set view specifications.
-        Expected to overwrite superior methods.
+        """
+        Set view specifications. Expected to overwrite superior methods.
 
         :return: None
         :rtype: None
@@ -633,11 +647,11 @@ class Univar(DataSet):
         self.view_specs.update(
             {
                 "title": "View of {}".format(self.name),
-                "width": 8,
-                "height": 3,
+                "width": viewer.FIG_SIZES["M"]["w"],
+                "height": viewer.FIG_SIZES["M"]["h"],
                 "xvar": "i",
                 "yvar": self.varname,
-                "xlabel": "i",
+                "xlabel": self.varname,
                 "xlabel_b": "Count",
                 "xlabel_c": "P(X)",
                 "xlabel_d": "Map",
@@ -645,142 +659,288 @@ class Univar(DataSet):
                 "color": self.color,
                 "color_b": "tab:grey",
                 "color_c": "blue",
-                "alpha": 0.9,
+                "alpha": 0.4,
                 "ylim": None,
                 "xlim": None,
-                "subtitle_a": None,
-                "subtitle_b": None,
-                "subtitle_c": None,
+                "subtitle_a": "Distribution",
+                "subtitle_b": "Histogram",
+                "subtitle_c": "CDF",
                 "subtitle_d": None,
-                "plot_grid": False,
-                "hist_density": False,
+                "plot_mean": True,
+                "hist_density": True,
                 "bins": 20,
+                "mode": "full"
             }
         )
         return None
 
-    def view(self, show=True, return_fig=False, plot_mean=True):
-        """Get a basic visualization.
-        Expected to overwrite superior methods.
 
-        :param show: option for showing instead of saving.
-        :type show: bool
-        :param return_fig: option for returning the figure object itself.
-        :type return_fig: bool
-        :return: None or file path to figure
-        :rtype: None or str
-        """
+    def _plot(self, fig, gs, specs):
+        # todo [docstring]
+        import matplotlib.ticker as mticker
+        # from matplotlib.ticker import PercentFormatter  # Import PercentFormatter
+        formatter = mticker.ScalarFormatter(useOffset=False, useMathText=False)
+        formatter.set_scientific(False)  # Ensure scientific notation is off
 
-        def _plot_mean(xmin, xmax):
-            plt.hlines(
+        # ------- local functions --------
+        def _get_max(std_values, data):
+            data_max = np.max(data)
+            closest_max_index = np.argmin(np.abs(np.array(std_values) - data_max))
+            _id = closest_max_index + 1
+            if _id >= len(std_values):
+                _id = len(std_values) - 1
+            return std_values[_id]
+
+        def _plot_mean(axe, xmin, xmax):
+            axe.hlines(
                 y=y_mu,
                 xmin=xmin,
                 xmax=xmax,
                 colors="red",
             )
-            plt.annotate(
-                "$\mu$ = {}".format(round(y_mu, 2)),
-                xy=(0, y_mu),
-                xytext=(1, 3), textcoords='offset points',
+            axe.annotate(
+                r" $\mu$ = {}".format(round(y_mu, 2)),
+                xy=(xmin, y_mu),
+                xytext=(1, 3),
+                textcoords='offset points',
                 color="red",
-                fontsize=10
             )
 
-        specs = self.view_specs.copy()
+        # ------------- get aux data -------------
+        if self.stats_df is None:
+            self.stats_df = self.assess_basic_stats()
+        if self.weibull_df is None:
+            self.weibull_df = self.assess_weibull_cdf()
 
-        # start plot
-        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        plt.suptitle(specs["title"])
-        # grid
-        gs = mpl.gridspec.GridSpec(
-            1,
-            5,
-            wspace=specs["gs_wspace"],
-            hspace=specs["gs_hspace"],
-            left=specs["gs_left"],
-            right=specs["gs_right"],
-            bottom=specs["gs_bottom"],
-            top=specs["gs_top"],
-        )  # nrows, ncols
+        # ------- handle specs issues --------
+        ylim = specs["ylim"]
+        if specs["ylim"] is None:
+            p_low = self.stats_df.loc[self.stats_df['Statistic'] == 'P01', 'Value'].values[0]
+            p_hi = self.stats_df.loc[self.stats_df['Statistic'] == 'P99', 'Value'].values[0]
+            rng = p_hi - p_low
+            rng_margin = rng * 0.1
+            ylim = (p_low - rng_margin, p_hi + rng_margin)
+
+        plot_mean = specs["plot_mean"]
+
+        # ------------ setup axes ------------
+        ax1 = fig.add_subplot(gs[1:10, 2:10])
+        ax2 = fig.add_subplot(gs[1:10, 13:18])
+        ax3 = fig.add_subplot(gs[1:10, 19:])
 
         # ------------ scatter plot ------------
-        ax = fig.add_subplot(gs[0, :3])
         x_values = np.arange(len(self.data))
         y_mu = np.mean(self.data[self.varfield])
-        plt.scatter(
+        ax1.scatter(
             x_values,
             self.data[self.varfield].values,
             marker=".",
-            color="tab:grey",
+            color=specs["color"],
             alpha=specs["alpha"],
+            s=0.3 * viewer.MM_TO_PT
         )
         if specs["subtitle_a"] is not None:
-            plt.title(specs["subtitle_a"])
-        if specs["ylim"] is not None:
-            plt.ylim(specs["ylim"])
-        plt.xlabel(specs["xlabel"])
-        plt.ylabel(specs["ylabel"])
-        plt.xlim(0, len(self.data))
-        plt.grid(specs["plot_grid"])
+            ax1.set_title(specs["subtitle_a"], loc="left")
+        ax1.set_ylim(ylim)
+        ax1.set_xlabel(specs["xlabel"])
+        ax1.set_ylabel(specs["ylabel"])
+        ax1.grid(axis='x', visible=False)
+        ax1.yaxis.set_major_formatter(formatter)
+
+        # handle x axis
+        n_size = len(self.data)
+        x_factor = 4
+        x_low = -x_factor * n_size
+        x_hi = n_size + (x_factor * n_size)
+        ax1.set_xlim(x_low, x_hi)
+        ax1.set_xticks([])
+        # extra lines
         if plot_mean:
             _plot_mean(
-                xmin=np.min(x_values),
-                xmax=np.max(x_values),
+                ax1,
+                xmin=x_low,
+                xmax=x_hi,
             )
 
-        # ------------ hist ------------
-        ax2 = fig.add_subplot(gs[0, 3], sharey=ax)
+        # ------------ hist plot ------------
+        # Standard x-axis maximum values for hist
+        sdmax1 = list(np.linspace(1, 9, 9) / 100)
+        sdmax2 = list(np.linspace(10, 100, 10) / 100)
+        standard_max_values = sdmax1 + sdmax2
+
         # ensure clean data
         df_clean = self.data.dropna()
         data = df_clean[self.varfield].values
-        h = plt.hist(
+        h = ax2.hist(
             data,
-            bins=Univar.nbins_fd(data=data),
+            bins=specs["bins"],
             color=specs["color_b"],
             alpha=1,
             orientation="horizontal",
-            density=specs["hist_density"],
+            weights=np.ones(len(data)) / len(data),
         )
+        ax2.xaxis.set_major_formatter(mticker.PercentFormatter(1))
         if specs["subtitle_b"] is not None:
-            plt.title(specs["subtitle_b"])
-        if specs["ylim"] is not None:
-            plt.ylim(specs["ylim"])
-        plt.xlabel(specs["xlabel_b"])
-        plt.grid(specs["plot_grid"])
+            ax2.set_title(specs["subtitle_b"], loc="left")
+        # Get the maximum value from the data
+        xmax = _get_max(standard_max_values, h[0]) * 1.1
+        ax2.set_xlim(0, xmax)
+        ax2.set_ylim(ylim)
+        ax2.set_xlabel("%")
+        ax2.set_ylabel(specs["ylabel"])
+        ax2.yaxis.set_major_formatter(formatter)
+        # extra lines
         if plot_mean:
             _plot_mean(
+                ax2,
                 xmin=0,
-                xmax=np.max(h[0]),
+                xmax=xmax,
             )
 
-        # ------------ cdf ------------
-        ax3 = fig.add_subplot(gs[0, 4], sharey=ax)
-        plt.plot(
-            self.weibull_df["P(X)"], self.weibull_df["Data"], color=specs["color_c"]
+        # ------------ CDF plot ------------
+        ax3.plot(
+            self.weibull_df["P(X)"],
+            self.weibull_df["Data"],
+            color=specs["color_c"]
         )
         if specs["subtitle_c"] is not None:
-            plt.title(specs["subtitle_c"])
-        plt.xlabel(specs["xlabel_c"])
-        plt.grid(specs["plot_grid"])
+            ax3.set_title(specs["subtitle_c"], loc="left")
+        ax3.set_xlabel(specs["xlabel_c"])
+        ax3.set_xlim(-0.05, 1.05)
+        ax3.set_ylim(ylim)
+        ax3.yaxis.set_major_formatter(formatter)
+        ax3.set_yticklabels([])
+        ax3.xaxis.set_major_formatter(mticker.PercentFormatter(1))
+        # extra lines
         if plot_mean:
             _plot_mean(
-                xmin=0,
-                xmax=1,
+                ax3,
+                xmin=-0.05,
+                xmax=1.05,
             )
+        # ------------ Plot stats ------------
+        if specs["mode"] == "full":
+            fig = Univar.plot_stats(fig=fig, stats_df=self.stats_df, x=0.01, y=0.3)
 
-        # ------------ return object, show or save
+        # send back
+        return fig
+
+    def view(self, show=True, return_fig=False):
+        # todo [docstring]
+
+        # handle specs
+        specs = self.view_specs.copy()
+
+        # handle mode
+        mode = specs["mode"]
+
+        if mode == "full":
+            specs_aux = {
+                "ncols": 24,
+                "nrows": 16,
+                "width": viewer.FIG_SIZES["M"]["w"],
+                "height": viewer.FIG_SIZES["M"]["h"],
+            }
+        else:
+            specs_aux = {
+                "ncols": 24,
+                "nrows": 12,
+                "width": viewer.FIG_SIZES["M2"]["w"],
+                "height": viewer.FIG_SIZES["M2"]["h"],
+            }
+        # update sizes
+        specs.update(specs_aux)
+        # update gridspecs
+        specs.update(viewer.GRID_SPECS)
+
+        # -------------- BUILD --------------
+        fig, gs = viewer.build_fig(specs=specs)
+
+        # -------------- PLOT --------------
+        fig = self._plot(fig=fig, gs=gs, specs=specs)
+
+        # -------------- SHIP --------------
+        # create path
+        file_path = "{}/{}.{}".format(
+            specs["folder"],
+            specs["filename"],
+            specs["fig_format"]
+        )
         if return_fig:
             return fig
-        elif show:  # default case
-            plt.show()
-            return None
         else:
-            file_path = "{}/{}.{}".format(
-                specs["folder"], specs["filename"], specs["fig_format"]
+            viewer.ship_fig(
+                fig=fig,
+                show=show,
+                file_output=file_path,
+                dpi=specs["dpi"]
             )
-            plt.savefig(file_path, dpi=specs["dpi"])
-            plt.close(fig)
-            return file_path
+
+    @staticmethod
+    def plot_stats(fig, stats_df, x=0.5, y=0.4):
+        # todo [docstring]
+
+        # Helper function to plot a single column of stats
+        def _plot_column(x_position, stats_list, start_y):
+            current_y = start_y
+            for stat in stats_list:
+                # Handle "Median" special case if it's coming from ls_stats that uses it
+                display_stat = "P50" if stat == "Median" else stat
+
+                # Ensure the stat exists in the DataFrame before attempting to access
+                stat_row = stats_df.loc[stats_df['Statistic'] == display_stat]
+                if not stat_row.empty:
+                    s_value = stat_row['Value'].values[0]
+                    s_head = stat  # Use the original name for display if needed, or display_stat
+
+                    # Determine formatting based on value magnitude
+                    if abs(s_value) > 1_000_000:
+                        s_line = "{:>10}: {:<10.2e}".format(s_head, s_value)
+                    elif stat == "Count":
+                        s_line = "{:>10}: {:<10}".format(s_head, int(s_value))
+                    else:
+                        s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
+
+                    current_y -= n_step
+                    plt.text(
+                        x=x_position,
+                        y=current_y,
+                        s=s_line,
+                        fontdict={"family": "monospace"},
+                        transform=fig.transFigure,
+                    )
+                else:
+                    # Optional: Handle cases where a stat might not be found
+                    # print(f"Warning: Statistic '{display_stat}' not found in DataFrame.")
+                    pass
+
+        n_step = 0.03
+
+        # First column of statistics
+        ls_stats_col1 = [
+            "Count",
+            "Sum",
+            "Mean",
+            "Median",  # This will be mapped to "P50" internally by the helper
+            "SD",
+            "Min",
+            "Max",
+        ]
+        _plot_column(x, ls_stats_col1, y - 0.01)
+
+        # Second column of statistics
+        ls_stats_col2 = [
+            "P05",
+            "P10",
+            "P25",
+            "P50",
+            "P75",
+            "P90",
+            "P95",
+        ]
+        _plot_column(x + 0.20, ls_stats_col2, y - 0.01)
+
+        return fig
 
     def plot_qqplot(
         self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
@@ -1253,8 +1413,6 @@ class Bivar:
     # todo [docstring]
     """The Bivariate analyst object
 
-
-
     # [major docstring]
 
     """
@@ -1610,11 +1768,11 @@ class Bivar:
         plt.text(
             y=e_mean + e_range_10,
             x=specs["xlim"][1] - (3 * x_range_10),
-            s="$\mu$: " + str(round(e_mean, 2)),
+            s=r"$\mu$: " + str(round(e_mean, 2)),
             color="tab:red",
         )
         plt.xlabel(self.xname)
-        plt.ylabel("$\epsilon$")
+        plt.ylabel(r"$\epsilon$")
         plt.xlim(specs["xlim"])
         plt.ylim(specs["elim"])
 
@@ -1631,7 +1789,7 @@ class Bivar:
         # mean line
         plt.hlines(y=e_mean, xmin=0, xmax=0.15, color="tab:red", alpha=0.4)
         plt.ylim(specs["elim"])
-        plt.xlabel("p($\epsilon$)")
+        plt.xlabel(r"p($\epsilon$)")
 
         # ----------------- qq plot error -----------------
         df_qq = e_uni.qqplot()
@@ -1664,7 +1822,7 @@ class Bivar:
         )
 
         plt.xlabel(self.xname)
-        plt.ylabel("$\sigma^2$")
+        plt.ylabel(r"$\sigma^2$")
         plt.xlim(specs["xlim"])
         plt.ylim([0, 1.5 * np.max(vct_var)])
 
@@ -2512,7 +2670,7 @@ class _Univar:
         plt.text(
             mu,
             plt.gca().get_ylim()[1] * 0.92,
-            f"$\mu$ = {mu:.1f}",
+            fr"$\mu$ = {mu:.1f}",
             ha="left",
             va="bottom",
             fontsize=10,

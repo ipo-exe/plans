@@ -1,4 +1,4 @@
-id;plans;alias;color;type;id_mapbiomas;name_mapbiomas;alias_mapbiomas;color_mapbiomas
+id;name;alias;color;type;id_mapbiomas;name_mapbiomas;alias_mapbiomas;color_mapbiomas
 1;Forest Formation;Fr;#1f8d49;Natural cover;3;Forest Formation;Fr;#1f8d49
 2;Savanna Formation;Sv;#7dc975;Natural cover;4;Savanna Formation;Sv;#7dc975
 3;Mangrove;Mg;#04381d;Natural cover;5;Mangrove;Mg;#04381d
@@ -16,7 +16,7 @@ id;plans;alias;color;type;id_mapbiomas;name_mapbiomas;alias_mapbiomas;color_mapb
 15;Soybean;Sy;#f5b3c8;Extensive use;39;Soybean;Sy;#f5b3c8
 16;Sugar cane;Sc;#db7093;Extensive use;20;Sugar cane;Sc;#db7093
 17;Rice;Rc;#c71585;Extensive use;40;Rice;Rc;#c71585
-18;Cotton (beta);Ct;#ff69b4;Extensive use;62;Cotton;Ct;#ff69b4
+18;Cotton;Ct;#ff69b4;Extensive use;62;Cotton;Ct;#ff69b4
 19;Other Temporary Crops;Tc;#f54ca9;Extensive use;41;Other Temporary Crops;Tc;#f54ca9
 20;Coffee;Cf;#d68fe2;Extensive use;46;Coffee;Cf;#d68fe2
 21;Citrus;Ci;#9932cc;Extensive use;47;Citrus;Ci;#9932cc

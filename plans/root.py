@@ -744,6 +744,7 @@ class DataSet(MbaE):
         self.view_specs = {
             "folder": self.folder_data,
             "filename": self.name,
+            "style": "wien",
             "fig_format": "jpg",
             "dpi": 300,
             "title": self.name,
@@ -758,12 +759,12 @@ class DataSet(MbaE):
             "xmax": None,
             "ymin": None,
             "ymax": None,
-            "gs_wspace": 0.4,
+            "gs_wspace": 0.2,
             "gs_hspace": 0.1,
-            "gs_left": 0.08,
+            "gs_left": 0.05,
             "gs_right": 0.98,
-            "gs_bottom": 0.2,
-            "gs_top": 0.88,
+            "gs_bottom": 0.15,
+            "gs_top": 0.9,
         }
         return None
 
