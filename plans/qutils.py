@@ -46,7 +46,7 @@ from qgis.core import QgsCoordinateReferenceSystem
 from plans import geo
 from plans.parsers import qgdal
 from plans.datasets import Raster
-from plans.datasets.spatial import DC_NODATA
+from plans.datasets.core import DC_NODATA
 
 # ----------------- MODULE CONSTANTS ----------------- #
 

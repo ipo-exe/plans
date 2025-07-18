@@ -112,7 +112,7 @@ def create_rundir(workplace, run_id, prefix=None, suffix=None, b_time=True):
 
 def _get_dict_basins(folder_basins):
     m_basins = sp.Basins(name="Basins")
-    m_basins.load(
+    m_basins.load_data(
         asc_file=os.path.join(folder_basins, "basins.asc"),
         prj_file=os.path.join(folder_basins, "basins.prj"),
         table_file=os.path.join(folder_basins, "basins_info.csv"),
@@ -412,23 +412,8 @@ def VTOPO(
     workplace=True,
     talk=False,
 ):
-    """todo docstring
+    # todo [docstring]
 
-    :param project_name:
-    :type project_name:
-    :param datasets_dir:
-    :type datasets_dir:
-    :param outdir:
-    :type outdir:
-    :param by_basins:
-    :type by_basins:
-    :param workplace:
-    :type workplace:
-    :param talk:
-    :type talk:
-    :return:
-    :rtype:
-    """
     # ---------------------- START ----------------------
     start_start = time.time()
     # define label
@@ -480,7 +465,7 @@ def VTOPO(
         "hand": sp.HAND,
         "slope": sp.Slope,
         "ldd": sp.LDD,
-        "accflux": sp.AccFlux,
+        "accflux": sp.FAC,
     }
 
     # full folder setup
@@ -493,7 +478,7 @@ def VTOPO(
     for topo in dct_topo:
         logger.info("{} {:<12} {:<10} -- full ...".format(prompt, "processing", topo))
         m = dct_topo[topo](name=project_name)
-        m.load(
+        m.load_data(
             asc_file=os.path.join(folder_topo, "{}.asc".format(topo)),
             prj_file=os.path.join(folder_topo, "{}.prj".format(topo)),
         )
@@ -558,25 +543,8 @@ def VLULC(
     workplace=True,
     talk=False,
 ):
-    """todo docstring
+    # todo [docstring]
 
-    :param project_name:
-    :type project_name:
-    :param datasets_dir:
-    :type datasets_dir:
-    :param outdir:
-    :type outdir:
-    :param scenario:
-    :type scenario:
-    :param by_basins:
-    :type by_basins:
-    :param workplace:
-    :type workplace:
-    :param talk:
-    :type talk:
-    :return:
-    :rtype:
-    """
     # ---------------------- START ----------------------
     start_start = time.time()
     # define label
@@ -633,7 +601,7 @@ def VLULC(
     logger.info("{} loading LULC series ...".format(prompt))
     lulc_series.load_folder(
         folder=folder_lulc,
-        table_file=os.path.join(folder_lulc, "lulc_info.csv"),
+        file_table=os.path.join(folder_lulc, "lulc_info.csv"),
         name_pattern="lulc_*",
         talk=False,
         use_parallel=False,
@@ -1049,7 +1017,7 @@ def DTO(
     start_time = time.time()
 
     ldd = LDD(name=project_name)
-    ldd.load(asc_file=file_ldd)
+    ldd.load_data(asc_file=file_ldd)
 
     end_time = time.time()
     elapsed_time = end_time - start_time

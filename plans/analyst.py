@@ -116,6 +116,46 @@ class Univar(DataSet):
         self.freq_df = None
         self.weibull_df = None
 
+
+    def _set_view_specs(self):
+        """
+        Set view specifications. Expected to overwrite superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_view_specs()
+        self.view_specs.update(
+            {
+                "title": "View of {}".format(self.name),
+                "width": viewer.FIG_SIZES["M"]["w"],
+                "height": viewer.FIG_SIZES["M"]["h"],
+                "xvar": "i",
+                "yvar": self.varname,
+                "xlabel": self.varname,
+                "xlabel_b": "Count",
+                "xlabel_c": "P(X)",
+                "xlabel_d": "Map",
+                "ylabel": self.units,
+                "color": self.color,
+                "color_b": "tab:grey",
+                "color_c": "blue",
+                "alpha": 0.4,
+                "range": None,
+                "xlim": None,
+                "subtitle_a": "Distribution",
+                "subtitle_b": "Histogram",
+                "subtitle_c": "CDF",
+                "subtitle_d": None,
+                "plot_mean": True,
+                "hist_density": True,
+                "bins": 20,
+                "mode": "full"
+            }
+        )
+        return None
+
+
     def load_data(self, file_data):
         """
         Load data from file. Expected to overwrite superior methods.
@@ -270,25 +310,25 @@ class Univar(DataSet):
         """
         def _compute(data):
             return {
-                "Count": len(data),
-                "Sum": np.sum(data),
-                "Mean": np.mean(data),
-                "SD": np.std(data),
-                "Min": np.min(data),
-                "P01": np.percentile(data, 1),
-                "P05": np.percentile(data, 5),
-                "P10": np.percentile(data, 10),
-                "P20": np.percentile(data, 20),
-                "P25": np.percentile(data, 25),
-                "P40": np.percentile(data, 40),
-                "P50": np.percentile(data, 50),
-                "P60": np.percentile(data, 60),
-                "P75": np.percentile(data, 75),
-                "P80": np.percentile(data, 80),
-                "P90": np.percentile(data, 90),
-                "P95": np.percentile(data, 95),
-                "P99": np.percentile(data, 99),
-                "Max": np.max(data),
+                "count": len(data),
+                "sum": np.sum(data),
+                "mean": np.mean(data),
+                "sd": np.std(data),
+                "min": np.min(data),
+                "p01": np.percentile(data, 1),
+                "p05": np.percentile(data, 5),
+                "p10": np.percentile(data, 10),
+                "p20": np.percentile(data, 20),
+                "p25": np.percentile(data, 25),
+                "p40": np.percentile(data, 40),
+                "p50": np.percentile(data, 50),
+                "p60": np.percentile(data, 60),
+                "p75": np.percentile(data, 75),
+                "p80": np.percentile(data, 80),
+                "p90": np.percentile(data, 90),
+                "p95": np.percentile(data, 95),
+                "p99": np.percentile(data, 99),
+                "max": np.max(data),
             }
 
         # handle data
@@ -302,12 +342,12 @@ class Univar(DataSet):
             ls_values = [np.nan for key in dct]
             ls_values[0] = 0  # fix for count
             df_result = pd.DataFrame(
-                {"Statistic": list(dct.keys()), "Value": ls_values}
+                {"statistic": list(dct.keys()), "value": ls_values}
             )
         else:
             dct = _compute(data=data)
             ls_values = [dct[key] for key in dct]
-        df_result = pd.DataFrame({"Statistic": list(dct.keys()), "Value": ls_values})
+        df_result = pd.DataFrame({"statistic": list(dct.keys()), "value": ls_values})
         return df_result
 
     def assess_weibull_cdf(self):
@@ -636,44 +676,6 @@ class Univar(DataSet):
                 bbox_inches="tight",
             )
 
-    def _set_view_specs(self):
-        """
-        Set view specifications. Expected to overwrite superior methods.
-
-        :return: None
-        :rtype: None
-        """
-        super()._set_view_specs()
-        self.view_specs.update(
-            {
-                "title": "View of {}".format(self.name),
-                "width": viewer.FIG_SIZES["M"]["w"],
-                "height": viewer.FIG_SIZES["M"]["h"],
-                "xvar": "i",
-                "yvar": self.varname,
-                "xlabel": self.varname,
-                "xlabel_b": "Count",
-                "xlabel_c": "P(X)",
-                "xlabel_d": "Map",
-                "ylabel": self.units,
-                "color": self.color,
-                "color_b": "tab:grey",
-                "color_c": "blue",
-                "alpha": 0.4,
-                "ylim": None,
-                "xlim": None,
-                "subtitle_a": "Distribution",
-                "subtitle_b": "Histogram",
-                "subtitle_c": "CDF",
-                "subtitle_d": None,
-                "plot_mean": True,
-                "hist_density": True,
-                "bins": 20,
-                "mode": "full"
-            }
-        )
-        return None
-
 
     def _plot(self, fig, gs, specs):
         # todo [docstring]
@@ -713,10 +715,10 @@ class Univar(DataSet):
             self.weibull_df = self.assess_weibull_cdf()
 
         # ------- handle specs issues --------
-        ylim = specs["ylim"]
-        if specs["ylim"] is None:
-            p_low = self.stats_df.loc[self.stats_df['Statistic'] == 'P01', 'Value'].values[0]
-            p_hi = self.stats_df.loc[self.stats_df['Statistic'] == 'P99', 'Value'].values[0]
+        ylim = specs["range"]
+        if specs["range"] is None:
+            p_low = self.stats_df.loc[self.stats_df['statistic'] == 'p01', 'value'].values[0]
+            p_hi = self.stats_df.loc[self.stats_df['statistic'] == 'p99', 'value'].values[0]
             rng = p_hi - p_low
             rng_margin = rng * 0.1
             ylim = (p_low - rng_margin, p_hi + rng_margin)
@@ -885,18 +887,18 @@ class Univar(DataSet):
             current_y = start_y
             for stat in stats_list:
                 # Handle "Median" special case if it's coming from ls_stats that uses it
-                display_stat = "P50" if stat == "Median" else stat
+                display_stat = "p50" if stat == "median" else stat
 
                 # Ensure the stat exists in the DataFrame before attempting to access
-                stat_row = stats_df.loc[stats_df['Statistic'] == display_stat]
+                stat_row = stats_df.loc[stats_df['statistic'] == display_stat]
                 if not stat_row.empty:
-                    s_value = stat_row['Value'].values[0]
+                    s_value = stat_row['value'].values[0]
                     s_head = stat  # Use the original name for display if needed, or display_stat
 
                     # Determine formatting based on value magnitude
                     if abs(s_value) > 1_000_000:
                         s_line = "{:>10}: {:<10.2e}".format(s_head, s_value)
-                    elif stat == "Count":
+                    elif stat == "count":
                         s_line = "{:>10}: {:<10}".format(s_head, int(s_value))
                     else:
                         s_line = "{:>10}: {:<10.2f}".format(s_head, s_value)
@@ -918,25 +920,25 @@ class Univar(DataSet):
 
         # First column of statistics
         ls_stats_col1 = [
-            "Count",
-            "Sum",
-            "Mean",
-            "Median",  # This will be mapped to "P50" internally by the helper
-            "SD",
-            "Min",
-            "Max",
+            "count",
+            "sum",
+            "mean",
+            "median",  # This will be mapped to "P50" internally by the helper
+            "sd",
+            "min",
+            "max",
         ]
         _plot_column(x, ls_stats_col1, y - 0.01)
 
         # Second column of statistics
         ls_stats_col2 = [
-            "P05",
-            "P10",
-            "P25",
-            "P50",
-            "P75",
-            "P90",
-            "P95",
+            "p05",
+            "p10",
+            "p25",
+            "p50",
+            "p75",
+            "p90",
+            "p95",
         ]
         _plot_column(x + 0.20, ls_stats_col2, y - 0.01)
 
@@ -969,7 +971,7 @@ class Univar(DataSet):
             "width": 4 * 1.618,
             "height": 4,
             "xlabel": "value",
-            "ylim": (0.95 * np.min(data), 1.05 * np.max(data)),
+            "range": (0.95 * np.min(data), 1.05 * np.max(data)),
             "xlim": (-3, 3),
             "subtitle": None,
         }
@@ -1577,7 +1579,7 @@ class Bivar:
             "width": 6,
             "height": 6,
             "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
-            "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
+            "range": [self.data[self.yname].min(), self.data[self.yname].max()],
             "xlabel": self.xname,
             "ylabel": self.yname,
         }
@@ -1610,7 +1612,7 @@ class Bivar:
         plt.xlabel(specs["xlabel"])
         plt.ylabel(specs["ylabel"])
         plt.xlim(specs["xlim"])
-        plt.ylim(specs["ylim"])
+        plt.ylim(specs["range"])
 
         # x hist
         ax_histx = fig.add_subplot(gs[0, :2], sharex=ax)
@@ -1639,7 +1641,7 @@ class Bivar:
             orientation="horizontal",
             weights=np.ones(len(self.data)) / len(self.data),
         )
-        plt.ylim(specs["ylim"])
+        plt.ylim(specs["range"])
 
         # show or save
         if show:
@@ -1691,7 +1693,7 @@ class Bivar:
             "width": 8,
             "height": 8,
             "xlim": [self.data[self.xname].min(), self.data[self.xname].max()],
-            "ylim": [self.data[self.yname].min(), self.data[self.yname].max()],
+            "range": [self.data[self.yname].min(), self.data[self.yname].max()],
             "elim": [
                 -1.5 * self.models[model_type]["Data"]["e_Mean"].max(),
                 1.5 * self.models[model_type]["Data"]["e_Mean"].max(),
@@ -1742,7 +1744,7 @@ class Bivar:
         plt.xlabel(self.xname)
         plt.ylabel(self.yname)
         plt.xlim(specs["xlim"])
-        plt.ylim(specs["ylim"])
+        plt.ylim(specs["range"])
 
         # ----------------- error -----------------
         e_uni = Univar(data=self.models[model_type]["Data"]["e_Mean"].values)
@@ -2272,7 +2274,7 @@ class Bayes:
             "width": 10,
             "height": 5,
             "xlabel": "value",
-            "ylim": (0, 1),
+            "range": (0, 1),
             "xlim": (0, 1),
             "subtitle": None,
         }
@@ -2409,612 +2411,5 @@ class Bayes:
 # ----- DEPRECATED CLASSES -----
 
 
-class _Univar:
-    """[Deprecated]
-    The Univariate Analyst Object
-    """
-
-    def __init__(self, data, name="myvar"):
-        """Deploy the Analyst
-
-        :param data: n-D vector of sample
-        :type data: :class:`numpy.ndarray`
-        """
-        self.data = data
-        self.name = name
-
-    def nbins_fd(self):
-        """This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into account the interquartile range (IQR) of the sample, in addition to its range.
-
-        :return: number of bins for histogram using the Freedman-Diaconis rule
-        :rtype: int
-        """
-        iqr = np.subtract(*np.percentile(self.data, [75, 25]))
-        binsize = 2 * iqr * len(self.data) ** (-1 / 3)
-        # hack for non infinite values
-        if binsize == 0:
-            binsize = 100
-        return int(np.ceil((max(self.data) - min(self.data)) / binsize))
-
-    def nbins_sturges(self):
-        """This function computes the number of bins using the Sturges rule, which assumes that the data follows a normal distribution and computes the number of bins based on its data runsize.
-
-        :return: number of bins using the Sturges rule
-        :rtype: int
-        """
-        return int(np.ceil(np.log2(len(self.data)) + 1))
-
-    def nbins_scott(self):
-        """This function computes the number of bins using the Scott rule,
-        which is similar to the Freedman-Diaconis rule, but uses the standard deviation
-        of the data to compute the bin runsize.
-
-        :return: number of bins using the Scott rule
-        :rtype: int
-        """
-        binsize = 3.5 * np.std(self.data) * len(self.data) ** (-1 / 3)
-        return int(np.ceil((max(self.data) - min(self.data)) / binsize))
-
-    def nbins_by_rule(self, rule=None):
-        """Util function for rule-based nbins computation
-        :param rule: rule code (sturges, fd, scott)
-        :type rule: str
-        :return: number of bins for histogram
-        :rtype: int
-        """
-        bins = 10
-        if rule is None:
-            pass
-        else:
-            if rule.lower() == "sturges":
-                bins = self.nbins_sturges()
-            elif rule.lower() == "fd":
-                bins = self.nbins_fd()
-            elif rule.lower() == "scott":
-                bins = self.nbins_scott()
-            else:
-                pass
-        return bins
-
-    def histogram(self, bins=100, rule=None):
-        """Compute the histogram of the sample
-
-        :param bins: number of bins
-        :type bins: int
-        :param rule: rule to define the number of bins. If 'none', uses bins parameters.
-        :type rule: str
-        :return: dataframe of histogram
-        :rtype: :class:`pandas.DataFrame`
-        """
-
-        if rule is None:
-            pass
-        else:
-            bins = self.nbins_by_rule(rule=rule)
-        # compute histogram
-        vct_hist, vct_bins = np.histogram(self.data, bins=bins)
-        # get dataframe
-        df_hist = pd.DataFrame({"Upper value": vct_bins[1:], "Count": vct_hist})
-        return df_hist
-
-    def qqplot(self):
-        """Calculate the QQ-plot of data against normal distribution
-
-        :return: dataframe of QQ plot
-        :rtype: :class:`pandas.DataFrame`
-        """
-        from scipy.stats import norm
-
-        # process quantiles
-        _df = pd.DataFrame(
-            {
-                "Data": np.sort(self.data),
-                "E-Quantiles": (np.arange(1, len(self.data) + 1) - 0.5)
-                / len(self.data),
-            }
-        )
-        # get theoretical
-        _df["T-Quantiles"] = norm.ppf(_df["E-Quantiles"])
-        return _df
-
-    def trace_variance(self):
-        """Trace the mean variance from sample
-
-        :return: vector of accumulated variance
-        :rtype: :class:`numpy.ndarray`
-        """
-        vct_variance_mean = np.zeros(len(self.data))
-        for i in range(2, len(self.data)):
-            vct_variance_mean[i] = np.var(self.data[:i])
-        return vct_variance_mean
-
-    def plot_hist(
-        self,
-        bins=100,
-        colored=False,
-        annotated=False,
-        rule=None,
-        show=False,
-        folder="C:/sample",
-        filename="histogram",
-        specs=None,
-        dpi=300,
-    ):
-        """Plot histogram of sample
-
-        :param bins: number of bins
-        :type bins: int
-        :param colored: Boolean to quantile-colored histogram
-        :type colored: bool
-        :param annotated: Boolean to plot stats texts over histogram
-        :type annotated: bool
-        :param rule: name of rule to compute bins
-        :type rule: str
-        :param show: Boolean to show instead of saving
-        :type show: bool
-        :param folder: output folder
-        :type folder: str
-        :param filename: image file name
-        :type filename: str
-        :param specs: specification dictionary
-        :type specs: dict
-        :param dpi: image resolution (default = 96)
-        :type dpi: int
-        """
-
-        # get bins
-        if rule is None:
-            pass
-        else:
-            bins = self.nbins_by_rule(rule=rule)
-
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "title": "Histogram of {}".format(self.name),
-            "width": 4 * 1.618,
-            "height": 4,
-            "xlabel": "value",
-            "ylim": (0, 0.1),
-            "xlim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
-            "subtitle": None,
-            "cmap": "viridis",
-            "colors": None,
-            "n_classes": 5,
-            "grid": False,
-            "quantiles": True,
-        }
-        # handle inputs specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
-
-        # start plot
-        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        ax = plt.gca()
-        ax.set_position([0.15, 0.15, 0.75, 0.75])
-        if specs["subtitle"] is None:
-            plt.title(specs["title"])
-        else:
-            plt.title("{} | {}".format(specs["title"], specs["subtitle"]))
-
-        # Calculate quantiles
-        data = pd.Series(self.data)
-        # filter data to xlim
-        data = data[data.between(specs["xlim"][0], specs["xlim"][1])]
-        if specs["quantiles"]:
-            quantiles = data.quantile(np.linspace(0, 1, specs["n_classes"] + 1))
-        else:
-            quantiles = pd.Series(
-                np.linspace(
-                    start=data.min(), stop=data.max(), num=specs["n_classes"] + 1
-                )
-            )
-
-        # Determine the overall bin width you desire
-        bin_width = (
-            data.max() - data.min()
-        ) / bins  # for example, 40 equal width bins across the data range
-        # handle colored plots
-        if colored:
-            if specs["colors"] is None:
-                cmap = mpl.colormaps[specs["cmap"]]
-                colors = [cmap(i) for i in np.linspace(0, 1, len(quantiles) - 1)]
-            else:
-                colors = specs["colors"]
-
-            # Create the bins
-            binsv = np.arange(start=data.min(), stop=data.max(), step=bin_width)
-            binsv = np.append(
-                binsv, data.max()
-            )  # Ensure the last bin includes the max value
-
-            # Plot the histogram
-            n, bins, patches = plt.hist(
-                self.data,
-                bins=binsv,
-                linewidth=0,
-                weights=np.ones(len(self.data)) / len(self.data),
-            )
-
-            # Color the bars based on the quantile
-            for patch, edge in zip(patches, bins[:-1]):
-                if edge < quantiles.values[1]:
-                    plt.setp(patch, "facecolor", colors[0])
-                elif edge < quantiles.values[2]:
-                    plt.setp(patch, "facecolor", colors[1])
-                elif edge < quantiles.values[3]:
-                    plt.setp(patch, "facecolor", colors[2])
-                elif edge < quantiles.values[4]:
-                    plt.setp(patch, "facecolor", colors[3])
-                else:
-                    plt.setp(patch, "facecolor", colors[4])
-        else:
-            plt.hist(
-                self.data,
-                bins=bins,
-                weights=np.ones(len(self.data)) / len(self.data),
-                color=specs["color"],
-            )
-
-        plt.xlabel(specs["xlabel"])
-        plt.ylim(specs["ylim"])
-        plt.xlim(specs["xlim"])
-        plt.grid(specs["grid"])
-        # Optionally, add vertical lines for each quantile and annotate them
-        mu = np.mean(self.data)
-        plt.axvline(mu, color="r", linestyle="dashed", linewidth=1)
-        plt.text(
-            mu,
-            plt.gca().get_ylim()[1] * 0.92,
-            fr"$\mu$ = {mu:.1f}",
-            ha="left",
-            va="bottom",
-            fontsize=10,
-            rotation=0,
-            color="red",
-        )
-        if annotated:
-            aux = 0
-            for q in quantiles:
-                plt.axvline(q, color="k", linestyle="dashed", linewidth=1)
-                plt.text(
-                    q,
-                    plt.gca().get_ylim()[1] * (0.9 - aux),
-                    f"{q:.1f}",
-                    ha="right",
-                    va="bottom",
-                    fontsize=10,
-                    rotation=0,
-                )
-                aux = aux + 0.05
-        # plt.tight_layout()
-        # show or save
-        if show:
-            plt.show()
-        else:
-            plt.savefig(
-                "{}/{}_{}.png".format(folder, self.name, filename),
-                dpi=dpi,
-                bbox_inches="tight",
-            )
-
-    def view(self, show=True, folder="C:/sample", filename="view", specs=None, dpi=300):
-        """Plot basic view of sample
-
-        :param show: Boolean to show instead of saving
-        :type show: bool
-        :param folder: output folder
-        :type folder: str
-        :param filename: image file name
-        :type filename: str
-        :param specs: specification dictionary
-        :type specs: dct
-        :param dpi: image resolution (default = 300)
-        :type dpi: int
-        :return: None
-        :rtype: None
-        """
-
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "title": "View of {}".format(self.name),
-            "width": 5 * 1.618,
-            "height": 4,
-            "xlabel": "i",
-            "ylabel": "",
-            "ylim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
-            "subtitle_1": "Scatter",
-            "subtitle_2": "Histogram",
-        }
-
-        # handle inputs specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
-
-        # start plot
-        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        plt.suptitle(specs["title"])
-        # grid
-        gs = mpl.gridspec.GridSpec(
-            1, 3, wspace=0.4, hspace=0.5, left=0.1, bottom=0.25, top=0.85, right=0.95
-        )  # nrows, ncols
-
-        # scatter plot
-        ax = fig.add_subplot(gs[0, :2])
-        plt.scatter(np.arange(len(self.data)), self.data, marker=".", color="tab:grey")
-        plt.title(specs["subtitle_1"])
-        plt.ylim(specs["ylim"])
-        plt.xlabel(specs["xlabel"])
-        plt.ylabel(specs["ylabel"])
-
-        # hist
-        ax2 = fig.add_subplot(gs[0, 2], sharey=ax)
-        plt.hist(
-            self.data,
-            bins=self.nbins_fd(),
-            color="tab:grey",
-            alpha=1,
-            orientation="horizontal",
-        )
-        plt.title(specs["subtitle_2"])
-        plt.ylim(specs["ylim"])
-        plt.xlabel("Count")
-        plt.ylabel(specs["ylabel"])
-        # show or save
-        if show:
-            plt.show()
-        else:
-            plt.savefig(
-                "{}/{}_{}.png".format(folder, self.name, filename),
-                dpi=dpi,
-                bbox_inches="tight",
-            )
-
-    def plot_qqplot(
-        self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
-    ):
-        """Plot Q-Q Plot on Normal distribution
-
-        :param show: Boolean to show instead of saving
-        :type show: bool
-        :param folder: output folder
-        :type folder: str
-        :param filename: image file name
-        :type filename: str
-        :param specs: specification dictionary
-        :type specs: dct
-        :param dpi: image resolution (default = 300)
-        :type dpi: int
-        :return: None
-        :rtype: None
-        """
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "title": "Q-Q Plot of {}".format(self.name),
-            "width": 4 * 1.618,
-            "height": 4,
-            "xlabel": "value",
-            "ylim": (0.95 * np.min(self.data), 1.05 * np.max(self.data)),
-            "xlim": (-3, 3),
-            "subtitle": None,
-        }
-        # handle inputs specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
-
-        # process quantiles
-        _df = self.qqplot()
-        # plot
-        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        # grid
-        gs = mpl.gridspec.GridSpec(
-            1, 1, wspace=0.4, hspace=0.5, left=0.1, bottom=0.15, top=0.9, right=0.95
-        )  # nrows, ncols
-        # scatter plot
-        ax = fig.add_subplot(gs[0, 0])
-        plt.title(specs["title"])
-        plt.scatter(_df["T-Quantiles"], _df["Data"], marker=".", color="tab:grey")
-        plt.ylim([_df["Data"].min(), _df["Data"].max()])
-        plt.xlim(specs["xlim"])
-        plt.xlabel("Normal Theoretical Quantiles")
-        plt.ylabel("Data Empirical Quantiles")
-        plt.gca().set_aspect(
-            (specs["xlim"][1] - specs["xlim"][0])
-            / (_df["Data"].max() - _df["Data"].min())
-        )
-
-        # show or save
-        if show:
-            plt.show()
-        else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
-
-    def _distribution_test(self, test_name, stat, p, clevel=0.95, distr="normal"):
-        """Util function
-
-        :param test_name: name of test
-        :type test_name: str
-        :param stat: statistic
-        :type stat: float
-        :param p: p-value
-        :type p: float
-        :param clevel: confidence level
-        :type clevel: float
-        :param distr: name of distribution
-        :type distr: str
-        :return: summary of test
-        :rtype: dict
-        """
-        # built output dict
-        dct_out = {
-            "Test": test_name,
-            "Statistic": stat,
-            "p-value": p,
-            "Confidence": clevel,
-        }
-
-        if p > (1 - clevel):
-            dct_out["is_{}".format(distr.lower())] = True
-        else:
-            dct_out["is_{}".format(distr.lower())] = False
-
-        return dct_out
-
-    def test_normal_ks(self, clevel=0.95):
-        """Test for normality using the Kolmogorov-Smirnov test
-
-        Kolmogorov-Smirnov Test: This test compares the observed distribution with
-        the expected normal distribution using a test statistic and a p-value.
-        A p-value less than 0.05 indicates that the null hypothesis should be rejected.
-
-        :return: test result dictionary. Keys: Statistic, p-value and Is normal
-        :rtype: dct
-        """
-        from scipy.stats import kstest
-
-        vct_norm = (self.data - np.mean(self.data)) / np.std(self.data)
-
-        # test
-        result = kstest(vct_norm, "norm")
-        return self._distribution_test(
-            test_name="Kolmogorov-Smirnov",
-            stat=result.statistic,
-            p=result.pvalue,
-            clevel=clevel,
-            distr="normal",
-        )
-
-    def test_shapiro_wilk(self, clevel=0.95):
-        """Test for normality using the Shapiro-Wilk test.
-
-        :return: test result dictionary. Keys: Statistic, p-value and Is normal
-        :rtype: dct
-        """
-        from scipy.stats import shapiro
-
-        # test
-        stat, p = shapiro(self.data)
-
-        return self._distribution_test(
-            test_name="Shapiro-Wilk", stat=stat, p=p, clevel=clevel, distr="normal"
-        )
-
-    def test_dagostino_pearson(self, clevel=0.95):
-        """Test for normality using the D'Agostino-Pearson test.
-
-        :return: test result dictionary. Keys: Statistic, p-value and Is normal
-        :rtype: dct
-        """
-        from scipy.stats import normaltest
-
-        # test
-        stat, p = normaltest(self.data)
-
-        return self._distribution_test(
-            test_name="D'Agostino-Pearson",
-            stat=stat,
-            p=p,
-            clevel=clevel,
-            distr="normal",
-        )
-
-    def assess_normality(self, clevel=0.95):
-        """Assessment on normality using standard tests
-        :return: dataframe of assessment results
-        :rtype: :class:`pandas.DataFrame`
-        """
-        # run tests
-        lst_tests = []
-        lst_tests.append(self.test_normal_ks(clevel=clevel))
-        lst_tests.append(self.test_shapiro_wilk(clevel=clevel))
-        lst_tests.append(self.test_dagostino_pearson(clevel=clevel))
-        # create dataframe
-        lst_names = []
-        lst_stats = []
-        lst_p = []
-        lst_clvl = []
-        lst_is = []
-        for e in lst_tests:
-            lst_names.append(e["Test"])
-            lst_stats.append(e["Statistic"])
-            lst_p.append(e["p-value"])
-            lst_clvl.append(e["Confidence"])
-            lst_is.append(e["is_normal"])
-        df_result = pd.DataFrame(
-            {
-                "Test": lst_names,
-                "Statistic": lst_stats,
-                "p-value": lst_p,
-                "is_normal": lst_is,
-                "Confidence": lst_clvl,
-            }
-        )
-        return df_result
-
-    def assess_frequency(self):
-        """Assessment on data frequency
-        :return: result dataframe
-        :rtype: :class:`pandas.DataFrame`
-        """
-        # compute percentiles
-        vct_percentiles = np.arange(0, 100)
-        # get CFC values
-        vct_cfc = np.percentile(self.data, vct_percentiles)
-        # reverse to get exceedance
-        vct_exeed = 100 - vct_percentiles
-        # get count
-        vct_count = np.histogram(self.data, bins=len(vct_percentiles))[0]
-        # get empirical prob
-        vct_empprob = vct_count / np.sum(vct_count)
-
-        df_result = pd.DataFrame(
-            {
-                "Percentiles": vct_percentiles,
-                "Exceedance": vct_exeed,
-                "Frequency": vct_count,
-                "Empirical Probability": vct_empprob,
-                "Values": vct_cfc,
-            }
-        )
-        return df_result
-
-    def assess_basic_stats(self):
-        dct = {
-            "Count": len(self.data),
-            "Sum": np.sum(self.data),
-            "Mean": np.mean(self.data),
-            "SD": np.std(self.data),
-            "Min": np.min(self.data),
-            "p01": np.percentile(self.data, 1),
-            "p05": np.percentile(self.data, 5),
-            "p25": np.percentile(self.data, 25),
-            "p50": np.percentile(self.data, 50),
-            "p75": np.percentile(self.data, 75),
-            "p90": np.percentile(self.data, 90),
-            "p95": np.percentile(self.data, 95),
-            "p99": np.percentile(self.data, 99),
-            "Max": np.max(self.data),
-        }
-        df_result = pd.DataFrame(
-            {"Statistic": list(dct.keys()), "Value": [dct[key] for key in dct]}
-        )
-        return df_result
-
-
 if __name__ == "__main__":
-
     print("Hello world!")

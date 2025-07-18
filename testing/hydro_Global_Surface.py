@@ -1,8 +1,4 @@
 import os
-import pprint as pp
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import numpy as np
 from plans.hydro import Global
 from testing.hydro_utils import copy_inputs, delete_inputs
 
@@ -12,7 +8,7 @@ os.chdir(script_dir)
 
 def print_surface(m):
     df = m.data.copy()
-    ls = [m.dtfield] + m.vars_surface
+    ls = m.vars_surface
     df = df[ls]
     print(df.round(3))
 
@@ -133,7 +129,7 @@ if __name__ == "__main__":
     )
     # cleaup testing
     delete_inputs(dst_folder=m.folder_data)
-    print("\n>>> OK. PASSING.\n")
+    print("\n>>> passing\n")
 
     '''
 

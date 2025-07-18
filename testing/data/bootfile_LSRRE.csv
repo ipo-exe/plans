@@ -1,11 +1,11 @@
-Attribute;Value
-Name;LSPQE001
-Alias;LSPQEM001
-Color;blue
-Source;Ipo
-Description;Rainfall-Runoff model testing with evaporation
-RMSE;
-R2;
-Bias;
-File Parameters;./data/LSRRE/inputs/params_0.csv
-Folder Data;./data/LSRRE/inputs
+attribute;value
+name;LSPQE001
+alias;LSPQEM001
+color;blue
+source;Ipo
+description;Rainfall-Runoff model testing with evaporation
+rmse;
+r2;
+bias;
+file_parameters;./data/LSRRE/inputs/params_0.csv
+folder_data;./data/LSRRE/inputs

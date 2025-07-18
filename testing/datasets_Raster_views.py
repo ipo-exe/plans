@@ -12,7 +12,7 @@ if __name__ == "__main__":
     # read tif
     f = "./data/parsers/inputs/dem.tif"
     r = Raster()
-    r.load(file_raster=f)
+    r.load_data(file_data=f)
 
 
     if b_zoom:
@@ -30,3 +30,4 @@ if __name__ == "__main__":
     r.view(show=True)
     if b_export:
         r.export_tif(folder="C:/plans/testing", filename="dem_testing")
+    print(">>> passing")

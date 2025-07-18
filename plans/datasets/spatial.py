@@ -30,57 +30,58 @@ In a lacinia nisl.
 from plans.datasets.core import *
 
 
-DC_NODATA = {
-    "byte": 255, # boolean maps
-    "uint16": 0, # categorical maps
-    "float16": -99999, # fuzzy maps
-    "float32": -99999, # scientific maps
-}
-
-
 # -----------------------------------------
 # Derived Raster data structures
 
 
-class Elevation(Raster):
+class Elevation(SciRaster):
     """
     Elevation (DEM) raster map dataset.
 
     """
 
     def __init__(self, name="DEM"):
-        """Initialize dataset
+        """
+        Initialize dataset
 
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "BrBG_r"
         self.varname = "Elevation"
         self.varalias = "DEM"
         self.description = "Height above sea level"
-        self.units = "m0"
+        self.units = "m"
+        self.range_default = (0, 2000)
         self._set_view_specs()
 
+
     def get_tpi(self, cell_radius):
-        print("ah shit")
+        # todo [DEV]
+        print("hi")
+
 
     def get_tpi_landforms(self, radius_micro, radius_macro):
-        print("ah shit")
+        # todo [DEV]
+        print("hi")
 
 
-class Slope(Raster):
+class Slope(SciRaster):
     """
     Slope raster map dataset.
     """
 
     def __init__(self, name="Slope"):
-        """Initialize dataset
+        """
+        Initialize dataset
 
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
+
+        super().__init__(name=name)
+        self.range_default = (0, 60)
         self.cmap = "OrRd"
         self.varname = "Slope"
         self.varalias = "SLP"
@@ -89,109 +90,140 @@ class Slope(Raster):
         self._set_view_specs()
 
 
-class TWI(Raster):
+class TWI(SciRaster):
     """
     TWI raster map dataset.
+
     """
 
     def __init__(self, name="TWI"):
-        """Initialize dataset
+        """
+        Initialize dataset
 
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "YlGnBu"
         self.varname = "TWI"
         self.varalias = "TWI"
         self.description = "Topographical Wetness Index"
         self.units = "index units"
+        self.range_default = (0, 25)
         self._set_view_specs()
 
 
-class HAND(Raster):
+class HTWI(SciRaster):
+    """
+    HTWI (HAND-TWI) raster map dataset.
+    """
+
+    def __init__(self, name="HTWI"):
+        """
+        Initialize dataset
+
+        :param name: name of map
+        :type name: str
+        """
+        super().__init__(name=name)
+        self.cmap = "YlGnBu"
+        self.varname = "HTWI"
+        self.varalias = "HTWI"
+        self.description = "HAND-enhanced Topographical Wetness Index"
+        self.units = "index units"
+        self.range_default = (0, 1)
+        self._set_view_specs()
+
+
+class HAND(SciRaster):
     """
     HAND raster map dataset.
     """
 
     def __init__(self, name="HAND"):
-        """Initialize dataset
+        """
+        Initialize dataset
 
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "YlGnBu_r"
         self.varname = "HAND"
         self.varalias = "HAND"
         self.description = "Height Above the Nearest Drainage"
-        self.units = "m0"
+        self.units = "m"
+        self.range_default = (0, 200)
         self._set_view_specs()
 
 
-class DTO(Raster):
+class DTO(SciRaster):
     """
     Distance to outlet raster map dataset.
     """
 
     def __init__(self, name="DTO"):
-        """Initialize dataset
+        """
+        Initialize dataset
 
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "rainbow"  # "gist_rainbow_r"
         self.varname = "DTO"
         self.varalias = "DTO"
         self.description = "Distance To Outlet"
         self.units = "meters"
+        self.range_default = None
         self._set_view_specs()
 
 
-class AccFlux(Raster):
+class FAC(SciRaster):
     """
-    Accumulated Flux raster map dataset.
+    Flow Accumulation raster map dataset.
     """
 
     def __init__(self, name):
-        """Initialize dataset.
+        """
+        Initialize dataset.
 
         :param name: name of map
         :type name: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "plasma_r"
-        self.varname = "Accflux"
-        self.varalias = "Acc"
-        self.description = "Accumulated Flux or Upstream Area"
+        self.varname = "FlowAcc"
+        self.varalias = "FAC"
+        self.description = "Flow Accumulation or Upstream Area"
         self.units = "sq. meters"
+        self.range_default = None
         self._set_view_specs()
 
 
-class NDVI(Raster):
+class NDVI(SciRaster):
     """
     NDVI raster map dataset.
     """
 
-    def __init__(self, name, date):
-        """Initialize dataset.
+    def __init__(self, name, datetime):
+        """
+        Initialize dataset.
 
         :param name: name of map
         :type name: str
-        :param date: date of map in ``yyyy-mm-dd``
-        :type date: str
+        :param datetime: date of map in ``yyyy-mm-dd``
+        :type datetime: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "RdYlGn"
         self.varname = "NDVI"
         self.varalias = "NDVI"
         self.description = "Normalized difference vegetation index"
         self.units = "index units"
-        self.date = date
+        self.datetime = datetime
+        self.range_default = (-1, 1)
         self._set_view_specs()
-        self.view_specs["vmin"] = -1
-        self.view_specs["vmax"] = 1
 
     def set_data(self, grid):
         super().set_data(grid)
@@ -199,13 +231,14 @@ class NDVI(Raster):
         return None
 
 
-class ET24h(Raster):
+class ET24h(SciRaster):
     """
     ET 24h raster map dataset.
     """
 
     def __init__(self, name, date):
-        """Initialize dataset.
+        """
+        Initialize dataset.
 
         :param name: name of map
         :type name: str
@@ -215,7 +248,7 @@ class ET24h(Raster):
         import matplotlib as mpl
         from matplotlib.colors import ListedColormap
 
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.varname = "Daily Evapotranspiration"
         self.varalias = "ET24h"
         self.description = "Daily Evapotranspiration"
@@ -223,11 +256,11 @@ class ET24h(Raster):
         # set custom cmap
         jet_big = mpl.colormaps["jet_r"]
         self.cmap = ListedColormap(jet_big(np.linspace(0.3, 0.75, 256)))
-        self.date = date
+        self.datetime = date
         # view specs
+        self.range_default = (0, 15)
         self._set_view_specs()
-        self.view_specs["vmin"] = 0
-        self.view_specs["vmax"] = 15
+
 
     def set_data(self, grid):
         super().set_data(grid)
@@ -235,21 +268,50 @@ class ET24h(Raster):
         return None
 
 
-class Hydrology(Raster):
+class Hydrology(SciRaster):
     """
     Primitive hydrology raster map dataset.
     """
 
-    def __init__(self, name, varalias):
-        """Initialize dataset
+    def __init__(self, name, varalias, datetime):
+        """
+        Initialize dataset
 
         :param name: name of map
         :type name: str
         """
+
+        super().__init__(name=name)
+
+        # initial setups
+        self._set_cmaps()
+        self._set_vars()
+
+        self.varalias = varalias.lower()
+        str_cmap_id = "{} {}".format(
+            self.vars_dc[self.varalias]["type"],
+            self.vars_dc[self.varalias]["subtype"]
+        )
+        self.cmap = self.cmaps_dc[str_cmap_id]
+        self.varname = self.vars_dc[self.varalias][self.field_varname]
+        self.description = self.vars_dc[self.varalias][self.field_description]
+        self.units = "mm"
+        self.datetime = datetime
+        self.timescale = "annual"
+        self.range_default = None
+        self._set_view_specs()
+
+    def _set_cmaps(self):
+        """
+        Sets predefined colormaps for different types of scientific data.
+
+        :return: None
+        :rtype: None
+        """
         import matplotlib as mpl
         from matplotlib.colors import ListedColormap
 
-        dict_cmaps = {
+        self.cmaps_dc = {
             "flow surface": "gist_earth_r",
             "flow vapor": ListedColormap(
                 mpl.colormaps["jet_r"](np.linspace(0.3, 0.75, 256))
@@ -257,111 +319,109 @@ class Hydrology(Raster):
             "flow subsurface": "gist_earth_r",
             "stock surface": "",
             "stock subsurface": "",
-            "deficit": "",
+            "stock deficit": "gist_earth",
         }
-        # evaluate load this from csv
-        dict_flows = {
+        return None
+
+
+    def _set_vars(self):
+        # todo evaluate load this from csv
+        self.vars_dc = {
+            "deficit": {
+                self.field_varname: "Deficit",
+                "description": "Soil water potential",
+                "type": "stock",
+                "subtype": "deficit",
+            },
             "r": {
-                "varname": "Runoff",
+                self.field_varname: "Runoff",
                 "description": "Combined overland flows",
                 "type": "flow",
                 "subtype": "surface",
             },
             "rie": {
-                "varname": "Runoff by Infiltration Excess",
+                self.field_varname: "Runoff by Infiltration Excess",
                 "description": "Hortonian overland flow",
                 "type": "flow",
                 "subtype": "surface",
             },
             "rse": {
-                "varname": "Runoff by Saturation Excess",
+                self.field_varname: "Runoff by Saturation Excess",
                 "description": "Dunnean overland flow",
                 "type": "flow",
                 "subtype": "surface",
             },
             "ptf": {
-                "varname": "Throughfall",
+                self.field_varname: "Throughfall",
                 "description": "Effective precipitation at the surface",
                 "type": "flow",
                 "subtype": "surface",
             },
             "inf": {
-                "varname": "Infiltration",
+                self.field_varname: "Infiltration",
                 "description": "Water infiltration in soil",
                 "type": "flow",
                 "subtype": "subsurface",
             },
             "qv": {
-                "varname": "Recharge",
+                self.field_varname: "Recharge",
                 "description": "Recharge of groundwater",
                 "type": "flow",
                 "subtype": "subsurface",
             },
             "et": {
-                "varname": "Evapotranspiration",
+                self.field_varname: "Evapotranspiration",
                 "description": "Combined Evaporation and Transpiration flows",
                 "type": "flow",
                 "subtype": "vapor",
             },
             "evc": {
-                "varname": "Canopy evaporation",
+                self.field_varname: "Canopy evaporation",
                 "description": "Direct evaporation from canopy",
                 "type": "flow",
                 "subtype": "vapor",
             },
             "evs": {
-                "varname": "Surface evaporation",
+                self.field_varname: "Surface evaporation",
                 "description": "Direct evaporation from soil surface",
                 "type": "flow",
                 "subtype": "vapor",
             },
             "tun": {
-                "varname": "Soil tranpiration",
+                self.field_varname: "Soil tranpiration",
                 "description": "Transpiration from the water moisture in the soil",
                 "type": "flow",
                 "subtype": "vapor",
             },
             "tgw": {
-                "varname": "Groundwater transpiration",
+                self.field_varname: "Groundwater transpiration",
                 "description": "Transpiration from the saturated water zone",
                 "type": "flow",
                 "subtype": "vapor",
             },
         }
 
-        super().__init__(name=name, dtype="float32")
-        self.varalias = varalias.lower()
-        str_cmap_id = "{} {}".format(
-            dict_flows[self.varalias]["type"], dict_flows[self.varalias]["subtype"]
-        )
-        self.cmap = dict_cmaps[str_cmap_id]
-        self.varname = dict_flows[self.varalias]["varname"]
-        self.description = dict_flows[self.varalias]["description"]
-        self.units = "mm"
-        self.timescale = "annual"
-        self._set_view_specs()
 
-
-class HabQuality(Raster):
+class HabQuality(SciRaster):
     """
     Habitat Quality raster map dataset.
     """
 
-    def __init__(self, name, date):
+    def __init__(self, name, datetime):
         """Initialize dataset.
 
         :param name: name of map
         :type name: str
-        :param date: date of map in ``yyyy-mm-dd``
-        :type date: str
+        :param datetime: date of map in ``yyyy-mm-dd``
+        :type datetime: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.varname = "Habitat Quality"
         self.varalias = "HQ"
         self.description = "Habitat Quality from the InVEST model"
         self.units = "index units"
         self.cmap = "RdYlGn"
-        self.date = date
+        self.datetime = datetime
         # view specs
         self._set_view_specs()
         # customize
@@ -379,7 +439,7 @@ class HabQuality(Raster):
         s = self.cellsize
         grid_ba = b_a * np.square(s) * self.data / 10000
         # instantiate output
-        output_raster = EBA(name=self.name, date=self.date, q_a=b_a)
+        output_raster = EBA(name=self.name, datetime=self.datetime, q_a=b_a)
         # set raster
         output_raster.set_raster_metadata(metadata=self.raster_metadata)
         output_raster.prj = self.prj
@@ -388,53 +448,53 @@ class HabQuality(Raster):
         return output_raster
 
 
-class HabDegradation(Raster):
+class HabDegradation(SciRaster):
     """
     Habitat Degradation raster map dataset.
     """
 
-    def __init__(self, name, date):
+    def __init__(self, name, datetime):
         """Initialize dataset.
 
         :param name: name of map
         :type name: str
-        :param date: date of map in ``yyyy-mm-dd``
-        :type date: str
+        :param datetime: date of map in ``yyyy-mm-dd``
+        :type datetime: str
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.varname = "Habitat Degradation"
         self.varalias = "HDeg"
         self.description = "Habitat Degradation from the InVEST model"
         self.units = "index units"
         self.cmap = "YlOrRd"
-        self.date = date
+        self.datetime = datetime
         self._set_view_specs()
         self.view_specs["vmin"] = 0
         self.view_specs["vmax"] = 0.7
 
 
-class EBA(Raster):
+class EBA(SciRaster):
     """
     Equivalent Biodiversity Area raster map dataset.
     """
 
-    def __init__(self, name, date, q_a=1.0):
+    def __init__(self, name, datetime, q_a=1.0):
         """Initialize dataset.
 
         :param name: name of map
         :type name: str
-        :param date: date of map in ``yyyy-mm-dd``
-        :type date: str
+        :param datetime: date of map in ``yyyy-mm-dd``
+        :type datetime: str
         :param q_a: habitat quality reference
         :type q_a: float
         """
-        super().__init__(name=name, dtype="float32")
+        super().__init__(name=name)
         self.cmap = "YlGn"
         self.varname = "Equivalent Biodiversity Area"
         self.varalias = "EBA"
         self.description = "Equivalent Biodiversity Area in ha equivalents"
         self.units = "ha"
-        self.date = date
+        self.datetime = datetime
         self.eba_global = None
         self._set_view_specs()
 
@@ -512,21 +572,21 @@ class LULC(QualiRaster):
     Land Use and Land Cover map dataset
     """
 
-    def __init__(self, name, date):
+    def __init__(self, name, datetime):
         """Initialize :class:`LULC`` map
 
         :param name: name of map
         :type name: str
-        :param date: date of map in ``yyyy-mm-dd``
-        :type date: str
+        :param datetime: date of map in ``yyyy-mm-dd``
+        :type datetime: str
         """
-        super().__init__(name, dtype="uint8")
+        super().__init__(name)
         self.cmap = "tab20b"
         self.varname = "Land Use and Land Cover"
         self.varalias = "LULC"
         self.description = "Classes of Land Use and Land Cover"
         self.units = "classes ID"
-        self.date = date
+        self.datetime = datetime
 
 
 class LULCChange(QualiRaster):
@@ -546,7 +606,7 @@ class LULCChange(QualiRaster):
         :param name_lulc: name of lulc incoming map
         :type name_lulc: str
         """
-        super().__init__(name, dtype="uint8")
+        super().__init__(name)
         self.cmap = "tab20b"
         self.varname = "LULC Change"
         self.varalias = "LULCC"
@@ -554,17 +614,17 @@ class LULCChange(QualiRaster):
         self.units = "Change ID"
         self.date_start = date_start
         self.date_end = date_end
-        self.date = date_end
+        self.datetime = date_end
         df_aux = pd.DataFrame(
             {
-                self.idfield: [
+                self.field_id: [
                     1,
                     2,
                     3,
                 ],
-                self.namefield: ["Retraction", "Stable", "Expansion"],
-                self.aliasfield: ["Rtr", "Stb", "Exp"],
-                self.colorfield: ["tab:purple", "tab:orange", "tab:red"],
+                self.field_name: ["Retraction", "Stable", "Expansion"],
+                self.field_alias: ["Rtr", "Stb", "Exp"],
+                self.field_color: ["tab:purple", "tab:orange", "tab:red"],
             }
         )
         self.set_table(dataframe=df_aux)
@@ -576,12 +636,13 @@ class Lithology(QualiRaster):
     """
 
     def __init__(self, name="LitoMap"):
-        """Initialize :class:`Lithology`` map
+        """
+        Initialize :class:`Lithology`` map
 
         :param name:
         :type name:
         """
-        super().__init__(name, dtype="uint8")
+        super().__init__(name)
         self.cmap = "tab20c"
         self.varname = "Litological Domains"
         self.varalias = "Lito"
@@ -590,10 +651,12 @@ class Lithology(QualiRaster):
 
 
 class Soils(QualiRaster):
-    """Soils map dataset"""
+    """
+    Soils map dataset
+    """
 
     def __init__(self, name="SoilsMap"):
-        super().__init__(name, dtype="uint8")
+        super().__init__(name)
         self.cmap = "tab20c"
         self.varname = "Soil Types"
         self.varalias = "Soils"
@@ -601,7 +664,8 @@ class Soils(QualiRaster):
         self.units = "types ID"
 
     def set_hydro_soils(self, map_lito, map_hand, map_slope, n_hand=2, n_slope=10):
-        """Set hydrological soils based on lithology, Hand and Slope maps.
+        """
+        Set hydrological soils based on lithology, Hand and Slope maps.
 
         :param map_lito: Lithology raster map
         :type map_lito: :class:`datasets.Lithology`
@@ -666,6 +730,7 @@ class Soils(QualiRaster):
         return None
 
 
+
 class AOI(QualiHard):
     """
     AOI map dataset
@@ -677,18 +742,73 @@ class AOI(QualiHard):
         self.varalias = "AOI"
         self.description = "Boolean map an Area of Interest"
         self.units = "classes ID"
+        self.area = None
         self.set_table(dataframe=self.get_table())
 
+    def update(self):
+        """
+        Refresh all mutable attributes based on data (includins paths).
+        Expected to be incremented downstream.
+
+        :return: None
+        :rtype: None
+        """
+        super().update()
+        # refresh all mutable attributes
+        if self.data is not None:
+            # data size
+            self.set_area()
+
+        # ... continues in downstream objects ... #
+        return None
+
+
     def get_table(self):
+        """
+        Retrieves a sample DataFrame representing an AOI classification table.
+
+        :return: A DataFrame with sample AOI classification data.
+        :rtype: :class:`pandas.DataFrame`
+        """
         df_aux = pd.DataFrame(
             {
-                self.idfield: [1, 2],
-                self.aliasfield: ["AOI", "EZ"],
-                self.namefield: ["Area of Interest", "Exclusion Zone"],
-                self.colorfield: ["magenta", "silver"],
+                self.field_id: [1, 2],
+                self.field_alias: ["AOI", "EZ"],
+                self.field_name: ["Area of Interest", "Exclusion Zone"],
+                self.field_color: ["magenta", "silver"],
             }
         )
         return df_aux
+
+
+    def set_area(self):
+        self.area = self.cellsize * np.nansum(self.data)
+        return None
+
+
+    def get_metadata(self):
+        """
+        Get a dictionary with object metadata.
+        Expected to increment superior methods.
+
+        .. note::
+
+            Metadata does **not** necessarily inclue all object attributes.
+
+        :return: dictionary with all metadata
+        :rtype: dict
+        """
+        # ------------ call super ----------- #
+        dict_meta = super().get_metadata()
+
+        # customize local metadata:
+        dict_meta_local = {
+            self.field_area: self.area,
+        }
+        # update
+        dict_meta.update(dict_meta_local)
+        return dict_meta
+
 
     def view(
         self,
@@ -702,7 +822,7 @@ class AOI(QualiHard):
 
         :param show: boolean to show plot instead of saving, defaults to False
         :type show: bool
-        :param folder: folder_main to output folder, defaults to ``./output``
+        :param folder: path to output folder, defaults to ``./output``
         :type folder: str
         :param filename: name of file, defaults to None
         :type filename: str
@@ -721,6 +841,7 @@ class AOI(QualiHard):
         map_aoi_aux.view_specs = self.view_specs
         map_aoi_aux.set_raster_metadata(metadata=self.raster_metadata)
         map_aoi_aux.prj = self.prj
+        map_aoi_aux.update()
 
         # process grid
         self.insert_nodata()
@@ -765,8 +886,8 @@ class LDD(QualiHard):
     def get_table(self):
         df_aux = pd.DataFrame(
             {
-                self.idfield: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-                self.aliasfield: [
+                self.field_id: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                self.field_alias: [
                     "1-SW",
                     "2-S",
                     "3-SE",
@@ -777,7 +898,7 @@ class LDD(QualiHard):
                     "8-N",
                     "9-NE",
                 ],
-                self.namefield: [
+                self.field_name: [
                     "South-west",
                     "South",
                     "South-east",
@@ -788,7 +909,7 @@ class LDD(QualiHard):
                     "North",
                     "North-east",
                 ],
-                self.colorfield: [
+                self.field_color: [
                     "olive",
                     "blue",
                     "teal",
@@ -807,7 +928,7 @@ class LDD(QualiHard):
 class NDVISeries(RasterSeries):
     def __init__(self, name):
         # instantiate raster sample
-        rst_aux = NDVI(name="dummy", date=None)
+        rst_aux = NDVI(name="dummy", datetime=None)
         super().__init__(
             name=name,
             varname=rst_aux.varname,
@@ -818,24 +939,24 @@ class NDVISeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load(self, name, date, asc_file, prj_file):
-        """Load a :class:`NDVI`` base_object from a ``.asc`` raster file.
+    def load_data(self, name, datetime, file_data, prj_file):
+        """Load a :class:`NDVI`` object from a raster file.
 
-        :param name: :class:`Raster.name`` name attribute
+        :param name: name attribute
         :type name: str
-        :param date: :class:`Raster.date`` date attribute, defaults to None
-        :type date: str
-        :param asc_file: folder_main to ``.asc`` raster file
-        :type asc_file: str
-        :param prj_file: folder_main to ``.prj`` projection file
+        :param datetime: :class:`Raster.date`` date attribute, defaults to None
+        :type datetime: str
+        :param file_data: path to ``.asc`` raster file
+        :type file_data: str
+        :param prj_file: path to ``.prj`` projection file
         :type prj_file: str
         :return: None
         :rtype: None
         """
         # create raster
-        rst_aux = NDVI(name=name, date=date)
+        rst_aux = NDVI(name=name, datetime=datetime)
         # read file
-        rst_aux.load_asc(file=asc_file)
+        rst_aux.load_asc(file=file_data)
         # append to test_collection
         self.append(new_object=rst_aux)
         # load prj file
@@ -859,28 +980,72 @@ class ETSeries(RasterSeries):
         # remove
         del rst_aux
 
-    def load(self, name, date, asc_file, prj_file):
-        """Load a :class:`ET24h`` base_object from a ``.asc`` raster file.
+    def load_data(self, name, datetime, file_data, prj_file):
+        """
+        Load a :class:`ET24h`` object from a raster file.
 
-        :param name: :class:`Raster.name`` name attribute
+        :param name: name attribute
         :type name: str
-        :param date: :class:`Raster.date`` date attribute, defaults to None
-        :type date: str
-        :param asc_file: folder_main to ``.asc`` raster file
-        :type asc_file: str
-        :param prj_file: folder_main to ``.prj`` projection file
+        :param datetime: datetime attribute, defaults to None
+        :type datetime: str
+        :param file_data: path to raster file
+        :type file_data: str
+        :param prj_file: path to projection file
         :type prj_file: str
         :return: None
         :rtype: None
         """
         # create raster
-        rst_aux = ET24h(name=name, date=date)
+        rst_aux = ET24h(name=name, date=datetime)
         # read file
-        rst_aux.load_asc(file=asc_file)
+        rst_aux.load_asc(file=file_data)
         # append to test_collection
         self.append(new_object=rst_aux)
         # load prj file
         rst_aux.load_prj(file=prj_file)
+        # delete aux
+        del rst_aux
+        return None
+
+
+class AOICollection(QualiRasterCollection):
+    """
+    A :class:`QualiRasterCollection`` for holding AOI maps
+    """
+
+    def __init__(self, name):
+        # instantiate raster sample
+        rst_aux = AOI(name="dummy")
+        super().__init__(
+            name=name,
+        )
+        # remove
+        del rst_aux
+
+    def load_data(self, name, file_data, file_prj=None):
+        """
+        Load a :class:`AOI`` object from raster file.
+
+        :param name: name attribute
+        :type name: str
+        :param file_data: path to raster file
+        :type file_data: str
+        :param file_prj: path to projection file
+        :type file_prj: str
+        :param file_table: path to table file
+        :type file_table: str
+        :return: None
+        :rtype: None
+        """
+        # create raster
+        rst_aux = AOI(name=name)
+        # read file
+        rst_aux.load_data(
+            file_data=file_data,
+            file_prj=file_prj,
+        )
+        # append to test_collection
+        self.append(raster=rst_aux)
         # delete aux
         del rst_aux
         return None
@@ -893,7 +1058,7 @@ class LULCSeries(QualiRasterSeries):
 
     def __init__(self, name):
         # instantiate raster sample
-        rst_aux = LULC(name="dummy", date=None)
+        rst_aux = LULC(name="dummy", datetime=None)
         super().__init__(
             name=name,
             varname=rst_aux.varname,
@@ -903,36 +1068,31 @@ class LULCSeries(QualiRasterSeries):
         # remove
         del rst_aux
 
-    def load(self, name, date, asc_file, prj_file=None, table_file=None):
-        """Load a :class:`LULCRaster`` base_object from ``.asc`` raster file.
+    def load_data(self, name, datetime, file_data, file_prj=None, file_table=None):
+        """
+        Load a :class:`LULC`` object from raster file.
 
-        :param name: :class:`Raster.name`` name attribute
+        :param name: name attribute
         :type name: str
-        :param date: :class:`Raster.date`` date attribute
-        :type date: str
-        :param asc_file: folder_main to ``.asc`` raster file
-        :type asc_file: str
-        :param prj_file: folder_main to ``.prj`` projection file
-        :type prj_file: str
-        :param table_file: folder_main to ``.txt`` table file
-        :type table_file: str
+        :param datetime: date attribute
+        :type datetime: str
+        :param file_data: path to raster file
+        :type file_data: str
+        :param file_prj: path to projection file
+        :type file_prj: str
+        :param file_table: path to table file
+        :type file_table: str
         :return: None
         :rtype: None
         """
         # create raster
-        rst_aux = LULC(name=name, date=date)
+        rst_aux = LULC(name=name, datetime=datetime)
         # read file
-        rst_aux.load_asc(file=asc_file)
-        # load prj
-        if prj_file is None:
-            pass
-        else:
-            rst_aux.load_prj(file=prj_file)
-        # set table
-        if table_file is None:
-            pass
-        else:
-            rst_aux.load_table(file_table=table_file)
+        rst_aux.load_data(
+            file_data=file_data,
+            file_table=file_table,
+            file_prj=file_prj,
+        )
         # append to test_collection
         self.append(raster=rst_aux)
         # delete aux
@@ -1066,7 +1226,7 @@ class LULCSeries(QualiRasterSeries):
             _id = df_conv["Id"].values[i]
             #
             # instantiate new LULC map
-            map_lulc = LULC(name="Conversion", date=s_date_end)
+            map_lulc = LULC(name="Conversion", datetime=s_date_end)
             map_lulc.set_data(grid=self.collection[s_name_end].data)
             map_lulc.set_raster_metadata(
                 metadata=self.collection[s_name_start].raster_metadata
@@ -1083,7 +1243,7 @@ class LULCSeries(QualiRasterSeries):
                 grd_conv[i] = np.zeros(len(df_conv))
             else:
                 df_areas = map_lulc.get_areas()
-                grd_conv[i] = df_areas["{}_f".format(map_lulc.areafield)].values
+                grd_conv[i] = df_areas["{}_f".format(map_lulc.field_area)].values
 
         # append to dataframe
         grd_conv = grd_conv.transpose()
@@ -1119,14 +1279,14 @@ if __name__ == "__main__":
     plt.style.use("seaborn-v0_8")
 
     s = Slope()
-    s.load(
+    s.load_data(
         asc_file="C:/plans/docs/datasets/topo/slope.asc",
         prj_file="C:/plans/docs/datasets/topo/slope.prj",
     )
     s.view()
 
     t = TWI()
-    t.load(
+    t.load_data(
         asc_file="C:/plans/docs/datasets/topo/twi.asc",
         prj_file="C:/plans/docs/datasets/topo/twi.prj",
     )

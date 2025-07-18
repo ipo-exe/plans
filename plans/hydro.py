@@ -27,6 +27,7 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+import glob
 import os.path
 import shutil
 from pathlib import Path
@@ -36,14 +37,15 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from plans.root import DataSet
-from plans.datasets import TimeSeries, RainSeries
+import plans.datasets as ds
 from plans.analyst import Bivar
 
 
 class Model(DataSet):
     # todo [optimize for DRY] move this class to root.py and make more abstract for all Models.
     #  Here can be a HydroModel(Model).
-    """The core ``Model`` base object. Expected to hold one :class:`pandas.DataFrame` as simulation data and
+    """
+    The core ``Model`` base object. Expected to hold one :class:`pandas.DataFrame` as simulation data and
     a dictionary as parameters. This is a dummy class to be developed downstream.
 
     """
@@ -53,7 +55,7 @@ class Model(DataSet):
         super().__init__(name=name, alias=alias)
 
         # defaults
-        self.dtfield = "DateTime"
+        #self.field_datetime = "DateTime"
 
         # overwriters
         self.object_alias = "M"
@@ -89,23 +91,28 @@ class Model(DataSet):
 
         self._set_view_specs()
 
+
     def _set_fields(self):
-        """Set fields names.
+        """
+        Set fields names.
         Expected to increment superior methods.
 
         """
         # ------------ call super ----------- #
         super()._set_fields()
         # Attribute fields
-        self.field_file_params = "File Parameters"
-        self.field_folder_data = "Folder Data"
-        self.field_rmse = "RMSE"
-        self.field_rsq = "R2"
-        self.field_bias = "Bias"
+        self.field_file_params = "file_parameters"
+        self.field_folder_data = "folder_data"
+        self.field_rmse = "rmse"
+        self.field_rsq = "r2"
+        self.field_bias = "bias"
+        self.field_datetime = "datetime"
 
         # ... continues in downstream objects ... #
 
+
     def _set_model_vars(self):
+        # todo [docstrings]
         self.vars = {
             "t": {
                 "units": "{k}",
@@ -135,8 +142,10 @@ class Model(DataSet):
         }
         self.var_eval = "S"
 
+
     def _set_model_params(self):
-        """Internal method for setting up model parameters data
+        """
+        Internal method for setting up model parameters data
 
         :return: None
         :rtype: None
@@ -149,6 +158,8 @@ class Model(DataSet):
                 "dtype": np.float64,
                 "description": "Residence time",
                 "kind": "conceptual",
+                "tex": None,
+                "domain": None,
             },
             "S0": {
                 "value": None,
@@ -156,6 +167,8 @@ class Model(DataSet):
                 "dtype": np.float64,
                 "description": "Storage initial condition",
                 "kind": "conceptual",
+                "tex": None,
+                "domain": None,
             },
             "dt": {
                 "value": None,
@@ -163,6 +176,8 @@ class Model(DataSet):
                 "dtype": np.float64,
                 "description": "Time Step in k units",
                 "kind": "procedural",
+                "tex": None,
+                "domain": None,
             },
             "dt_freq": {
                 "value": None,
@@ -177,6 +192,8 @@ class Model(DataSet):
                 "dtype": str,
                 "description": "Simulation start",
                 "kind": "procedural",
+                "tex": None,
+                "domain": None,
             },
             "tN": {
                 "value": None,
@@ -184,13 +201,17 @@ class Model(DataSet):
                 "dtype": str,
                 "description": "Simulation end",
                 "kind": "procedural",
+                "tex": None,
+                "domain": None,
             },
         }
         self.reference_dt_param = "k"
         return None
 
+
     def _set_view_specs(self):
-        """Set view specifications.
+        """
+        Set view specifications.
         Expected to increment superior methods.
 
         :return: None
@@ -220,22 +241,31 @@ class Model(DataSet):
         )
         return None
 
+
     def get_params(self):
         # todo [docstring]
         ls_param = [p for p in self.params]
         ls_values = [self.params[p]["value"] for p in self.params]
         ls_units = [self.params[p]["units"] for p in self.params]
+        ls_descr = [self.params[p][self.field_description] for p in self.params]
+        ls_2 = [self.params[p]["tex"] for p in self.params]
+        ls_3 = [self.params[p]["domain"] for p in self.params]
         df = pd.DataFrame(
             {
-                "Parameter": ls_param,
-                "Value": ls_values,
-                "Units": ls_units
+                "parameter": ls_param,
+                "value": ls_values,
+                "units": ls_units,
+                "description": ls_descr,
+                "domain": ls_3,
+                "tex": ls_2
             }
         )
         return df
 
+
     def get_metadata(self):
-        """Get a dictionary with object metadata.
+        """
+        Get a dictionary with object metadata.
         Expected to increment superior methods.
 
         .. note::
@@ -265,8 +295,10 @@ class Model(DataSet):
         dict_meta.update(dict_meta_local)
         return dict_meta
 
+
     def setter(self, dict_setter):
-        """Set selected attributes based on an incoming dictionary.
+        """
+        Set selected attributes based on an incoming dictionary.
         This is calling the superior method using load_data=False.
 
         :param dict_setter: incoming dictionary with attribute values
@@ -283,8 +315,10 @@ class Model(DataSet):
         # ... continues in downstream objects ... #
         return None
 
+
     def update(self):
-        """Refresh all mutable attributes based on data (includins paths).
+        """
+        Refresh all mutable attributes based on data (includins paths).
         Base method. This is overwrinting the superior method.
 
         :return: None
@@ -306,8 +340,10 @@ class Model(DataSet):
         # ... continues in downstream objects ... #
         return None
 
+
     def update_dt(self):
-        """Update Time Step value, units and tag to match the model reference time parameter (like k)
+        """
+        Update Time Step value, units and tag to match the model reference time parameter (like k)
 
         :return: None
         :rtype: None
@@ -340,8 +376,10 @@ class Model(DataSet):
             self.update_dt_flag = False
         return None
 
+
     def load_params(self):
-        """Load parameter data
+        """
+        Load parameter data
 
         :return: None
         :rtype: None
@@ -352,8 +390,10 @@ class Model(DataSet):
 
         return None
 
+
     def load_data(self):
-        """Load simulation data. Expected to overwrite superior methods.
+        """
+        Load simulation data. Expected to overwrite superior methods.
 
         :return: None
         :rtype: None
@@ -370,8 +410,10 @@ class Model(DataSet):
 
         return None
 
+
     def load(self):
-        """Load parameters and data
+        """
+        Load parameters and data
 
         :return: None
         :rtype: None
@@ -382,8 +424,10 @@ class Model(DataSet):
         self.load_data()
         return None
 
+
     def setup(self):
-        """Set model simulation. Expected to be incremented downstream.
+        """
+        Set model simulation. Expected to be incremented downstream.
 
         .. warning::
 
@@ -411,7 +455,7 @@ class Model(DataSet):
         # set simulation dataframe
         self.data = pd.DataFrame(
             {
-                "DateTime": vc_ts,
+                self.field_datetime: vc_ts,
                 "t": vc_t,
             }
         )
@@ -424,8 +468,10 @@ class Model(DataSet):
 
         return None
 
+
     def solve(self):
-        """Solve the model for boundary and initial conditions by numerical methods.
+        """
+        Solve the model for boundary and initial conditions by numerical methods.
 
         .. warning::
 
@@ -437,8 +483,10 @@ class Model(DataSet):
         # >>> develop logic in downstream objects
         return None
 
+
     def evaluate(self):
-        """Evaluate model.
+        """
+        Evaluate model.
 
         :return: None
         :rtype: None
@@ -446,8 +494,10 @@ class Model(DataSet):
         # >>> develop logic in downstream objects
         return None
 
+
     def run(self, setup_model=True):
-        """Simulate model (full procedure).
+        """
+        Simulate model (full procedure).
 
         :param setup_model: flag for setting up data (default=True)
         :type setup_model: bool
@@ -461,8 +511,10 @@ class Model(DataSet):
         self.evaluate()
         return None
 
+
     def export(self, folder, filename):
-        """Export object resources
+        """
+        Export object resources
 
         :param folder: path to folder
         :type folder: str
@@ -483,8 +535,10 @@ class Model(DataSet):
 
         # ... continues in downstream objects ... #
 
+
     def save(self, folder):
-        """Save to sourced files is not allowed for Model() family. Use .export() instead.
+        """
+        Save to sourced files is not allowed for Model() family. Use .export() instead.
         This is overwriting superior methods.
 
         :return: None
@@ -498,7 +552,8 @@ class Model(DataSet):
 
     @staticmethod
     def get_timestep_factor(from_unit: str, to_unit: str) -> float:
-        """Calculates the conversion factor between two time units.
+        """
+        Calculates the conversion factor between two time units.
 
         For instance, to find out how many days are in a given number of '10min' intervals,
         this function provides the multiplier.
@@ -519,7 +574,8 @@ class Model(DataSet):
     def get_timestep_series(
         start_time: str, end_time: str, time_unit: str
     ) -> pd.DatetimeIndex:
-        """Generates a time series of timestamps.
+        """
+        Generates a time series of timestamps.
 
         Creates a sequence of timestamps between a start and end time,
         with a specified frequency.
@@ -543,7 +599,8 @@ class Model(DataSet):
 
     @staticmethod
     def get_gaussian_signal(value_max, size, sigma=50, position_factor=5, reverse=False):
-        """Generates a vector of normally (gaussian) distributed values. Useful for testing inputs inflows.
+        """
+        Generates a vector of normally (gaussian) distributed values. Useful for testing inputs inflows.
 
         :param value_max: actual maximum value in the vector
         :type value_max: float
@@ -575,7 +632,10 @@ class Model(DataSet):
 
 
 class LinearStorage(Model):
-    """Linear Storage Model. This is a Toy Model. No inflow, only outflows. Simulates storage decay only."""
+    """
+    Linear Storage Model. This is a Toy Model. No inflow, only outflows. Simulates storage decay only.
+
+    """
 
     def __init__(self, name="MyLinearStorage", alias="LS01"):
         # todo [docstring]
@@ -584,7 +644,10 @@ class LinearStorage(Model):
         # overwriters
         self.object_alias = "LS"
         # expected filenames
+        self.file_data_obs = None
         self.filename_data_obs = "S_obs.csv"
+        self.folder_data_obs = None
+
 
     def _set_model_vars(self):
         # todo [docstring]
@@ -617,6 +680,7 @@ class LinearStorage(Model):
         }
         self.var_eval = "S"
 
+
     def _set_model_params(self):
         """Intenal method for setting up model parameters data
 
@@ -631,6 +695,8 @@ class LinearStorage(Model):
                 "dtype": np.float64,
                 "description": "Residence time",
                 "kind": "conceptual",
+                "tex": None,
+                "domain": "soils",
             },
             "S0": {
                 "value": None,
@@ -638,6 +704,8 @@ class LinearStorage(Model):
                 "dtype": np.float64,
                 "description": "Storage initial condition",
                 "kind": "conceptual",
+                "domain": "soils",
+                "tex": None,
             },
             "dt": {
                 "value": None,
@@ -645,6 +713,8 @@ class LinearStorage(Model):
                 "dtype": np.float64,
                 "description": "Time Step in k units",
                 "kind": "procedural",
+                "domain": "time",
+                "tex": None,
             },
             "dt_freq": {
                 "value": None,
@@ -652,6 +722,8 @@ class LinearStorage(Model):
                 "dtype": str,
                 "description": "Time Step frequency flag",
                 "kind": "procedural",
+                "domain": "time",
+                "tex": None,
             },
             "t0": {
                 "value": None,
@@ -659,6 +731,8 @@ class LinearStorage(Model):
                 "dtype": str,
                 "description": "Simulation start",
                 "kind": "procedural",
+                "domain": "time",
+                "tex": None,
             },
             "tN": {
                 "value": None,
@@ -666,13 +740,35 @@ class LinearStorage(Model):
                 "dtype": str,
                 "description": "Simulation end",
                 "kind": "procedural",
+                "domain": "time",
+                "tex": None,
             },
         }
         self.reference_dt_param = "k"
         return None
 
+    def setter(self, dict_setter):
+        """
+        Set selected attributes based on an incoming dictionary.
+        This is calling the superior method using load_data=False.
+
+        :param dict_setter: incoming dictionary with attribute values
+        :type dict_setter: dict
+        :return: None
+        :rtype: None
+        """
+        super().setter(dict_setter)
+
+        # specific files
+        self.folder_data_obs = self.folder_data # same here
+
+        # ... continues in downstream objects ... #
+        return None
+
+
     def load_params(self):
-        """Load parameter data from parameter file (stored in `self.file_params`)
+        """
+        Load parameter data from parameter file (stored in `self.file_params`)
 
         .. warning::
 
@@ -685,26 +781,26 @@ class LinearStorage(Model):
         df_ = pd.read_csv(
             self.file_params, sep=self.file_csv_sep, encoding="utf-8", dtype=str
         )
-        ls_input_params = set(df_["Parameter"])
+        ls_input_params = set(df_["parameter"])
 
         # parse to dict
         for p in self.params:
             if p in set(ls_input_params):
                 # set value
                 self.params[p]["value"] = self.params[p]["dtype"](
-                    df_.loc[df_["Parameter"] == p, "Value"].values[0]
+                    df_.loc[df_["parameter"] == p, "value"].values[0]
                 )
                 # units
                 self.params[p]["units"] = df_.loc[
-                    df_["Parameter"] == p, "Units"
+                    df_["parameter"] == p, "units"
                 ].values[0]
                 # min
                 self.params[p]["min"] = self.params[p]["dtype"](df_.loc[
-                    df_["Parameter"] == p, "Min"
+                    df_["parameter"] == p, "min"
                 ].values[0])
                 # max
                 self.params[p]["max"] = self.params[p]["dtype"](df_.loc[
-                    df_["Parameter"] == p, "Max"
+                    df_["parameter"] == p, "max"
                 ].values[0])
 
 
@@ -713,8 +809,10 @@ class LinearStorage(Model):
 
         return None
 
+
     def load_data(self):
-        """Load simulation data from folder data (stored in `self.folder_data`). Overwrites superior methods.
+        """
+        Load simulation data from folder data (stored in `self.folder_data`). Overwrites superior methods.
 
         .. warning::
 
@@ -724,12 +822,12 @@ class LinearStorage(Model):
         :rtype: None
         """
         # -------------- load observation data -------------- #
-        self.file_data_obs = Path(f"{self.folder_data}/{self.filename_data_obs}")
+        self.file_data_obs = Path(f"{self.folder_data_obs}/{self.filename_data_obs}")
         self.data_obs = pd.read_csv(
             self.file_data_obs,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
-            parse_dates=[self.dtfield],
+            parse_dates=[self.field_datetime],
         )
 
         # -------------- update other mutables -------------- #
@@ -739,8 +837,10 @@ class LinearStorage(Model):
 
         return None
 
+
     def setup(self):
-        """Set model simulation.
+        """
+        Set model simulation.
 
         .. warning::
 
@@ -763,8 +863,10 @@ class LinearStorage(Model):
 
         return None
 
+
     def solve(self):
-        """Solve the model for inputs and initial conditions by numerical methods.
+        """
+        Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -802,10 +904,10 @@ class LinearStorage(Model):
     def get_evaldata(self):
         # todo [docstring]
         # merge simulation and observation data based
-        df = pd.merge(left=self.data, right=self.data_obs, on=self.dtfield, how="left")
+        df = pd.merge(left=self.data, right=self.data_obs, on=self.field_datetime, how="left")
 
         # remove other columns
-        df = df[[self.dtfield, self.var_eval, "{}_obs".format(self.var_eval)]]
+        df = df[[self.field_datetime, self.var_eval, "{}_obs".format(self.var_eval)]]
 
         # remove voids
         df.dropna(inplace=True)
@@ -819,8 +921,10 @@ class LinearStorage(Model):
         df["{}".format(self.var_eval)] = df["{}".format(self.var_eval)] / factor
         return df
 
+
     def evaluate(self):
-        """Evaluate model metrics.
+        """
+        Evaluate model metrics.
 
         :return: None
         :rtype: None
@@ -838,8 +942,10 @@ class LinearStorage(Model):
 
         return None
 
+
     def export(self, folder, filename, views=False):
-        """Export object resources.
+        """
+        Export object resources.
 
         :param folder: path to folder
         :type folder: str
@@ -866,19 +972,20 @@ class LinearStorage(Model):
 
         # ... continues in downstream objects ... #
 
+
     def view(self, show=True):
         # todo [docstring]
         plt.rcParams['font.family'] = 'Arial'
         specs = self.view_specs.copy()
-        ts = TimeSeries(name=self.name, alias=self.alias)
-        ts.set_data(input_df=self.data, input_dtfield=self.dtfield, input_varfield="S")
+        ts = ds.TimeSeries(name=self.name, alias=self.alias)
+        ts.set_data(input_df=self.data, input_dtfield=self.field_datetime, input_varfield="S")
         ts.view_specs["title"] = "Linear Model - R2: {}".format(round(self.rsq, 2))
         fig = ts.view(show=False, return_fig=True)
         # obs series plot
         # access axes from fig
         axes = fig.get_axes()
         ax = axes[0]
-        ax.plot(self.data_obs[self.dtfield], self.data_obs["S_obs"], ".", color="k")
+        ax.plot(self.data_obs[self.field_datetime], self.data_obs["S_obs"], ".", color="k")
         # handle return
         if show:
             plt.show()
@@ -893,7 +1000,8 @@ class LinearStorage(Model):
 
 class LSRR(LinearStorage):
     # todo [major docstring improvement]
-    """Rainfall-Runoff model based on a Linear Storage. This is a Toy Model. Inflow rain (P) in a necessary data inputs.
+    """
+    Rainfall-Runoff model based on a Linear Storage. This is a Toy Model. Inflow rain (P) in a necessary data inputs.
 
     """
 
@@ -909,11 +1017,13 @@ class LSRR(LinearStorage):
         # inputs data
         self.data_clim = None
         self.file_data_clim = None
+        self.folder_data_clim = None
         self.filename_data_clim = "clim.csv"
 
 
     def _set_model_params(self):
-        """Intenal method for setting up model parameters data
+        """
+        Intenal method for setting up model parameters data
 
         :return: None
         :rtype: None
@@ -928,12 +1038,14 @@ class LSRR(LinearStorage):
                     "dtype": np.float64,
                     "description": "Downstream limiting control for Q",
                     "kind": "conceptual",
-                    "TeX": "$Q_{max}$"
+                    "tex": "$Q_{max}$",
+                    "domain": "soils",
                 },
             }
         )
 
         return None
+
 
     def _set_model_vars(self):
         # todo [docstring]
@@ -942,39 +1054,41 @@ class LSRR(LinearStorage):
                 "units": "{k}",
                 "description": "Accumulated time",
                 "kind": "time",
-                "TeX": "$t$"
+                "tex": "$t$"
             },
             "P": {
                 "units": "mm/{dt_freq}",
                 "description": "Inflow",
                 "kind": "flow",
-                "TeX": "$P$"
+                "tex": "$P$"
             },
             "S": {
                 "units": "mm",
                 "description": "Storage level",
                 "kind": "level",
-                "TeX": "$S$"
+                "tex": "$S$"
             },
             "Q": {
                 "units": "mm/{dt_freq}",
                 "description": "Outflow",
                 "kind": "flow",
-                "TeX": "$Q$"
+                "tex": "$Q$"
             },
             "Q_obs": {
                 "units": "mm/d",
                 "description": "Outflow (observed evidence)",
                 "kind": "flow",
-                "TeX": "$Q_{obs}$"
+                "tex": "$Q_{obs}$"
             },
         }
         self.var_eval = "Q"
         self.var_inputs = ["P"]
         return None
 
+
     def _set_view_specs(self):
-        """Set view specifications. Expected to increment superior methods.
+        """
+        Set view specifications. Expected to increment superior methods.
 
         :return: None
         :rtype: None
@@ -1004,8 +1118,29 @@ class LSRR(LinearStorage):
         )
         return None
 
+
+    def setter(self, dict_setter):
+        """
+        Set selected attributes based on an incoming dictionary.
+        This is calling the superior method using load_data=False.
+
+        :param dict_setter: incoming dictionary with attribute values
+        :type dict_setter: dict
+        :return: None
+        :rtype: None
+        """
+        super().setter(dict_setter)
+
+        # specific files
+        self.folder_data_clim = self.folder_data # same here
+
+        # ... continues in downstream objects ... #
+        return None
+
+
     def load_data(self):
-        """Load simulation data. Expected to overwrite superior methods.
+        """
+        Load simulation data. Expected to overwrite superior methods.
 
         .. warning::
 
@@ -1016,16 +1151,16 @@ class LSRR(LinearStorage):
         """
 
         # -------------- load climate inputs data -------------- #
-        self.file_data_clim = Path(f"{self.folder_data}/{self.filename_data_clim}")
+        self.file_data_clim = Path(f"{self.folder_data_clim}/{self.filename_data_clim}")
         df_data_input = pd.read_csv(
             self.file_data_clim,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
-            parse_dates=[self.dtfield],
+            parse_dates=[self.field_datetime],
         )
 
         # Format the datetime column to string (e.g., 'YYYY-MM-DD HH:MM:SS')
-        df_data_input["DT_str"] = df_data_input[self.dtfield].dt.strftime(
+        df_data_input["DT_str"] = df_data_input[self.field_datetime].dt.strftime(
             "%Y-%m-%d %H:%M:%S"
         )
 
@@ -1034,15 +1169,15 @@ class LSRR(LinearStorage):
         self.params["tN"]["value"] = df_data_input["DT_str"].values[-1]
 
         # set the data inputs for climate
-        self.data_clim = df_data_input[[self.dtfield] + self.var_inputs].copy()
+        self.data_clim = df_data_input[[self.field_datetime] + self.var_inputs].copy()
 
         # -------------- load observation data -------------- #
-        self.file_data_obs = Path(f"{self.folder_data}/{self.filename_data_obs}")
+        self.file_data_obs = Path(f"{self.folder_data_obs}/{self.filename_data_obs}")
         self.data_obs = pd.read_csv(
             self.file_data_obs,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
-            parse_dates=[self.dtfield],
+            parse_dates=[self.field_datetime],
         )
 
         # -------------- update other mutables -------------- #
@@ -1052,8 +1187,10 @@ class LSRR(LinearStorage):
 
         return None
 
+
     def setup(self):
-        """Set model simulation.
+        """
+        Set model simulation.
 
         .. warning::
 
@@ -1068,22 +1205,24 @@ class LSRR(LinearStorage):
         self.data.drop(columns=["S_a"], inplace=True)
 
         # handle inputs P values
-        rs = RainSeries()
+        rs = ds.RainSeries()
         rs.set_data(
-            input_df=self.data_clim.copy(), input_varfield="P", input_dtfield="DateTime"
+            input_df=self.data_clim.copy(), input_varfield="P", input_dtfield=self.field_datetime
         )
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
         # set interpolated inputs variables
 
         self.data["P"] = df_downscaled["P"].values
         # organize table
-        ls_vars = [self.dtfield, "t", "P", "Q", "S"]
+        ls_vars = [self.field_datetime, "t", "P", "Q", "S"]
         self.data = self.data[ls_vars].copy()
 
         return None
 
+
     def solve(self):
-        """Solve the model for inputs and initial conditions by numerical methods.
+        """
+        Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -1119,6 +1258,7 @@ class LSRR(LinearStorage):
 
         return None
 
+
     def view(self, show=True, return_fig=False):
         # todo [docstring]
         specs = self.view_specs.copy()
@@ -1138,15 +1278,15 @@ class LSRR(LinearStorage):
             top=specs["gs_top"],
         )  # nrows, ncols
 
-        first_date = self.data[self.dtfield].iloc[0]
-        last_date = self.data[self.dtfield].iloc[-1]
+        first_date = self.data[self.field_datetime].iloc[0]
+        last_date = self.data[self.field_datetime].iloc[-1]
         ls_dates = [first_date, last_date]
         n_flow_max = np.max([self.data["P"].max(), self.data["Q"].max()])
 
         # ------------ P plot ------------
         n_pmax = self.data["P"].max() / n_dt
         ax = fig.add_subplot(gs[0, 0])
-        plt.plot(self.data[self.dtfield], self.data["P"] / n_dt , color=specs["color_P"], zorder=2)
+        plt.plot(self.data[self.field_datetime], self.data["P"] / n_dt , color=specs["color_P"], zorder=2)
         plt.title("$P$ ({} mm)".format(round(self.data["P"].sum(), 1)), loc="left")
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.set_xticks(ls_dates)
@@ -1168,9 +1308,9 @@ class LSRR(LinearStorage):
         plt.title("$Q$ ({} mm) ".format(q_sum), loc="left")
         plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["Q_obs"].sum(), 1)), loc="right")
         # plots
-        plt.plot(self.data[self.dtfield], self.data["Q"] / n_dt, color=specs["color_Q"])
+        plt.plot(self.data[self.field_datetime], self.data["Q"] / n_dt, color=specs["color_Q"])
         plt.plot(
-            self.data_obs[self.dtfield],
+            self.data_obs[self.field_datetime],
             self.data_obs["Q_obs"],
             ".",
             color=specs["color_Q_obs"],
@@ -1191,7 +1331,7 @@ class LSRR(LinearStorage):
         n_smax = self.data["S"].max()
         ax = fig.add_subplot(gs[2, 0])
         plt.title(r"$S$ ($\mu$ = {} mm)".format(round(self.data["S"].mean(), 1)), loc="left")
-        plt.plot(self.data[self.dtfield], self.data["S"], color=specs["color_S"])
+        plt.plot(self.data[self.field_datetime], self.data["S"], color=specs["color_S"])
         # ticks
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.set_xticks(ls_dates)
@@ -1217,9 +1357,11 @@ class LSRR(LinearStorage):
                 plt.savefig(file_path, dpi=specs["dpi"])
                 plt.close(fig)
 
+
 class LSRRE(LSRR):
     # todo [major docstring improvement]
-    """Rainfall-Runoff-Evaporation model based on a Linear Storage. This is a Toy Model.
+    """
+    Rainfall-Runoff-Evaporation model based on a Linear Storage. This is a Toy Model.
     Inflow rain (P) and outflow potential evaporation (E_pot) are necessary data inputs.
 
     """
@@ -1231,7 +1373,9 @@ class LSRRE(LSRR):
         # controllers
         self.shutdown_epot = False
 
+
     def _set_model_vars(self):
+        # todo [docstring]
         super()._set_model_vars()
         self.vars.update(
             {
@@ -1239,21 +1383,23 @@ class LSRRE(LSRR):
                     "units": "mm/{dt_freq}",
                     "description": "External Outflow",
                     "kind": "flow",
-                    "TeX": "$E$"
+                    "tex": "$E$"
 
                 },
                 "E_pot": {
                     "units": "mm/{dt_freq}",
                     "description": "Maximal External Outflow",
                     "kind": "flow",
-                    "TeX": "$E_{pot}$"
+                    "tex": "$E_{pot}$"
                 },
             }
         )
         self.var_inputs = ["P", "E_pot"]
 
+
     def setup(self):
-        """Set model simulation.
+        """
+        Set model simulation.
 
         .. warning::
 
@@ -1270,11 +1416,11 @@ class LSRRE(LSRR):
         self.data["E"] = np.nan
 
         # handle inputs E_pot values
-        rs = RainSeries() # todo best practice is to have a EvapoSeries() object
+        rs = ds.RainSeries() # todo best practice is to have a EvapoSeries() object
         rs.varfield = "E_pot"
         rs.varname = "E_pot"
         rs.set_data(
-            input_df=self.data_clim, input_varfield="E_pot", input_dtfield="DateTime"
+            input_df=self.data_clim, input_varfield="E_pot", input_dtfield=self.field_datetime
         )
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
 
@@ -1282,13 +1428,15 @@ class LSRRE(LSRR):
         self.data["E_pot"] = df_downscaled["E_pot"].values
 
         # organize table
-        ls_vars = [self.dtfield, "t", "P", "E_pot", "E", "Q", "S"]
+        ls_vars = [self.field_datetime, "t", "P", "E_pot", "E", "Q", "S"]
         self.data = self.data[ls_vars].copy()
 
         return None
 
+
     def solve(self):
-        """Solve the model for inputs and initial conditions by numerical methods.
+        """
+        Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -1347,7 +1495,9 @@ class LSRRE(LSRR):
 
         return None
 
+
     def view(self, show=True, return_fig=False):
+        # todo [docstring]
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
         fig = super().view(show=False, return_fig=True)
@@ -1357,7 +1507,7 @@ class LSRRE(LSRR):
         ax = axes[0]
         e_sum = round(self.data["E"].sum(), 1)
         ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-        ax2.plot(self.data[self.dtfield], self.data["E"] / n_dt, c="tab:red", zorder=1)
+        ax2.plot(self.data[self.field_datetime], self.data["E"] / n_dt, c="tab:red", zorder=1)
         e_max = self.data["E"].max()
         if e_max == 0:
             ax2.set_ylim(-1, 1)
@@ -1378,19 +1528,23 @@ class LSRRE(LSRR):
                 plt.savefig(file_path, dpi=specs["dpi"])
                 plt.close(fig)
 
+
 class LSFAS(LSRRE):
     # todo [major docstring improvement]
-    """Rainfall-Runoff-Evaporation model based on Linear Storage and Fill-And-Spill (FAS) mechanism.
+    """
+    Rainfall-Runoff-Evaporation model based on Linear Storage and Fill-And-Spill (FAS) mechanism.
     Inflow rain (P) and potential evapotranspiration (E_pot) are necessary data inputs.
 
     """
 
     def __init__(self, name="MyLSFAS", alias="LSFAS001"):
+        # todo [docstring]
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "LSFAS"
         # controllers:
         self.shutdown_qb = False
+
 
     def _set_model_vars(self):
         super()._set_model_vars()
@@ -1401,32 +1555,34 @@ class LSFAS(LSRRE):
                     "units": "mm",
                     "description": "Spill storage",
                     "kind": "flow",
-                    "TeX": "TeX"
+                    "tex": "tex"
                 },
                 "Q_s": {
                     "units": "mm/{dt_freq}",
                     "description": "Spill flow (outflow)",
                     "kind": "flow",
-                    "TeX": "TeX"
+                    "tex": "tex"
                 },
                 "Q_s_f": {
                     "units": "mm/mm",
                     "description": "Spill flow fraction",
                     "kind": "constant",
-                    "TeX": "TeX"
+                    "tex": "tex"
                 },
                 "Q_b": {
                     "units": "mm/{dt_freq}",
                     "description": "Base flow (outflow)",
                     "kind": "flow",
-                    "TeX": "TeX"
+                    "tex": "tex"
                 },
             }
         )
         return None
 
+
     def _set_model_params(self):
-        """Intenal method for setting up model parameters data
+        """
+        Intenal method for setting up model parameters data
 
         :return: None
         :rtype: None
@@ -1443,7 +1599,8 @@ class LSFAS(LSRRE):
                     "dtype": np.float64,
                     "description": "Activation level for storage spill",
                     "kind": "conceptual",
-                    "TeX": "$s_{a}$"
+                    "tex": "$s_{a}$",
+                    "domain": "lulc",
                 },
                 "s_c": {
                     "value": None,
@@ -1451,15 +1608,18 @@ class LSFAS(LSRRE):
                     "dtype": np.float64,
                     "description": "Effective fragmentantion level of storage",
                     "kind": "conceptual",
-                    "TeX": "$s_{c}$"
+                    "tex": "$s_{c}$",
+                    "domain": "lulc",
                 },
             }
         )
         self.reference_dt_param = "k"
         return None
 
+
     def setup(self):
-        """Set model simulation.
+        """
+        Set model simulation.
 
         .. warning::
 
@@ -1479,12 +1639,15 @@ class LSFAS(LSRRE):
         self.data["SS"] = np.nan
 
         # organize table
-        ls_vars = [self.dtfield, "t", "P", "E_pot", "E", "Q_s", "Q_s_f", "Q_b", "Q", "S", "SS"]
+        ls_vars = [self.field_datetime, "t", "P", "E_pot", "E", "Q_s", "Q_s_f", "Q_b", "Q", "S", "SS"]
         self.data = self.data[ls_vars].copy()
 
         return None
+
+
     def solve(self):
-        """Solve the model for inputs and initial conditions by numerical methods.
+        """
+        Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -1589,15 +1752,15 @@ class LSFAS(LSRRE):
         q_sum = round(self.data["Q"].sum(), 1)
         qb_sum = round(self.data["Q_b"].sum(), 1)
         ax.set_title("$Q$ ({} mm)".format(q_sum) + ", $Q_b$ ({} mm)".format(qb_sum) + " and $Q_{obs}$", loc="left")
-        ax.plot(self.data[self.dtfield], self.data["Q_b"] / self.params["dt"]["value"], c="navy", zorder=1)
+        ax.plot(self.data[self.field_datetime], self.data["Q_b"] / self.params["dt"]["value"], c="navy", zorder=1)
         ax.set_title("Runoff C", loc="right")
         ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-        ax2.plot(self.data[self.dtfield], self.data["Q_s_f"], '--', zorder=2)
+        ax2.plot(self.data[self.field_datetime], self.data["Q_s_f"], '--', zorder=2)
         ax2.set_ylim(0, 1)
 
         ax = axes[2]
         ax.fill_between(
-            x=self.data[self.dtfield],
+            x=self.data[self.field_datetime],
             y1=self.data["S"] - self.data["SS"],
             y2=self.data["S"],
             color="lightsteelblue",
@@ -1618,8 +1781,10 @@ class LSFAS(LSRRE):
                 plt.close(fig)
                 return None
 
+
 class Global(LSFAS):
-    """This is a global Rainfall-Runoff model. Simulates the the catchment
+    """
+    This is a global Rainfall-Runoff model. Simulates the the catchment
     as if is a global system. Expected inputs:
 
     - `clim.csv` for Precipitation (P) and Potential Evapotranspiration (E_pot).
@@ -1638,14 +1803,18 @@ class Global(LSFAS):
         self.shutdown_qif = False
         self.shutdown_qbf = False
 
-        # path area file
-        self.data_paths = None
-        self.data_paths_input = None
-        self.file_data_paths = None
-        self.filename_data_paths = "path_areas.csv"
-        self.unit_hydrograph = None
+        # Time-Area Histogram (TAH) file
+        self.data_tah = None
+        self.data_tah_input = None
+        self.file_data_tah = None
+        self.folder_data_tah = None
+        self.filename_data_tah = "path_areas.csv"
+        # Geomorphic Unit Hydrograph
+        self.data_guh = None
+
 
     def _set_model_vars(self):
+        # todo [docstring]
         super()._set_model_vars()
 
         # clean some vars
@@ -1681,7 +1850,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Canopy storage",
                     "kind": "level",
-                    "TeX": "$C$",
+                    "tex": "$C$",
                     "canopy": True,
                     "surface": False,
                     "soil": False,
@@ -1690,7 +1859,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Canopy evaporation",
                     "kind": "flow",
-                    "TeX": "$E_{c}$",
+                    "tex": "$E_{c}$",
                     "canopy": True,
                     "surface": False,
                     "soil": False,
@@ -1699,7 +1868,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Throughfall -- canopy spill water",
                     "kind": "flow",
-                    "TeX": "$P_{tf}$",
+                    "tex": "$P_{tf}$",
                     "canopy": True,
                     "surface": False,
                     "soil": False,
@@ -1708,7 +1877,7 @@ class Global(LSFAS):
                     "units": "mm/mm",
                     "description": "Throughfall fraction",
                     "kind": "constant",
-                    "TeX": "$P_{tf, f}$",
+                    "tex": "$P_{tf, f}$",
                     "canopy": True,
                     "surface": False,
                     "soil": False,
@@ -1717,7 +1886,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Stemflow -- canopy drained water",
                     "kind": "flow",
-                    "TeX": "$P_{sf}$",
+                    "tex": "$P_{sf}$",
                     "canopy": True,
                     "surface": False,
                     "soil": False,
@@ -1727,7 +1896,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Effective precipitation on canopy",
                     "kind": "flow",
-                    "TeX": "$P_{c}$",
+                    "tex": "$P_{c}$",
                     "canopy": True,
                     "surface": False,
                     "soil": False,
@@ -1736,7 +1905,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Effective precipitation on surface",
                     "kind": "flow",
-                    "TeX": "$P_{s}$",
+                    "tex": "$P_{s}$",
                     "canopy": True,
                     "surface": True,
                     "soil": False,
@@ -1748,7 +1917,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Surface storage",
                     "kind": "level",
-                    "TeX": "$S$",
+                    "tex": "$S$",
                     "canopy": False,
                     "surface": True,
                     "soil": False,
@@ -1757,7 +1926,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Surface evaporation",
                     "kind": "flow",
-                    "TeX": "$E_{s}$",
+                    "tex": "$E_{s}$",
                     "canopy": False,
                     "surface": True,
                     "soil": False,
@@ -1766,7 +1935,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Overland flow  -- surface spill",
                     "kind": "flow",
-                    "TeX": "$Q_{of}$",
+                    "tex": "$Q_{of}$",
                     "canopy": False,
                     "surface": True,
                     "soil": False,
@@ -1775,7 +1944,7 @@ class Global(LSFAS):
                     "units": "mm/mm",
                     "description": "Overland flow fraction",
                     "kind": "constant",
-                    "TeX": "$Q_{of, f}$",
+                    "tex": "$Q_{of, f}$",
                     "canopy": False,
                     "surface": True,
                     "soil": False,
@@ -1784,7 +1953,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Underland flow -- lateral leak in topsoil",
                     "kind": "flow",
-                    "TeX": "$Q_{uf}$",
+                    "tex": "$Q_{uf}$",
                     "canopy": False,
                     "surface": True,
                     "soil": False,
@@ -1793,7 +1962,7 @@ class Global(LSFAS):
                     "units": "mm/mm",
                     "description": "Underland flow fraction",
                     "kind": "constant",
-                    "TeX": "$Q_{uf, f}$",
+                    "tex": "$Q_{uf, f}$",
                     "canopy": False,
                     "surface": True,
                     "soil": False,
@@ -1802,7 +1971,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Infiltration flow -- drainage to mineral vadoze zone",
                     "kind": "flow",
-                    "TeX": "$Q_{if}$",
+                    "tex": "$Q_{if}$",
                     "canopy": False,
                     "surface": True,
                     "soil": True,
@@ -1814,7 +1983,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Vadose zone storage",
                     "kind": "level",
-                    "TeX": "$V$",
+                    "tex": "$V$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1823,7 +1992,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Recharge flow -- vertical flow to phreatic zone",
                     "kind": "flow",
-                    "TeX": "$Q_{v}$",
+                    "tex": "$Q_{v}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1832,7 +2001,7 @@ class Global(LSFAS):
                     "units": "mm/mm",
                     "description": "Recharge flow fraction",
                     "kind": "constant",
-                    "TeX": "$Q_{vf, f}$",
+                    "tex": "$Q_{vf, f}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1841,7 +2010,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Vadose zone storage deficit",
                     "kind": "level",
-                    "TeX": "$D_{v}$",
+                    "tex": "$D_{v}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1853,7 +2022,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Phreatic zone storage",
                     "kind": "level",
-                    "TeX": "$G$",
+                    "tex": "$G$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1862,7 +2031,7 @@ class Global(LSFAS):
                     "units": "mm",
                     "description": "Phreatic zone storage deficit",
                     "kind": "level",
-                    "TeX": "$D$",
+                    "tex": "$D$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1871,7 +2040,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Phreatic zone transpiration",
                     "kind": "flow",
-                    "TeX": "$E_{t}$",
+                    "tex": "$E_{t}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1880,7 +2049,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Phreatic zone transpiration fraction",
                     "kind": "constant",
-                    "TeX": "$E_{t, f}$",
+                    "tex": "$E_{t, f}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1889,7 +2058,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Groundwater flow (baseflow at hillslope)",
                     "kind": "flow",
-                    "TeX": "$Q_{gf}$",
+                    "tex": "$Q_{gf}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1899,7 +2068,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Hillslope flow (surface, subsurface and baseflow)",
                     "kind": "flow",
-                    "TeX": "$Q_{hf}$",
+                    "tex": "$Q_{hf}$",
                     "canopy": False,
                     "surface": True,
                     "soil": True,
@@ -1908,7 +2077,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "Stream flow at stage station",
                     "kind": "flow",
-                    "TeX": "$Q$",
+                    "tex": "$Q$",
                     "canopy": False,
                     "surface": True,
                     "soil": True,
@@ -1917,7 +2086,7 @@ class Global(LSFAS):
                     "units": "mm/{dt_freq}",
                     "description": "River baseflow (routed groundflow at river gauge)",
                     "kind": "flow",
-                    "TeX": "$Q_{bf}$",
+                    "tex": "$Q_{bf}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
@@ -1926,17 +2095,19 @@ class Global(LSFAS):
         # update new entries
         self.vars.update(self.new_vars.copy())
         # get useful lists
-        self.vars_canopy = [self.dtfield] + [v for v in self.vars if self.vars[v]["canopy"]]
-        self.vars_surface = [self.dtfield] + [v for v in self.vars if self.vars[v]["surface"]]
-        self.vars_soil = [self.dtfield] + [v for v in self.vars if self.vars[v]["soil"]]
+        self.vars_canopy = [self.field_datetime] + [v for v in self.vars if self.vars[v]["canopy"]]
+        self.vars_surface = [self.field_datetime] + [v for v in self.vars if self.vars[v]["surface"]]
+        self.vars_soil = [self.field_datetime] + [v for v in self.vars if self.vars[v]["soil"]]
         self.vars_levels = [
             "C", "S", "V", "D_v", "G", "D"
         ]
 
         return None
 
+
     def _set_model_params(self):
-        """Intenal method for setting up model parameters data
+        """
+        Intenal method for setting up model parameters data
 
         :return: None
         :rtype: None
@@ -1960,7 +2131,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Canopy storage initial conditions",
                     "kind": "conceptual",
-                    "TeX": "$C_{0}$",
+                    "tex": "$C_{0}$",
+                    "domain": "lulc",
                 },
                 "S0": {
                     "value": None,
@@ -1968,7 +2140,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Surface storage initial conditions",
                     "kind": "conceptual",
-                    "TeX": "$S_{0}$",
+                    "tex": "$S_{0}$",
+                    "domain": "lulc",
                 },
                 "V0": {
                     "value": None,
@@ -1976,7 +2149,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Vadose zone initial conditions",
                     "kind": "conceptual",
-                    "TeX": "$V_{0}$",
+                    "tex": "$V_{0}$",
+                    "domain": "soils",
                 },
                 "G0": {
                     "value": None,
@@ -1984,7 +2158,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Phreatic zone initial conditions",
                     "kind": "conceptual",
-                    "TeX": "$G_{0}$",
+                    "tex": "$G_{0}$",
+                    "domain": "soils",
                 },
                 #
                 #
@@ -1995,7 +2170,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Canopy residence time",
                     "kind": "conceptual",
-                    "TeX": "$C_{k}$",
+                    "tex": "$C_{k}$",
+                    "domain": "lulc",
                 },
                 "C_a": {
                     "value": None,
@@ -2003,7 +2179,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Activation level for canopy spill",
                     "kind": "conceptual",
-                    "TeX": "$C_{a}$",
+                    "tex": "$C_{a}$",
+                    "domain": "lulc",
                 },
                 #
                 #
@@ -2014,7 +2191,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Surface residence time",
                     "kind": "conceptual",
-                    "TeX": "$S_{k}$",
+                    "tex": "$S_{k}$",
+                    "domain": "lulc",
                 },
                 # subsurface spill
                 "S_uf_cap": {
@@ -2023,7 +2201,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Topsoil zone storage capacity",
                     "kind": "conceptual",
-                    "TeX": "$S_{uf, cap}$",
+                    "tex": "$S_{uf, cap}$",
+                    "domain": "lulc",
                 },
                 "S_uf_a": {
                     "value": None,
@@ -2031,7 +2210,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Activation level for subsurface spill",
                     "kind": "conceptual",
-                    "TeX": "$S_{uf, a}$",
+                    "tex": "$S_{uf, a}$",
+                    "domain": "lulc",
                 },
                 "S_uf_c": {
                     "value": None,
@@ -2039,7 +2219,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Fragmentation level for subsurface spill",
                     "kind": "conceptual",
-                    "TeX": "$S_{uf, c}$",
+                    "tex": "$S_{uf, c}$",
+                    "domain": "lulc",
                 },
                 # surface spill
                 "S_of_a": {
@@ -2048,7 +2229,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Activation level for surface overland spill",
                     "kind": "conceptual",
-                    "TeX": "$S_{of, a}$",
+                    "tex": "$S_{of, a}$",
+                    "domain": "lulc",
                 },
                 "S_of_c": {
                     "value": None,
@@ -2056,7 +2238,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Fragmentation level for surface overland spill",
                     "kind": "conceptual",
-                    "TeX": "$S_{of, c}$",
+                    "tex": "$S_{of, c}$",
+                    "domain": "lulc",
                 },
                 # recharge
                 "K_V": {
@@ -2065,7 +2248,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Effective hydraulic conductivity",
                     "kind": "conceptual",
-                    "TeX": "$K_{V}$",
+                    "tex": "$K_{V}$",
+                    "domain": "soils",
                 },
                 # baseflow
                 "D_et_a": {
@@ -2074,7 +2258,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Effective root depth for full evapotranspiration activation",
                     "kind": "level",
-                    "TeX": "$D_{et, a}$",
+                    "tex": "$D_{et, a}$",
+                    "domain": "lulc",
                 },
                 "G_et_cap": {
                     "value": None,
@@ -2082,7 +2267,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Evapotranspiration capacity at capilar zone",
                     "kind": "level",
-                    "TeX": "$G_{et, cap}$",
+                    "tex": "$G_{et, cap}$",
+                    "domain": "lulc",
                 },
                 "G_cap": {
                     "value": None,
@@ -2090,7 +2276,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Phreatic zone storage capacity",
                     "kind": "conceptual",
-                    "TeX": "$G_{cap}$",
+                    "tex": "$G_{cap}$",
+                    "domain": "lulc",
                 },
                 "G_k": {
                     "value": None,
@@ -2098,7 +2285,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Phreatic zone residence time",
                     "kind": "conceptual",
-                    "TeX": "$G_{k}$",
+                    "tex": "$G_{k}$",
+                    "domain": "soils",
                 },
                 "K_Q": {
                     "value": None,
@@ -2106,7 +2294,8 @@ class Global(LSFAS):
                     "dtype": np.float64,
                     "description": "Channel water celerity",
                     "kind": "conceptual",
-                    "TeX": "$K_{Q}$",
+                    "tex": "$K_{Q}$",
+                    "domain": "routing",
                 },
             }
         )
@@ -2116,7 +2305,8 @@ class Global(LSFAS):
 
 
     def _set_view_specs(self):
-        """Set view specifications.
+        """
+        Set view specifications.
         Expected to increment superior methods.
 
         :return: None
@@ -2155,8 +2345,28 @@ class Global(LSFAS):
         return None
 
 
+    def setter(self, dict_setter):
+        """
+        Set selected attributes based on an incoming dictionary.
+        This is calling the superior method using load_data=False.
+
+        :param dict_setter: incoming dictionary with attribute values
+        :type dict_setter: dict
+        :return: None
+        :rtype: None
+        """
+        super().setter(dict_setter)
+
+        # specific files
+        self.folder_data_tah = self.folder_data # same here
+
+        # ... continues in downstream objects ... #
+        return None
+
+
     def load_data(self):
-        """Load simulation data. Expected to increment superior methods.
+        """
+        Load simulation data. Expected to increment superior methods.
 
         :return: None
         :rtype: None
@@ -2164,9 +2374,9 @@ class Global(LSFAS):
         super().load_data()
 
         # -------------- load path areas inputs data -------------- #
-        self.file_data_paths = Path(f"{self.folder_data}/{self.filename_data_paths}")
-        self.data_paths_input = pd.read_csv(
-            self.file_data_paths,
+        self.file_data_tah = Path(f"{self.folder_data_tah}/{self.filename_data_tah}")
+        self.data_tah_input = pd.read_csv(
+            self.file_data_tah,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
         )
@@ -2179,8 +2389,10 @@ class Global(LSFAS):
 
         return None
 
+
     def setup(self):
-        """Set model simulation.
+        """
+        Set model simulation.
 
         .. warning::
 
@@ -2208,8 +2420,8 @@ class Global(LSFAS):
         from scipy.interpolate import CubicSpline
 
         # get vectors
-        vct_paths = self.data_paths_input["Path (m)"].values
-        vct_area = self.data_paths_input["Global (ha)"].values
+        vct_paths = self.data_tah_input["Path (m)"].values
+        vct_area = self.data_tah_input["Global (ha)"].values
 
         # handle not starting in zero
         if np.min(vct_paths) > 0:
@@ -2220,7 +2432,7 @@ class Global(LSFAS):
         vct_t = vct_paths / self.params["K_Q"]["value"]
 
         # set dataframe
-        self.data_paths = pd.DataFrame(
+        self.data_tah = pd.DataFrame(
             {
                 "Delay (d)": vct_t,
                 "Path (m)": vct_paths,
@@ -2229,8 +2441,8 @@ class Global(LSFAS):
         )
 
         # compute unit hydrograph
-        vct_t_src = self.data_paths["Delay (d)"].values
-        vct_q_src = self.data_paths["Global (ha)"].values / self.data_paths["Global (ha)"].sum()
+        vct_t_src = self.data_tah["Delay (d)"].values
+        vct_q_src = self.data_tah["Global (ha)"].values / self.data_tah["Global (ha)"].sum()
 
         # smoothing
         window_size = 8  # make it more or less smooth
@@ -2254,7 +2466,7 @@ class Global(LSFAS):
         vct_q_new = vct_q_new / np.sum(vct_q_new)
 
         # set unit hydrograph attribute
-        self.unit_hydrograph = pd.DataFrame(
+        self.data_guh = pd.DataFrame(
             {
                 "t": self.data["t"].values,
                 "q": vct_q_new
@@ -2264,7 +2476,8 @@ class Global(LSFAS):
 
 
     def solve(self):
-        """Solve the model for inputs and initial conditions by numerical methods.
+        """
+        Solve the model for inputs and initial conditions by numerical methods.
 
         .. warning::
 
@@ -2717,7 +2930,7 @@ class Global(LSFAS):
 
             $$$
             '''
-            GB["Q_gf"].values[t] = (GB["G"].values[t] - G_et_cap) * dt / G_k
+            GB["Q_gf"].values[t] = (np.min([GB["G"].values[t] - G_et_cap, 0.0])) * dt / G_k
 
             # [Testing feature]
             if self.shutdown_qbf:
@@ -2749,19 +2962,19 @@ class Global(LSFAS):
 
         $$$
         '''
-        GB["Q_hf"] = GB["Q_gf"] + GB["Q_uf"] + GB["Q_of"]
+        GB["Q_hf"] = 0.0 #GB["Q_gf"] + GB["Q_uf"] + GB["Q_of"]
 
         # [Baseflow] Compute river base flow
         GB["Q_bf"] = self.propagate_inflow(
             inflow=GB["Q_gf"].values,
-            unit_hydrograph=self.unit_hydrograph["q"].values,
+            unit_hydrograph=self.data_guh["q"].values,
         )
 
         # [Fast Streamflow] Compute Streamflow
         # todo [feature] evaluate to split into more components
         Q_fast = self.propagate_inflow(
             inflow=GB["Q_uf"].values + GB["Q_of"].values,
-            unit_hydrograph=self.unit_hydrograph["q"].values,
+            unit_hydrograph=self.data_guh["q"].values,
         )
         GB["Q"] = GB["Q_bf"].values + Q_fast
 
@@ -2786,8 +2999,10 @@ class Global(LSFAS):
 
         return None
 
+
     def export(self, folder, filename, views=False, mode=None):
-        """Export object resources
+        """
+        Export object resources
 
         :param folder: path to folder
         :type folder: str
@@ -2808,11 +3023,12 @@ class Global(LSFAS):
 
         # handle to export paths and unit hydrograph
         fpath = Path(folder + "/" + filename + "_path_areas" + self.file_csv_ext)
-        self.data_paths.to_csv(
+        self.data_tah.to_csv(
             fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
         )
 
         # ... continues in downstream objects ... #
+
 
     def view(self, show=True, return_fig=False, mode=None):
         # todo [docstring]
@@ -2835,8 +3051,8 @@ class Global(LSFAS):
             top=specs["gs_top"],
         )  # nrows, ncols
 
-        first_date = self.data[self.dtfield].iloc[0]
-        last_date = self.data[self.dtfield].iloc[-1]
+        first_date = self.data[self.field_datetime].iloc[0]
+        last_date = self.data[self.field_datetime].iloc[-1]
         ls_dates = [first_date, last_date]
 
         if mode is None:
@@ -2846,10 +3062,10 @@ class Global(LSFAS):
             # ------------ P plot ------------
             n_pmax = self.data["P"].max() / n_dt
             ax = fig.add_subplot(gs[0, 0])
-            plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
-                     zorder=2, label=self.vars["P"]["TeX"])
-            plt.plot(self.data[self.dtfield], self.data["Q_if"] / n_dt, color=specs["color_Q_if"],
-                     zorder=2, label=self.vars["Q_if"]["TeX"])
+            plt.plot(self.data[self.field_datetime], self.data["P"] / n_dt, color=specs["color_P"],
+                     zorder=2, label=self.vars["P"]["tex"])
+            plt.plot(self.data[self.field_datetime], self.data["Q_if"] / n_dt, color=specs["color_Q_if"],
+                     zorder=2, label=self.vars["Q_if"]["tex"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
             plt.title(s_title1, loc="left")
             # normalize X axis
@@ -2864,9 +3080,9 @@ class Global(LSFAS):
             # ------------ E plot ------------
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
             e_sum = round(self.data["E"].sum(), 1)
-            s_symbol4 = self.vars["E_pot"]["TeX"]
-            ax2.plot(self.data[self.dtfield], self.data["E"] / n_dt, c="tab:red", zorder=1, label=self.vars["E"]["TeX"])
-            ax2.plot(self.data[self.dtfield], self.data["E_pot"] / n_dt, c="tab:gray", alpha=0.5, zorder=2,
+            s_symbol4 = self.vars["E_pot"]["tex"]
+            ax2.plot(self.data[self.field_datetime], self.data["E"] / n_dt, c="tab:red", zorder=1, label=self.vars["E"]["tex"])
+            ax2.plot(self.data[self.field_datetime], self.data["E_pot"] / n_dt, c="tab:gray", alpha=0.5, zorder=2,
                      linestyle="--",
                      label=s_symbol4)
             e_max = self.data["E_pot"].max()
@@ -2874,7 +3090,7 @@ class Global(LSFAS):
                 ax2.set_ylim(-1, 1)
             else:
                 ax2.set_ylim(0, 1.2 * e_max / n_dt)
-            ax2.set_title("{} ({} mm)".format(self.vars["E"]["TeX"], e_sum), loc="right")
+            ax2.set_title("{} ({} mm)".format(self.vars["E"]["tex"], e_sum), loc="right")
             ax2.set_ylabel("mm/d")
 
             # ------------ Q plot ------------
@@ -2882,18 +3098,18 @@ class Global(LSFAS):
             # n_qmax = self.data["Q"].max() / n_dt
             q_sum = round(self.data["Q"].sum(), 1)
             ax = fig.add_subplot(gs[1, 0])
-            s_symbol0 = self.vars["Q"]["TeX"]
-            s_symbol1 = self.vars["Q_bf"]["TeX"]
-            s_symbol2 = self.vars["Q_hf"]["TeX"]
+            s_symbol0 = self.vars["Q"]["tex"]
+            s_symbol1 = self.vars["Q_bf"]["tex"]
+            s_symbol2 = self.vars["Q_hf"]["tex"]
             # titles
             plt.title("$Q$ ({} mm) ".format(q_sum), loc="left")
             plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["Q_obs"].sum(), 1)), loc="right")
             # plots
-            plt.plot(self.data[self.dtfield], self.data["Q"] / n_dt, color=specs["color_Q"], zorder=2, label=s_symbol0)
-            plt.plot(self.data[self.dtfield], self.data["Q_bf"] / n_dt, color=specs["color_Q_bf"], zorder=1, label=s_symbol1)
-            plt.plot(self.data[self.dtfield], self.data["Q_hf"] / n_dt, color="silver", zorder=0, label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["Q"] / n_dt, color=specs["color_Q"], zorder=2, label=s_symbol0)
+            plt.plot(self.data[self.field_datetime], self.data["Q_bf"] / n_dt, color=specs["color_Q_bf"], zorder=1, label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["Q_hf"] / n_dt, color="silver", zorder=0, label=s_symbol2)
             plt.plot(
-                self.data_obs[self.dtfield],
+                self.data_obs[self.field_datetime],
                 self.data_obs["Q_obs"],
                 ".",
                 color=specs["color_Q_obs"],
@@ -2915,22 +3131,22 @@ class Global(LSFAS):
             n_smax = self.data["G"].max()
             ax = fig.add_subplot(gs[2, 0])
             plt.title(r"$G$ ($\mu$ = {} mm)".format(round(self.data["G"].mean(), 1)), loc="left")
-            plt.plot(self.data[self.dtfield], self.data["G"], color=specs["color_G"], label=self.vars["G"]["TeX"])
+            plt.plot(self.data[self.field_datetime], self.data["G"], color=specs["color_G"], label=self.vars["G"]["tex"])
             plt.hlines(
                 y=self.params["G_cap"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="orange",
                 linestyles="--",
-                label=self.params["G_cap"]["TeX"]
+                label=self.params["G_cap"]["tex"]
             )
             plt.hlines(
                 y=self.params["G_cap"]["value"] - self.params["D_et_a"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="green",
                 linestyles="--",
-                label=self.params["D_et_a"]["TeX"]
+                label=self.params["D_et_a"]["tex"]
             )
             plt.legend(loc="upper left", ncols=1)
 
@@ -2950,8 +3166,8 @@ class Global(LSFAS):
             # ------------ P plot ------------
             n_pmax = self.data["P"].max() / n_dt
             ax = fig.add_subplot(gs[0, 0])
-            plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
-                     zorder=2, label=self.vars["P"]["TeX"])
+            plt.plot(self.data[self.field_datetime], self.data["P"] / n_dt, color=specs["color_P"],
+                     zorder=2, label=self.vars["P"]["tex"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
             plt.title(s_title1, loc="left")
             # normalize X axis
@@ -2966,13 +3182,13 @@ class Global(LSFAS):
             # ------------ E plot ------------
             e_sum = round(self.data["E_c"].sum(), 1)
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-            ax2.plot(self.data[self.dtfield], self.data["E_c"] / n_dt, c="tab:red", zorder=1, label=self.vars["E_c"]["TeX"])
+            ax2.plot(self.data[self.field_datetime], self.data["E_c"] / n_dt, c="tab:red", zorder=1, label=self.vars["E_c"]["tex"])
             e_max = self.data["E_c"].max()
             if e_max == 0:
                 ax2.set_ylim(-1, 1)
             else:
                 ax2.set_ylim(0, 1.2 * e_max / n_dt)
-            ax2.set_title("{} ({} mm)".format(self.vars["E_c"]["TeX"], e_sum), loc="right")
+            ax2.set_title("{} ({} mm)".format(self.vars["E_c"]["tex"], e_sum), loc="right")
             ax2.set_ylabel("mm/d")
 
             # ------------ Ps plot ------------
@@ -2981,12 +3197,12 @@ class Global(LSFAS):
             psf_sum = round(self.data["P_sf"].sum(), 1)
             ax = fig.add_subplot(gs[1, 0], sharex=ax)
             # titles
-            s_symbol1 = self.vars["P_s"]["TeX"]
-            s_symbol2 = self.vars["P_sf"]["TeX"]
+            s_symbol1 = self.vars["P_s"]["tex"]
+            s_symbol2 = self.vars["P_sf"]["tex"]
             plt.title(f"{s_symbol1} ({ps_sum} mm) and {s_symbol2} ({psf_sum} mm)", loc="left")
             # plots
-            plt.plot(self.data[self.dtfield], self.data["P_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
-            plt.plot(self.data[self.dtfield], self.data["P_sf"] / n_dt, color=specs["color_P_sf"], label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["P_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["P_sf"] / n_dt, color=specs["color_P_sf"], label=s_symbol2)
             # normalize X axis
             plt.xlim(ls_dates)
             # normalize Y axis
@@ -2999,9 +3215,9 @@ class Global(LSFAS):
             # ------------ C plot ------------
             n_smax = self.data["C"].max()
             ax = fig.add_subplot(gs[2, 0], sharex=ax)
-            s_symbol1 = self.vars["C"]["TeX"]
+            s_symbol1 = self.vars["C"]["tex"]
             plt.title(r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["C"].mean(), 1)), loc="left")
-            plt.plot(self.data[self.dtfield], self.data["C"], color=specs["color_C"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["C"], color=specs["color_C"], label=s_symbol1)
             # normalize X axis
             plt.xlim(ls_dates)
             plt.ylabel("mm")
@@ -3018,8 +3234,8 @@ class Global(LSFAS):
             # ------------ P plot ------------
             n_pmax = self.data["P"].max() / n_dt
             ax = fig.add_subplot(gs[0, 0])
-            plt.plot(self.data[self.dtfield], self.data["P"] / n_dt, color=specs["color_P"],
-                     zorder=2, label=self.vars["P"]["TeX"])
+            plt.plot(self.data[self.field_datetime], self.data["P"] / n_dt, color=specs["color_P"],
+                     zorder=2, label=self.vars["P"]["tex"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["P"].sum(), 1))
             plt.title(s_title1, loc="left")
 
@@ -3036,21 +3252,21 @@ class Global(LSFAS):
             n_emax = self.data["P_s"].max() / n_dt
             ps_sum = round(self.data["P_s"].sum(), 1)
             # titles
-            s_symbol1 = self.vars["P_s"]["TeX"]
+            s_symbol1 = self.vars["P_s"]["tex"]
             s_title2 = "{} ({} mm)".format(s_symbol1, round(self.data["P_s"].sum(), 1))
             plt.title(f"{s_title1} and {s_title2}", loc="left")
             # plots
-            plt.plot(self.data[self.dtfield], self.data["P_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["P_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
             plt.legend(loc="upper left")
 
             # ------------ E plot ------------
-            s_symbol1 = self.vars["E_s"]["TeX"]
-            s_symbol2 = self.vars["E_c"]["TeX"]
+            s_symbol1 = self.vars["E_s"]["tex"]
+            s_symbol2 = self.vars["E_c"]["tex"]
             es_sum = round(self.data["E_s"].sum(), 1)
             ec_sum = round(self.data["E_c"].sum(), 1)
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-            ax2.plot(self.data[self.dtfield], self.data["E_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
-            ax2.plot(self.data[self.dtfield], self.data["E_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
+            ax2.plot(self.data[self.field_datetime], self.data["E_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
+            ax2.plot(self.data[self.field_datetime], self.data["E_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
             es_max = np.max([self.data["E_s"].max(), self.data["E_c"].max()])
             if es_max <= 0.001:
                 ax2.set_ylim(-1, 1)
@@ -3064,27 +3280,27 @@ class Global(LSFAS):
 
             # ------------ Qof, Quf, Qif plot ------------
             ax = fig.add_subplot(gs[1, 0], sharex=ax)
-            s_symbol1 = self.vars["Q_of"]["TeX"]
-            s_symbol2 = self.vars["Q_uf"]["TeX"]
-            s_symbol3 = self.vars["Q_if"]["TeX"]
-            s_symbol4 = self.vars["Q_hf"]["TeX"]
+            s_symbol1 = self.vars["Q_of"]["tex"]
+            s_symbol2 = self.vars["Q_uf"]["tex"]
+            s_symbol3 = self.vars["Q_if"]["tex"]
+            s_symbol4 = self.vars["Q_hf"]["tex"]
             # titles
             s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["Q_of"].sum(), 1))
             s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["Q_uf"].sum(), 1))
             s_title3 = "{} ({} mm)".format(s_symbol3, round(self.data["Q_if"].sum(), 1))
             plt.title(f"{s_title1}, {s_title2} and {s_title3}", loc="left")
-            plt.plot(self.data[self.dtfield], self.data["Q_hf"] / n_dt, color="navy", label=s_symbol4)
-            plt.plot(self.data[self.dtfield], self.data["Q_of"] / n_dt, color="magenta", label=s_symbol1)
-            plt.plot(self.data[self.dtfield], self.data["Q_uf"] / n_dt, color="red", label=s_symbol2)
-            plt.plot(self.data[self.dtfield], self.data["Q_if"] / n_dt, color="green", label=s_symbol3)
+            plt.plot(self.data[self.field_datetime], self.data["Q_hf"] / n_dt, color="navy", label=s_symbol4)
+            plt.plot(self.data[self.field_datetime], self.data["Q_of"] / n_dt, color="magenta", label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["Q_uf"] / n_dt, color="red", label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["Q_if"] / n_dt, color="green", label=s_symbol3)
             plt.ylim(0, ymax_p)
             ax.set_ylabel("mm/d")
             plt.legend(loc="upper left")
 
             # ------------ Runoff coef plot ------------
             ax2 = ax.twinx()
-            s_symbol1 = self.vars["Q_of_f"]["TeX"]
-            plt.plot(self.data[self.dtfield], self.data["Q_of_f"], color="gray", label=s_symbol1)
+            s_symbol1 = self.vars["Q_of_f"]["tex"]
+            plt.plot(self.data[self.field_datetime], self.data["Q_of_f"], color="gray", label=s_symbol1)
             plt.ylim(-1, 2)
             ax2.set_yticks([0, 1])
             ax2.set_ylabel("mm/mm")
@@ -3096,29 +3312,29 @@ class Global(LSFAS):
             # ------------ S plot ------------
             n_smax = self.data["S"].max()
             ax = fig.add_subplot(gs[2, 0], sharex=ax)
-            s_symbol1 = self.vars["S"]["TeX"]
+            s_symbol1 = self.vars["S"]["tex"]
             plt.title(r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["S"].mean(), 1)), loc="left")
-            plt.plot(self.data[self.dtfield], self.data["S"], color=specs["color_S"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["S"], color=specs["color_S"], label=s_symbol1)
             plt.hlines(
                 y=self.params["S_uf_a"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="orange",
-                label=self.params["S_uf_a"]["TeX"]
+                label=self.params["S_uf_a"]["tex"]
             )
             plt.hlines(
                 y=self.params["S_uf_cap"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="purple",
-                label=self.params["S_uf_cap"]["TeX"]
+                label=self.params["S_uf_cap"]["tex"]
             )
             plt.hlines(
                 y=self.params["S_of_a"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="red",
-                label=self.params["S_of_a"]["TeX"]
+                label=self.params["S_of_a"]["tex"]
             )
             plt.legend(loc="upper left")
             # ticks
@@ -3141,16 +3357,16 @@ class Global(LSFAS):
             n_emax = self.data["Q_if"].max() / n_dt
             ps_sum = round(self.data["Q_if"].sum(), 1)
             # titles
-            s_symbol0 = self.vars["P_s"]["TeX"]
-            s_symbol1 = self.vars["Q_if"]["TeX"]
-            s_symbol2 = self.vars["Q_vf"]["TeX"]
+            s_symbol0 = self.vars["P_s"]["tex"]
+            s_symbol1 = self.vars["Q_if"]["tex"]
+            s_symbol2 = self.vars["Q_vf"]["tex"]
             s_title0 = "{} ({} mm)".format(s_symbol0, round(self.data["P_s"].sum(), 1))
             s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["Q_if"].sum(), 1))
             s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["Q_vf"].sum(), 1))
             plt.title(f"{s_title0}, {s_title1} and {s_title2}", loc="left")
             # plots
-            plt.plot(self.data[self.dtfield], self.data["Q_if"] / n_dt, color=specs["color_Q_if"], label=s_symbol1)
-            plt.plot(self.data[self.dtfield], self.data["Q_vf"] / n_dt, color="steelblue", label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["Q_if"] / n_dt, color=specs["color_Q_if"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["Q_vf"] / n_dt, color="steelblue", label=s_symbol2)
             plt.legend(loc="upper left", ncols=3)
             # normalize X axis
             plt.xlim(ls_dates)
@@ -3162,19 +3378,19 @@ class Global(LSFAS):
             plt.ylim(0, ymax_qif)
 
             # ------------ E plot ------------
-            s_symbol1 = self.vars["E_s"]["TeX"]
-            s_symbol2 = self.vars["E_c"]["TeX"]
-            s_symbol3 = self.vars["E_t"]["TeX"]
-            s_symbol4 = self.vars["E_pot"]["TeX"]
+            s_symbol1 = self.vars["E_s"]["tex"]
+            s_symbol2 = self.vars["E_c"]["tex"]
+            s_symbol3 = self.vars["E_t"]["tex"]
+            s_symbol4 = self.vars["E_pot"]["tex"]
             es_sum = round(self.data["E_s"].sum(), 1)
             ec_sum = round(self.data["E_c"].sum(), 1)
             et_sum = round(self.data["E_t"].sum(), 1)
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-            ax2.plot(self.data[self.dtfield], self.data["E_pot"] / n_dt, c="tab:gray", alpha=0.5, zorder=2, linestyle="--",
+            ax2.plot(self.data[self.field_datetime], self.data["E_pot"] / n_dt, c="tab:gray", alpha=0.5, zorder=2, linestyle="--",
                      label=s_symbol4)
-            ax2.plot(self.data[self.dtfield], self.data["E_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
-            ax2.plot(self.data[self.dtfield], self.data["E_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
-            ax2.plot(self.data[self.dtfield], self.data["E_t"] / n_dt, c="tab:green", zorder=1, label=s_symbol3)
+            ax2.plot(self.data[self.field_datetime], self.data["E_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
+            ax2.plot(self.data[self.field_datetime], self.data["E_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
+            ax2.plot(self.data[self.field_datetime], self.data["E_t"] / n_dt, c="tab:green", zorder=1, label=s_symbol3)
 
             es_max = np.max([self.data["E_s"].max(), self.data["E_c"].max(), self.data["E_t"].max()])
             if es_max <= 0.001:
@@ -3190,11 +3406,11 @@ class Global(LSFAS):
 
             # ------------ Qbf  ------------
             ax = fig.add_subplot(gs[1, 0], sharex=ax)
-            s_symbol1 = self.vars["Q_bf"]["TeX"]
+            s_symbol1 = self.vars["Q_bf"]["tex"]
             # titles
             s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["Q_bf"].sum(), 1))
             plt.title(f"{s_title1}", loc="left")
-            plt.plot(self.data[self.dtfield], self.data["Q_bf"] / n_dt, color="navy", label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["Q_bf"] / n_dt, color="navy", label=s_symbol1)
             qb_max = self.data["Q_bf"].max() / n_dt
             if qb_max == 0:
                 plt.ylim(-1, 1)
@@ -3206,33 +3422,33 @@ class Global(LSFAS):
             # ------------ G plot ------------
             n_smax = self.data["G"].max()
             ax = fig.add_subplot(gs[2, 0], sharex=ax)
-            s_symbol1 = self.vars["V"]["TeX"]
-            s_symbol2 = self.vars["G"]["TeX"]
-            s_symbol3 = self.vars["D"]["TeX"]
-            s_symbol4 = self.vars["D_v"]["TeX"]
+            s_symbol1 = self.vars["V"]["tex"]
+            s_symbol2 = self.vars["G"]["tex"]
+            s_symbol3 = self.vars["D"]["tex"]
+            s_symbol4 = self.vars["D_v"]["tex"]
             s_title1 = r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["V"].mean(), 1))
             s_title2 = r"{} ($\mu$ = {} mm)".format(s_symbol2, round(self.data["G"].mean(), 1))
             s_title3 = r"{} ($\mu$ = {} mm)".format(s_symbol3, round(self.data["D"].mean(), 1))
             plt.title(f"{s_title1}, {s_title2} and {s_title3}", loc="left")
-            plt.plot(self.data[self.dtfield], self.data["V"], color=specs["color_V"], label=s_symbol1)
-            plt.plot(self.data[self.dtfield], self.data["G"], color=specs["color_G"], label=s_symbol2)
-            plt.plot(self.data[self.dtfield], self.data["D"], color="black", label=s_symbol3)
-            plt.plot(self.data[self.dtfield], self.data["D_v"], color="black", linestyle="--", label=s_symbol4)
+            plt.plot(self.data[self.field_datetime], self.data["V"], color=specs["color_V"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["G"], color=specs["color_G"], label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["D"], color="black", label=s_symbol3)
+            plt.plot(self.data[self.field_datetime], self.data["D_v"], color="black", linestyle="--", label=s_symbol4)
             plt.hlines(
                 y=self.params["G_cap"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="orange",
                 linestyles="--",
-                label=self.params["G_cap"]["TeX"]
+                label=self.params["G_cap"]["tex"]
             )
             plt.hlines(
                 y=self.params["G_cap"]["value"] - self.params["D_et_a"]["value"],
-                xmin=self.data[self.dtfield].min(),
-                xmax=self.data[self.dtfield].max(),
+                xmin=self.data[self.field_datetime].min(),
+                xmax=self.data[self.field_datetime].max(),
                 colors="green",
                 linestyles="--",
-                label=self.params["D_et_a"]["TeX"]
+                label=self.params["D_et_a"]["tex"]
             )
             plt.legend(loc="upper left", ncols=6)
             # normalize X axis
@@ -3262,7 +3478,8 @@ class Global(LSFAS):
 
     @staticmethod
     def propagate_inflow(inflow, unit_hydrograph):
-        """Flow routing model based on provided unit hydrograph.
+        """
+        Flow routing model based on provided unit hydrograph.
         Inflow and Unit Hydrograh arrays are expected to be the same size.
         # todo [feature] improve so it can handle a smaller Unit Hydrograph (using slicing, etc)
 
@@ -3285,8 +3502,10 @@ class Global(LSFAS):
                 outflow[t:] = outflow[t:] + (inflow[t] * uh[:size - t])
         return outflow
 
+
 class Local(Global):
-    """This is a local Rainfall-Runoff model. Simulates the the catchment globally and locally
+    """
+    This is a local Rainfall-Runoff model. Simulates the the catchment globally and locally
     by applying downscaling methods. Expected inputs:
 
     - `clim.csv` for Precipitation (P) and Potential Evapotranspiration (E_pot).
@@ -3299,20 +3518,53 @@ class Local(Global):
 
     def __init__(self, name="MyLocal", alias="Loc001"):
         # todo [docstring]
+
         super().__init__(name=name, alias=alias)
         # overwriters
         self.object_alias = "Local"
 
+        # scenarios
+        self.scenario_clim = "obs"
+        self.scenario_lulc = "obs"
+
+        self.folders = {}
+        self.folders_ls = [
+            "topo",
+            "lulc",
+            "clim",
+            "basins",
+            "soils"
+        ]
         # local inputs file
-        # todo [RESUME HERE]
         print("Hello World!")
+
+        # ------- topographic saturation index (2D numpy array)
+        self.data_tsi = None
+        self.filename_data_tsi = "tsi.tif"
+
+        # ------- basins
+        self.data_basins = None
+        self.file_data_basins_ls = None
+        self.filename_data_basins = "basins_*.tif"
+
+        # ------- lulc
         # lulc table
-        # soil table
-        # maps
-        # matrix
-        # todo [reentry note]
+        self.data_lulc_table = None
+        self.file_data_lulc_table = None
+        self.filename_data_lulc_table = "lulc.csv"
+        # maps this will be a 3D numpy array
+        self.data_lulc = None
+        self.file_data_lulc_ls = None
+        self.filename_data_lulc = "lulc_*.tif"
+
+        # ------- soils
+        # soils table
+        self.data_soils_table = None
+        # map soils classes map (2D numpy array)
+        self.data_soils = None
+
         '''
-        Instructions: make a model that handles both G2G and HRU approach without.
+        Instructions: make a model that handles both G2G and HRU approach.
         The trick seems to have a area matrix that is the same...   
         
         - Use downscale_values() functions from plans.geo
@@ -3321,8 +3573,98 @@ class Local(Global):
              
         '''
 
+    def setter(self, dict_setter):
+        """
+        Set selected attributes based on an incoming dictionary.
+        This is calling the superior method using load_data=False.
+
+        :param dict_setter: incoming dictionary with attribute values
+        :type dict_setter: dict
+        :return: None
+        :rtype: None
+        """
+        super().setter(dict_setter)
+
+        # folder parents
+        for d in self.folders_ls:
+            self.folders[d] = Path(str(self.folder_data) + "/" + d)
+        # data folders
+        self.folder_data_topo = self.folders["topo"]
+        self.folder_data_soils = self.folders["soils"]
+        self.folder_data_basins = self.folders["basins"]
+        self.folder_data_obs = self.folders["basins"]
+        self.folder_data_tah = self.folders["basins"]
+        self.set_scenario(scenario_clim="obs", scenario_lulc="obs")
+
+        self.folder_output = Path(str(self.folder_data.parent) + "/outputs")
+        # ... continues in downstream objects ... #
+        return None
+
+    # todo [move upstream] -- evaluate to retrofit Global() so it can handle scenarios?
+    def set_scenario(self, scenario_clim="obs", scenario_lulc="obs"):
+        # todo [docstring]
+
+        if scenario_clim is not None:
+            self.scenario_clim = scenario_clim
+            self.folder_data_clim = Path(str(self.folders["clim"]) + f"/{self.scenario_clim}")
+
+        if scenario_lulc is not None:
+            self.scenario_lulc = scenario_lulc
+            self.folder_data_lulc = Path(str(self.folders["lulc"]) + f"/{self.scenario_lulc}")
+
+        return None
 
 
+    def load_data(self):
+        """
+        Load simulation data. Expected to increment superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super().load_data()
+
+        # -------------- load topo data -------------- #
+        self.file_data_tsi = Path(f"{self.folder_data_topo}/{self.filename_data_tsi}")
+        self.data_tsi = ds.HTWI(name=self.name)
+        self.data_tsi.load_data(file_data=self.file_data_tsi)
+
+
+        # -------------- load soils data -------------- #
+
+
+        # -------------- load basins data -------------- #
+        self.file_data_basins_ls = glob.glob(f"{self.folder_data_basins}/{self.filename_data_basins}")
+        self.data_basins = ds.QualiRasterCollection(name=self.name)
+        # todo [DRY] -- optimize using a load_folder() approach
+        #  self.data_basins.load_folder(folder=self.folder_data_basins, name_pattern=self.filename_data_basins)
+        for f in self.file_data_basins_ls:
+            _name = os.path.basename(f).split("_")[-1].replace(".tif", "")
+            _aoi = ds.AOI(name=_name)
+            _aoi.alias = _name
+            _aoi.file_data = f
+            _aoi.load_data(file_data=f)
+            self.data_basins.append(new_object=_aoi)
+
+        # -------------- load lulc data -------------- #
+        # table
+        self.file_data_lulc_table = Path(f"{self.folders["lulc"]}/{self.filename_data_lulc_table}")
+        self.data_lulc_table = pd.read_csv(
+            self.file_data_lulc_table,
+            sep=self.file_csv_sep,
+            encoding=self.file_encoding,
+        )
+        # maps
+
+
+
+
+        # -------------- update other mutables -------------- #
+        # >>> evaluate using self.update()
+
+        # ... continues in downstream objects ... #
+
+        return None
 
 if __name__ == "__main__":
     print("Hello World!")

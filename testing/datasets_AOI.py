@@ -8,8 +8,9 @@ if __name__ == "__main__":
     # read tif
     f1 = "./data/parsers/inputs/basins_300.tif"
     r = AOI()
-    r.load(file_raster=f1, )
+    r.load_data(file_data=f1, )
     r.view_specs["style"] = "wien"
     r.view_specs["filename"] = "figure"
     r.view_specs["folder"] = "C:/data"
     r.view(show=True)
+    print(">>> passing")

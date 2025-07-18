@@ -9,7 +9,7 @@ os.chdir(script_dir)
 if __name__ == "__main__":
     f = "./data/parsers/inputs/dem.tif"
     rs = Raster()
-    rs.load(file_raster=f)
+    rs.load_data(file_data=f)
     rs.view(show=True)
 
     grd_aoi = 1.0 * (rs.data > 1000)
@@ -19,3 +19,4 @@ if __name__ == "__main__":
 
     rs.release_aoi_mask()
     rs.view(show=True)
+    print(">>> passing")

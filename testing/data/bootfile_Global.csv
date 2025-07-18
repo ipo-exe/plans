@@ -1,11 +1,11 @@
-Attribute;Value
-Name;GLB000
-Alias;GLBM000
-Color;blue
-Source;Ipo
-Description;Rainfall-Runoff model for global processes
-RMSE;
-R2;
-Bias;
-File Parameters;./data/Global/inputs/params_0.csv
-Folder Data;./data/Global/inputs
+attribute;value
+name;GLB000
+alias;GLBM000
+color;blue
+source;Ipo
+description;Rainfall-Runoff model for global processes
+rmse;
+r2;
+bias;
+file_parameters;./data/Global/inputs/params_0.csv
+folder_data;./data/Global/inputs

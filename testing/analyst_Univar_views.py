@@ -20,6 +20,8 @@ if __name__ == "__main__":
     uv.view_specs["subtitle_a"]
     uv.view_specs["style"] = "seaborn"
     uv.view_specs["bins"] = 50
-    uv.view_specs["ylim"] = (90, 110)
+    uv.view_specs["range"] = (90, 110)
     uv.view_specs["mode"] = "mini"
+    uv.view()
+    uv.view_specs["mode"] = "full"
     uv.view()

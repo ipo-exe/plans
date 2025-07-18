@@ -1,11 +1,11 @@
-Attribute;Value
-Name;LSRR000
-Alias;LSRRM000
-Color;blue
-Source;Ipo
-Description;Rainfall-Runoff model testing
-RMSE;
-R2;
-Bias;
-File Parameters;./data/LSRR/inputs/params_0.csv
-Folder Data;./data/LSRR/inputs
+attribute;value
+name;LSRR000
+alias;LSRRM000
+color;blue
+source;Ipo
+description;Rainfall-Runoff model testing
+rmse;
+r2;
+bias;
+file_parameters;./data/LSRR/inputs/params_0.csv
+folder_data;./data/LSRR/inputs

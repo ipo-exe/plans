@@ -22,6 +22,7 @@ if __name__ == "__main__":
     m.shutdown_epot = False
     m.name = "LSRRE-epot"
     m.run(setup_model=False)
+    m.view()
     m.export(
         folder="./data/LSRRE/outputs",
         filename=m.name,
@@ -33,6 +34,7 @@ if __name__ == "__main__":
     m.shutdown_epot = True
     m.name = "LSRRE-noepot"
     m.run(setup_model=False)
+    m.view()
     m.export(
         folder="./data/LSRRE/outputs",
         filename=m.name,

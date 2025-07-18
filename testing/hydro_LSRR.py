@@ -35,6 +35,7 @@ if __name__ == "__main__":
     m0.name = "LSRR-loK"
     m0.params["k"]["value"] = 1.5
     m0.run(setup_model=False)
+    m0.view()
     m0.export(
         folder="./data/LSRR/outputs",
         filename=m0.name,
@@ -68,6 +69,7 @@ if __name__ == "__main__":
     m1.name = "LSRR-hiK-hiDT"
     m1.params["k"]["value"] = 10
     m1.run(setup_model=False)
+    m1.view()
     m1.export(
         folder="./data/LSRR/outputs",
         filename=m1.name,

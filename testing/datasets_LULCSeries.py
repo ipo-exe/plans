@@ -10,4 +10,11 @@ if __name__ == "__main__":
     f2 = "../plans/data/lulc_conversion.csv"
 
     rs = LULCSeries(name="mapbiomas")
-    # todo [RESUME HERE]
+    rs.load_folder(
+        folder="./data/parsers/inputs",
+        file_table=f2,
+        name_pattern="lulc_*",
+        talk=True
+    )
+    print(rs.catalog.to_string())
+    rs.get_views(show=True)

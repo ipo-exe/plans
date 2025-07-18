@@ -10,7 +10,7 @@ os.chdir(script_dir)
 if __name__ == "__main__":
     f = "./data/parsers/inputs/ldd.tif"
     ldd = LDD()
-    ldd.load(file_raster=f)
+    ldd.load_data(file_data=f)
     plt.imshow(ldd.data)
     plt.show()
     dto = geo.distance_to_outlet(grd_ldd=ldd.data, n_res=30)

@@ -155,12 +155,12 @@ class MbaE:
         """Set fields names"""
 
         # Attribute fields
-        self.field_name = "Name"
-        self.field_alias = "Alias"
+        self.field_name = "name"
+        self.field_alias = "alias"
 
         # Bootfile fields
-        self.field_bootfile_attribute = "Attribute"
-        self.field_bootfile_value = "Value"
+        self.field_bootfile_attribute = "attribute"
+        self.field_bootfile_value = "value"
         # ... continues in downstream objects ... #
 
     def get_metadata(self):
@@ -282,7 +282,8 @@ class MbaE:
 
 
 class Collection(MbaE):
-    """A collection of primitive ``MbaE`` objects with associated metadata.
+    """
+    A collection of primitive ``MbaE`` objects with associated metadata.
     Useful for large scale manipulations in ``MbaE``-based objects.
     Expected to have custom methods and attributes downstream.
 
@@ -377,7 +378,8 @@ class Collection(MbaE):
     """
 
     def __init__(self, base_object, name="MyCollection", alias="Col0"):
-        """Initialize the ``Collection`` object.
+        """
+        Initialize the ``Collection`` object.
 
         :param base_object: ``MbaE``-based object for collection
         :type base_object: :class:`MbaE`
@@ -440,7 +442,8 @@ class Collection(MbaE):
         # ... continues in downstream objects ... #
 
     def get_metadata(self):
-        """Get a dictionary with object metadata.
+        """
+        Get a dictionary with object metadata.
         Expected to increment superior methods.
 
         .. note::
@@ -464,7 +467,8 @@ class Collection(MbaE):
         return dict_meta
 
     def update(self, details=False):
-        """Update the ``Collection`` catalog.
+        """
+        Update the ``Collection`` catalog.
 
         :param details: Option to update catalog details, defaults to False.
         :type details: bool
@@ -475,9 +479,10 @@ class Collection(MbaE):
         # Update details if specified
         if details:
             # Create a new empty catalog
-            df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
+            #df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
 
             # retrieve details from collection
+            ls_dfs = list()
             for name in self.collection:
                 # retrieve updated metadata from base object
                 dct_meta = self.collection[name].get_metadata()
@@ -490,9 +495,11 @@ class Collection(MbaE):
 
                 # Set new information
                 df_aux = pd.DataFrame(_dct)
+                df_aux = df_aux[self.catalog.columns]
+                ls_dfs.append(df_aux)
 
-                # Append to the new catalog
-                df_new_catalog = pd.concat([df_new_catalog, df_aux], ignore_index=True)
+            # concat new catalog
+            df_new_catalog = pd.concat(ls_dfs, ignore_index=True)
 
             # consider if the name itself has changed in the
             old_key_names = list(self.collection.keys())[:]
@@ -718,6 +725,7 @@ class DataSet(MbaE):
             )
         return str_out
 
+
     def _set_fields(self):
         """
         Set fields names.
@@ -727,11 +735,11 @@ class DataSet(MbaE):
         # ------------ call super ----------- #
         super()._set_fields()
         # Attribute fields
-        self.field_file_data = "File_Data"
-        self.field_size = "Size"
-        self.field_color = "Color"
-        self.field_source = "Source"
-        self.field_description = "Description"
+        self.field_file_data = "file_data"
+        self.field_size = "size"
+        self.field_color = "color"
+        self.field_source = "source"
+        self.field_description = "description"
         # ... continues in downstream objects ... #
 
     def _set_view_specs(self):

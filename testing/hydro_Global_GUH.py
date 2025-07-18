@@ -1,4 +1,7 @@
 import os
+
+import matplotlib.pyplot as plt
+
 from plans.hydro import Global
 from testing.hydro_utils import copy_inputs, delete_inputs
 
@@ -19,8 +22,8 @@ if __name__ == "__main__":
 
     # set up simulation data
     m.setup()
-    print(m.data_paths)
-    print(m.unit_hydrograph["q"].sum())
+    print(m.data_tah)
+    print(m.data_guh["q"].sum())
 
     m.solve()
     m.view(mode="river")
@@ -30,7 +33,18 @@ if __name__ == "__main__":
         views=True,
         mode="river"
     )
+    df1 = m.data[[m.field_datetime, "Q"]].copy()
+    m.params["K_Q"]["value"] = 100
+    m.setup()
+    m.solve()
+    m.view(mode="river")
+    df2 = m.data[[m.field_datetime, "Q"]].copy()
     delete_inputs(dst_folder=m.folder_data)
+
+    plt.plot(df1[m.field_datetime], df1["Q"], "b")
+    plt.plot(df2[m.field_datetime], df2["Q"], "r")
+    plt.show()
+
     print("\n>>> OK. PASSING.\n")
 
 

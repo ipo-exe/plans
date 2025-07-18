@@ -26,7 +26,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
-
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -118,28 +118,71 @@ def prune_values(array, min_value=None, max_value=None):
     return array
 
 
-def downscale_value(mean, scale, array_covar, mirror=False):
+def downscale_linear(scalar, array_covar, mode="mean"):
     """
-    Downscale a scalar mean to a vector. Performs a disaggregation
+    Applies linear downscaling to a covariance array based on a scalar value.
 
-    :param mean: mean value to downscale (expected to be positive)
-    :type mean: float
-    :param scale: scale factor (expected to be positive)
-    :type scale: float
-    :param array_covar: Numpy array of a covariate
+    :param scalar: The scalar value used for downscaling.
+    :type scalar: float
+    :param array_covar: The covariance array to be downscaled.
     :type array_covar: :class:`numpy.ndarray`
-    :param mirror: flag to inverse the downscaling signal (mirror distribution)
-    :type mirror: bool
-    :return: downscaled array
+    :param mode: The aggregation mode to use, "mean" or "sum". Default value = "mean"
+    :type mode: str
+    :return: The linearly downscaled array.
     :rtype: :class:`numpy.ndarray`
     """
-    downler = downscaling_mask(array_covar=array_covar, scale=scale)
+    funcs = {
+        "mean" : np.nanmean,
+        "sum": np.nansum
+    }
+    return array_covar * scalar / funcs[mode](array_covar)
+
+
+def downscale_variance(mean, array_covar, scale_factor, mirror=False, mode="simple", max_value=None, min_value=None):
+    """
+    Applies a downscaling operation to a mean array based on a covariance array and a scaling factor.
+
+    :param mean: The input mean array.
+    :type mean: :class:`numpy.ndarray`
+    :param array_covar: The covariance array used for downscaling.
+    :type array_covar: :class:`numpy.ndarray`
+    :param scale_factor: The factor by which to downscale.
+    :type scale_factor: float
+    :param mirror: Whether to mirror the downscaling effect. Default value = False
+    :type mirror: bool
+    :param mode: The post-processing mode to apply. Can be "simple", "prune", "truncate", or "compensate". Default value = "simple"
+    :type mode: str
+    :param max_value: [optional] The maximum value for pruning or truncation.
+    :type max_value: float
+    :param min_value: [optional] The minimum value for pruning or truncation.
+    :type min_value: float
+    :return: The downscaled array.
+    :rtype: :class:`numpy.ndarray`
+    """
+    # get mask
+    downler = downscaling_mask(array_covar=array_covar, scale=scale_factor)
+
     signal = 1
     if mirror:
         signal = -1
-    return mean + (signal * downler)
 
+    # compute simple scaling
+    grd = mean + (signal * downler)
 
+    # apply post-processing
+    if mode == "simple" or mode is None:
+        pass
+    elif mode == "prune" or mode == "truncate":
+        # this method does not ensure the same input mean
+        grd = prune_values(array=grd, max_value=max_value, min_value=min_value)
+    elif mode == "compensate":
+        # this method fix the truncation problem
+        grd_pruned = prune_values(array=grd, max_value=max_value, min_value=min_value)
+        grd = downscale_linear(scalar=mean, array_covar=grd_pruned, mode="mean")
+
+    return grd
+
+# todo [refactor] -- evaluate to rename or move inside
 def downscaling_mask(array_covar, scale):
     """
     Compute a downscaling mask by using a covariate array
@@ -201,7 +244,29 @@ def reclassify_values(array, upvalues, classes):
             )
     return new
 
-# --- basic operation on array values
+
+def soils(slope, hand, slope_threshold=25, hand_threshold=5):
+    """
+    Calculates a basic soil classification grid based on slope and HAND (Height Above Nearest Drainage) data.
+
+    :param slope: The slope array.
+    :type slope: :class:`numpy.ndarray`
+    :param hand: The HAND (Height Above Nearest Drainage) array.
+    :type hand: :class:`numpy.ndarray`
+    :param slope_threshold: The slope threshold for identifying neosols. Default value = 25
+    :type slope_threshold: int
+    :param hand_threshold: The HAND threshold for identifying alluvial soils. Default value = 5
+    :type hand_threshold: int
+    :return: A grid representing soil types (1: default, 2: neosols, 3: alluvial).
+    :rtype: :class:`numpy.ndarray`
+    """
+    # todo [DEV] -- this can have more features
+    grd_neosols = 1 * (slope >= slope_threshold)
+    grd_alluvial = 1 * (hand <= hand_threshold)
+    grd_alluvial = np.where(grd_neosols == 0, grd_alluvial, 0)
+    grd_soils = (slope * 0.0) + 1
+    grd_soils = grd_soils + (2 * grd_neosols) + (1 * grd_alluvial)
+    return grd_soils
 
 def slope(dem, cellsize, degree=True):
     """
@@ -409,13 +474,14 @@ def usle_l(slope, cellsize):
 
 def usle_s(slope):
     """
-    Wischmeier & Smith (1978) S factor
+    Calculates the USLE S-factor (slope steepness factor) based on the Wischmeier & Smith (1978) equation.
 
     S = 65.41(sinθ)^2 + 4.56sinθ + 0.065
 
-    :param slope: slope in degrees of terrain 2d array
-    :return:
-    todo [complete] include types
+    :param slope: Slope in degrees of terrain.
+    :type slope: :class:`numpy.ndarray`
+    :return: The USLE S-factor.
+    :rtype: :class:`numpy.ndarray`
     """
     slope_rad = np.pi * 2 * slope / 360
     lcl_grad = np.sin(slope_rad)
@@ -426,17 +492,26 @@ def usle_m_a(q, prec, r, k, l, s, c, p, cellsize=30):
     """
     USLE-M Annual Soil Loss (Kinnell & Risse, 1998)
 
-    :param q: 2d numpy array of annual runoff in mm / year
-    :param prec: 2d numpy array or float of annual precipitation in mm / year
-    :param r: 2d numpy array or float of rain erosivity in MJ mm h-1 ha-1 year-1
-    :param k: 2d numpy array or float of erodibility K factor in ton h MJ-1 mm-1
-    :param l: 2d numpy array or float of USLE/RUSLE L factor
-    :param s: 2d numpy array or float of USLE/RUSLE S factor
-    :param c: 2d numpy array or float of C_UM factor
-    :param p: 2d numpy array or float of USLE/RUSLE P factor
-    :param cellsize: float of grid cell size in meters
-    :return: 2d numpy array of Annual Soil Loss in ton / year
-    todo [complete] include types
+    :param q: Annual runoff in mm/year.
+    :type q: :class:`numpy.ndarray`
+    :param prec: Annual precipitation in mm/year.
+    :type prec: :class:`numpy.ndarray` or float
+    :param r: Rain erosivity in MJ mm h-1 ha-1 year-1.
+    :type r: :class:`numpy.ndarray` or float
+    :param k: Erodibility K factor in ton h MJ-1 mm-1.
+    :type k: :class:`numpy.ndarray` or float
+    :param l: USLE/RUSLE L factor.
+    :type l: :class:`numpy.ndarray` or float
+    :param s: USLE/RUSLE S factor.
+    :type s: :class:`numpy.ndarray` or float
+    :param c: C_UM factor.
+    :type c: :class:`numpy.ndarray` or float
+    :param p: USLE/RUSLE P factor.
+    :type p: :class:`numpy.ndarray` or float
+    :param cellsize: Grid cell size in meters. Default value = 30
+    :type cellsize: float
+    :return: Annual Soil Loss in ton/year.
+    :rtype: :class:`numpy.ndarray`
     """
     return (q / prec) * r * k * l * s * c * p * (cellsize * cellsize / (100 * 100))
 

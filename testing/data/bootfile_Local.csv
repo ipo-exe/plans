@@ -1,0 +1,11 @@
+attribute;value
+name;LCL000
+alias;LCLM000
+color;blue
+source;Ipo
+description;Rainfall-Runoff model for local processes
+rmse;
+r2;
+bias;
+file_parameters;./data/Local/inputs/params_0.csv
+folder_data;C:/plans/demo/inputs

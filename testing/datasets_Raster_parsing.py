@@ -7,7 +7,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
 if __name__ == "__main__":
-    handle_tif = False
+    handle_tif = True
     handle_asc = True
     if handle_tif:
         # read tif
@@ -40,6 +40,7 @@ if __name__ == "__main__":
         pprint.pprint(dc2["metadata"])
         plt.imshow(dc2["data"], cmap="jet", vmin=-100, vmax=100)
         plt.show()
+        print(">>> passing")
 
     if handle_asc:
         print("\n\n")
@@ -73,6 +74,7 @@ if __name__ == "__main__":
         pprint.pprint(dc2["metadata"])
         plt.imshow(dc2["data"], cmap="jet", vmin=-100, vmax=100)
         plt.show()
+        print(">>> passing")
 
 
 

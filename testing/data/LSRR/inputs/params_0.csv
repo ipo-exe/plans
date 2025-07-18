@@ -1,4 +1,4 @@
-Parameter;Value;Min;Max;Units
+parameter;value;min;max;units
 k;8.6;0.01;100;D
 Q_max;1;0;10000;mm/dt
 S0;15;0;10000;mm
