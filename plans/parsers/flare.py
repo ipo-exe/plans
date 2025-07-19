@@ -235,9 +235,9 @@ def decode_epoch(epoch):
     :rtype: dict
     """
     # Check for time range pattern first
-    if epoch.startswith('rs') and 'f' in epoch:
+    if 'f' in epoch.lower():
         parts = epoch.split('f')
-        start_label = parts[0][2:]  # Remove 'rs'
+        start_label = parts[0]
         end_label = parts[1]
 
         # Recursively decode start and end timestamps
@@ -389,7 +389,7 @@ def encode_epoch(epoch_dc):
     if epoch_dc["alias"] == "TR":
         start_label = encode_epoch(epoch_dc=epoch_dc["start"]) # Remove 'rs'
         end_label = encode_epoch(epoch_dc=epoch_dc["end"])
-        flare_str = f"rs{start_label}f{end_label}"
+        flare_str = f"{start_label}f{end_label}"
     else:
         year = epoch_dc.get('year', 2000)
         month = epoch_dc.get('month', 1)

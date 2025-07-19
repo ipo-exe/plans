@@ -27,7 +27,7 @@ if __name__ == "__main__":
     e = flare.decode_extent(e2)
     pprint.pprint(e)
 
-    ts = "rs2014f2015"#"20140302t124804p143zw0300"
+    ts = "2014f2015"#"20140302t124804p143zw0300"
     ts_dc = flare.decode_epoch(ts)
     pprint.pprint(ts_dc)
     ts = flare.encode_epoch(ts_dc)
