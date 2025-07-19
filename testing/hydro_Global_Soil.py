@@ -25,7 +25,7 @@ if __name__ == "__main__":
     copy_inputs(dst_folder=m.folder_data)
     m.load()
 
-    m.params["G0"]["value"] = 80
+    m.params["g0"]["value"] = 80
 
     # set controllers for testing
     m.shutdown_epot = False
@@ -42,21 +42,21 @@ if __name__ == "__main__":
     m.name = "Global-Soil-forest"
     print(m.name)
     # set canopy params
-    m.params["C_a"]["value"] = 15
-    m.params["C_k"]["value"] = 2
+    m.params["c_a"]["value"] = 15
+    m.params["c_k"]["value"] = 2
     # surface activation
-    m.params["S_of_a"]["value"] = 10 # mm, level for activation of surface channels
-    m.params["S_uf_a"]["value"] = 1  # mm, level for activation of topsoil channels
-    m.params["S_uf_cap"]["value"] = 6  # mm for topsoil capacity
+    m.params["s_of_a"]["value"] = 10 # mm, level for activation of surface channels
+    m.params["s_uf_a"]["value"] = 1  # mm, level for activation of topsoil channels
+    m.params["s_uf_cap"]["value"] = 6  # mm for topsoil capacity
     # surface fragmentation
-    m.params["S_of_c"]["value"] = 6  # mm for overland flow coef reach 0.5
-    m.params["S_uf_c"]["value"] = 4 # mm for underland flow coef reach 0.5
+    m.params["s_of_c"]["value"] = 6  # mm for overland flow coef reach 0.5
+    m.params["s_uf_c"]["value"] = 4 # mm for underland flow coef reach 0.5
     # infiltration
-    m.params["S_k"]["value"] = 2.5  # days, residence time
+    m.params["s_k"]["value"] = 2.5  # days, residence time
 
     # soil params
-    m.params["K_V"]["value"] = 20
-    m.params["D_et_a"]["value"] = 60
+    m.params["k_v"]["value"] = 20
+    m.params["d_et_a"]["value"] = 60
     # run
     m.solve()
     print_soil(m)

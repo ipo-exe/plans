@@ -104,6 +104,11 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
 .. autosummary::
    :toctree: generated
 
+   plans.parsers.flare
+
+.. autosummary::
+   :toctree: generated
+
    plans.parsers.inmet
 
 .. autosummary::

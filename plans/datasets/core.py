@@ -5198,6 +5198,7 @@ class RasterCollection(Collection):
         self.short_catalog_ls = [
             "name",
             "alias",
+            "datetime",
             "size",
             "resolution",
             "rows",

@@ -17,8 +17,8 @@ if __name__ == "__main__":
     copy_inputs(dst_folder=m.folder_data)
     m.load()
 
-    m.params["G0"]["value"] = 10
-    m.params["S0"]["value"] = 0
+    m.params["g0"]["value"] = 10
+    m.params["s0"]["value"] = 0
 
     # set up simulation data
     m.setup()
@@ -33,16 +33,16 @@ if __name__ == "__main__":
         views=True,
         mode="river"
     )
-    df1 = m.data[[m.field_datetime, "Q"]].copy()
-    m.params["K_Q"]["value"] = 100
+    df1 = m.data[[m.field_datetime, "q"]].copy()
+    m.params["k_q"]["value"] = 100
     m.setup()
     m.solve()
     m.view(mode="river")
-    df2 = m.data[[m.field_datetime, "Q"]].copy()
+    df2 = m.data[[m.field_datetime, "q"]].copy()
     delete_inputs(dst_folder=m.folder_data)
 
-    plt.plot(df1[m.field_datetime], df1["Q"], "b")
-    plt.plot(df2[m.field_datetime], df2["Q"], "r")
+    plt.plot(df1[m.field_datetime], df1["q"], "b")
+    plt.plot(df2[m.field_datetime], df2["q"], "r")
     plt.show()
 
     print("\n>>> OK. PASSING.\n")

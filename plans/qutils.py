@@ -32,11 +32,10 @@ In a lacinia nisl.
 # native imports
 import glob, os, shutil
 from pathlib import Path
-
-import matplotlib.pyplot as plt
-import pandas as pd
 # basic imports
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 import geopandas as gpd
 # qgis imports
 import processing
@@ -205,6 +204,7 @@ def count_vector_features(input_db, layer_name):
     )
     return int(layer.featureCount())
 
+
 def retrieve_raster_tiles(
     db_aoi,
     layer_aoi,
@@ -358,6 +358,8 @@ def get_blank(file_input, file_output, blank_value=0, dtype="byte"):
     :type dtype: str
     :return: file path of output (echo)
     :rtype: str
+
+    # todo [script example]
     """
 
     # -------------------------------------------------------------------------
@@ -846,8 +848,6 @@ def get_twi(file_slope, file_upa, file_output):
     :return: file path of output (echo)
     :rtype: str
 
-    # todo [script example]
-
     """
     # -------------------------------------------------------------------------
     # LOAD SLOPE
@@ -901,6 +901,7 @@ def get_dto(file_ldd, file_output):
     )
     return file_output
 
+
 def get_path_areas(file_dto, dc_basins, file_output, n_bins=100):
     # todo [docstring]
     # -------------------------------------------------------------------------
@@ -908,11 +909,12 @@ def get_path_areas(file_dto, dc_basins, file_output, n_bins=100):
     dc_raster = Raster.read_tif(file_input=file_dto,)
     grd_dto = dc_raster["data"]
     n_cell_size = dc_raster["metadata"]["cellsize"]
+    # todo [DEV] -- develop feature for handling parameterized units
     n_cell_area = n_cell_size * n_cell_size / (100 * 100) # ha units
     n_max = round(np.nanmax(grd_dto), 1) + 1.0
     vct_bins = np.linspace(start=0.0, stop=n_max, num=n_bins)
     dc_output = {
-        "Path (m)": vct_bins[1:],
+        "path (m)": vct_bins[1:],
     }
     for basin_code in dc_basins:
         # -------------------------------------------------------------------------

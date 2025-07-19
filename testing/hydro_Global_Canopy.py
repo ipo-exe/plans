@@ -29,8 +29,8 @@ if __name__ == "__main__":
 
     # Hi Ca and Hi Ck
     m.name = "Global-Canopy-forest"
-    m.params["C_a"]["value"] = 15
-    m.params["C_k"]["value"] = 2
+    m.params["c_a"]["value"] = 15
+    m.params["c_k"]["value"] = 2
     m.solve()
     print_canopy(m)
     m.export(
@@ -42,8 +42,8 @@ if __name__ == "__main__":
 
     # Med Ca and Hi Ck
     m.name = "Global-Canopy-farm"
-    m.params["C_a"]["value"] = 5
-    m.params["C_k"]["value"] = 2
+    m.params["c_a"]["value"] = 5
+    m.params["c_k"]["value"] = 2
     m.solve()
     print_canopy(m)
     m.export(
@@ -55,8 +55,8 @@ if __name__ == "__main__":
 
     # Med Ca and Hi Ck
     m.name = "Global-Canopy-urban"
-    m.params["C_a"]["value"] = 3
-    m.params["C_k"]["value"] = 0.01
+    m.params["c_a"]["value"] = 3
+    m.params["c_k"]["value"] = 0.01
     m.solve()
     print_canopy(m)
     m.export(

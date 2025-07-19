@@ -20,7 +20,7 @@ if __name__ == "__main__":
     print(m.params["dt"])
 
     m.run()
-    plt.plot(m.data["DateTime"], m.data["Q"] / m.params["dt"]["value"], ".", c="b")
+    plt.plot(m.data["datetime"], m.data["q"] / m.params["dt"]["value"], ".", c="b")
 
     # change value and units of dt
     m.params["dt"]["value"] = 60
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     print(m.params["dt"])
     # check results
     m.run()
-    plt.plot(m.data["DateTime"], m.data["Q"] / m.params["dt"]["value"], ".", c="r")
+    plt.plot(m.data["datetime"], m.data["q"] / m.params["dt"]["value"], ".", c="r")
     plt.ylabel("mm/d")
     plt.show()
     delete_inputs(dst_folder=m.folder_data)

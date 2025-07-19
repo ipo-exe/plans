@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # load() handles heavy-loading of data (parameter data and inputs data)
     m0.load()
     # setup() creates the variables that will hold the simulation (may be intensive!)
-    m0.params["S0"]["value"] = 14
+    m0.params["s0"]["value"] = 14
     m0.setup()
 
     # set view specs
