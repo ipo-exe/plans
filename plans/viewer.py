@@ -31,11 +31,13 @@ In a lacinia nisl.
 """
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import os
 from matplotlib import rcParams
 
 # Define a conversion factor from mm to points
 MM_TO_PT = 2.83465
+
 
 FIG_SIZES = {
     "S": {
@@ -54,7 +56,12 @@ FIG_SIZES = {
             "w": 170,
             "h": 80,
         },
+    "L2": {
+                "w": 170,
+                "h": 60,
+            },
 }
+
 
 GRID_SPECS = {
     "gs_wspace": 0.05,
@@ -64,6 +71,7 @@ GRID_SPECS = {
     "gs_top": 0.98,
     "gs_bottom": 0.02
 }
+
 
 FIG_STYLES = {
     "bare": {
@@ -134,6 +142,7 @@ FIG_STYLES = {
     },
 }
 
+
 def set_figsize(width_mm, height_mm):
     """
     Sets the figure size in millimeters.
@@ -148,6 +157,7 @@ def set_figsize(width_mm, height_mm):
     plt.rcParams['figure.figsize'] = [width_mm / 25.4, height_mm / 25.4]
     return None
 
+
 def set_style(style=None):
     """
     Sets the viwer style. options: bare, dark, seaborn, wien, wien-light, wien-clean
@@ -161,6 +171,7 @@ def set_style(style=None):
     set_fonts(style=style)
     set_colors(style=style)
     return None
+
 
 def set_fonts(style=None):
     """
@@ -193,6 +204,7 @@ def set_fonts(style=None):
     plt.rcParams['axes.labelsize'] = axis_label_size_pt
     plt.rcParams['axes.titlesize'] = title_size_pt
     return None
+
 
 def set_frame(style=None):
     """
@@ -236,6 +248,7 @@ def set_frame(style=None):
 
     return None
 
+
 def set_colors(style=None):
     """
     Sets the color scheme for the plot, including figure background, axes background, grid, lines, and text.
@@ -265,6 +278,7 @@ def set_colors(style=None):
     plt.rcParams['xtick.labelcolor'] = FIG_STYLES[style]["labels_ticks"]  # Color of x-axis tick labels
     plt.rcParams['ytick.labelcolor'] = FIG_STYLES[style]["labels_ticks"]  # Color of y-axis tick labels
     return None
+
 
 def build_fig(specs):
     """
@@ -303,6 +317,7 @@ def build_fig(specs):
     )
     return fig, gs
 
+
 def ship_fig(fig, show=True, file_output=None, dpi=300):
     """
     Handles the output of a matplotlib figure, either by showing it or saving it to a file.
@@ -327,3 +342,20 @@ def ship_fig(fig, show=True, file_output=None, dpi=300):
         return None
     else:
         return None
+
+
+def get_discrete_cmap(n_classes, base_cmap_name='viridis'):
+    """
+    Creates a colormap suitable for plotting classification.
+
+    :param n_classes: The number of classes.
+    :type n_classes: int
+    :param base_cmap_name: The name of the base Matplotlib colormap. Defaults to 'viridis'.
+    :type base_cmap_name: str, optional
+    :returns: A custom colormap.
+    :rtype: matplotlib.colors.ListedColormap
+    """
+    base_cmap = plt.get_cmap(base_cmap_name)  # Get colormap by name
+    colors = [base_cmap(i / (n_classes - 1)) for i in range(n_classes)]
+    custom_cmap = mcolors.ListedColormap(colors)
+    return custom_cmap

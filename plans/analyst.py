@@ -35,14 +35,15 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
-
+import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import matplotlib.colors as mcolors
 from plans import viewer
 from plans.root import DataSet
-import os
 
 
 # --------- Functions -----------
@@ -97,7 +98,10 @@ def power_zero(x, c0, c1):
 
 
 class Univar(DataSet):
-    """The Univariate object"""
+    """
+    The Univariate object
+
+    """
 
     def __init__(self, name="MyUnivar", alias="Uv0"):
         # ------------ set defaults ----------- #
@@ -130,27 +134,32 @@ class Univar(DataSet):
                 "title": "View of {}".format(self.name),
                 "width": viewer.FIG_SIZES["M"]["w"],
                 "height": viewer.FIG_SIZES["M"]["h"],
+                "yvar_field": self.varfield,
                 "xvar": "i",
                 "yvar": self.varname,
                 "xlabel": self.varname,
-                "xlabel_b": "Count",
-                "xlabel_c": "P(X)",
-                "xlabel_d": "Map",
+                "xlabel_cdf": "P(X)",
                 "ylabel": self.units,
                 "color": self.color,
-                "color_b": "tab:grey",
-                "color_c": "blue",
+                "color_hist": "tab:grey",
+                "color_cdf": "blue",
                 "alpha": 0.4,
                 "range": None,
                 "xlim": None,
-                "subtitle_a": "Distribution",
-                "subtitle_b": "Histogram",
-                "subtitle_c": "CDF",
-                "subtitle_d": None,
+                "subtitle_scatter": "Distribution",
+                "subtitle_hist": "Histogram",
+                "subtitle_cdf": "CDF",
                 "plot_mean": True,
                 "hist_density": True,
                 "bins": 20,
-                "mode": "full"
+                "mode": "full",
+                "ax_scatter": 0,
+                "ax_histh": 1,
+                "ax_cdf": 2,
+                "x_stats": 0.01,
+                "scheme_cmap": None,
+                "cmap": "viridis",
+                "colorize_scatter": False
             }
         )
         return None
@@ -192,6 +201,7 @@ class Univar(DataSet):
         # ... continues in downstream objects ... #
 
         return None
+
 
     def set_array(self, array):
         """
@@ -350,6 +360,7 @@ class Univar(DataSet):
         df_result = pd.DataFrame({"statistic": list(dct.keys()), "value": ls_values})
         return df_result
 
+
     def assess_weibull_cdf(self):
         """
         Get the Weibull model
@@ -366,7 +377,12 @@ class Univar(DataSet):
         r = np.arange(0, len(x)) + 1
         px = Univar.weibull_px(ranks=r)
         result_df = pd.DataFrame({"Data": vr, "P(X)": px, "F(X)": 1 - px})
+        '''
+        print(result_df.head())
+        print(result_df.tail())
+        '''
         return result_df
+
 
     def assess_gumbel_cdf(self):
         """
@@ -677,42 +693,90 @@ class Univar(DataSet):
             )
 
 
+    # todo [evaluate]
+    def plot_qqplot(
+        self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
+    ):
+        """
+        Plot Q-Q Plot on Normal distribution
+
+        :param show: Boolean to show instead of saving
+        :type show: bool
+        :param folder: output folder
+        :type folder: str
+        :param filename: image file name
+        :type filename: str
+        :param specs: specification dictionary
+        :type specs: dct
+        :param dpi: image resolution (default = 300)
+        :type dpi: int
+        :return: None
+        :rtype: None
+        """
+        df_clean = self.data.dropna()
+        data = df_clean[self.varfield]
+        # get specs
+        default_specs = {
+            "color": "tab:grey",
+            "title": "Q-Q Plot of {}".format(self.name),
+            "width": 4 * 1.618,
+            "height": 4,
+            "xlabel": "value",
+            "range": (0.95 * np.min(data), 1.05 * np.max(data)),
+            "xlim": (-3, 3),
+            "subtitle": None,
+        }
+        # handle inputs specs
+        if specs is None:
+            pass
+        else:  # override default
+            for k in specs:
+                default_specs[k] = specs[k]
+        specs = default_specs
+
+        # process quantiles
+        _df = Univar.qqplot(data=data)
+        # plot
+        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
+        # grid
+        gs = mpl.gridspec.GridSpec(
+            1, 1, wspace=0.4, hspace=0.5, left=0.1, bottom=0.15, top=0.9, right=0.95
+        )  # nrows, ncols
+        # scatter plot
+        ax = fig.add_subplot(gs[0, 0])
+        plt.title(specs["title"])
+        plt.scatter(_df["T-Quantiles"], _df["Data"], marker=".", color="tab:grey")
+        plt.ylim([_df["Data"].min(), _df["Data"].max()])
+        plt.xlim(specs["xlim"])
+        plt.xlabel("Normal Theoretical Quantiles")
+        plt.ylabel("Data Empirical Quantiles")
+        plt.gca().set_aspect(
+            (specs["xlim"][1] - specs["xlim"][0])
+            / (_df["Data"].max() - _df["Data"].min())
+        )
+
+        # show or save
+        if show:
+            plt.show()
+        else:
+            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+
+
     def _plot(self, fig, gs, specs):
         # todo [docstring]
-        import matplotlib.ticker as mticker
+
         # from matplotlib.ticker import PercentFormatter  # Import PercentFormatter
         formatter = mticker.ScalarFormatter(useOffset=False, useMathText=False)
         formatter.set_scientific(False)  # Ensure scientific notation is off
-
-        # ------- local functions --------
-        def _get_max(std_values, data):
-            data_max = np.max(data)
-            closest_max_index = np.argmin(np.abs(np.array(std_values) - data_max))
-            _id = closest_max_index + 1
-            if _id >= len(std_values):
-                _id = len(std_values) - 1
-            return std_values[_id]
-
-        def _plot_mean(axe, xmin, xmax):
-            axe.hlines(
-                y=y_mu,
-                xmin=xmin,
-                xmax=xmax,
-                colors="red",
-            )
-            axe.annotate(
-                r" $\mu$ = {}".format(round(y_mu, 2)),
-                xy=(xmin, y_mu),
-                xytext=(1, 3),
-                textcoords='offset points',
-                color="red",
-            )
 
         # ------------- get aux data -------------
         if self.stats_df is None:
             self.stats_df = self.assess_basic_stats()
         if self.weibull_df is None:
             self.weibull_df = self.assess_weibull_cdf()
+        # get mean
+        plot_mean = specs["plot_mean"]
+        y_mu = np.nanmean(self.data[self.varfield])
 
         # ------- handle specs issues --------
         ylim = specs["range"]
@@ -723,119 +787,85 @@ class Univar(DataSet):
             rng_margin = rng * 0.1
             ylim = (p_low - rng_margin, p_hi + rng_margin)
 
-        plot_mean = specs["plot_mean"]
+        # ------------ title ------------
+        if specs["title"] is not None:
+            plt.suptitle(specs["title"], fontsize=9)
 
         # ------------ setup axes ------------
-        ax1 = fig.add_subplot(gs[1:10, 2:10])
-        ax2 = fig.add_subplot(gs[1:10, 13:18])
-        ax3 = fig.add_subplot(gs[1:10, 19:])
-
-        # ------------ scatter plot ------------
-        x_values = np.arange(len(self.data))
-        y_mu = np.mean(self.data[self.varfield])
-        ax1.scatter(
-            x_values,
-            self.data[self.varfield].values,
-            marker=".",
-            color=specs["color"],
-            alpha=specs["alpha"],
-            s=0.3 * viewer.MM_TO_PT
-        )
-        if specs["subtitle_a"] is not None:
-            ax1.set_title(specs["subtitle_a"], loc="left")
-        ax1.set_ylim(ylim)
-        ax1.set_xlabel(specs["xlabel"])
-        ax1.set_ylabel(specs["ylabel"])
-        ax1.grid(axis='x', visible=False)
-        ax1.yaxis.set_major_formatter(formatter)
-
-        # handle x axis
-        n_size = len(self.data)
-        x_factor = 4
-        x_low = -x_factor * n_size
-        x_hi = n_size + (x_factor * n_size)
-        ax1.set_xlim(x_low, x_hi)
-        ax1.set_xticks([])
-        # extra lines
-        if plot_mean:
-            _plot_mean(
-                ax1,
-                xmin=x_low,
-                xmax=x_hi,
-            )
-
-        # ------------ hist plot ------------
-        # Standard x-axis maximum values for hist
-        sdmax1 = list(np.linspace(1, 9, 9) / 100)
-        sdmax2 = list(np.linspace(10, 100, 10) / 100)
-        standard_max_values = sdmax1 + sdmax2
+        fig = self._build_axes(fig=fig, gs=gs, specs=specs)
+        all_axes = fig.get_axes()
+        ax_scatter = all_axes[specs["ax_scatter"]]
+        ax_histh = all_axes[specs["ax_histh"]]
+        ax_cdf = all_axes[specs["ax_cdf"]]
 
         # ensure clean data
         df_clean = self.data.dropna()
         data = df_clean[self.varfield].values
-        h = ax2.hist(
-            data,
-            bins=specs["bins"],
-            color=specs["color_b"],
-            alpha=1,
-            orientation="horizontal",
-            weights=np.ones(len(data)) / len(data),
+
+        # ------------ scatter plot ------------
+        x_rng = Univar.plot_scatter(
+            data=data,
+            ax=ax_scatter,
+            ylim=ylim,
+            specs=specs,
+            formatter=formatter,
         )
-        ax2.xaxis.set_major_formatter(mticker.PercentFormatter(1))
-        if specs["subtitle_b"] is not None:
-            ax2.set_title(specs["subtitle_b"], loc="left")
-        # Get the maximum value from the data
-        xmax = _get_max(standard_max_values, h[0]) * 1.1
-        ax2.set_xlim(0, xmax)
-        ax2.set_ylim(ylim)
-        ax2.set_xlabel("%")
-        ax2.set_ylabel(specs["ylabel"])
-        ax2.yaxis.set_major_formatter(formatter)
-        # extra lines
-        if plot_mean:
-            _plot_mean(
-                ax2,
-                xmin=0,
-                xmax=xmax,
-            )
+
+
+        # ------------ hist plot ------------
+        Univar.plot_histh(
+            data=data,
+            ax=ax_histh,
+            ylim=ylim,
+            specs=specs,
+            formatter=formatter,
+        )
 
         # ------------ CDF plot ------------
-        ax3.plot(
-            self.weibull_df["P(X)"],
-            self.weibull_df["Data"],
-            color=specs["color_c"]
+        Univar.plot_cdf(
+            cdf_df=self.weibull_df,
+            ax=ax_cdf,
+            ylim=ylim,
+            specs=specs,
+            formatter=formatter,
         )
-        if specs["subtitle_c"] is not None:
-            ax3.set_title(specs["subtitle_c"], loc="left")
-        ax3.set_xlabel(specs["xlabel_c"])
-        ax3.set_xlim(-0.05, 1.05)
-        ax3.set_ylim(ylim)
-        ax3.yaxis.set_major_formatter(formatter)
-        ax3.set_yticklabels([])
-        ax3.xaxis.set_major_formatter(mticker.PercentFormatter(1))
-        # extra lines
-        if plot_mean:
-            _plot_mean(
-                ax3,
-                xmin=-0.05,
-                xmax=1.05,
-            )
+
+        # ------------ Plot mean ------------
+        if specs["plot_mean"]:
+            y_mu = np.nanmean(data)
+            Univar.plot_mean(ax_scatter, y_mu=y_mu, xmin=x_rng[0], xmax=x_rng[1],)
+            Univar.plot_mean(ax_histh, y_mu=y_mu, xmin=0, xmax=1,)
+            Univar.plot_mean(ax_cdf, y_mu=y_mu, xmin=-0.05, xmax=1.05,)
+
         # ------------ Plot stats ------------
         if specs["mode"] == "full":
-            fig = Univar.plot_stats(fig=fig, stats_df=self.stats_df, x=0.01, y=0.3)
+            x_stats = specs["x_stats"]
+            fig = Univar.plot_stats(fig=fig, stats_df=self.stats_df, x=x_stats, y=0.3)
 
         # send back
         return fig
 
-    def view(self, show=True, return_fig=False):
+    def _build_axes(self, fig, gs, specs):
         # todo [docstring]
+        # ------------ setup axes ------------
+        if specs["mode"] == "full":
+            fig.add_subplot(gs[2:10, 2:10])
+            fig.add_subplot(gs[2:10, 13:18])
+            fig.add_subplot(gs[2:10, 19:])
+        elif specs["mode"] == "mini":
+            fig.add_subplot(gs[2:10, 2:10])
+            fig.add_subplot(gs[2:10, 13:18])
+            fig.add_subplot(gs[2:10, 19:])
 
+        return fig
+
+    def _get_fig_specs(self):
+        # todo [docstring]
         # handle specs
         specs = self.view_specs.copy()
 
         # handle mode
         mode = specs["mode"]
-
         if mode == "full":
             specs_aux = {
                 "ncols": 24,
@@ -852,8 +882,18 @@ class Univar(DataSet):
             }
         # update sizes
         specs.update(specs_aux)
+
         # update gridspecs
         specs.update(viewer.GRID_SPECS)
+
+        return specs
+
+
+    def view(self, show=True, return_fig=False):
+        # todo [docstring]
+
+        # -------------- SPECS --------------
+        specs = self._get_fig_specs()
 
         # -------------- BUILD --------------
         fig, gs = viewer.build_fig(specs=specs)
@@ -877,6 +917,135 @@ class Univar(DataSet):
                 file_output=file_path,
                 dpi=specs["dpi"]
             )
+
+
+    @staticmethod
+    def plot_mean(ax, y_mu, xmin, xmax):
+        # todo [docstring]
+        ax.hlines(
+            y=y_mu,
+            xmin=xmin,
+            xmax=xmax,
+            colors="red",
+        )
+        ax.annotate(
+            r" $\mu$ = {}".format(round(y_mu, 2)),
+            xy=(xmin, y_mu),
+            xytext=(1, 3),
+            textcoords='offset points',
+            color="red",
+        )
+        return None
+
+    @staticmethod
+    def plot_scatter(data, ax, ylim, specs, x_factor=4, formatter=None):
+        # todo [docstring]
+        x_values = np.arange(len(data))
+        # handle scheme
+        if specs["colorize_scatter"]:
+            color_data = Univar.classify(data=data, n_classes=5, scheme=specs["scheme_cmap"])
+            color_cmap = viewer.get_discrete_cmap(n_classes=5, base_cmap_name=specs["cmap"])
+            # plot
+            ax.scatter(
+                x_values,
+                data,
+                marker=".",
+                c=color_data,
+                cmap=color_cmap,
+                alpha=specs["alpha"],
+                s=0.8 * viewer.MM_TO_PT
+            )
+        else:
+            ax.scatter(
+                x_values,
+                data,
+                marker=".",
+                color=specs["color"],
+                alpha=specs["alpha"],
+                s=0.8 * viewer.MM_TO_PT
+            )
+
+        if specs["subtitle_scatter"] is not None:
+            ax.set_title(specs["subtitle_scatter"], loc="left")
+        ax.set_ylim(ylim)
+        ax.set_xlabel(specs["xlabel"])
+        ax.set_ylabel(specs["ylabel"])
+        ax.grid(axis='x', visible=False)
+        if formatter is not None:
+            ax.yaxis.set_major_formatter(formatter)
+
+        # handle x axis
+        n_size = len(data)
+        x_low = -x_factor * n_size
+        x_hi = n_size + (x_factor * n_size)
+        ax.set_xlim(x_low, x_hi)
+        ax.set_xticks([])
+
+        # handle cbars
+        # ------------ cbar plot ------------
+        if specs["colorize_scatter"]:
+            Univar.plot_cbar(data=data, ax=ax, scheme=specs["scheme_cmap"], cmap=specs["cmap"], side="right")
+        return (x_low, x_hi)
+
+    @staticmethod
+    def plot_histh(data, ax, ylim, specs, formatter=None):
+        # todo [docstring]
+
+        # ------- local functions --------
+        def _get_max(std_values, data):
+            data_max = np.max(data)
+            closest_max_index = np.argmin(np.abs(np.array(std_values) - data_max))
+            _id = closest_max_index + 1
+            if _id >= len(std_values):
+                _id = len(std_values) - 1
+            return std_values[_id]
+
+        # Standard x-axis maximum values for hist
+        sdmax1 = list(np.linspace(1, 9, 9) / 100)
+        sdmax2 = list(np.linspace(10, 100, 10) / 100)
+        standard_max_values = sdmax1 + sdmax2
+
+        # plot horizontal hist
+        h = ax.hist(
+            data,
+            bins=specs["bins"],
+            color=specs["color_hist"],
+            alpha=1,
+            orientation="horizontal",
+            weights=np.ones(len(data)) / len(data),
+        )
+        ax.xaxis.set_major_formatter(mticker.PercentFormatter(1))
+        if specs["subtitle_hist"] is not None:
+            ax.set_title(specs["subtitle_hist"], loc="left")
+
+        # Get the maximum value from the data
+        xmax = _get_max(standard_max_values, h[0]) * 1.1
+        ax.set_xlim(0, xmax)
+        ax.set_ylim(ylim)
+        ax.set_xlabel("%")
+        ax.set_ylabel(specs["ylabel"])
+        if formatter is not None:
+            ax.yaxis.set_major_formatter(formatter)
+        return h
+
+    @staticmethod
+    def plot_cdf(cdf_df, ax, ylim, specs, formatter=None):
+        # todo [docstring]
+        ax.plot(
+            cdf_df["P(X)"],
+            cdf_df["Data"],
+            color=specs["color_cdf"]
+        )
+        if specs["subtitle_cdf"] is not None:
+            ax.set_title(specs["subtitle_cdf"], loc="left")
+        ax.set_xlabel(specs["xlabel_cdf"])
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(ylim)
+        if formatter is not None:
+            ax.yaxis.set_major_formatter(formatter)
+        ax.set_yticklabels([])
+        ax.xaxis.set_major_formatter(mticker.PercentFormatter(1))
+        return None
 
     @staticmethod
     def plot_stats(fig, stats_df, x=0.5, y=0.4):
@@ -944,75 +1113,44 @@ class Univar(DataSet):
 
         return fig
 
-    def plot_qqplot(
-        self, show=True, folder="C:/sample", filename="qqplot", specs=None, dpi=300
-    ):
-        """Plot Q-Q Plot on Normal distribution
+    @staticmethod
+    def plot_cbar(data, ax, scheme, cmap="viridis", n_classes=5, side="right", width_factor=16):
+        # todo [docstring]
 
-        :param show: Boolean to show instead of saving
-        :type show: bool
-        :param folder: output folder
-        :type folder: str
-        :param filename: image file name
-        :type filename: str
-        :param specs: specification dictionary
-        :type specs: dct
-        :param dpi: image resolution (default = 300)
-        :type dpi: int
-        :return: None
-        :rtype: None
-        """
-        df_clean = self.data.dropna()
-        data = df_clean[self.varfield]
-        # get specs
-        default_specs = {
-            "color": "tab:grey",
-            "title": "Q-Q Plot of {}".format(self.name),
-            "width": 4 * 1.618,
-            "height": 4,
-            "xlabel": "value",
-            "range": (0.95 * np.min(data), 1.05 * np.max(data)),
-            "xlim": (-3, 3),
-            "subtitle": None,
-        }
-        # handle inputs specs
-        if specs is None:
-            pass
-        else:  # override default
-            for k in specs:
-                default_specs[k] = specs[k]
-        specs = default_specs
+        # handle bins
+        bins = Univar.get_bins(data=data, n_bins=n_classes, scheme=scheme)
 
-        # process quantiles
-        _df = Univar.qqplot(data=data)
-        # plot
-        fig = plt.figure(figsize=(specs["width"], specs["height"]))  # Width, Height
-        # grid
-        gs = mpl.gridspec.GridSpec(
-            1, 1, wspace=0.4, hspace=0.5, left=0.1, bottom=0.15, top=0.9, right=0.95
-        )  # nrows, ncols
-        # scatter plot
-        ax = fig.add_subplot(gs[0, 0])
-        plt.title(specs["title"])
-        plt.scatter(_df["T-Quantiles"], _df["Data"], marker=".", color="tab:grey")
-        plt.ylim([_df["Data"].min(), _df["Data"].max()])
-        plt.xlim(specs["xlim"])
-        plt.xlabel("Normal Theoretical Quantiles")
-        plt.ylabel("Data Empirical Quantiles")
-        plt.gca().set_aspect(
-            (specs["xlim"][1] - specs["xlim"][0])
-            / (_df["Data"].max() - _df["Data"].min())
-        )
+        # handle colors
+        custom_cmap = viewer.get_discrete_cmap(n_classes=n_classes, base_cmap_name=cmap)
+        colors = []
+        for i in range(n_classes):
+            colors.append(custom_cmap.colors[i])
 
-        # show or save
-        if show:
-            plt.show()
+        # handle position
+        xlims = ax.get_xlim()
+        bar_w = abs(xlims[1] - xlims[0]) / width_factor
+        if side == "left":
+            vrange = [xlims[0], xlims[0] + bar_w]
+        elif side == "right":
+            vrange = [xlims[1] - bar_w, xlims[1]]
         else:
-            plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
+            vrange = [xlims[0], xlims[0] + bar_w]
+
+        # plotting loop
+        n_classes = len(colors)
+        for i in range(n_classes):
+            lower_bound = bins[i]
+            upper_bound = bins[i + 1]
+            color = colors[i]
+            ax.fill_between(vrange, lower_bound, upper_bound, color=color, edgecolor='none')
+
+        return None
+
 
     @staticmethod
     def test_distribution(test_name, stat, p, clevel=0.95, distr="normal"):
-        """Util function for statistical testing
+        """
+        Util function for statistical testing
 
         :param test_name: name of test
         :type test_name: str
@@ -1044,7 +1182,8 @@ class Univar(DataSet):
 
     @staticmethod
     def test_normality_ks(data, clevel=0.95):
-        """Test for normality using the Kolmogorov-Smirnov test
+        """
+        Test for normality using the Kolmogorov-Smirnov test
 
         Kolmogorov-Smirnov Test: This test compares the observed distribution with
         the expected normal distribution using a test statistic and a p-value.
@@ -1071,7 +1210,8 @@ class Univar(DataSet):
 
     @staticmethod
     def test_normality_sw(data, clevel=0.95):
-        """Test for normality using the Shapiro-Wilk test.
+        """
+        Test for normality using the Shapiro-Wilk test.
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1089,7 +1229,8 @@ class Univar(DataSet):
 
     @staticmethod
     def test_normality_dp(data, clevel=0.95):
-        """Test for normality using the D'Agostino-Pearson test.
+        """
+        Test for normality using the D'Agostino-Pearson test.
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1111,7 +1252,8 @@ class Univar(DataSet):
 
     @staticmethod
     def get_tx(fx):
-        """Simple function for computing the Return Period from the CDF
+        """
+        Simple function for computing the Return Period from the CDF
 
         :param fx: CDF (FX)
         :type fx: float | :class:`numpy.ndarray`
@@ -1122,7 +1264,8 @@ class Univar(DataSet):
 
     @staticmethod
     def gumbel_fx(x, a, b):
-        """Gumbel probability distribution F(X)
+        """
+        Gumbel probability distribution F(X)
 
         :param x: function inputs
         :type x: float | :class:`numpy.ndarray`
@@ -1140,7 +1283,8 @@ class Univar(DataSet):
 
     @staticmethod
     def gumbel_tx(x, a, b):
-        """Gumbel return period distribution T(X)
+        """
+        Gumbel return period distribution T(X)
 
         :param x: function inputs
         :type x: float | :class:`numpy.ndarray`
@@ -1156,7 +1300,8 @@ class Univar(DataSet):
 
     @staticmethod
     def gumbel_freqfactor(tx=2):
-        """Gumbel Frequency Factor K(T)
+        """
+        Gumbel Frequency Factor K(T)
 
         :param tx: return period T
         :type tx: float | :class:`numpy.ndarray`
@@ -1172,7 +1317,8 @@ class Univar(DataSet):
 
     @staticmethod
     def gumbel_se(std_sample, n_sample, tx):
-        """Gumbel Standard Error for the MM fitted Gumbel function
+        """
+        Gumbel Standard Error for the MM fitted Gumbel function
 
         :param std_sample: sample standard deviation
         :type std_sample: float
@@ -1191,7 +1337,8 @@ class Univar(DataSet):
 
     @staticmethod
     def empirical_px(ranks):
-        """Get the empirical exceedance probability P(X)
+        """
+        Get the empirical exceedance probability P(X)
 
         :param ranks: vector of ranks
         :type ranks: class:`numpy.array`
@@ -1202,7 +1349,8 @@ class Univar(DataSet):
 
     @staticmethod
     def weibull_px(ranks):
-        """Get the Weibull exceedance probability P(X)
+        """
+        Get the Weibull exceedance probability P(X)
 
         :param ranks: vector of ranks
         :type ranks: class:`numpy.array`
@@ -1213,7 +1361,8 @@ class Univar(DataSet):
 
     @staticmethod
     def gringorten_px(ranks):
-        """Get the Gringorten exceedance probability P(X)
+        """
+        Get the Gringorten exceedance probability P(X)
 
         :param ranks: vector of ranks
         :type ranks: class:`numpy.array`
@@ -1224,7 +1373,8 @@ class Univar(DataSet):
 
     @staticmethod
     def sample_gamma(size, shape=3, scale=1, shape_mode=None, n_min=None, n_max=None):
-        """Sample Gamma distribution
+        """
+        Sample Gamma distribution
 
         :param size: Sample size
         :type size: int
@@ -1270,7 +1420,8 @@ class Univar(DataSet):
 
     @staticmethod
     def nbins_fd(data):
-        """This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into
+        """
+        This function computes the number of bins for histograms using the Freedman-Diaconis rule, which takes into
         account the interquartile range (IQR) of the sample, in addition to its range.
 
         :param data: vector of data without nan values
@@ -1287,7 +1438,8 @@ class Univar(DataSet):
 
     @staticmethod
     def nbins_sturges(data):
-        """This function computes the number of bins using the Sturges rule, which assumes that the data follows a normal distribution and computes the number of bins based on its data runsize.
+        """
+        This function computes the number of bins using the Sturges rule, which assumes that the data follows a normal distribution and computes the number of bins based on its data runsize.
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1298,7 +1450,8 @@ class Univar(DataSet):
 
     @staticmethod
     def nbins_scott(data):
-        """This function computes the number of bins using the Scott rule,
+        """
+        This function computes the number of bins using the Scott rule,
         which is similar to the Freedman-Diaconis rule, but uses the standard deviation
         of the data to compute the bin runsize.
 
@@ -1312,7 +1465,8 @@ class Univar(DataSet):
 
     @staticmethod
     def nbins_by_rule(data, rule=None):
-        """Util function for rule-based nbins computation
+        """
+        Util function for rule-based nbins computation
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1341,7 +1495,8 @@ class Univar(DataSet):
 
     @staticmethod
     def histogram(data, bins=100, rule=None):
-        """Compute the histogram of the sample
+        """
+        Compute the histogram of the sample
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1366,7 +1521,8 @@ class Univar(DataSet):
 
     @staticmethod
     def qqplot(data):
-        """Calculate the QQ-plot of data against normal distribution
+        """
+        Calculate the QQ-plot of data against normal distribution
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1388,7 +1544,8 @@ class Univar(DataSet):
 
     @staticmethod
     def trace_variance(data):
-        """Trace the mean variance from sample
+        """
+        Trace the mean variance from sample
 
         :param data: vector of data without nan values
         :type data: :class:`numpy.ndarray`
@@ -1408,6 +1565,364 @@ class Univar(DataSet):
         )
 
         return _df
+
+    @staticmethod
+    def get_bins(data, n_bins=5, scheme="equal"):
+        # todo [docstring]
+        dc = {
+            "linear": Univar.bins_equal,
+            "equal": Univar.bins_equal,
+            "quantiles": Univar.bins_quantiles,
+            "quantile": Univar.bins_quantiles
+        }
+        v = dc[scheme](data=data, n_bins=n_bins)
+        return v
+
+    @staticmethod
+    def bins_equal(data, n_bins):
+        """
+        Calculates equally spaced (linear) bins for a 1D NumPy array.
+
+        :param data: The 1D NumPy array to analyze.
+        :type data: numpy.ndarray
+        :param n_bins: The desired number of bins/intervals.
+        :type n_bins: int
+        :returns: A NumPy array containing the linear bin boundary values.
+        :rtype: numpy.ndarray
+        """
+        min_val = np.min(data)
+        max_val = np.max(data)
+
+        # np.linspace creates 'n_classes + 1' points to define 'n_classes' intervals
+        linear_bins = np.linspace(min_val, max_val, n_bins + 1)
+        return linear_bins
+
+    @staticmethod
+    def bins_quantiles(data, n_bins=5):
+        """
+        Calculates the numerical quantile boundaries (bins) for a 1D NumPy array.
+
+        :param data: The 1D NumPy array to analyze.
+        :type data: numpy.ndarray
+        :param n_bins: The number of quantile classes.
+        :type n_bins: int
+        :returns: A NumPy array containing the quantile boundary values.
+        :rtype: numpy.ndarray
+        """
+        # pd.qcut with retbins=True returns (labels, bins)
+        _, bins = pd.qcut(
+            data,
+            q=n_bins,
+            retbins=True,
+            duplicates='drop'  # Essential for handling non-unique quantiles
+        )
+        return bins
+
+    @staticmethod
+    def classify(data, bins=None, n_classes=5, scheme="equal"):
+        """
+        Classifies a 1D NumPy array into 0-indexed bins based on provided bin boundaries.
+
+        Values `x` are assigned to class `i` if `bins[i] < x <= bins[i+1]`.
+        Values less than or equal to `bins[0]` are assigned to class 0.
+        Values greater than `bins[-1]` are assigned to the last class (`len(bins) - 2`).
+
+        :param data: The 1D NumPy array to classify.
+        :type data: numpy.ndarray
+        :param bins: A 1D NumPy array specifying the sorted bin edges.
+                     E.g., `[min_val, boundary1, boundary2, ..., max_val]`.
+                     Must contain at least two elements.
+        :type bins: numpy.ndarray
+        :returns: A 1D NumPy array of integers representing the 0-indexed class for
+                  each element in `data_array`.
+        :rtype: numpy.ndarray
+        """
+        # handle bins
+        if bins is None:
+            bins = Univar.get_bins(data=data, n_bins=n_classes, scheme=scheme)
+
+        # Number of intervals (classes) will be one less than the number of bins
+        num_classes = len(bins) - 1
+
+        # np.searchsorted(a, v, side='right') returns index 'i' such that all v in a[0:i] <= v
+        # This means `bins[i-1] < x <= bins[i]`.
+        # For example, if bins = [0, 10, 20]:
+        # x=5   => searchsorted returns 1 (meaning it's after bins[0])
+        # x=10  => searchsorted returns 1 (meaning it's after bins[0])
+        # x=15  => searchsorted returns 2 (meaning it's after bins[1])
+        # x=20  => searchsorted returns 2 (meaning it's after bins[1])
+        # Subtracting 1 yields the 0-indexed class for [bins[i-1], bins[i]] like intervals.
+
+        # `classes` will be 0 for x <= bins[0], 1 for x in (bins[0], bins[1]], etc.
+        # For x > bins[-1], it will be `num_classes` (len(bins) - 1).
+        classes = np.searchsorted(bins, data, side='right') - 1
+
+        # Clamp the results to ensure they fall within the valid 0 to num_classes-1 range.
+        # This handles values outside the `bins` range by assigning them to the
+        # first (0) or last (num_classes-1) available class.
+        classified_array = np.clip(classes, 0, num_classes - 1)
+
+        return classified_array
+
+
+    @staticmethod
+    def quantiles_classify(data, n_classes=5):
+        """
+        Classifies a 1D NumPy array into quantile classes.
+
+        :param data: The 1D NumPy array to classify.
+        :type data: numpy.ndarray
+        :param n_classes: The number of quantile classes.
+        :type n_classes: int
+        :returns: A 1D NumPy array containing the quantile class (0 to n_classes-1) for each element.
+        :rtype: numpy.ndarray
+        """
+
+        bins = Univar.get_bins(data=data, n_bins=n_classes, scheme="quantiles")
+
+        values = Univar.classify(data, bins=bins)
+
+        '''
+        # Use pandas qcut, which is efficient and handles duplicates well
+        # labels=False ensures integer class labels (0 to n_classes-1)
+        # duplicates='drop' handles cases where fewer unique quantiles than n_classes exist
+        quantile_classes = pd.qcut(
+            data,
+            q=n_classes,
+            labels=False,
+            duplicates='drop'
+        )#.to_numpy()  # Convert the pandas Series back to a NumPy array
+        '''
+
+        return quantile_classes
+
+
+class GeoUnivar(Univar):
+
+    def __init__(self, name="MyGeoUnivar", alias="GV0"):
+        # call super
+        super().__init__(name=name, alias=alias)
+        self.layer_name = None
+
+    def _set_fields(self):
+        """
+        Set fields names.
+        Expected to increment superior methods.
+
+        """
+        # ------------ call super ----------- #
+        super()._set_fields()
+        # Attribute fields
+        self.field_geometry = "geometry"
+        # ... continues in downstream objects ... #
+
+
+    def _set_view_specs(self):
+        """
+        Set view specifications. Expected to overwrite superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super()._set_view_specs()
+        self.view_specs.update(
+            {
+                "subtitle_map": "Map",
+                "ax_map": 0,
+                "ax_scatter": 1,
+                "ax_histh": 2,
+                "ax_cdf": 3,
+                "x_stats": 0.55,
+                "zorder_map": 0,
+                "empty_map": False,
+                "grid_map": False,
+                "marker_map": "o",
+                "markersize_map": 10,
+                "edgecolor_map": "none",
+                "colorize_map": True,
+                "cbar_scatter": True,
+                "cbar_histh": True,
+            }
+        )
+        return None
+
+
+    def load_data(self, file_data, layer_name):
+        """
+        Load data from file. Expected to overwrite superior methods.
+
+        :param file_data: file path to data.
+        :type file_data: str
+        :return: None
+        :rtype: None
+        """
+        # include geopandas
+        import geopandas as gpd
+
+        # -------------- overwrite relative path inputs -------------- #
+        self.file_data = os.path.abspath(file_data)
+        self.layer_name = layer_name
+
+        # -------------- implement loading logic -------------- #
+        default_columns = {
+            #'DateTime': 'datetime64[1s]',
+            self.varfield: float,
+
+        }
+        ls_cols = [self.varfield, self.field_geometry]
+        # -------------- call loading function -------------- #
+
+        # handle data formats
+        self.data = gpd.read_file(self.file_data, layer=layer_name, columns=ls_cols)
+
+        # -------------- post-loading logic -------------- #
+        self.data.dropna(inplace=True)
+
+        # -------------- update other mutables -------------- #
+        self.update()
+
+        # ... continues in downstream objects ... #
+
+        return None
+
+    # todo [dev] -- export method
+
+    def _build_axes(self, fig, gs, specs):
+        # todo [docstring]
+        # ------------ setup axes ------------
+        if specs["mode"] == "full":
+            fig.add_subplot(gs[2:15, 1:14])
+            fig.add_subplot(gs[2:10, 16:21])
+            fig.add_subplot(gs[2:10, 23:28])
+            fig.add_subplot(gs[2:10, 29:])
+        elif specs["mode"] == "mini":
+            fig.add_subplot(gs[2:10, 2:10])
+            fig.add_subplot(gs[2:10, 16:21])
+            fig.add_subplot(gs[2:10, 23:28])
+            fig.add_subplot(gs[2:10, 29:])
+        return fig
+
+
+    def _get_fig_specs(self):
+        # todo [docstring]
+        # handle specs
+        specs = self.view_specs.copy()
+
+        # handle mode
+        mode = specs["mode"]
+        if mode == "full":
+            specs_aux = {
+                "ncols": 34,
+                "nrows": 16,
+                "width": viewer.FIG_SIZES["L"]["w"],
+                "height": viewer.FIG_SIZES["L"]["h"],
+            }
+        else:
+            specs_aux = {
+                "ncols": 34,
+                "nrows": 12,
+                "width": viewer.FIG_SIZES["L2"]["w"],
+                "height": viewer.FIG_SIZES["L2"]["h"],
+            }
+        # update sizes
+        specs.update(specs_aux)
+
+        # update gridspecs
+        specs.update(viewer.GRID_SPECS)
+
+        return specs
+
+
+    def _plot(self, fig, gs, specs):
+        # todo [docstring]
+        fig = super()._plot(fig=fig, gs=gs, specs=specs)
+
+        all_axes = fig.get_axes()
+
+        # ------------ map plot ------------
+        ax_map = all_axes[specs["ax_map"]]
+
+        GeoUnivar.plot_map(
+            data=self.data,
+            ax=ax_map,
+            column=self.varfield,
+            specs=specs
+        )
+
+        # ------------ scatter cbar plot ------------
+        # handle plotting conflict
+        if specs["colorize_scatter"]:
+            specs["cbar_scatter"] = False
+        if specs["cbar_scatter"]:
+            Univar.plot_cbar(
+                data=self.data[specs["yvar_field"]].values,
+                ax=all_axes[specs["ax_scatter"]],
+                scheme=specs["scheme_cmap"],
+                cmap=specs["cmap"],
+            )
+
+        # ------------ hist cbar plot ------------
+        if specs["cbar_histh"]:
+            Univar.plot_cbar(
+                data=self.data[specs["yvar_field"]].values,
+                ax=all_axes[specs["ax_histh"]],
+                scheme=specs["scheme_cmap"],
+                cmap=specs["cmap"],
+            )
+
+        return fig
+
+
+    @staticmethod
+    def plot_map(data, ax, column, specs, legend=False):
+        if not specs["empty_map"]:
+
+            # handle scheme
+            if specs["colorize_map"]:
+                color_data = Univar.classify(data=data[column].values, n_classes=5, scheme=specs["scheme_cmap"])
+                color_cmap = viewer.get_discrete_cmap(n_classes=5, base_cmap_name=specs["cmap"])
+                # set new column
+                data[f"{column}_plot"] = color_data
+
+                data.plot(
+                    ax=ax,
+                    column=f"{column}_plot",
+                    zorder=specs["zorder_map"],
+                    cmap=color_cmap,
+                    legend=legend,
+                    marker=specs["marker_map"],  # Use a circle marker for dots
+                    markersize=specs["markersize_map"],  # Set the size of the points (adjust as needed)
+                    edgecolor=specs["edgecolor_map"],
+                )
+            else:
+                data.plot(
+                    ax=ax,
+                    column=column,
+                    zorder=specs["zorder_map"],
+                    cmap=specs["cmap"],
+                    legend=legend,
+                    marker=specs["marker_map"],  # Use a circle marker for dots
+                    markersize=specs["markersize_map"],  # Set the size of the points (adjust as needed)
+                    edgecolor=specs["edgecolor_map"],
+                )
+        # Set the Y-axis tick labels orientation
+        ax.tick_params(
+            axis='y',  # Apply to the y-axis
+            labelrotation=90,  # Rotate labels by 90 degrees (vertical)
+
+        )
+
+        for label in ax.get_yticklabels():
+            # Option A: Often looks good for vertical Y-labels on the left
+            label.set_horizontalalignment('right')
+            label.set_verticalalignment('center')
+        if specs["subtitle_map"] is not None:
+            ax.set_title(specs["subtitle_map"], loc="left")
+        ax.grid(visible=specs["grid_map"])
+
+        return None
+
+
 
 
 # todo [upgrade] make it a child of Dataset()

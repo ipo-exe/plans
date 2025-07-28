@@ -38,7 +38,7 @@ from matplotlib.ticker import MaxNLocator
 import warnings
 import rasterio
 from plans.root import Collection, DataSet
-from plans.analyst import Univar
+from plans.analyst import Univar, GeoUnivar
 from plans import viewer
 from plans import geo
 
@@ -1308,22 +1308,6 @@ class TimeSeries(Univar):
 
         **Examples:**
 
-        Simple visualization:
-
-        >>> ds.view(show=True)
-
-        Customize view specs:
-
-        >>> ds.view_specs["title"] = "My Custom Title"
-        >>> ds.view_specs["xlabel"] = "The X variable"
-        >>> ds.view(show=True)
-
-        Save the figure:
-
-        >>> ds.view_specs["folder"] = "path/to/folder"
-        >>> ds.view_specs["filename"] = "my_visual"
-        >>> ds.view_specs["fig_format"] = "png"
-        >>> ds.view(show=False)
 
         """
         # get specs
@@ -2846,16 +2830,17 @@ class Raster(DataSet):
         """
         super()._set_view_specs()
         # borrow from Univar
-        uv = Univar()
+        uv = GeoUnivar()
         self.view_specs.update(uv.view_specs)
         self.view_specs.update({
             "cmap": self.cmap,
-            "suptitle": "{} | {}".format(self.varname, self.name),
+            "title": "{} | {}".format(self.varname, self.name),
             "run_id": None,
             "zoom_window": None,
-            "subtitle_a": "2D distribution",
+            "subtitle_map": "2D distribution",
         })
         self.view_specs["ylabel"] = self.units
+        self.view_specs["grid_map"] = False
         return None
 
     def get_metadata(self):
@@ -3718,8 +3703,8 @@ class Raster(DataSet):
         ax3 = fig.add_subplot(gs[2:8, 20:])
         ax_cbar = fig.add_subplot(gs[2:8, 12:13])
 
-        if specs["suptitle"] is not None:
-            plt.suptitle(specs["suptitle"], fontsize=9)
+        if specs["title"] is not None:
+            plt.suptitle(specs["title"], fontsize=9)
 
         # ------------ map plot ------------
         # handle zoom window
@@ -3751,12 +3736,15 @@ class Raster(DataSet):
         helper_geometry = specs["geometry"]
         if helper_geometry is not None:
             helper_geometry.plot(ax=ax1, color="none", edgecolor="k")
-        if specs["subtitle_a"] is not None:
-            ax1.set_title(specs["subtitle_a"], loc="left")
+        if specs["subtitle_map"] is not None:
+            ax1.set_title(specs["subtitle_map"], loc="left")
         # handle tick labels
         ax1.yaxis.set_major_formatter(formatter)
         ax1.xaxis.set_major_formatter(formatter)
-        ax1.axis("off")
+        if specs["grid_map"]:
+            ax1.grid(visible=specs["grid_map"])
+        else:
+            ax1.axis("off")
         ax1.grid(False)
 
         cbar = fig.colorbar(im, fraction=1, extend="neither", ax=ax_cbar, location="left")
@@ -3779,14 +3767,14 @@ class Raster(DataSet):
         h = ax2.hist(
             data,
             bins=specs["bins"],
-            color=specs["color_b"],
+            color=specs["color_hist"],
             alpha=1,
             orientation="horizontal",
             weights=np.ones(len(data)) / len(data),
         )
         ax2.xaxis.set_major_formatter(mticker.PercentFormatter(1))
-        if specs["subtitle_b"] is not None:
-            ax2.set_title(specs["subtitle_b"], loc="left")
+        if specs["subtitle_hist"] is not None:
+            ax2.set_title(specs["subtitle_hist"], loc="left")
         # Get the maximum value from the data
         xmax = _get_max(standard_max_values, h[0]) * 1.1
         ax2.set_xlim(0, xmax)
@@ -3806,11 +3794,11 @@ class Raster(DataSet):
         ax3.plot(
             uni.weibull_df["P(X)"],
             uni.weibull_df["Data"],
-            color=specs["color_c"]
+            color=specs["color_cdf"]
         )
-        if specs["subtitle_c"] is not None:
-            ax3.set_title(specs["subtitle_c"], loc="left")
-        ax3.set_xlabel(specs["xlabel_c"])
+        if specs["subtitle_cdf"] is not None:
+            ax3.set_title(specs["subtitle_cdf"], loc="left")
+        ax3.set_xlabel(specs["xlabel_cdf"])
         #ax3.set_xticklabels([0, 0.5, 1.0])
         ax3.set_xlim(-0.05, 1.05)
         ax3.xaxis.set_major_formatter(mticker.PercentFormatter(1))
@@ -4678,7 +4666,7 @@ class QualiRaster(Raster):
                     "cutoff": True,
                     "max_classes": 15,
                     "range": (0, self.table[self.field_id].max()),
-                    "subtitle_b": "Aereal ratios",
+                    "subtitle_areas": "Aereal ratios",
                     "area_unit": "km2",
                     "total_area": "Total area"
                 }
@@ -4817,8 +4805,8 @@ class QualiRaster(Raster):
 
         ax2 = fig.add_subplot(gs[2:n_max, 18:23])
 
-        if specs["suptitle"] is not None:
-            plt.suptitle(specs["suptitle"], fontsize=9)
+        if specs["title"] is not None:
+            plt.suptitle(specs["title"], fontsize=9)
 
         # ------------ map plot ------------
         # handle zoom window
@@ -4849,13 +4837,15 @@ class QualiRaster(Raster):
         helper_geometry = specs["geometry"]
         if helper_geometry is not None:
             helper_geometry.plot(ax=ax1, color="none", edgecolor="k")
-        if specs["subtitle_a"] is not None:
-            ax1.set_title(specs["subtitle_a"], loc="left")
+        if specs["subtitle_map"] is not None:
+            ax1.set_title(specs["subtitle_map"], loc="left")
         # handle tick labels
         ax1.yaxis.set_major_formatter(formatter)
         ax1.xaxis.set_major_formatter(formatter)
-        ax1.axis("off")
-        ax1.grid(False)
+        if specs["grid_map"]:
+            ax1.grid(visible=specs["grid_map"])
+        else:
+            ax1.axis("off")
 
         # ------------ areas plot ------------
         n_w_legend = 0.1
@@ -4880,8 +4870,8 @@ class QualiRaster(Raster):
         # Add value labels on each bar
         for index, value in enumerate(df_areas[self.field_area + "_f"].values):
             plt.text(value + 0.05, index, "{:.1f}%".format(value * 100), ha='left', va='center', fontfamily='Arial', fontsize=6)  # Add text label: (x, y, text)
-        if specs["subtitle_b"] is not None:
-            ax2.set_title(specs["subtitle_b"], loc="left")
+        if specs["subtitle_areas"] is not None:
+            ax2.set_title(specs["subtitle_areas"], loc="left")
         dc_units = {
             "km2": "km$^2$",
             "m2": "m$^2$",
@@ -6020,7 +6010,7 @@ class RasterSeries(RasterCollection):
         )
         ts.set_data(dataframe=df_series, varfield=statistic, datefield=self.field_datetime)
         default_specs = {
-            "suptitle": "{} | {} {} series".format(self.name, self.varname, statistic),
+            "title": "{} | {} {} series".format(self.name, self.varname, statistic),
             "ylabel": self.units,
         }
         if specs is None:
@@ -6298,7 +6288,7 @@ class QualiRasterSeries(RasterSeries):
         """
         # get specs
         default_specs = {
-            "suptitle": "Area Series",
+            "title": "Area Series",
             "width": 5 * 1.618,
             "height": 5,
             "ylabel": "Area prevalence (%)",
@@ -6324,7 +6314,7 @@ class QualiRasterSeries(RasterSeries):
         gs = mpl.gridspec.GridSpec(
             3, 1, wspace=0.5, hspace=0.9, left=0.1, bottom=0.1, top=0.9, right=0.95
         )
-        fig.suptitle(specs["suptitle"])
+        fig.suptitle(specs["title"])
 
         # start plotting
         plt.subplot(gs[0:2, 0])

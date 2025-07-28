@@ -17,11 +17,14 @@ if __name__ == "__main__":
             uv.varfield: v
         }
     )
-    uv.view_specs["subtitle_a"]
-    uv.view_specs["style"] = "seaborn"
+
+    uv.view_specs["style"] = "wien-clean"
     uv.view_specs["bins"] = 50
     uv.view_specs["range"] = (90, 110)
     uv.view_specs["mode"] = "mini"
+    uv.view_specs["colorize_scatter"] = True
+    uv.view_specs["scheme_cmap"] = "linear"
     uv.view()
+    uv.view_specs["scheme_cmap"] = "quantiles"
     uv.view_specs["mode"] = "full"
     uv.view()

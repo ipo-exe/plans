@@ -249,7 +249,8 @@ class MbaE:
         return None
 
     def export(self, folder, filename):
-        """Export object resources
+        """
+        Export object resources
 
         :param folder: path to folder
         :type folder: str
