@@ -357,5 +357,6 @@ def get_discrete_cmap(n_classes, base_cmap_name='viridis'):
     """
     base_cmap = plt.get_cmap(base_cmap_name)  # Get colormap by name
     colors = [base_cmap(i / (n_classes - 1)) for i in range(n_classes)]
+    # get custom
     custom_cmap = mcolors.ListedColormap(colors)
     return custom_cmap
