@@ -12,7 +12,7 @@ os.chdir(script_dir)
 
 def print_canopy(m):
     df = m.data.copy()
-    ls = m.vars_canopy + ["Q"]
+    ls = m.vars_canopy + ["q"]
     df = df[ls]
     print(df.round(3))
 
@@ -33,6 +33,7 @@ if __name__ == "__main__":
     m.params["c_k"]["value"] = 2
     m.solve()
     print_canopy(m)
+    m.view()
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     m.params["c_k"]["value"] = 2
     m.solve()
     print_canopy(m)
+    m.view()
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,
@@ -59,6 +61,7 @@ if __name__ == "__main__":
     m.params["c_k"]["value"] = 0.01
     m.solve()
     print_canopy(m)
+    m.view()
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,

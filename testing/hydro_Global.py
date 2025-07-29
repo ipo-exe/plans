@@ -1,4 +1,4 @@
-import os
+import os, time
 import matplotlib.pyplot as plt
 from plans.hydro import Global
 from testing.hydro_utils import copy_inputs, delete_inputs
@@ -19,34 +19,26 @@ if __name__ == "__main__":
     m.params["s0"]["value"] = 0
 
     # set up simulation data
+    time_s = time.time()
+    print("\n\nsetting up data...")
     m.setup()
+    time_e = time.time()
+    time_delta = time_e - time_s
+    print("Setup elapsed time: {:.2f}s\n".format(time_delta))
+    time.sleep(2)
+    print(m.data_pah)
     print(m.data_tah)
-    print(m.data_guh["global"].sum())
-
+    print(m.data_guh)
+    # solve simulation data
+    time_s = time.time()
+    print("\n\nsolving simulation...")
     m.solve()
-
+    time_e = time.time()
+    time_delta = time_e - time_s
+    print("Simulation elapsed time: {:.2f}s\n".format(time_delta))
+    time.sleep(2)
     print(m.data.info())
-
+    print(m.data.round(3))
+    time.sleep(2)
     m.view(mode="river")
-    m.export(
-        folder="./data/Global/outputs",
-        filename=m.name,
-        views=True,
-        mode="river"
-    )
-    df1 = m.data[[m.field_datetime, "q_global"]].copy()
-    m.params["k_q"]["value"] = 100
-    m.setup()
-    m.solve()
-    m.view(mode="river")
-    df2 = m.data[[m.field_datetime, "q_global"]].copy()
-    delete_inputs(dst_folder=m.folder_data)
-
-    plt.plot(df1[m.field_datetime], df1["q_global"], "b")
-    plt.plot(df2[m.field_datetime], df2["q_global"], "r")
-    plt.show()
-
-    print("\n>>> OK. PASSING.\n")
-
-
 

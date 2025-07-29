@@ -16,6 +16,7 @@ def print_soil(m):
     print(ls)
     df = df[ls]
     print(df.tail(20).round(3))
+    #print(df.tail(20).round(3))
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ os.chdir(script_dir)
 
 def print_surface(m):
     df = m.data.copy()
-    ls = m.vars_surface
+    ls = m.vars_surface + ["q_gf"]
     df = df[ls]
     print(df.round(3))
 
@@ -45,6 +45,7 @@ if __name__ == "__main__":
     # run
     m.solve()
     print_surface(m)
+    m.view()
     m.export(
         folder="./data/Global/outputs",
         filename=m.name,

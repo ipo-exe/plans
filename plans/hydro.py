@@ -41,6 +41,21 @@ import plans.datasets as ds
 from plans.analyst import Bivar
 
 
+def demo():
+    # todo [docstring]
+    return None
+
+def compute_decay(s, dt, k):
+    # todo [docstring]
+    #  Qt = dt * St / k
+    return s * dt / k
+
+
+def compute_flow(flow_pot, flow_cap):
+    # todo [docstring]
+    return np.where(flow_pot > flow_cap, flow_cap, flow_pot)
+
+
 class Model(DataSet):
     # todo [optimize for DRY] move this class to root.py and make more abstract for all Models.
     #  Here can be a HydroModel(Model).
@@ -68,7 +83,11 @@ class Model(DataSet):
         self._set_model_params()
 
         # simulation data
+        # dataframe for i/o and post-processing operations
         self.data = None
+        # dict for fast numerical processing
+        self.sdata = None
+        self.slen = None
 
         # observed data
         self.filename_data_obs = "q_obs.csv"
@@ -453,15 +472,15 @@ class Model(DataSet):
             num=len(vc_ts),
             dtype=np.float64,
         )
-
-        # set simulation dataframe
-        self.data = pd.DataFrame(
-            {
+        # built-up data
+        self.slen = len(vc_t)
+        # setup simulation data
+        self.sdata = {
                 self.field_datetime: vc_ts,
                 "t": vc_t,
             }
-        )
-
+        # setup
+        #self.data = pd.DataFrame(self.sdata)
         # append variables to dataframe
         # >>> develop logic in downstream objects
 
@@ -856,13 +875,13 @@ class LinearStorage(Model):
         # setup superior object
         super().setup()
 
-        # append variables to dataframe
-        self.data["s"] = np.nan
-        self.data["q"] = np.nan
-        self.data["S_a"] = np.nan
+        # append extra variables to dict
+        self.sdata["s"] = np.full(self.slen, np.nan)
+        self.sdata["q"] = np.full(self.slen, np.nan)
+        self.sdata["S_a"] = np.full(self.slen, np.nan)
 
         # set initial conditions
-        self.data["s"].values[0] = self.params["s0"]["value"]
+        self.sdata["s"][0] = self.params["s0"]["value"]
 
         return None
 
@@ -878,31 +897,33 @@ class LinearStorage(Model):
         :return: None
         :rtype: None
         """
+        # get data pointer
+        sdata = self.sdata
+
         # make simpler variables for clarity
         k = self.params["k"]["value"]
         dt = self.params["dt"]["value"]
-        df = self.data.copy()
 
         # simulation steps (this is useful for testing and debug)
         if self.n_steps is None:
-            n_steps = len(df)
+            n_steps = self.slen
         else:
             n_steps = self.n_steps
 
         # --- analytical solution
-        df["S_a"].values[:] = self.params["s0"]["value"] * np.exp(-df["t"].values / k)
+        sdata["S_a"][:] = self.params["s0"]["value"] * np.exp(-sdata["t"] / k)
 
         # --- numerical solution
         # loop over (Euler Method)
         for t in range(n_steps - 1):
-            # Qt = dt * St / k
-            df["q"].values[t] = df["s"].values[t] * dt / k
-            df["s"].values[t + 1] = df["s"].values[t] - df["q"].values[t]
+            sdata["q"][t] = compute_decay(s=sdata["s"][t], dt=dt, k=k)
+            sdata["s"][t + 1] = sdata["s"][t] - sdata["q"][t]
 
         # reset data
-        self.data = df.copy()
+        self.data = pd.DataFrame(sdata)
 
         return None
+
 
     def get_evaldata(self):
         # todo [docstring]
@@ -1143,7 +1164,7 @@ class LSRR(LinearStorage):
 
     def load_data(self):
         """
-        Load simulation data. Expected to overwrite superior methods.
+        Load input simulation data. Expected to overwrite superior methods.
 
         .. warning::
 
@@ -1193,7 +1214,7 @@ class LSRR(LinearStorage):
 
     def setup(self):
         """
-        Set model simulation.
+        Set model simulation data.
 
         .. warning::
 
@@ -1204,8 +1225,10 @@ class LSRR(LinearStorage):
         """
         # setup superior object
         super().setup()
+
         # drop superior meaningless columns
-        self.data.drop(columns=["S_a"], inplace=True)
+        del self.sdata["S_a"]
+        ## self.data.drop(columns=["S_a"], inplace=True)
 
         # handle inputs P values
         rs = ds.RainSeries()
@@ -1213,12 +1236,9 @@ class LSRR(LinearStorage):
             input_df=self.data_clim.copy(), input_varfield="p", input_dtfield=self.field_datetime
         )
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
-        # set interpolated inputs variables
 
-        self.data["p"] = df_downscaled["P"].values
-        # organize table
-        ls_vars = [self.field_datetime, "t", "p", "q", "s"]
-        self.data = self.data[ls_vars].copy()
+        # set interpolated inputs variables
+        self.sdata["p"] = df_downscaled["P"].values[:]
 
         return None
 
@@ -1238,11 +1258,13 @@ class LSRR(LinearStorage):
         k = self.params["k"]["value"]
         qmax = self.params["q_max"]["value"]
         dt = self.params["dt"]["value"]
-        df = self.data.copy()
+
+        # get data reference
+        sdata = self.sdata
 
         # simulation steps (this is useful for testing and debug)
         if self.n_steps is None:
-            n_steps = len(df)
+            n_steps = self.slen
         else:
             n_steps = self.n_steps
 
@@ -1250,14 +1272,13 @@ class LSRR(LinearStorage):
         # loop over (Euler Method)
         for t in range(n_steps - 1):
             # Qt = dt * St / k
-            df["q"].values[t] = np.min([df["s"].values[t] * dt / k, qmax])
+            sdata["q"][t] = np.min([compute_decay(s=sdata["s"][t], dt=dt, k=k), qmax])
             # S(t + 1) = S(t) + P(t) - Q(t)
-            df["s"].values[t + 1] = (
-                df["s"].values[t] + df["p"].values[t] - df["q"].values[t]
-            )
+            sdata["s"][t + 1] = sdata["s"][t] + sdata["p"][t] - sdata["q"][t]
 
-        # reset data
-        self.data = df.copy()
+        # set io data
+        self.data = pd.DataFrame(sdata)
+        self.data = self.data[[self.field_datetime, "t", "p", "q", "s"]].copy()
 
         return None
 
@@ -1416,7 +1437,7 @@ class LSRRE(LSRR):
         super().setup()
 
         # set E (actual)
-        self.data["e"] = np.nan
+        self.sdata["e"] = np.full(self.slen, np.nan)
 
         # handle inputs E_pot values
         rs = ds.RainSeries() # todo best practice is to have a EvapoSeries() object
@@ -1428,11 +1449,7 @@ class LSRRE(LSRR):
         df_downscaled = rs.downscale(freq=self.params["dt_freq"]["value"])
 
         # set interpolated inputs variables
-        self.data["e_pot"] = df_downscaled["e_pot"].values
-
-        # organize table
-        ls_vars = [self.field_datetime, "t", "p", "e_pot", "e", "q", "s"]
-        self.data = self.data[ls_vars].copy()
+        self.sdata["e_pot"] = df_downscaled["e_pot"].values[:]
 
         return None
 
@@ -1452,49 +1469,50 @@ class LSRRE(LSRR):
         k = self.params["k"]["value"]
         qmax = self.params["q_max"]["value"]
         dt = self.params["dt"]["value"]
-        df = self.data.copy()
+
+        # get data reference
+        sdata = self.sdata
 
         # simulation steps (this is useful for testing and debug)
         if self.n_steps is None:
-            n_steps = len(df)
+            n_steps = self.slen
         else:
             n_steps = self.n_steps
 
         if self.shutdown_epot:
-            df["e_pot"] = 0.0
+            sdata["e_pot"] = np.full(self.slen, 0.0)
 
         # --- numerical solution
         # loop over (Euler Method)
         for t in range(n_steps - 1):
-            # Qt = dt * St / k
-            q_pot = np.min([df["s"].values[t] * dt / k, qmax])
+            # potential flow
+            q_pot = np.min([compute_decay(s=sdata["s"][t], dt=dt, k=k), qmax])
 
             # Et = Et_pot
-            e_pot = df["e_pot"].values[t]
+            e_pot = sdata["e_pot"][t]
 
             # Potential outflow O_pot
             o_pot = q_pot + e_pot
 
             # Maximum outflow Omax = St
-            o_max = df["s"].values[t]
+            o_max = sdata["s"][t]
 
             # actual outflow
             o_act = np.min([o_max, o_pot])
 
             # allocate Q and E
             with np.errstate(divide='ignore', invalid='ignore'):
-                df["q"].values[t] = o_act * np.where(o_pot == 0, 0, q_pot / o_pot)
-                df["e"].values[t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
+                sdata["q"][t] = o_act * np.where(o_pot == 0, 0, q_pot / o_pot)
+                sdata["e"][t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
 
             # S(t + 1) = S(t) + P(t) - Q(t) - E(t)
-            df["s"].values[t + 1] = (
-                df["s"].values[t]
-                + df["p"].values[t]
-                - df["q"].values[t]
-                - df["e"].values[t]
-            )
-        # reset data
-        self.data = df.copy()
+            sdata["s"][t + 1] = sdata["s"][t] + sdata["p"][t] - sdata["q"][t] - sdata["e"][t]
+
+        # set data
+        self.data = pd.DataFrame(sdata)
+        # organize cols
+        ls_vars = [self.field_datetime, "t", "p", "e_pot", "e", "q", "s"]
+        self.data = self.data[ls_vars].copy()
 
         return None
 
@@ -1636,14 +1654,10 @@ class LSFAS(LSRRE):
         super().setup()
 
         # add new columns
-        self.data["q_s"] = np.nan
-        self.data["q_b"] = np.nan
-        self.data["q_s_f"] = np.nan
-        self.data["ss"] = np.nan
-
-        # organize table
-        ls_vars = [self.field_datetime, "t", "p", "e_pot", "e", "q_s", "q_s_f", "q_b", "q", "s", "ss"]
-        self.data = self.data[ls_vars].copy()
+        self.sdata["q_s"] = np.full(self.slen, np.nan)
+        self.sdata["q_b"] = np.full(self.slen, np.nan)
+        self.sdata["q_s_f"] = np.full(self.slen, np.nan)
+        self.sdata["ss"] = np.full(self.slen, np.nan)
 
         return None
 
@@ -1665,36 +1679,37 @@ class LSFAS(LSRRE):
         s_c = self.params["s_c"]["value"]
         # dt is the fraction of 1 Day/(1 simulation time step)
         dt = self.params["dt"]["value"]
-        df = self.data.copy()
+        # get reference data
+        sdata = self.sdata
 
         # simulation steps (this is useful for testing and debug)
         if self.n_steps is None:
-            n_steps = len(df)
+            n_steps = self.slen
         else:
             n_steps = self.n_steps
 
         # remove E_pot (useful for testing)
         if self.shutdown_epot:
-            df["e_pot"] = 0.0
+            sdata["e_pot"] = np.full(self.slen, 0.0)
 
         # --- numerical solution
         # loop over (Euler Method)
         for t in range(n_steps - 1):
             # Compute dynamic spill storage capacity in mm/D
-            ss_cap = np.max([0, df["s"].values[t] - s_a]) # spill storage = s - s_a
-            df["ss"].values[t] = ss_cap
+            ss_cap = np.max([0, sdata["s"][t] - s_a]) # spill storage = s - s_a
+            sdata["ss"][t] = ss_cap
 
             # Compute runoff fraction
             with np.errstate(divide='ignore', invalid='ignore'):
                 qs_f = np.where((ss_cap + s_c) == 0, 0, (ss_cap / (ss_cap + s_c)))
-            df["q_s_f"].values[t] = qs_f
+            sdata["q_s_f"][t] = qs_f
 
             # potential runoff -- scale by the fraction
 
             # compute dynamic runoff capacity
 
             # -- includes P in the Qs capacity
-            qs_cap = (ss_cap * dt) + df["p"].values[t] # multiply by dt (figure out why!)
+            qs_cap = (ss_cap * dt) + sdata["p"][t] # multiply by dt (figure out why!)
 
             # apply runoff fraction over Qs
             qs_pot = qs_f * qs_cap
@@ -1703,43 +1718,40 @@ class LSFAS(LSRRE):
             # Qt = dt * St / k
             # useful for testing
             if self.shutdown_qb:
-                qb_pot = 0.0
+                qb_pot = np.full(self.slen, 0.0)
             else:
-                qb_pot = df["s"].values[t] * dt / k
+                qb_pot = compute_decay(s=sdata["s"][t], dt=dt, k=k)
 
             # Compute potential evaporation flow
             # Et = E_pot
-            e_pot = df["e_pot"].values[t]
+            e_pot = sdata["e_pot"][t]
 
             # Compute Potential outflow O_pot
             o_pot = qs_pot + qb_pot + e_pot
 
             # Compute Maximum outflow Omax = St
-            o_max = df["s"].values[t]
+            o_max = sdata["s"][t]
 
             # Compute actual outflow
             o_act = np.min([o_max, o_pot])
 
             # Allocate outflows
             with np.errstate(divide='ignore', invalid='ignore'):
-                df["q_s"].values[t] = o_act * np.where(o_pot == 0, 0, qs_pot / o_pot)
-                df["q_b"].values[t] = o_act * np.where(o_pot == 0, 0, qb_pot / o_pot)
-                df["e"].values[t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
+                sdata["q_s"][t] = o_act * np.where(o_pot == 0, 0, qs_pot / o_pot)
+                sdata["q_b"][t] = o_act * np.where(o_pot == 0, 0, qb_pot / o_pot)
+                sdata["e"][t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
 
             # Compute full Q
-            df["q"].values[t] = df["q_s"].values[t] + df["q_b"].values[t]
+            sdata["q"][t] = sdata["q_s"][t] + sdata["q_b"][t]
 
             # Apply Water balance
             # S(t + 1) = S(t) + P(t) - Qs(t) - Qb(t) - E(t)
-            df["s"].values[t + 1] = (
-                df["s"].values[t]
-                + df["p"].values[t]
-                - df["q_s"].values[t]
-                - df["q_b"].values[t]
-                - df["e"].values[t]
-            )
+            sdata["s"][t + 1] = sdata["s"][t] + sdata["p"][t] - sdata["q_s"][t] - sdata["q_b"][t] - sdata["e"][t]
         # reset data
-        self.data = df.copy()
+        self.data = pd.DataFrame(sdata)
+        # organize table
+        ls_vars = [self.field_datetime, "t", "p", "e_pot", "e", "q_s", "q_s_f", "q_b", "q", "s", "ss"]
+        self.data = self.data[ls_vars].copy()
 
         return None
 
@@ -1802,16 +1814,24 @@ class Global(LSFAS):
         # overwriters
         self.object_alias = "Global"
 
+        # simulation variables
+        self.datakey = "value"  # this is used for accessing data in dicts
+
         # testing controllers
         self.shutdown_qif = False
         self.shutdown_qbf = False
 
-        # Time-Area Histogram (TAH) file
+        # Path-Area Histogram (PAH) -- input
+        self.data_pah = None
+        self.file_data_pah = None
+        self.folder_data_pah = None
+        self.filename_data_pah = "pah.csv"
+        self.basins_ls = None
+
+        # Time-Area Histogram (TAH) -- output
         self.data_tah = None
-        self.data_tah_input = None
-        self.file_data_tah = None
-        self.folder_data_tah = None
-        self.filename_data_tah = "path_areas.csv"
+        self.filename_data_tah = "tah.csv"
+
         # Geomorphic Unit Hydrograph
         self.data_guh = None
 
@@ -2361,9 +2381,149 @@ class Global(LSFAS):
         super().setter(dict_setter)
 
         # specific files
-        self.folder_data_tah = self.folder_data # same here
+        self.folder_data_pah = self.folder_data # same here
 
         # ... continues in downstream objects ... #
+        return None
+
+
+    def get_basins_list(self):
+        # todo [docstring]
+        ls_basins = []
+        for c in self.data_pah.columns:
+            if c == "path":
+                pass
+            else:
+                ls_basins.append(c)
+        return ls_basins
+
+
+    def _setup_tah(self):
+        # todo [docstring]
+        # get path
+        vct_paths = self.data_pah["path"].values
+        # handle not starting in zero
+        b_insert_zero = False
+        if np.min(vct_paths) > 0:
+            vct_paths = np.insert(vct_paths, 0, 0)
+            b_insert_zero = True
+
+        # compute delay
+        vct_t = vct_paths / self.params["k_q"]["value"]
+
+        # set dataframe
+        self.data_tah = pd.DataFrame(
+            {
+                "time": vct_t,
+                "path": vct_paths,
+            }
+        )
+
+        # setup basins list
+        self.basins_ls = self.get_basins_list()
+
+        # append areas
+        for basin in self.basins_ls:
+            vct_area = self.data_pah[basin].values
+            # handle not starting in zero
+            if b_insert_zero:
+                vct_area = np.insert(vct_area, 0, 0)
+            # append to dataframe
+            self.data_tah[basin] = vct_area[:]
+        
+        return None       
+        
+
+    def _setup_guh(self):
+        # todo [docstring]
+        from scipy.interpolate import CubicSpline
+
+        # set the TAH data
+        self._setup_tah()
+
+        # compute unit hydrograph
+        vct_t_src = self.data_tah["time"].values
+
+        # set unit hydrograph dataframe
+        self.data_guh = pd.DataFrame(
+            {
+                "t": self.sdata["t"],
+            }
+        )
+        # append for each basin
+        for basin in self.basins_ls:
+            vct_q_src = self.data_tah[basin].values / self.data_tah[basin].sum()
+            # smoothing
+            window_size = 8  # make it more or less smooth
+            # Create a kernel for the moving average
+            kernel = np.ones(window_size) / window_size
+            # Apply the convolution
+            vct_q_src = np.convolve(vct_q_src, kernel, mode='same')
+
+            # clip data
+            t_max = np.max(vct_t_src)
+            df_q = self.data_guh.query(f"t <= {t_max}").copy()
+            vct_t_clip = df_q["t"].values
+
+            # Cubic spline interpolation (smoother)
+            f_cubic = CubicSpline(vct_t_src, vct_q_src)
+            vct_q_clip = f_cubic(vct_t_clip)
+
+            # add zeros at the tail
+            vct_q_new = np.concatenate([vct_q_clip, np.zeros(self.slen - len(vct_q_clip), dtype=np.float64)])
+            # normalize to sum = 1
+            vct_q_new = vct_q_new / np.sum(vct_q_new)
+            # append in guh
+            self.data_guh[basin] = vct_q_new
+
+        return None
+
+
+    def _setup_start(self):
+        # todo [docstring]
+        # loop over vars
+        for v in self.vars:
+            # set initial conditions on storages
+            if self.vars[v]["kind"] == "level":
+                if v == "d" or v == "d_v":
+                    pass
+                else:
+                    self.sdata[v][0] = self.params["{}0".format(v)]["value"]
+
+        # --- handle bad (unfeaseable) initial conditions
+
+        # --- G0 storage must not exceed G_cap
+        g_cap = self.params["g_cap"]["value"]
+        g0 = self.sdata["g"][0]
+        if g0 > g_cap:
+            self.sdata["g"][0] = g_cap
+
+        # --- V0 storage must not exceed D (Gcap - G)
+        v0 = self.sdata["v"][0]
+        g0 = self.sdata["g"][0]
+
+        if v0 > (g_cap - g0):
+            self.sdata["v"][0] = g_cap - g0
+
+        return None
+
+
+    def _setup_parameters(self):
+        # todo [docstring]
+        # --- handle bad (unfeaseable) parameters
+
+        # --- D_et_cap must not exceed G_cap
+        g_cap = self.params["g_cap"][self.datakey]
+        d_et_a = self.params["d_et_a"][self.datakey]
+        self.params["d_et_a"][self.datakey] = np.where(d_et_a > g_cap, g_cap, d_et_a)
+
+        return None
+
+    def _setup_steps(self):
+        # todo [docstring]
+        # [Testing feature] constrain simulation steps
+        if self.n_steps is None:
+            self.n_steps = self.slen
         return None
 
 
@@ -2377,9 +2537,9 @@ class Global(LSFAS):
         super().load_data()
 
         # -------------- load path areas inputs data -------------- #
-        self.file_data_tah = Path(f"{self.folder_data_tah}/{self.filename_data_tah}")
-        self.data_tah_input = pd.read_csv(
-            self.file_data_tah,
+        self.file_data_pah = Path(f"{self.folder_data_pah}/{self.filename_data_pah}")
+        self.data_pah = pd.read_csv(
+            self.file_data_pah,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
         )
@@ -2409,80 +2569,36 @@ class Global(LSFAS):
         super().setup()
 
         # clear deprecated parent variables
-        self.data.drop(
-            columns=["q_s", "q_s_f", "q_b", "s"],
-            inplace=True
-        )
+        del self.sdata["q_s"]
+        del self.sdata["q_s_f"]
+        del self.sdata["q_b"]
+        del self.sdata["s"]
+        del self.sdata["ss"]
+
         # append new variables
         for v in self.new_vars:
-            self.data[v] = np.nan
+            self.sdata[v] = np.full(self.slen, np.nan)
 
         #
-        # ---------------- routing setup ----------------- #
+        # ----------- simulation steps ------------- #
+        #
+        self._setup_steps()
+
+        #
+        # ----------- initial conditions ------------- #
+        #
+        self._setup_start()
+
+        #
+        # ---------------- parameters ---------------- #
+        #
+        self._setup_parameters()
+
+        #
+        # ------------- routing setup ---------------- #
         #
         self._setup_guh()
 
-        return None
-
-
-    def _setup_guh(self):
-        # todo [docstring]
-        from scipy.interpolate import CubicSpline
-
-        # get vectors
-        # todo [refactor] --
-        vct_paths = self.data_tah_input["path (m)"].values
-        vct_area = self.data_tah_input["global (ha)"].values
-
-        # handle not starting in zero
-        if np.min(vct_paths) > 0:
-            vct_paths = np.insert(vct_paths, 0, 0)
-            vct_area = np.insert(vct_area, 0, 0)
-
-        # compute delay
-        vct_t = vct_paths / self.params["k_q"]["value"]
-
-        # set dataframe
-        self.data_tah = pd.DataFrame(
-            {
-                "delay (d)": vct_t,
-                "path (m)": vct_paths,
-                "global (ha)": vct_area,
-            }
-        )
-
-        # compute unit hydrograph
-        vct_t_src = self.data_tah["delay (d)"].values
-        vct_q_src = self.data_tah["global (ha)"].values / self.data_tah["global (ha)"].sum()
-
-        # smoothing
-        window_size = 8  # make it more or less smooth
-        # Create a kernel for the moving average
-        kernel = np.ones(window_size) / window_size
-        # Apply the convolution
-        vct_q_src = np.convolve(vct_q_src, kernel, mode='same')
-
-        # clip data
-        t_max = np.max(vct_t_src)
-        df_q = self.data.query(f"t <= {t_max}")
-        vct_t_clip = df_q["t"].values
-
-        # Cubic spline interpolation (smoother)
-        f_cubic = CubicSpline(vct_t_src, vct_q_src)
-        vct_q_clip = f_cubic(vct_t_clip)
-
-        # add zeros at the tail
-        vct_q_new = np.concatenate([vct_q_clip, np.zeros(len(self.data) - len(vct_q_clip), dtype=np.float64)])
-        # normalize to sum = 1
-        vct_q_new = vct_q_new / np.sum(vct_q_new)
-
-        # set unit hydrograph attribute
-        self.data_guh = pd.DataFrame(
-            {
-                "t": self.data["t"].values,
-                "q": vct_q_new
-            }
-        )
         return None
 
 
@@ -2499,89 +2615,47 @@ class Global(LSFAS):
         """
 
         #
-        # ---------------- initial conditions ----------------
-        #
-
-        for v in self.vars:
-            # set initial conditions on storages
-            if self.vars[v]["kind"] == "level":
-                if v == "d" or v == "d_v":
-                    pass
-                else:
-                    self.data[v].values[0] = self.params["{}0".format(v)]["value"]
-
-        # --- handle bad (unfeaseable) initial conditions
-
-        # --- G0 storage must not exceed G_cap
-        G0 = self.data["g"].values[0]
-        if G0 > self.params["g_cap"]["value"]:
-            self.data["g"].values[0] = self.params["g_cap"]["value"]
-
-        # --- V0 storage must not exceed D (Gcap-G)
-        V0 = self.data["v"].values[0]
-        G0 = self.data["g"].values[0]
-        G_cap = self.params["g_cap"]["value"]
-        if V0 > (G_cap - G0):
-            self.data["v"].values[0] = G_cap - G0
-
-        # --- handle bad (unfeaseable) parameters
-
-        # --- D_et_cap must not exceed G_cap
-        G_cap = self.params["g_cap"]["value"]
-        D_et_a = self.params["d_et_a"]["value"]
-        if D_et_a > G_cap:
-            self.params["d_et_a"]["value"] = G_cap
-
-        #
         # ---------------- simulation setup ----------------
         #
 
         # dt is the fraction of 1 Day/(1 simulation time step)
         dt = self.params["dt"]["value"]
-        # global processes data
-        GB = self.data.copy()
+
+        # full global processes data is a dataframe with numpy arrays
+        gb = self.sdata
 
         #
         # ---------------- parameters variables ----------------
         # this section is for improving code readability only
 
         # [Canopy] canopy parameters
-        C_k = self.params["c_k"]["value"]
-        C_a = self.params["c_a"]["value"]
+        c_k = self.params["c_k"][self.datakey]
+        c_a = self.params["c_a"][self.datakey]
 
         # [Surface] surface parameters
-        S_k = self.params["s_k"]["value"]
-        S_of_a = self.params["s_of_a"]["value"]
-        S_of_c = self.params["s_of_c"]["value"]
-        S_uf_a = self.params["s_uf_a"]["value"]
-        S_uf_c = self.params["s_uf_c"]["value"]
-        S_uf_cap = self.params["s_uf_cap"]["value"]
+        s_k = self.params["s_k"][self.datakey]
+        s_of_a = self.params["s_of_a"][self.datakey]
+        s_of_c = self.params["s_of_c"][self.datakey]
+        s_uf_a = self.params["s_uf_a"][self.datakey]
+        s_uf_c = self.params["s_uf_c"][self.datakey]
+        s_uf_cap = self.params["s_uf_cap"][self.datakey]
 
         # [Soil] soil parameters
-        G_cap = self.params["g_cap"]["value"]
-        K_V = self.params["k_v"]["value"]
-        G_k = self.params["g_k"]["value"]
-        G_et_cap = self.params["g_et_cap"]["value"]
-        D_et_a = self.params["d_et_a"]["value"]
-
+        g_cap = self.params["g_cap"][self.datakey]
+        k_v = self.params["k_v"][self.datakey]
+        g_k = self.params["g_k"][self.datakey]
+        g_et_cap = self.params["g_et_cap"][self.datakey]
+        d_et_a = self.params["d_et_a"][self.datakey]
 
         #
         # ---------------- derived parameter variables ----------------
         #
 
-        # [Surface] Conpute switch for underland flow
-        S_uf_switch = np.where(S_uf_cap <= S_uf_a, 0, 1)
+        # [Surface] Conpute shutdown factor for underland flow
+        s_uf_shutdown = Global.compute_s_uf_shutdown(s_uf_cap, s_uf_a)
 
         # [Surface] Compute effective overland flow activation level
-        r'''
-        [Model Equation]
-        $$$
-
-        S_{of, a}^{*} = S_{uf, cap} + S_{of, a} 
-
-        $$$
-        '''
-        S_of_a_eff = S_uf_cap + S_of_a  # incremental with underland capacity (topsoil)
+        s_of_a_eff = Global.compute_sof_a_eff(s_uf_cap, s_of_a)
 
         #
         # ---------------- testing features ----------------
@@ -2589,296 +2663,192 @@ class Global(LSFAS):
 
         # [Testing feature] shutdown E_pot
         if self.shutdown_epot:
-            GB["e_pot"] = 0.0
-
-        # [Testing feature] constrain simulation steps
-        if self.n_steps is None:
-            n_steps = len(GB)
-        else:
-            n_steps = self.n_steps
+            gb["e_pot"] = np.full(self.slen, 0.0)
 
         #
         # ---------------- numerical solution ----------------
         #
 
+        # ---------------- START TIME LOOP ---------------- #
         # loop over steps (Euler Method)
-        for t in range(n_steps - 1):
-
+        for t in range(self.n_steps - 1):
             #
             # [Deficit] ---------- update deficits ---------- #
             #
 
             # [Deficit] Phreatic zone deficit
-            r'''
-            [Model Equation]
-            Phreatic zone water deficit 
-            $$$
-
-            D(t) = G_{cap} + G(t) 
-
-            $$$
-            '''
-            GB["d"].values[t] = G_cap - GB["g"].values[t]
+            gb["d"][t] = Global.compute_d(g_cap=g_cap, g=gb["g"][t])
 
             # [Deficit] Vadose zone deficit
-            r'''
-            [Model Equation]
-            Vadose zone water deficit 
-            $$$
-
-            D_{v}(t) = D(t) - V(t) 
-
-            $$$
-            '''
-            GB["d_v"].values[t] = GB["d"].values[t] - GB["v"].values[t]
+            gb["d_v"][t] = Global.compute_dv(d=gb["d"][t], v=gb["v"][t])
 
             #
             # [Evaporation] ---------- get evaporation flows first ---------- #
             #
 
-            # [Evaporation Canopy] ---- evaporation from canopy
+            # [Evaporation] [Canopy] ---- evaporation from canopy
 
-            # [Evaporation - Canopy] compute potential flow and current capacity
-            E_c_pot = GB["e_pot"].values[t]
-            E_c_cap = GB["c"].values[t] * dt
+            # [Evaporation] [Canopy] compute potential flow
+            e_c_pot = Global.compute_ec_pot(e_pot=gb["e_pot"][t])
 
-            # [Evaporation - Canopy] compute actual flow
-            GB["e_c"].values[t] = np.min([E_c_pot, E_c_cap])
+            # [Evaporation] [Canopy] compute capacity flow
+            e_c_cap = Global.compute_ec_cap(c=gb["c"][t], dt=dt)
 
-            # [Evaporation Canopy] water balance -- apply discount a priori
-            GB["c"].values[t] = GB["c"].values[t] - GB["e_c"].values[t]
+            # [Evaporation] [Canopy] compute actual flow
+            gb["e_c"][t] = Global.compute_ec(e_c_pot, e_c_cap)
 
-            # [Evaporation - Soil] ---- transpiration from soil
 
-            # [Evaporation - Soil] compute potential flow and current capacity
-            E_t_pot = GB["e_pot"].values[t] - GB["e_c"].values[t]  # discount actual Ec
+            # [Evaporation] [Soil] ---- transpiration from soil
 
-            # [Evaporation - Soil] Compute Et capacity
+            # [Evaporation] [Soil] compute potential flow
+            e_t_pot = Global.compute_et_pot(e_pot=gb["e_pot"][t], ec=gb["e_c"][t])
 
-            # [Evaporation - Soil] Compute the root zone depth factor
-            r'''
-            [Model Equation]
-            Potencial transpiration fraction
-            $$$
+            # [Evaporation] [Soil] compute the root zone depth factor
+            gb["e_t_f"][t] = Global.compute_et_f(dv=gb["d_v"][t], d_et_a=d_et_a)
 
-            E_{t, f} = 1 - \frac{D_{v}}{D_{v} + D_{et, a}} 
+            # [Evaporation] [Soil] compute capacity flow
+            e_t_cap = Global.compute_et_cap(e_t_f=gb["e_t_f"][t], g=gb["g"][t], g_et_cap=g_et_cap, dt=dt)
 
-            $$$
-            '''
-            GB["e_t_f"].values[t] = 1 - (GB["d_v"].values[t] / (GB["d_v"].values[t] + D_et_a))
+            # [Evaporation] [Soil] compute actual flow
+            gb["e_t"][t] = Global.compute_et(e_t_pot, e_t_cap)
 
-            # [Evaporation - Soil] Compute the Et capacity -- bounded by G_et_cap (green water capacity)
-            E_t_cap = GB["e_t_f"].values[t] * np.min([GB["g"].values[t], G_et_cap]) * dt
 
-            # [Evaporation - Soil] compute actual flow
-            GB["e_t"].values[t] = np.min([E_t_pot, E_t_cap])
+            # [Evaporation] [Surface] ---- evaporation from surface
 
-            # [Evaporation - Soil] water balance -- apply discount a priori
-            GB["g"].values[t] = GB["g"].values[t] - GB["e_t"].values[t]
+            # [Evaporation] [Surface] compute potential flow
+            e_s_pot = Global.compute_es_pot(e_pot=gb["e_pot"][t], ec=gb["e_c"][t], et=gb["e_t"][t])
 
-            # [Evaporation - Surface] evaporation from surface
+            # [Evaporation] [Surface] compute capacity flow
+            e_s_cap = Global.compute_es_cap(s=gb["s"][t], dt=dt)
 
-            # [Evaporation - Surface] compute potential flow and current capacity
-            E_s_pot = GB["e_pot"].values[t] - GB["e_c"].values[t] - GB["e_t"].values[t]
-            E_s_cap = GB["s"].values[t] * dt
+            # [Evaporation] [Surface] compute actual flow
+            gb["e_s"][t] = Global.compute_es(e_s_pot, e_s_cap)
 
-            # [Evaporation - Surface] compute actual flow
-            GB["e_s"].values[t] = np.min([E_s_pot, E_s_cap])
+            #
+            # [Evaporation] [Balance] ---- a priori discounts ---------- #
+            #
 
-            # [Evaporation - Surface] water balance -- apply discount a priori
-            GB["s"].values[t] = GB["s"].values[t] - GB["e_s"].values[t]
+            # [Evaporation] [Balance] -- apply discount a priori
+            gb["c"][t] = Global.compute_e_discount(storage=gb["c"][t], discount=gb["e_c"][t])
+
+            # [Evaporation] [Balance] -- apply discount a priori
+            gb["g"][t] = Global.compute_e_discount(storage=gb["g"][t], discount=gb["e_t"][t])
+
+            # [Evaporation] [Balance] water balance -- apply discount a priori
+            gb["s"][t] = Global.compute_e_discount(storage=gb["s"][t], discount=gb["e_s"][t])
 
             #
             # [Canopy] ---------- Solve canopy water balance ---------- #
             #
 
-            # [Canopy] ---- Potential flows
+            # [Canopy] [Throughfall] --
 
-            # [Canopy] -- Throughfall
+            # [Canopy] [Throughfall] Compute throughfall fraction
+            gb["p_tf_f"][t] = Global.compute_tf_f(c=gb["c"][t], ca=c_a)
 
-            # [Canopy] Compute canopy spill storage capacity
-            C_ss_cap = np.max([0, GB["c"].values[t] - C_a]) * dt # check dt
+            # [Canopy] [Throughfall] Compute throughfall capacity
+            p_tf_cap = Global.compute_tf_cap(c=gb["c"][t], ca=c_a, p=gb["p"][t], dt=dt)
 
-            # [Canopy] Compute throughfall fraction
-            r'''
-            [Model Equation]
-            throughfall fraction
-            $$$
+            # [Canopy] [Throughfall] Compute throughfall
+            gb["p_tf"][t] = Global.compute_tf(p_tf_cap=p_tf_cap, p_tf_f=gb["p_tf_f"][t])
 
-            P_{tf, f} = \text{MIN}(1,  C(t)/C_{a}) 
 
-            $$$
-            '''
-            with np.errstate(divide='ignore', invalid='ignore'):
-                P_tf_f = np.where(C_a <= 0, 1, np.min([1, GB["c"].values[t] / C_a]))
-            GB["p_tf_f"].values[t] = P_tf_f
+            # [Canopy] [Stemflow] --
 
-            # [Canopy] Compute throughfall capacity
-            P_tf_cap = C_ss_cap + GB["p"].values[t]  # include P
+            # [Canopy] [Stemflow] Compute potential stemflow -- only activated storage contributes
+            c_sf_pot = Global.compute_sf_pot(c=gb["c"][t], ca=c_a)
 
-            # [Canopy] Compute throughfall -- scale by the fraction
-            GB["p_tf"].values[t] = P_tf_f * P_tf_cap
+            # [Canopy] [Stemflow] Compute actual stemflow
+            gb["p_sf"][t] = compute_decay(s=c_sf_pot, dt=dt, k=c_k)
 
-            # [Canopy] -- Stemflow
 
-            # [Canopy] Compute potential stemflow -- only activated storage contributes
-            C_sf_pot = np.min([GB["c"].values[t], C_a])
+            # [Canopy] [Aggflows] --
 
-            # [Canopy] Compute actual stemflow
-            r'''
-            [Model Equation]
-            Stemflow
-            $$$
+            # [Canopy] [Aggflows] Compute effective rain on surface
+            gb["p_s"][t] = Global.compute_ps(sf=gb["p_sf"][t], tf=gb["p_tf"][t])
 
-            P_{sf} = \frac{1}{C_{k}} * \text{MIN}(C(t), C_{a})
+            # [Canopy] [Aggflows] Compute effective rain on canopy
+            gb["p_c"][t] = Global.compute_pc(p=gb["p"][t], tf_f=gb["p_tf_f"][t])
 
-            $$$
-            '''
-            GB["p_sf"].values[t] = C_sf_pot * dt / C_k  # Linear storage Q = dt * S / k
+            # [Canopy] [Water Balance] ---- Apply water balance
+            gb["c"][t + 1] = Global.compute_next_c(c=gb["c"][t], pc=gb["p_c"][t], sf=gb["p_sf"][t])
 
-            # [Canopy] Compute effective rain on surface
-            GB["p_s"].values[t] = GB["p_tf"].values[t] + GB["p_sf"].values[t]
-            # [Canopy] Compute effective rain on canopy
-            GB["p_c"].values[t] = GB["p"].values[t] * (1 - GB["p_tf_f"].values[t])
-
-            # [Canopy Water Balance] ---- Apply water balance
-            r'''
-            [Model Equation]
-            Canopy water balance. $E_{c}$ is discounted earlier.
-            $$$
-
-            C(t + 1) = C(t) + P_{c}(t) - E_{c}(t) - P_{sf}(t) 
-
-            $$$
-            '''
-            GB["c"].values[t + 1] = GB["c"].values[t] + GB["p_c"].values[t] - GB["p_sf"].values[t]
 
             #
             # [Surface] ---------- Solve surface water balance ---------- #
             #
 
-            # [Surface] ---- Potential flows
+            # [Surface] [Overland] -- Overland flow
 
-            # [Surface -- overland] -- Overland flow
+            # [Surface] [Overland] Compute surface overland spill storage capacity
+            sof_ss_cap = Global.compute_sof_cap(s=gb["s"][t], sof_a=s_of_a_eff)
 
-            # [Surface -- overland] Compute surface overland spill storage capacity
-            Sof_ss_cap = np.max([0, GB["s"].values[t] - S_of_a_eff])
+            # [Surface] [Overland] Compute overland flow fraction
+            gb["q_of_f"][t] = Global.compute_qof_f(sof_cap=sof_ss_cap, sof_c=s_of_c)
 
-            # [Surface -- overland] Compute overland flow fraction
-            r'''
-            [Model Equation]
-            Overland flow fraction
-            $$$
+            # [Surface] [Overland] Compute overland flow capacity
+            q_of_cap = Global.compute_qof_cap(sof_cap=sof_ss_cap, ps=gb["p_s"][t], dt=dt)
 
-            Q_{of, f}(t) = \frac{S(t) - S_{of, a}(t)}{S(t) - S_{of, a}(t) + S_{of, c}(t)}
+            # [Surface] [Overland] Compute potential overland
+            q_of_pot = Global.compute_qof_pot(qof_cap=q_of_cap, qof_f=gb["q_of_f"][t])
 
-            $$$
-            '''
-            with np.errstate(divide='ignore', invalid='ignore'):
-                Q_of_f = np.where((Sof_ss_cap + S_of_c) == 0, 0, (Sof_ss_cap / (Sof_ss_cap + S_of_c)))
-            GB["q_of_f"].values[t] = Q_of_f
 
-            # [Surface -- overland] Compute dynamic overland flow capacity
-            Q_of_cap = (Sof_ss_cap * dt) + GB["p_s"].values[t]  # include P_s # check dt
+            # [Surface] [Underland] -- Underland flow
 
-            # [Surface -- overland] Compute potential overland -- scale by the fraction
-            r'''
-            [Model Equation]
-            Underland flow
-            $$$
+            # [Surface] [Underland] Compute surface underland spill storage capacity
+            suf_ss_cap = Global.compute_suf_cap(s=gb["s"][t], suf_a=s_uf_a, shutdown=s_uf_shutdown)
 
-            Q_{of}(t) = Q_{of, f}(t) * (\frac{(S(t) - S_{of, a}(t))}{\Delta t} + P_{s})
+            # [Surface] [Underland] Compute underland flow fraction
+            gb["q_uf_f"][t] = Global.compute_quf_f(suf_cap=suf_ss_cap, suf_c=s_uf_c)
 
-            $$$
-            '''
-            Q_of_pot = Q_of_f * Q_of_cap
+            # [Surface] [Underland] Compute underland flow capacity
+            q_uf_cap = Global.compute_quf_cap(suf_cap=suf_ss_cap, dt=dt)
 
-            # [Surface -- underland] -- Underland flow
+            # [Surface] [Underland] Compute potential underland flow
+            q_uf_pot = Global.compute_quf_pot(quf_cap=q_uf_cap, quf_f=gb["q_uf_f"][t])
 
-            # [Surface -- underland] Compute surface underland spill storage capacity
-            Suf_ss_cap = np.max([0, GB["s"].values[t] - S_uf_a]) * S_uf_switch  # apply factor
 
-            # [Surface -- underland] Compute underland flow fraction
-            r'''
-            [Model Equation]
-            Underland flow fraction
-            $$$
+            # [Surface] [Infiltration] -- Infiltration flow
 
-            Q_{uf, f}(t) = \frac{S(t) - S_{uf, a}(t)}{S(t) - S_{uf, a}(t) + S_{uf, c}(t)}
+            # [Surface] [Infiltration] -- Potential infiltration from downstream (soil)
+            q_if_pot_down = Global.compute_qif_pot_down(d=gb["d"][t], v=gb["v"][t], dt=dt)
 
-            $$$
-            '''
-            with np.errstate(divide='ignore', invalid='ignore'):
-                Q_uf_f = np.where((Suf_ss_cap + S_uf_c) == 0, 0, (Suf_ss_cap / (Suf_ss_cap + S_uf_c)))
-            GB["q_uf_f"].values[t] = Q_uf_f
+            # [Surface] [Infiltration] -- Potential infiltration from upstream (hydraulic head)
+            q_if_pot_up = Global.compute_qif_pot_up(s=gb["s"][t], sk=s_k, dt=dt)
 
-            # [Surface -- underland] Compute dynamic underland flow capacity
-            Q_uf_cap = Suf_ss_cap * dt # check dt
-
-            # [Surface -- underland] Compute potential underland -- scale by the fraction
-            r'''
-            [Model Equation]
-            Underland flow
-            $$$
-
-            Q_{uf}(t) = Q_{uf, f}(t) * \frac{(S(t) - S_{uf, a}(t))}{\Delta t}
-
-            $$$
-            '''
-            Q_uf_pot = Q_uf_f * Q_uf_cap
-
-            # [Surface -- infiltration] -- Infiltration flow
-
-            # [Surface -- infiltration] -- Potential infiltration from downstream (soil)
-            Q_if_pot_down = (GB["d"].values[t] - GB["v"].values[t]) * dt  # check dt
-
-            # [Surface -- infiltration] -- Potential infiltration from upstream (hydraulic head)
-            r'''
-            [Model Equation]
-            Infiltration flow
-            $$$
-
-            Q_{if}(t) = \frac{1}{S_{k}} * S(t)
-
-            $$$
-            '''
-            Q_if_pot_up = GB["s"].values[t] * dt / S_k
-
-            # [Surface -- infiltration] -- Potential infiltration
-            Q_if_pot = np.min([Q_if_pot_down, Q_if_pot_up])
+            # [Surface] [Infiltration] -- Potential infiltration
+            q_if_pot = Global.compute_qif_pot(if_down=q_if_pot_down, if_up=q_if_pot_up)
 
             # [Testing feature]
             if self.shutdown_qif:
-                Q_if_pot = 0.0
+                q_if_pot = 0.0 * q_if_pot
+
 
             # [Surface] -- Full potential outflow
-            S_out_pot = Q_of_pot + Q_uf_pot + Q_if_pot
+            s_out_pot = q_of_pot + q_uf_pot + q_if_pot
 
             # [Surface] ---- Actual flows
 
-            # [Surface] Compute surface maximum outflow
-            S_out_max = GB["s"].values[t]
+            # [Surface] Compute surface outflow capacity
+            s_out_cap = gb["s"][t]
 
             # [Surface] Compute Actual outflow
-            S_out_act = np.min([S_out_max, S_out_pot])
+            s_out_act = np.where(s_out_cap > s_out_pot, s_out_pot, s_out_cap)
 
             # [Surface] Allocate outflows
             with np.errstate(divide='ignore', invalid='ignore'):
-                GB["q_of"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_of_pot / S_out_pot)
-                GB["q_uf"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_uf_pot / S_out_pot)
-                GB["q_if"].values[t] = S_out_act * np.where(S_out_pot == 0, 0, Q_if_pot / S_out_pot)
+                gb["q_of"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_of_pot / s_out_pot)
+                gb["q_uf"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_uf_pot / s_out_pot)
+                gb["q_if"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_if_pot / s_out_pot)
 
             # [Surface Water Balance] ---- Apply water balance.
-            r'''
-            [Model Equation]
-            Surface water balance. $E_{c}$ is discounted earlier in procedure.
-            $$$
-
-            S(t + 1) = S(t) + P_{s}(t) - E_{s}(t) - Q_{if}(t) - Q_{uf}(t) - Q_{of}(t)
-
-            $$$
-            '''
-            GB["s"].values[t + 1] = GB["s"].values[t] + GB["p_s"].values[t] - GB["q_of"].values[t] - GB["q_uf"].values[t] - GB["q_if"].values[t]
+            gb["s"][t + 1] = Global.compute_next_s(
+                s=gb["s"][t],
+                ps=gb["p_s"][t],
+                qof=gb["q_of"][t],
+                quf=gb["q_uf"][t],
+                qif=gb["q_if"][t],
+            )
 
             #
             # [Soil] ---------- Solve soil water balance ---------- #
@@ -2887,126 +2857,87 @@ class Global(LSFAS):
             # [Soil Vadose Zone]
 
             # [Soil Vadose Zone] Get Recharge Fraction
-            r'''
-            [Model Equation]
-            Vertical (Recharge) flow fraction
-            $$$
-
-            Q_{vf, f}(t) = \frac{V(t)}{D(t)}
-
-            $$$
-            '''
-            with np.errstate(divide='ignore', invalid='ignore'):
-                GB["q_vf_f"].values[t] = np.where(GB["d"].values[t] <= 0, 1.0, (GB["v"].values[t] / GB["d"].values[t]))
+            gb["q_vf_f"][t] = Global.compute_qvf_f(d=gb["d"][t], v=gb["v"][t])
 
             # [Soil Vadose Zone] Compute Potential Recharge
-            r'''
-            [Model Equation]
-            Vertical (Recharge) flow
-            $$$
-
-            Q_{vf}(t) = Q_{vf, f}(t) * K
-
-            $$$
-            '''
-            Q_vf_pot = GB["q_vf_f"].values[t] * K_V * dt
+            q_vf_pot = Global.compute_qvf_pot(qvf_f=gb["q_vf_f"][t], kv=k_v, dt=dt)
 
             # [Soil Vadose Zone] Compute Maximal Recharge
-            Q_vf_max = GB["v"].values[t] * dt # check dt
+            q_vf_cap = Global.compute_qvf_cap(v=gb["v"][t], dt=dt)
 
             # [Soil Vadose Zone] Compute Actual Recharge
-            GB["q_vf"].values[t] = np.min([Q_vf_pot, Q_vf_max])
+            gb["q_vf"][t] = Global.compute_qvf(qvf_pot=q_vf_pot, qvf_cap=q_vf_cap)
 
             # [Vadose Water Balance] ---- Apply water balance
-            r'''
-            [Model Equation]
-            Vadose zone water balance
-            $$$
-
-            V(t + 1) = V(t) + Q_{if}(t) - Q_{vf}(t)
-
-            $$$
-            '''
-            GB["v"].values[t + 1] = GB["v"].values[t] + GB["q_if"].values[t] - GB["q_vf"].values[t]
+            gb["v"][t + 1] = Global.compute_next_v(
+                v=gb["v"][t],
+                qif=gb["q_if"][t],
+                qvf=gb["q_vf"][t]
+            )
 
             # [Soil Phreatic Zone]
 
             # [Soil Phreatic Zone] Compute Base flow (blue water -- discount on green water)
-            r'''
-            [Model Equation]
-            Baseflow
-            $$$
-
-            Q_{gf}(t) = \frac{1}{G_{k}} * (G(t) - G_{et, cap})
-
-            $$$
-            '''
-            GB["q_gf"].values[t] = (np.min([GB["g"].values[t] - G_et_cap, 0.0])) * dt / G_k
+            #gb["q_gf"][t] = (np.max([gb["g"][t] - g_et_cap, 0.0])) * dt / g_k
+            gb["q_gf"][t] = Global.compute_qgf(
+                g=gb["g"][t],
+                get_cap=g_et_cap,
+                gk=g_k,
+                dt=dt
+            )
 
             # [Testing feature]
             if self.shutdown_qbf:
-                GB["q_gf"].values[t] = 0.0
+                gb["q_gf"][t] = 0.0 * gb["q_gf"][t]
 
             # [Phreatic Water Balance] ---- Apply water balance
-            r'''
-            [Model Equation]
-            Phreatic zone water balance. $E_{t}$ is discounted earlier in the procedure.
-            $$$
+            gb["g"][t + 1] = Global.compute_next_g(
+                g=gb["g"][t],
+                qvf=gb["q_vf"][t],
+                qgf=gb["q_gf"][t]
+            )
 
-            G(t + 1) = G(t) + Q_{vf}(t) - E_{t}(t) - Q_{bf}(t) 
+            # ---------------- END TIME LOOP ---------------- #
 
-            $$$
-            '''
-            GB["g"].values[t + 1] = GB["g"].values[t] + GB["q_vf"].values[t] - GB["q_gf"].values[t]
-
-        #
-        # [Streamflow] ---------- Solve flow routing to gauge station ---------- #
-        #
-
-        # [Streamflow] Compute Hillslope flow
-        r'''
-        [Model Equation]
-        Hillslope flow
-        $$$
-
-        Q_{hf}(t) = Q_{bf}(t) + Q_{uf}(t) + Q_{of}(t)
-
-        $$$
-        '''
-        GB["q_hf"] = 0.0 #GB["q_gf"] + GB["q_uf"] + GB["q_of"]
-
-        # [Baseflow] Compute river base flow
-        GB["q_bf"] = self.propagate_inflow(
-            inflow=GB["q_gf"].values,
-            unit_hydrograph=self.data_guh["q"].values,
-        )
-
-        # [Fast Streamflow] Compute Streamflow
-        # todo [feature] evaluate to split into more components
-        Q_fast = self.propagate_inflow(
-            inflow=GB["q_uf"].values + GB["q_of"].values,
-            unit_hydrograph=self.data_guh["q"].values,
-        )
-        GB["q"] = GB["q_bf"].values + Q_fast
 
         #
         # [Total Flows] ---------- compute total flows ---------- #
         #
 
         # [Total Flows] Total E
-        r'''
-        [Model Equation]
-        Total evaporation
-        $$$
+        gb["e"] = Global.compute_e(ec=gb["e_c"], es=gb["e_s"], eg=gb["e_t"])
 
-        E(t) =  E_{c}(t) + E_{s}(t) + E_{t}(t)
 
-        $$$
-        '''
-        GB["e"] = GB["e_c"] + GB["e_s"] + GB["e_t"]
+        # [Total Flows] Compute Hillslope flow
+        gb["q_hf"] = Global.compute_qhf(qof=gb["q_of"], quf=gb["q_uf"], qgf=gb["q_gf"])
 
-        # reset data
-        self.data = GB.copy()
+        print("\n\nFEITOOOOOO")
+
+        #
+        # [Streamflow] ---------- Solve flow routing to basin gauge station ---------- #
+        #
+
+        # global basin is considered the first
+        basin = self.basins_ls[0]
+
+        # [Baseflow] Compute river base flow
+        vct_inflow = gb["q_gf"]
+        gb["q_bf"] = Global.propagate_inflow(
+            inflow=vct_inflow,
+            unit_hydrograph=self.data_guh[basin].values,
+        )
+
+        # [Fast Streamflow] Compute Streamflow
+        # todo [feature] evaluate to split into more components
+        vct_inflow = gb["q_uf"] + gb["q_of"]
+        q_fast = Global.propagate_inflow(
+            inflow=vct_inflow,
+            unit_hydrograph=self.data_guh[basin].values
+        )
+        gb["q"] = gb["q_bf"] + q_fast
+
+        # set data
+        self.data = pd.DataFrame(gb)
 
         return None
 
@@ -3023,7 +2954,7 @@ class Global(LSFAS):
         :rtype: None
         """
         # export model simulation data with views=False
-        super().export(folder, filename=filename + "_sim", views=False)
+        super().export(folder, filename=filename, views=False)
 
         # handle views
         if views:
@@ -3033,7 +2964,7 @@ class Global(LSFAS):
             self.view(show=False, mode=mode)
 
         # handle to export paths and unit hydrograph
-        fpath = Path(folder + "/" + filename + "_path_areas" + self.file_csv_ext)
+        fpath = Path(folder + "/" + filename + "_" + self.filename_data_tah)
         self.data_tah.to_csv(
             fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
         )
@@ -3041,9 +2972,11 @@ class Global(LSFAS):
         # ... continues in downstream objects ... #
 
 
-    def view(self, show=True, return_fig=False, mode=None):
+    def view(self, show=True, return_fig=False, mode=None, basin=None):
         # todo [docstring]
         # todo [optimize for DRY]
+        if basin is None:
+            basin = "global"
         plt.rcParams['font.family'] = 'Arial'
         specs = self.view_specs.copy()
         n_dt = self.params["dt"]["value"]
@@ -3513,6 +3446,705 @@ class Global(LSFAS):
                 outflow[t:] = outflow[t:] + (inflow[t] * uh[:size - t])
         return outflow
 
+    @staticmethod
+    def compute_s_uf_shutdown(s_uf_cap, s_uf_a):
+        # todo [docstring]
+        # this happens when topsoil capacity is lower than the activation level
+        return np.where(s_uf_cap <= s_uf_a, 0.0, 1.0)
+
+    @staticmethod
+    def compute_sof_a_eff(s_uf_cap, s_of_a):
+        # todo [docstring]
+        # [Surface] Compute effective overland flow activation level
+        output = s_uf_cap + s_of_a # incremental with underland capacity (topsoil)
+        r'''
+        [Model Equation]
+        $$$
+
+        S_{of, a}^{*} = S_{uf, cap} + S_{of, a}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_d(g_cap, g):
+        # todo [docstring]
+        # [Deficit] Phreatic zone deficit
+        output = g_cap - g
+        r'''
+        [Model Equation]
+        Phreatic zone water deficit 
+        $$$
+
+        D(t) = G_{cap} + G(t) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_dv(d, v):
+        # todo [docstring]
+        # [Deficit] Vadose zone deficit
+        output = d - v
+        r'''
+        [Model Equation]
+        Vadose zone water deficit 
+        $$$
+
+        D_{v}(t) = D(t) - V(t) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_ec(e_c_pot, e_c_cap):
+        # todo [docstring]
+        # [Evaporation - Canopy] compute actual flow
+        output = compute_flow(flow_pot=e_c_pot, flow_cap=e_c_cap)
+        r'''
+        [Model Equation]
+        Actual Canopy Evaporation 
+        $$$
+
+        E_{c}(t) = \text{MIN}(E_{c, pot}, E_{c, cap}) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_ec_pot(e_pot):
+        # todo [docstring]
+        # [Evaporation - Canopy] compute potential flow
+        output = e_pot
+        r'''
+        [Model Equation]
+        Potential Canopy Evaporation 
+        $$$
+
+        E_{c, pot}(t) = E_{pot}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_ec_cap(c, dt):
+        # todo [docstring]
+        # [Evaporation - Canopy] compute capacity flow
+        output = c * dt
+        r'''
+        [Model Equation]
+        Canopy Evaporation Capacity 
+        $$$
+
+        E_{c, cap}(t) = C(t) * dt 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_et(e_t_pot, e_t_cap):
+        # todo [docstring]
+        # [Evaporation - Soil] compute actual flow
+        output = compute_flow(flow_pot=e_t_pot, flow_cap=e_t_cap)
+        r'''
+        [Model Equation]
+        Actual Soil Evaporation 
+        $$$
+
+        E_{t}(t) = \text{MIN}(E_{t, pot}, E_{t, cap}) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_et_f(dv, d_et_a):
+        # todo [docstring]
+        # [Evaporation - Soil] Compute the root zone depth factor
+        output = 1 - (dv / (dv + d_et_a))
+        r'''
+        [Model Equation]
+        Potential Soil Transpiration fraction
+        $$$
+
+        E_{t, f} = 1 - \frac{D_{v}}{D_{v} + D_{et, a}} 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_et_pot(e_pot, ec):
+        # todo [docstring]
+        # [Evaporation - Soil] Compute potential transpiration
+        output = e_pot - ec  # discount canopy
+        r'''
+        [Model Equation]
+        Potential Soil Transpiration
+        $$$
+
+        E_{t, pot} = E_{pot} - E_{c}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_et_cap(e_t_f, g, g_et_cap, dt):
+        # todo [docstring]
+        # [Evaporation - Soil] Compute the root zone depth factor
+        output = e_t_f * np.min([g, g_et_cap]) * dt
+        r'''
+        [Model Equation]
+        Potential Soil Tanspiration capacity
+        $$$
+
+        E_{t, cap} =  E_{t, f} * \text{MIN}(g, g_et_cap) * dt
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_es(e_s_pot, e_s_cap):
+        # todo [docstring]
+        # [Evaporation - Surface] compute actual flow
+        output = compute_flow(flow_pot=e_s_pot, flow_cap=e_s_cap)
+        r'''
+        [Model Equation]
+        Actual Surface Evaporation 
+        $$$
+
+        E_{s}(t) = \text{MIN}(E_{s, pot}, E_{s, cap}) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_es_pot(e_pot, ec, et):
+        # todo [docstring]
+        # [Evaporation - Surface] Compute potential evaporation
+        output = e_pot - ec - et  # discount canopy and transpiration
+        r'''
+        [Model Equation]
+        Potential Surface Evaporation
+        $$$
+
+        E_{s, pot} = E_{pot} - E_{c} - E_{t}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_es_cap(s, dt):
+        # todo [docstring]
+        # [Evaporation - Surface] Compute potential evaporation
+        output = s * dt  # discount canopy and transpiration
+        r'''
+        [Model Equation]
+        Surface Evaporation Capacity
+        $$$
+
+        E_{s, cap} = S * dt
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_tf(p_tf_cap, p_tf_f):
+        # todo [docstring]
+        # [Canopy] throughfall flow
+        output = p_tf_f * p_tf_cap
+        r'''
+        [Model Equation]
+        throughfall flow
+        $$$
+
+        P_{tf} = P_{tf, f} * (P + C_{ss})
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_tf_f(c, ca):
+        # todo [docstring]
+        # [Canopy] throughfall fraction
+        # handle division by zero in the edge case when c_a = 0
+        with np.errstate(divide='ignore', invalid='ignore'):
+            output = np.where(ca <= 0.0, 1.0, np.where((c / ca) > 1.0, 1.0, (c / ca)))
+        r'''
+        [Model Equation]
+        throughfall fraction
+        $$$
+
+        P_{tf, f} = \text{MIN}(1,  C(t)/C_{a}) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_tf_cap(c, ca, p, dt):
+        # todo [docstring]
+        # [Canopy] Compute throughfall capacity
+        ## c_ss_cap = np.max([0.0, c - ca]) * dt
+        # [Canopy] Compute canopy spill storage capacity
+        c_ss_cap = np.where((c - ca) < 0, 0.0, (c - ca)) * dt
+        output = p + c_ss_cap
+        r'''
+        [Model Equation]
+        Throughfall capacity
+        $$$
+
+        P_{tf, cap} = P + C_{ss}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_sf_pot(c, ca):
+        # todo [docstring]
+        # comment
+        output = compute_flow(flow_pot=c, flow_cap=ca)
+        r'''
+        [Model Equation]
+        Descr
+        $$$
+
+        values
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_ps(sf, tf):
+        # todo [docstring]
+        # comment
+        output = sf + tf
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_pc(p, tf_f):
+        # todo [docstring]
+        # comment
+        output = p * (1 - tf_f)
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_e_discount(storage, discount):
+        # todo [docstring]
+        # comment
+        output = storage - discount
+        return output
+
+    @staticmethod
+    def compute_sof_cap(s, sof_a):
+        # todo [docstring]
+        # [Surface] [Overland] Compute surface overland spill storage capacity
+        ss = s - sof_a
+        output = np.where(ss < 0.0, 0.0, ss)
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qof_f(sof_cap, sof_c):
+        # todo [docstring]
+        # [Surface] [Overland] Compute overland flow fraction
+        with np.errstate(divide='ignore', invalid='ignore'):
+            output = np.where((sof_cap + sof_c) == 0.0, 0.0, (sof_cap / (sof_cap + sof_c)))
+        r'''
+        [Model Equation]
+        Overland flow fraction
+        $$$
+
+        Q_{of, f}(t) = \frac{S(t) - S_{of, a}(t)}{S(t) - S_{of, a}(t) + S_{of, c}(t)}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qof_cap(sof_cap, ps, dt):
+        # todo [docstring]
+        # comment
+        output = (sof_cap * dt) + ps
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qof_pot(qof_cap, qof_f):
+        # todo [docstring]
+        # comment
+        output = qof_f * qof_cap
+        r'''
+        [Model Equation]
+        Overland flow
+        $$$
+
+        Q_{of}(t) = Q_{of, f}(t) * (\frac{(S(t) - S_{of, a}(t))}{\Delta t} + P_{s})
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_suf_cap(s, suf_a, shutdown):
+        # todo [docstring]
+        # [Surface] [Underland] Compute surface underland spill storage capacity
+        ss = s - suf_a
+        output = np.where(ss < 0.0, 0.0, ss) * shutdown
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_quf_f(suf_cap, suf_c):
+        # todo [docstring]
+        # [Surface] [Underland] Compute underland flow fraction
+        with np.errstate(divide='ignore', invalid='ignore'):
+            output = np.where((suf_cap + suf_c) == 0, 0, (suf_cap / (suf_cap + suf_c)))
+        r'''
+        [Model Equation]
+        Underland flow fraction
+        $$$
+
+        Q_{uf, f}(t) = \frac{S(t) - S_{uf, a}(t)}{S(t) - S_{uf, a}(t) + S_{uf, c}(t)}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_quf_cap(suf_cap, dt):
+        # todo [docstring]
+        # [Surface] [Underland] Compute underland flow capacity
+        output = suf_cap * dt
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_quf_pot(quf_cap, quf_f):
+        # todo [docstring]
+        # comment
+        output = quf_f * quf_cap
+        r'''
+        [Model Equation]
+        Underland flow
+        $$$
+
+        Q_{uf}(t) = Q_{uf, f}(t) * \frac{(S(t) - S_{uf, a}(t))}{\Delta t}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qif_pot_up(s, sk, dt):
+        # todo [docstring]
+        # [Surface] [Infiltration] -- Potential infiltration
+        # from upstream (hydraulic head)
+        output = compute_decay(s=s, k=sk, dt=dt)
+        r'''
+        [Model Equation]
+        Infiltration flow
+        $$$
+
+        Q_{if}(t) = \frac{1}{S_{k}} * S(t)
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qif_pot_down(d, v, dt):
+        # todo [docstring]
+        # [Surface] [Infiltration] --
+        # Potential infiltration from downstream (soil)
+        output = (d - v) * dt
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qif_pot(if_down, if_up):
+        # todo [docstring]
+        # [Surface] [Infiltration] -- Potential infiltration
+        # constrained by two sides
+        output = np.where(if_up > if_down, if_down, if_up)
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qvf_f(d, v):
+        # todo [docstring]
+        # [Soil Vadose Zone] Get Recharge Fraction
+        with np.errstate(divide='ignore', invalid='ignore'):
+            output = np.where(d <= 0.0, 1.0, (v / d))
+        r'''
+        [Model Equation]
+        Vertical (Recharge) flow fraction
+        $$$
+
+        Q_{vf, f}(t) = \frac{V(t)}{D(t)}
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qvf_pot(qvf_f, kv, dt):
+        # todo [docstring]
+        # [Soil Vadose Zone] Compute Potential Recharge
+        output = qvf_f * kv * dt
+        r'''
+        [Model Equation]
+        Vertical (Recharge) flow
+        $$$
+
+        Q_{vf}(t) = Q_{vf, f}(t) * K
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qvf_cap(v, dt):
+        # todo [docstring]
+        # [Soil Vadose Zone] Compute Maximal Recharge
+        output = v * dt
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qvf(qvf_pot, qvf_cap):
+        # todo [docstring]
+        # [Soil Vadose Zone] Compute Recharge Capacity
+        output = compute_flow(flow_pot=qvf_pot, flow_cap=qvf_cap)
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qgf(g, get_cap, gk, dt):
+        # todo [docstring]
+        # [Soil Phreatic Zone] Compute Base flow
+        # (blue water -- discount on green water)
+        s0 = g - get_cap
+        s = np.where(s0 > 0.0, s0, 0.0)
+        output = compute_decay(s=s, k=gk, dt=dt)
+        r'''
+        [Model Equation]
+        Baseflow
+        $$$
+
+        Q_{gf}(t) = \frac{1}{G_{k}} * (G(t) - G_{et, cap})
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_next_c(c, pc, sf):
+        # todo [docstring]
+        # comment
+        output = c + pc - sf
+        r'''
+        [Model Equation]
+        Canopy water balance. $E_{c}$ is discounted earlier.
+        $$$
+
+        C(t + 1) = C(t) + P_{c}(t) - P_{sf}(t) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_next_s(s, ps, qof, quf, qif):
+        # todo [docstring]
+        # comment
+        output = s + ps - qof - quf - qif
+        r'''
+        [Model Equation]
+        Surface water balance. $E_{c}$ is discounted earlier in procedure.
+        $$$
+
+        S(t + 1) = S(t) + P_{s}(t) - E_{s}(t) - Q_{if}(t) - Q_{uf}(t) - Q_{of}(t)
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_next_v(v, qif, qvf):
+        # todo [docstring]
+        # [Vadose Water Balance] ---- Apply water balance
+        output = v + qif - qvf
+        r'''
+        [Model Equation]
+        Vadose zone water balance
+        $$$
+
+        V(t + 1) = V(t) + Q_{if}(t) - Q_{vf}(t)
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_next_g(g, qvf, qgf):
+        # todo [docstring]
+        # [Phreatic Water Balance] ---- Apply water balance
+        output = g + qvf - qgf
+        r'''
+        [Model Equation]
+        Phreatic zone water balance. $E_{t}$ is discounted earlier in the procedure.
+        $$$
+
+        G(t + 1) = G(t) + Q_{vf}(t) - E_{t}(t) - Q_{bf}(t) 
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_e(ec, es, eg):
+        # todo [docstring]
+        # [Total Flows] Total E
+        output = ec + es + eg
+        r'''
+        [Model Equation]
+        Total evaporation
+        $$$
+
+        E(t) =  E_{c}(t) + E_{s}(t) + E_{t}(t)
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def compute_qhf(qof, quf, qgf):
+        # todo [docstring]
+        # [Total Flows] Compute Hillslope flow
+        output = qof + quf + qgf
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
+
+    @staticmethod
+    def demo():
+        # todo [docstring]
+        # comment
+        output = None
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
 
 class Local(Global):
     """
@@ -3611,7 +4243,7 @@ class Local(Global):
         self.folder_data_soils = self.folders["soils"]
         self.folder_data_basins = self.folders["basins"]
         self.folder_data_obs = self.folders["basins"]
-        self.folder_data_tah = self.folders["basins"]
+        self.folder_data_pah = self.folders["basins"]
         self.set_scenario(scenario_clim="obs", scenario_lulc="obs")
 
         self.folder_output = Path(str(self.folder_data.parent) + "/outputs")
@@ -3642,7 +4274,7 @@ class Local(Global):
         """
         super().load_data()
 
-        # -------------- load basins data -------------- #
+        # -------------- load available basins data -------------- #
         # map Collection
         self.file_data_basins_ls = glob.glob(f"{self.folder_data_basins}/{self.filename_data_basins}")
         self.data_basins = ds.QualiRasterCollection(name=self.name)
@@ -3679,7 +4311,7 @@ class Local(Global):
             file_table=self.file_data_soils_table
         )
 
-        # -------------- load lulc data -------------- #
+        # -------------- load available lulc data -------------- #
         # table
         self.file_data_lulc_table = Path(f"{self.folders["lulc"]}/{self.filename_data_lulc_table}")
         self.data_lulc_table = pd.read_csv(
@@ -3728,7 +4360,6 @@ class Local(Global):
 
         # add lulc to clim series
         self._setup_add_lulc_to_clim()
-
 
 
         return None

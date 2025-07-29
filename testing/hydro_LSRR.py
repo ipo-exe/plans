@@ -35,6 +35,7 @@ if __name__ == "__main__":
     m0.name = "LSRR-loK"
     m0.params["k"]["value"] = 1.5
     m0.run(setup_model=False)
+    print(m0.data)
     m0.view()
     m0.export(
         folder="./data/LSRR/outputs",

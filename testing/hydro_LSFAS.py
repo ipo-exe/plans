@@ -39,6 +39,7 @@ if __name__ == "__main__":
     m.params["s_c"]["value"] = 10.0
     m.run(setup_model=False)
     print(m.data.head().to_string())
+    m.view()
     m.export(
         folder="./data/LSFAS/outputs",
         filename=m.name,
@@ -50,6 +51,7 @@ if __name__ == "__main__":
     m.params["s_c"]["value"] = 10.0
     m.run(setup_model=False)
     print(m.data.head().to_string())
+    m.view()
     m.export(
         folder="./data/LSFAS/outputs",
         filename=m.name,
@@ -61,6 +63,7 @@ if __name__ == "__main__":
     m.params["s_c"]["value"] = 100.0
     m.run(setup_model=False)
     print(m.data.head().to_string())
+    m.view()
     m.export(
         folder="./data/LSFAS/outputs",
         filename=m.name,
