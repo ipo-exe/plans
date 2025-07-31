@@ -912,7 +912,7 @@ class DataSet(MbaE):
 
         return None
 
-    def export(self, folder, filename):
+    def export(self, folder, filename, data_suffix=None):
         """
         Export object resources (e.g., data and metadata).
 
@@ -924,7 +924,12 @@ class DataSet(MbaE):
         :rtype: None
         """
         super().export(folder, filename=filename + "_bootfile")
-        fpath = Path(folder + "/" + filename + self.file_csv_ext)
+        if data_suffix is None:
+            data_suffix = ""
+        elif "_" not in data_suffix:
+            data_suffix = "_" + data_suffix
+
+        fpath = Path(folder + "/" + filename + data_suffix + self.file_csv_ext)
         self.data.to_csv(
             fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
         )
@@ -1021,6 +1026,20 @@ class DataSet(MbaE):
             plt.close(fig)
             return file_path
 
+    @staticmethod
+    def dc2df(dc, name="main"):
+        # todo [docstring]
+        ls_main = list(dc.keys())
+        dc_main = {}
+        dc_main[name] = ls_main
+        ls_fields = list(dc[ls_main[0]].keys())
+        for f in ls_fields:
+            _ls = []
+            for m in ls_main:
+                _ls.append(dc[m].get(f, None))
+            dc_main[f] = _ls[:]
+
+        return pd.DataFrame(dc_main)
 
 class Note(MbaE):
 

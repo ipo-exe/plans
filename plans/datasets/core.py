@@ -3454,7 +3454,7 @@ class Raster(DataSet):
         if self.data is None:
             return None
         else:
-            new_grid = geo.prune_values(array=self.data, min_value=lower, max_value=upper)
+            new_grid = geo.prune(array=self.data, min_value=lower, max_value=upper)
             if inplace:
                 self.set_data(grid=new_grid)
                 return None
@@ -4615,7 +4615,7 @@ class QualiRaster(Raster):
         return map_aoi
 
     def apply_values(self, table_field):
-        new_grid = geo.convert_values(
+        new_grid = geo.convert(
             array=self.data,
             old_values=self.table[self.field_id].values,
             new_values=self.table[table_field].values,

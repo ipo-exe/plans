@@ -37,6 +37,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from plans.root import DataSet
+from plans import geo
 import plans.datasets as ds
 from plans.analyst import Bivar
 
@@ -44,6 +45,7 @@ from plans.analyst import Bivar
 def demo():
     # todo [docstring]
     return None
+
 
 def compute_decay(s, dt, k):
     # todo [docstring]
@@ -128,6 +130,7 @@ class Model(DataSet):
         self.field_datetime = "datetime"
         self.field_units = "units"
         self.field_parameter = "parameter"
+        self.field_id = "id"
 
         # ... continues in downstream objects ... #
 
@@ -150,12 +153,12 @@ class Model(DataSet):
                 "description": "Outflow",
                 "kind": "flow",
             },
-            "S_an": {
+            "san": {
                 "units": "mm",
                 "description": "Storage level (analytical solution)",
                 "kind": "level",
             },
-            "S_obs": {
+            "sobs": {
                 "units": "mm",
                 "description": "Storage level (observed evidence)",
                 "kind": "level",
@@ -263,25 +266,19 @@ class Model(DataSet):
         return None
 
 
+    def get_vars(self):
+        # todo [docstring]
+        df = DataSet.dc2df(dc=self.vars, name="variable")
+        df = df.sort_values(by="variable").reset_index(drop=True)
+        return df
+
+
     def get_params(self):
         # todo [docstring]
-        ls_param = [p for p in self.params]
-        ls_values = [self.params[p]["value"] for p in self.params]
-        ls_units = [self.params[p]["units"] for p in self.params]
-        ls_descr = [self.params[p][self.field_description] for p in self.params]
-        ls_2 = [self.params[p]["tex"] for p in self.params]
-        ls_3 = [self.params[p]["domain"] for p in self.params]
-        df = pd.DataFrame(
-            {
-                "parameter": ls_param,
-                "value": ls_values,
-                "units": ls_units,
-                "description": ls_descr,
-                "domain": ls_3,
-                "tex": ls_2
-            }
-        )
+        df = DataSet.dc2df(dc=self.params, name="parameter")
+        df = df.sort_values(by="parameter").reset_index(drop=True)
         return df
+
 
 
     def get_metadata(self):
@@ -545,7 +542,7 @@ class Model(DataSet):
         :rtype: None
         """
         # export model simulation data
-        super().export(folder, filename=filename)
+        super().export(folder, filename=filename, data_suffix="sim")
 
         # export model parameter file
         df_params = self.get_params()
@@ -688,12 +685,12 @@ class LinearStorage(Model):
                 "description": "Outflow",
                 "kind": "flow",
             },
-            "S_an": {
+            "san": {
                 "units": "mm",
                 "description": "Storage level (analytical solution)",
                 "kind": "level",
             },
-            "S_obs": {
+            "sobs": {
                 "units": "mm",
                 "description": "Storage level (observed evidence)",
                 "kind": "level",
@@ -934,14 +931,13 @@ class LinearStorage(Model):
         df = df[[self.field_datetime, self.var_eval, "{}_obs".format(self.var_eval)]]
 
         # remove voids
-        df.dropna(inplace=True)
+        df.dropna(subset=["{}_obs".format(self.var_eval)], inplace=True)
 
         # handle scaling factor for flows (expected to be in k-units)
         factor = 1.0
         if self.vars[self.var_eval]["kind"] == "flow":
             factor = self.params["dt"]["value"]
         # scale the factor
-        #df["{}_obs".format(self.var_eval)] = df["{}_obs".format(self.var_eval)] * factor
         df["{}".format(self.var_eval)] = df["{}".format(self.var_eval)] / factor
         return df
 
@@ -979,7 +975,7 @@ class LinearStorage(Model):
         :rtype: None
         """
         # export model simulation data
-        super().export(folder, filename=filename + "_sim")
+        super().export(folder, filename=filename)
 
         # export model observation data
         df_obs = self.get_evaldata()
@@ -1009,7 +1005,7 @@ class LinearStorage(Model):
         # access axes from fig
         axes = fig.get_axes()
         ax = axes[0]
-        ax.plot(self.data_obs[self.field_datetime], self.data_obs["S_obs"], ".", color="k")
+        ax.plot(self.data_obs[self.field_datetime], self.data_obs["sobs"], ".", color="k")
         # handle return
         if show:
             plt.show()
@@ -1194,6 +1190,7 @@ class LSRR(LinearStorage):
 
         # set the data inputs for climate
         self.data_clim = df_data_input[[self.field_datetime] + self.var_inputs].copy()
+        self.data_clim_src = self.data_clim.copy()
 
         # -------------- load observation data -------------- #
         self.file_data_obs = Path(f"{self.folder_data_obs}/{self.filename_data_obs}")
@@ -1550,7 +1547,7 @@ class LSRRE(LSRR):
                 plt.close(fig)
 
 
-class LSFAS(LSRRE):
+class   LSFAS(LSRRE):
     # todo [major docstring improvement]
     """
     Rainfall-Runoff-Evaporation model based on Linear Storage and Fill-And-Spill (FAS) mechanism.
@@ -1578,19 +1575,19 @@ class LSFAS(LSRRE):
                     "kind": "flow",
                     "tex": "tex"
                 },
-                "q_s": {
+                "qs": {
                     "units": "mm/{dt_freq}",
                     "description": "Spill flow (outflow)",
                     "kind": "flow",
                     "tex": "tex"
                 },
-                "q_s_f": {
+                "qsf": {
                     "units": "mm/mm",
                     "description": "Spill flow fraction",
                     "kind": "constant",
                     "tex": "tex"
                 },
-                "q_b": {
+                "qb": {
                     "units": "mm/{dt_freq}",
                     "description": "Base flow (outflow)",
                     "kind": "flow",
@@ -1654,9 +1651,9 @@ class LSFAS(LSRRE):
         super().setup()
 
         # add new columns
-        self.sdata["q_s"] = np.full(self.slen, np.nan)
-        self.sdata["q_b"] = np.full(self.slen, np.nan)
-        self.sdata["q_s_f"] = np.full(self.slen, np.nan)
+        self.sdata["qs"] = np.full(self.slen, np.nan)
+        self.sdata["qb"] = np.full(self.slen, np.nan)
+        self.sdata["qsf"] = np.full(self.slen, np.nan)
         self.sdata["ss"] = np.full(self.slen, np.nan)
 
         return None
@@ -1702,7 +1699,7 @@ class LSFAS(LSRRE):
             # Compute runoff fraction
             with np.errstate(divide='ignore', invalid='ignore'):
                 qs_f = np.where((ss_cap + s_c) == 0, 0, (ss_cap / (ss_cap + s_c)))
-            sdata["q_s_f"][t] = qs_f
+            sdata["qsf"][t] = qs_f
 
             # potential runoff -- scale by the fraction
 
@@ -1737,20 +1734,20 @@ class LSFAS(LSRRE):
 
             # Allocate outflows
             with np.errstate(divide='ignore', invalid='ignore'):
-                sdata["q_s"][t] = o_act * np.where(o_pot == 0, 0, qs_pot / o_pot)
-                sdata["q_b"][t] = o_act * np.where(o_pot == 0, 0, qb_pot / o_pot)
+                sdata["qs"][t] = o_act * np.where(o_pot == 0, 0, qs_pot / o_pot)
+                sdata["qb"][t] = o_act * np.where(o_pot == 0, 0, qb_pot / o_pot)
                 sdata["e"][t] = o_act * np.where(o_pot == 0, 0, e_pot / o_pot)
 
             # Compute full Q
-            sdata["q"][t] = sdata["q_s"][t] + sdata["q_b"][t]
+            sdata["q"][t] = sdata["qs"][t] + sdata["qb"][t]
 
             # Apply Water balance
             # S(t + 1) = S(t) + P(t) - Qs(t) - Qb(t) - E(t)
-            sdata["s"][t + 1] = sdata["s"][t] + sdata["p"][t] - sdata["q_s"][t] - sdata["q_b"][t] - sdata["e"][t]
+            sdata["s"][t + 1] = sdata["s"][t] + sdata["p"][t] - sdata["qs"][t] - sdata["qb"][t] - sdata["e"][t]
         # reset data
         self.data = pd.DataFrame(sdata)
         # organize table
-        ls_vars = [self.field_datetime, "t", "p", "e_pot", "e", "q_s", "q_s_f", "q_b", "q", "s", "ss"]
+        ls_vars = [self.field_datetime, "t", "p", "e_pot", "e", "qs", "qsf", "qb", "q", "s", "ss"]
         self.data = self.data[ls_vars].copy()
 
         return None
@@ -1765,12 +1762,12 @@ class LSFAS(LSRRE):
         # add Qb
         ax = axes[1]
         q_sum = round(self.data["q"].sum(), 1)
-        qb_sum = round(self.data["q_b"].sum(), 1)
+        qb_sum = round(self.data["qb"].sum(), 1)
         ax.set_title("$Q$ ({} mm)".format(q_sum) + ", $Q_b$ ({} mm)".format(qb_sum) + " and $Q_{obs}$", loc="left")
-        ax.plot(self.data[self.field_datetime], self.data["q_b"] / self.params["dt"]["value"], c="navy", zorder=1)
+        ax.plot(self.data[self.field_datetime], self.data["qb"] / self.params["dt"]["value"], c="navy", zorder=1)
         ax.set_title("Runoff C", loc="right")
         ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-        ax2.plot(self.data[self.field_datetime], self.data["q_s_f"], '--', zorder=2)
+        ax2.plot(self.data[self.field_datetime], self.data["qsf"], '--', zorder=2)
         ax2.set_ylim(0, 1)
 
         ax = axes[2]
@@ -1834,6 +1831,7 @@ class Global(LSFAS):
 
         # Geomorphic Unit Hydrograph
         self.data_guh = None
+        self.filename_data_guh = "guh.csv"
 
 
     def _set_model_vars(self):
@@ -1843,9 +1841,9 @@ class Global(LSFAS):
         # clean some vars
         del self.vars["s"]
         del self.vars["q"]
-        del self.vars["q_b"]
-        del self.vars["q_s_f"]
-        del self.vars["q_s"]
+        del self.vars["qb"]
+        del self.vars["qsf"]
+        del self.vars["qs"]
         del self.vars["ss"]
 
         # update old attributes
@@ -1864,6 +1862,7 @@ class Global(LSFAS):
                 "soil": False,
             }
         )
+
         # set new entries
         self.new_vars = {
                 #
@@ -1878,7 +1877,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": False,
                 },
-                "e_c": {
+                "ec": {
                     "units": "mm/{dt_freq}",
                     "description": "Canopy evaporation",
                     "kind": "flow",
@@ -1887,7 +1886,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": False,
                 },
-                "p_tf": {
+                "ptf": {
                     "units": "mm/{dt_freq}",
                     "description": "Throughfall -- canopy spill water",
                     "kind": "flow",
@@ -1896,7 +1895,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": False,
                 },
-                "p_tf_f": {
+                "ptff": {
                     "units": "mm/mm",
                     "description": "Throughfall fraction",
                     "kind": "constant",
@@ -1905,7 +1904,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": False,
                 },
-                "p_sf": {
+                "psf": {
                     "units": "mm/{dt_freq}",
                     "description": "Stemflow -- canopy drained water",
                     "kind": "flow",
@@ -1915,7 +1914,7 @@ class Global(LSFAS):
                     "soil": False,
 
                 },
-                "p_c": {
+                "pc": {
                     "units": "mm/{dt_freq}",
                     "description": "Effective precipitation on canopy",
                     "kind": "flow",
@@ -1924,7 +1923,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": False,
                 },
-                "p_s": {
+                "ps": {
                     "units": "mm/{dt_freq}",
                     "description": "Effective precipitation on surface",
                     "kind": "flow",
@@ -1945,7 +1944,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": False,
                 },
-                "e_s": {
+                "es": {
                     "units": "mm/{dt_freq}",
                     "description": "Surface evaporation",
                     "kind": "flow",
@@ -1954,7 +1953,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": False,
                 },
-                "q_of": {
+                "qof": {
                     "units": "mm/{dt_freq}",
                     "description": "Overland flow  -- surface spill",
                     "kind": "flow",
@@ -1963,7 +1962,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": False,
                 },
-                "q_of_f": {
+                "qoff": {
                     "units": "mm/mm",
                     "description": "Overland flow fraction",
                     "kind": "constant",
@@ -1972,7 +1971,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": False,
                 },
-                "q_uf": {
+                "quf": {
                     "units": "mm/{dt_freq}",
                     "description": "Underland flow -- lateral leak in topsoil",
                     "kind": "flow",
@@ -1981,7 +1980,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": False,
                 },
-                "q_uf_f": {
+                "quff": {
                     "units": "mm/mm",
                     "description": "Underland flow fraction",
                     "kind": "constant",
@@ -1990,7 +1989,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": False,
                 },
-                "q_if": {
+                "qif": {
                     "units": "mm/{dt_freq}",
                     "description": "Infiltration flow -- drainage to mineral vadoze zone",
                     "kind": "flow",
@@ -2011,7 +2010,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
-                "q_vf": {
+                "qvf": {
                     "units": "mm",
                     "description": "Recharge flow -- vertical flow to phreatic zone",
                     "kind": "flow",
@@ -2020,7 +2019,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
-                "q_vf_f": {
+                "qvff": {
                     "units": "mm/mm",
                     "description": "Recharge flow fraction",
                     "kind": "constant",
@@ -2029,7 +2028,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
-                "d_v": {
+                "dv": {
                     "units": "mm",
                     "description": "Vadose zone storage deficit",
                     "kind": "level",
@@ -2059,16 +2058,16 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
-                "e_t": {
+                "eg": {
                     "units": "mm/{dt_freq}",
                     "description": "Phreatic zone transpiration",
                     "kind": "flow",
-                    "tex": "$E_{t}$",
+                    "tex": "$E_{g}$",
                     "canopy": False,
                     "surface": False,
                     "soil": True,
                 },
-                "e_t_f": {
+                "egf": {
                     "units": "mm/{dt_freq}",
                     "description": "Phreatic zone transpiration fraction",
                     "kind": "constant",
@@ -2077,7 +2076,7 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
-                "q_gf": {
+                "qgf": {
                     "units": "mm/{dt_freq}",
                     "description": "Groundwater flow (baseflow at hillslope scale)",
                     "kind": "flow",
@@ -2087,7 +2086,7 @@ class Global(LSFAS):
                     "soil": True,
                 },
                 # routing
-                "q_hf": {
+                "qhf": {
                     "units": "mm/{dt_freq}",
                     "description": "Hillslope flow (surface, subsurface and baseflow)",
                     "kind": "flow",
@@ -2096,16 +2095,7 @@ class Global(LSFAS):
                     "surface": True,
                     "soil": True,
                 },
-                "q": {
-                    "units": "mm/{dt_freq}",
-                    "description": "Stream flow at stage station",
-                    "kind": "flow",
-                    "tex": "$Q$",
-                    "canopy": False,
-                    "surface": True,
-                    "soil": True,
-                },
-                "q_bf": {
+                "qbf": {
                     "units": "mm/{dt_freq}",
                     "description": "River baseflow (routed groundflow at river gauge)",
                     "kind": "flow",
@@ -2114,6 +2104,16 @@ class Global(LSFAS):
                     "surface": False,
                     "soil": True,
                 },
+                "q": {
+                    "units": "mm/{dt_freq}",
+                    "description": "Streamflow at river gauge",
+                    "kind": "flow",
+                    "tex": "$Q$",
+                    "canopy": False,
+                    "surface": True,
+                    "soil": True,
+                },
+
             }
         # update new entries
         self.vars.update(self.new_vars.copy())
@@ -2122,7 +2122,7 @@ class Global(LSFAS):
         self.vars_surface = [self.field_datetime] + [v for v in self.vars if self.vars[v]["surface"]]
         self.vars_soil = [self.field_datetime] + [v for v in self.vars if self.vars[v]["soil"]]
         self.vars_levels = [
-            "c", "s", "v", "d_v", "g", "d"
+            "c", "s", "v", "dv", "g", "d"
         ]
 
         return None
@@ -2187,7 +2187,7 @@ class Global(LSFAS):
                 #
                 #
                 # Canopy parameters
-                "c_k": {
+                "ck": {
                     "value": None,
                     "units": "d",
                     "dtype": np.float64,
@@ -2196,7 +2196,7 @@ class Global(LSFAS):
                     "tex": "$C_{k}$",
                     "domain": "lulc",
                 },
-                "c_a": {
+                "ca": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -2208,7 +2208,7 @@ class Global(LSFAS):
                 #
                 #
                 # Surface parameters
-                "s_k": {
+                "sk": {
                     "value": None,
                     "units": "d",
                     "dtype": np.float64,
@@ -2218,16 +2218,16 @@ class Global(LSFAS):
                     "domain": "lulc",
                 },
                 # subsurface spill
-                "s_uf_cap": {
+                "sufcap": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Topsoil zone storage capacity",
+                    "description": "Subsurface storage capacity",
                     "kind": "conceptual",
                     "tex": "$S_{uf, cap}$",
                     "domain": "lulc",
                 },
-                "s_uf_a": {
+                "sufa": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -2236,7 +2236,7 @@ class Global(LSFAS):
                     "tex": "$S_{uf, a}$",
                     "domain": "lulc",
                 },
-                "s_uf_c": {
+                "sufc": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
@@ -2246,63 +2246,63 @@ class Global(LSFAS):
                     "domain": "lulc",
                 },
                 # surface spill
-                "s_of_a": {
+                "sofa": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Activation level for surface overland spill",
+                    "description": "Activation level for overland spill",
                     "kind": "conceptual",
                     "tex": "$S_{of, a}$",
                     "domain": "lulc",
                 },
-                "s_of_c": {
+                "sofc": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Fragmentation level for surface overland spill",
+                    "description": "Fragmentation level for overland spill",
                     "kind": "conceptual",
                     "tex": "$S_{of, c}$",
                     "domain": "lulc",
                 },
                 # recharge
-                "k_v": {
+                "kv": {
                     "value": None,
                     "units": "mm/D",
                     "dtype": np.float64,
-                    "description": "Effective hydraulic conductivity",
+                    "description": "Soil hydraulic conductivity",
                     "kind": "conceptual",
                     "tex": "$K_{V}$",
                     "domain": "soils",
                 },
                 # baseflow
-                "d_et_a": {
+                "dea": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
-                    "description": "Effective root depth for full evapotranspiration activation",
+                    "description": "Deficit limit for full evapotranspiration",
                     "kind": "level",
-                    "tex": "$D_{et, a}$",
+                    "tex": "$D_{e, a}$",
                     "domain": "lulc",
                 },
-                "g_et_cap": {
+                "ecap": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Evapotranspiration capacity at capilar zone",
                     "kind": "level",
-                    "tex": "$G_{et, cap}$",
-                    "domain": "lulc",
+                    "tex": "$G_{e, cap}$",
+                    "domain": "soils",
                 },
-                "g_cap": {
+                "gcap": {
                     "value": None,
                     "units": "mm",
                     "dtype": np.float64,
                     "description": "Phreatic zone storage capacity",
                     "kind": "conceptual",
                     "tex": "$G_{cap}$",
-                    "domain": "lulc",
+                    "domain": "soils",
                 },
-                "g_k": {
+                "gk": {
                     "value": None,
                     "units": "d",
                     "dtype": np.float64,
@@ -2311,7 +2311,7 @@ class Global(LSFAS):
                     "tex": "$G_{k}$",
                     "domain": "soils",
                 },
-                "k_q": {
+                "kq": {
                     "value": None,
                     "units": "m/D",
                     "dtype": np.float64,
@@ -2323,7 +2323,7 @@ class Global(LSFAS):
             }
         )
         # reset reference
-        self.reference_dt_param = "g_k"
+        self.reference_dt_param = "gk"
         return None
 
 
@@ -2409,7 +2409,7 @@ class Global(LSFAS):
             b_insert_zero = True
 
         # compute delay
-        vct_t = vct_paths / self.params["k_q"]["value"]
+        vct_t = vct_paths / self.params["kq"]["value"]
 
         # set dataframe
         self.data_tah = pd.DataFrame(
@@ -2485,7 +2485,7 @@ class Global(LSFAS):
         for v in self.vars:
             # set initial conditions on storages
             if self.vars[v]["kind"] == "level":
-                if v == "d" or v == "d_v":
+                if v == "d" or v == "dv":
                     pass
                 else:
                     self.sdata[v][0] = self.params["{}0".format(v)]["value"]
@@ -2493,9 +2493,10 @@ class Global(LSFAS):
         # --- handle bad (unfeaseable) initial conditions
 
         # --- G0 storage must not exceed G_cap
-        g_cap = self.params["g_cap"]["value"]
+        g_cap = self.params["gcap"]["value"]
         g0 = self.sdata["g"][0]
         if g0 > g_cap:
+            self.params["g0"]["value"] = g_cap
             self.sdata["g"][0] = g_cap
 
         # --- V0 storage must not exceed D (Gcap - G)
@@ -2503,19 +2504,20 @@ class Global(LSFAS):
         g0 = self.sdata["g"][0]
 
         if v0 > (g_cap - g0):
+            self.params["v0"]["value"] = g_cap
             self.sdata["v"][0] = g_cap - g0
 
         return None
 
 
-    def _setup_parameters(self):
+    def _setup_params(self):
         # todo [docstring]
         # --- handle bad (unfeaseable) parameters
 
         # --- D_et_cap must not exceed G_cap
-        g_cap = self.params["g_cap"][self.datakey]
-        d_et_a = self.params["d_et_a"][self.datakey]
-        self.params["d_et_a"][self.datakey] = np.where(d_et_a > g_cap, g_cap, d_et_a)
+        g_cap = self.params["gcap"]["value"]
+        d_et_a = self.params["dea"]["value"]
+        self.params["dea"]["value"] = np.where(d_et_a > g_cap, g_cap, d_et_a)
 
         return None
 
@@ -2569,11 +2571,12 @@ class Global(LSFAS):
         super().setup()
 
         # clear deprecated parent variables
-        del self.sdata["q_s"]
-        del self.sdata["q_s_f"]
-        del self.sdata["q_b"]
+        del self.sdata["qs"]
+        del self.sdata["qsf"]
+        del self.sdata["qb"]
         del self.sdata["s"]
         del self.sdata["ss"]
+        del self.sdata["q"]
 
         # append new variables
         for v in self.new_vars:
@@ -2592,12 +2595,17 @@ class Global(LSFAS):
         #
         # ---------------- parameters ---------------- #
         #
-        self._setup_parameters()
+        self._setup_params()
 
         #
         # ------------- routing setup ---------------- #
         #
         self._setup_guh()
+
+        #
+        # ------------- set empty io data ---------------- #
+        #
+        self.data = pd.DataFrame(self.sdata)
 
         return None
 
@@ -2629,23 +2637,23 @@ class Global(LSFAS):
         # this section is for improving code readability only
 
         # [Canopy] canopy parameters
-        c_k = self.params["c_k"][self.datakey]
-        c_a = self.params["c_a"][self.datakey]
+        c_k = self.params["ck"][self.datakey]
+        c_a = self.params["ca"][self.datakey]
 
         # [Surface] surface parameters
-        s_k = self.params["s_k"][self.datakey]
-        s_of_a = self.params["s_of_a"][self.datakey]
-        s_of_c = self.params["s_of_c"][self.datakey]
-        s_uf_a = self.params["s_uf_a"][self.datakey]
-        s_uf_c = self.params["s_uf_c"][self.datakey]
-        s_uf_cap = self.params["s_uf_cap"][self.datakey]
+        s_k = self.params["sk"][self.datakey]
+        s_of_a = self.params["sofa"][self.datakey]
+        s_of_c = self.params["sofc"][self.datakey]
+        s_uf_a = self.params["sufa"][self.datakey]
+        s_uf_c = self.params["sufc"][self.datakey]
+        s_uf_cap = self.params["sufcap"][self.datakey]
 
         # [Soil] soil parameters
-        g_cap = self.params["g_cap"][self.datakey]
-        k_v = self.params["k_v"][self.datakey]
-        g_k = self.params["g_k"][self.datakey]
-        g_et_cap = self.params["g_et_cap"][self.datakey]
-        d_et_a = self.params["d_et_a"][self.datakey]
+        g_cap = self.params["gcap"][self.datakey]
+        k_v = self.params["kv"][self.datakey]
+        g_k = self.params["gk"][self.datakey]
+        g_e_cap = self.params["ecap"][self.datakey]
+        d_e_a = self.params["dea"][self.datakey]
 
         #
         # ---------------- derived parameter variables ----------------
@@ -2680,7 +2688,7 @@ class Global(LSFAS):
             gb["d"][t] = Global.compute_d(g_cap=g_cap, g=gb["g"][t])
 
             # [Deficit] Vadose zone deficit
-            gb["d_v"][t] = Global.compute_dv(d=gb["d"][t], v=gb["v"][t])
+            gb["dv"][t] = Global.compute_dv(d=gb["d"][t], v=gb["v"][t])
 
             #
             # [Evaporation] ---------- get evaporation flows first ---------- #
@@ -2695,47 +2703,47 @@ class Global(LSFAS):
             e_c_cap = Global.compute_ec_cap(c=gb["c"][t], dt=dt)
 
             # [Evaporation] [Canopy] compute actual flow
-            gb["e_c"][t] = Global.compute_ec(e_c_pot, e_c_cap)
+            gb["ec"][t] = Global.compute_ec(e_c_pot, e_c_cap)
 
 
             # [Evaporation] [Soil] ---- transpiration from soil
 
             # [Evaporation] [Soil] compute potential flow
-            e_t_pot = Global.compute_et_pot(e_pot=gb["e_pot"][t], ec=gb["e_c"][t])
+            e_t_pot = Global.compute_et_pot(e_pot=gb["e_pot"][t], ec=gb["ec"][t])
 
             # [Evaporation] [Soil] compute the root zone depth factor
-            gb["e_t_f"][t] = Global.compute_et_f(dv=gb["d_v"][t], d_et_a=d_et_a)
+            gb["egf"][t] = Global.compute_et_f(dv=gb["dv"][t], d_et_a=d_e_a)
 
             # [Evaporation] [Soil] compute capacity flow
-            e_t_cap = Global.compute_et_cap(e_t_f=gb["e_t_f"][t], g=gb["g"][t], g_et_cap=g_et_cap, dt=dt)
+            e_t_cap = Global.compute_et_cap(e_t_f=gb["egf"][t], g=gb["g"][t], g_et_cap=g_e_cap, dt=dt)
 
             # [Evaporation] [Soil] compute actual flow
-            gb["e_t"][t] = Global.compute_et(e_t_pot, e_t_cap)
+            gb["eg"][t] = Global.compute_et(e_t_pot, e_t_cap)
 
 
             # [Evaporation] [Surface] ---- evaporation from surface
 
             # [Evaporation] [Surface] compute potential flow
-            e_s_pot = Global.compute_es_pot(e_pot=gb["e_pot"][t], ec=gb["e_c"][t], et=gb["e_t"][t])
+            e_s_pot = Global.compute_es_pot(e_pot=gb["e_pot"][t], ec=gb["ec"][t], et=gb["eg"][t])
 
             # [Evaporation] [Surface] compute capacity flow
             e_s_cap = Global.compute_es_cap(s=gb["s"][t], dt=dt)
 
             # [Evaporation] [Surface] compute actual flow
-            gb["e_s"][t] = Global.compute_es(e_s_pot, e_s_cap)
+            gb["es"][t] = Global.compute_es(e_s_pot, e_s_cap)
 
             #
             # [Evaporation] [Balance] ---- a priori discounts ---------- #
             #
 
             # [Evaporation] [Balance] -- apply discount a priori
-            gb["c"][t] = Global.compute_e_discount(storage=gb["c"][t], discount=gb["e_c"][t])
+            gb["c"][t] = Global.compute_e_discount(storage=gb["c"][t], discount=gb["ec"][t])
 
             # [Evaporation] [Balance] -- apply discount a priori
-            gb["g"][t] = Global.compute_e_discount(storage=gb["g"][t], discount=gb["e_t"][t])
+            gb["g"][t] = Global.compute_e_discount(storage=gb["g"][t], discount=gb["eg"][t])
 
             # [Evaporation] [Balance] water balance -- apply discount a priori
-            gb["s"][t] = Global.compute_e_discount(storage=gb["s"][t], discount=gb["e_s"][t])
+            gb["s"][t] = Global.compute_e_discount(storage=gb["s"][t], discount=gb["es"][t])
 
             #
             # [Canopy] ---------- Solve canopy water balance ---------- #
@@ -2744,13 +2752,13 @@ class Global(LSFAS):
             # [Canopy] [Throughfall] --
 
             # [Canopy] [Throughfall] Compute throughfall fraction
-            gb["p_tf_f"][t] = Global.compute_tf_f(c=gb["c"][t], ca=c_a)
+            gb["ptff"][t] = Global.compute_tf_f(c=gb["c"][t], ca=c_a)
 
             # [Canopy] [Throughfall] Compute throughfall capacity
             p_tf_cap = Global.compute_tf_cap(c=gb["c"][t], ca=c_a, p=gb["p"][t], dt=dt)
 
             # [Canopy] [Throughfall] Compute throughfall
-            gb["p_tf"][t] = Global.compute_tf(p_tf_cap=p_tf_cap, p_tf_f=gb["p_tf_f"][t])
+            gb["ptf"][t] = Global.compute_tf(p_tf_cap=p_tf_cap, p_tf_f=gb["ptff"][t])
 
 
             # [Canopy] [Stemflow] --
@@ -2759,19 +2767,19 @@ class Global(LSFAS):
             c_sf_pot = Global.compute_sf_pot(c=gb["c"][t], ca=c_a)
 
             # [Canopy] [Stemflow] Compute actual stemflow
-            gb["p_sf"][t] = compute_decay(s=c_sf_pot, dt=dt, k=c_k)
+            gb["psf"][t] = compute_decay(s=c_sf_pot, dt=dt, k=c_k)
 
 
             # [Canopy] [Aggflows] --
 
             # [Canopy] [Aggflows] Compute effective rain on surface
-            gb["p_s"][t] = Global.compute_ps(sf=gb["p_sf"][t], tf=gb["p_tf"][t])
+            gb["ps"][t] = Global.compute_ps(sf=gb["psf"][t], tf=gb["ptf"][t])
 
             # [Canopy] [Aggflows] Compute effective rain on canopy
-            gb["p_c"][t] = Global.compute_pc(p=gb["p"][t], tf_f=gb["p_tf_f"][t])
+            gb["pc"][t] = Global.compute_pc(p=gb["p"][t], tf_f=gb["ptff"][t])
 
             # [Canopy] [Water Balance] ---- Apply water balance
-            gb["c"][t + 1] = Global.compute_next_c(c=gb["c"][t], pc=gb["p_c"][t], sf=gb["p_sf"][t])
+            gb["c"][t + 1] = Global.compute_next_c(c=gb["c"][t], pc=gb["pc"][t], sf=gb["psf"][t])
 
 
             #
@@ -2784,13 +2792,13 @@ class Global(LSFAS):
             sof_ss_cap = Global.compute_sof_cap(s=gb["s"][t], sof_a=s_of_a_eff)
 
             # [Surface] [Overland] Compute overland flow fraction
-            gb["q_of_f"][t] = Global.compute_qof_f(sof_cap=sof_ss_cap, sof_c=s_of_c)
+            gb["qoff"][t] = Global.compute_qof_f(sof_cap=sof_ss_cap, sof_c=s_of_c)
 
             # [Surface] [Overland] Compute overland flow capacity
-            q_of_cap = Global.compute_qof_cap(sof_cap=sof_ss_cap, ps=gb["p_s"][t], dt=dt)
+            q_of_cap = Global.compute_qof_cap(sof_cap=sof_ss_cap, ps=gb["ps"][t], dt=dt)
 
             # [Surface] [Overland] Compute potential overland
-            q_of_pot = Global.compute_qof_pot(qof_cap=q_of_cap, qof_f=gb["q_of_f"][t])
+            q_of_pot = Global.compute_qof_pot(qof_cap=q_of_cap, qof_f=gb["qoff"][t])
 
 
             # [Surface] [Underland] -- Underland flow
@@ -2799,13 +2807,13 @@ class Global(LSFAS):
             suf_ss_cap = Global.compute_suf_cap(s=gb["s"][t], suf_a=s_uf_a, shutdown=s_uf_shutdown)
 
             # [Surface] [Underland] Compute underland flow fraction
-            gb["q_uf_f"][t] = Global.compute_quf_f(suf_cap=suf_ss_cap, suf_c=s_uf_c)
+            gb["quff"][t] = Global.compute_quf_f(suf_cap=suf_ss_cap, suf_c=s_uf_c)
 
             # [Surface] [Underland] Compute underland flow capacity
             q_uf_cap = Global.compute_quf_cap(suf_cap=suf_ss_cap, dt=dt)
 
             # [Surface] [Underland] Compute potential underland flow
-            q_uf_pot = Global.compute_quf_pot(quf_cap=q_uf_cap, quf_f=gb["q_uf_f"][t])
+            q_uf_pot = Global.compute_quf_pot(quf_cap=q_uf_cap, quf_f=gb["quff"][t])
 
 
             # [Surface] [Infiltration] -- Infiltration flow
@@ -2837,17 +2845,17 @@ class Global(LSFAS):
 
             # [Surface] Allocate outflows
             with np.errstate(divide='ignore', invalid='ignore'):
-                gb["q_of"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_of_pot / s_out_pot)
-                gb["q_uf"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_uf_pot / s_out_pot)
-                gb["q_if"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_if_pot / s_out_pot)
+                gb["qof"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_of_pot / s_out_pot)
+                gb["quf"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_uf_pot / s_out_pot)
+                gb["qif"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_if_pot / s_out_pot)
 
             # [Surface Water Balance] ---- Apply water balance.
             gb["s"][t + 1] = Global.compute_next_s(
                 s=gb["s"][t],
-                ps=gb["p_s"][t],
-                qof=gb["q_of"][t],
-                quf=gb["q_uf"][t],
-                qif=gb["q_if"][t],
+                ps=gb["ps"][t],
+                qof=gb["qof"][t],
+                quf=gb["quf"][t],
+                qif=gb["qif"][t],
             )
 
             #
@@ -2857,44 +2865,44 @@ class Global(LSFAS):
             # [Soil Vadose Zone]
 
             # [Soil Vadose Zone] Get Recharge Fraction
-            gb["q_vf_f"][t] = Global.compute_qvf_f(d=gb["d"][t], v=gb["v"][t])
+            gb["qvff"][t] = Global.compute_qvf_f(d=gb["d"][t], v=gb["v"][t])
 
             # [Soil Vadose Zone] Compute Potential Recharge
-            q_vf_pot = Global.compute_qvf_pot(qvf_f=gb["q_vf_f"][t], kv=k_v, dt=dt)
+            q_vf_pot = Global.compute_qvf_pot(qvf_f=gb["qvff"][t], kv=k_v, dt=dt)
 
             # [Soil Vadose Zone] Compute Maximal Recharge
             q_vf_cap = Global.compute_qvf_cap(v=gb["v"][t], dt=dt)
 
             # [Soil Vadose Zone] Compute Actual Recharge
-            gb["q_vf"][t] = Global.compute_qvf(qvf_pot=q_vf_pot, qvf_cap=q_vf_cap)
+            gb["qvf"][t] = Global.compute_qvf(qvf_pot=q_vf_pot, qvf_cap=q_vf_cap)
 
             # [Vadose Water Balance] ---- Apply water balance
             gb["v"][t + 1] = Global.compute_next_v(
                 v=gb["v"][t],
-                qif=gb["q_if"][t],
-                qvf=gb["q_vf"][t]
+                qif=gb["qif"][t],
+                qvf=gb["qvf"][t]
             )
 
             # [Soil Phreatic Zone]
 
             # [Soil Phreatic Zone] Compute Base flow (blue water -- discount on green water)
-            #gb["q_gf"][t] = (np.max([gb["g"][t] - g_et_cap, 0.0])) * dt / g_k
-            gb["q_gf"][t] = Global.compute_qgf(
+            #gb["qgf"][t] = (np.max([gb["g"][t] - g_et_cap, 0.0])) * dt / g_k
+            gb["qgf"][t] = Global.compute_qgf(
                 g=gb["g"][t],
-                get_cap=g_et_cap,
+                get_cap=g_e_cap,
                 gk=g_k,
                 dt=dt
             )
 
             # [Testing feature]
             if self.shutdown_qbf:
-                gb["q_gf"][t] = 0.0 * gb["q_gf"][t]
+                gb["qgf"][t] = 0.0 * gb["qgf"][t]
 
             # [Phreatic Water Balance] ---- Apply water balance
             gb["g"][t + 1] = Global.compute_next_g(
                 g=gb["g"][t],
-                qvf=gb["q_vf"][t],
-                qgf=gb["q_gf"][t]
+                qvf=gb["qvf"][t],
+                qgf=gb["qgf"][t]
             )
 
             # ---------------- END TIME LOOP ---------------- #
@@ -2905,13 +2913,12 @@ class Global(LSFAS):
         #
 
         # [Total Flows] Total E
-        gb["e"] = Global.compute_e(ec=gb["e_c"], es=gb["e_s"], eg=gb["e_t"])
+        gb["e"] = Global.compute_e(ec=gb["ec"], es=gb["es"], eg=gb["eg"])
 
 
         # [Total Flows] Compute Hillslope flow
-        gb["q_hf"] = Global.compute_qhf(qof=gb["q_of"], quf=gb["q_uf"], qgf=gb["q_gf"])
+        gb["qhf"] = Global.compute_qhf(qof=gb["qof"], quf=gb["quf"], qgf=gb["qgf"])
 
-        print("\n\nFEITOOOOOO")
 
         #
         # [Streamflow] ---------- Solve flow routing to basin gauge station ---------- #
@@ -2921,20 +2928,20 @@ class Global(LSFAS):
         basin = self.basins_ls[0]
 
         # [Baseflow] Compute river base flow
-        vct_inflow = gb["q_gf"]
-        gb["q_bf"] = Global.propagate_inflow(
+        vct_inflow = gb["qgf"]
+        gb["qbf"] = Global.propagate_inflow(
             inflow=vct_inflow,
             unit_hydrograph=self.data_guh[basin].values,
         )
 
         # [Fast Streamflow] Compute Streamflow
         # todo [feature] evaluate to split into more components
-        vct_inflow = gb["q_uf"] + gb["q_of"]
+        vct_inflow = gb["quf"] + gb["qof"]
         q_fast = Global.propagate_inflow(
             inflow=vct_inflow,
             unit_hydrograph=self.data_guh[basin].values
         )
-        gb["q"] = gb["q_bf"] + q_fast
+        gb["q"] = gb["qbf"] + q_fast
 
         # set data
         self.data = pd.DataFrame(gb)
@@ -2944,7 +2951,7 @@ class Global(LSFAS):
 
     def export(self, folder, filename, views=False, mode=None):
         """
-        Export object resources
+        Export object resources. Expected to be called after setup.
 
         :param folder: path to folder
         :type folder: str
@@ -2963,12 +2970,21 @@ class Global(LSFAS):
             # handle view mode
             self.view(show=False, mode=mode)
 
-        # handle to export paths and unit hydrograph
+        # export PAH Path Area Histogram
+        fpath = Path(folder + "/" + filename + "_" + self.filename_data_pah)
+        self.data_pah.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
+        # export TAH Time Area Histogram
         fpath = Path(folder + "/" + filename + "_" + self.filename_data_tah)
         self.data_tah.to_csv(
             fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
         )
-
+        # export GUH Geomorphic Unit Hydrograph
+        fpath = Path(folder + "/" + filename + "_" + self.filename_data_guh)
+        self.data_guh.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
         # ... continues in downstream objects ... #
 
 
@@ -3008,8 +3024,8 @@ class Global(LSFAS):
             ax = fig.add_subplot(gs[0, 0])
             plt.plot(self.data[self.field_datetime], self.data["p"] / n_dt, color=specs["color_P"],
                      zorder=2, label=self.vars["p"]["tex"])
-            plt.plot(self.data[self.field_datetime], self.data["q_if"] / n_dt, color=specs["color_Q_if"],
-                     zorder=2, label=self.vars["q_if"]["tex"])
+            plt.plot(self.data[self.field_datetime], self.data["qif"] / n_dt, color=specs["color_Q_if"],
+                     zorder=2, label=self.vars["qif"]["tex"])
             s_title1 = "$P$ ({} mm)".format(round(self.data["p"].sum(), 1))
             plt.title(s_title1, loc="left")
             # normalize X axis
@@ -3038,20 +3054,20 @@ class Global(LSFAS):
             ax2.set_ylabel("mm/d")
 
             # ------------ Q plot ------------
-            n_qmax = np.max([self.data["q_hf"].max() / n_dt, self.data_obs["q_obs"].max()])
+            n_qmax = np.max([self.data["qhf"].max() / n_dt, self.data_obs["q_obs"].max()])
             # n_qmax = self.data["q"].max() / n_dt
             q_sum = round(self.data["q"].sum(), 1)
             ax = fig.add_subplot(gs[1, 0])
             s_symbol0 = self.vars["q"]["tex"]
-            s_symbol1 = self.vars["q_bf"]["tex"]
-            s_symbol2 = self.vars["q_hf"]["tex"]
+            s_symbol1 = self.vars["qbf"]["tex"]
+            s_symbol2 = self.vars["qhf"]["tex"]
             # titles
             plt.title("$Q$ ({} mm) ".format(q_sum), loc="left")
             plt.title("$Q_{obs}$" + " ({} mm)".format(round(self.data_obs["q_obs"].sum(), 1)), loc="right")
             # plots
             plt.plot(self.data[self.field_datetime], self.data["q"] / n_dt, color=specs["color_Q"], zorder=2, label=s_symbol0)
-            plt.plot(self.data[self.field_datetime], self.data["q_bf"] / n_dt, color=specs["color_Q_bf"], zorder=1, label=s_symbol1)
-            plt.plot(self.data[self.field_datetime], self.data["q_hf"] / n_dt, color="silver", zorder=0, label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["qbf"] / n_dt, color=specs["color_Q_bf"], zorder=1, label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["qhf"] / n_dt, color="silver", zorder=0, label=s_symbol2)
             plt.plot(
                 self.data_obs[self.field_datetime],
                 self.data_obs["q_obs"],
@@ -3077,20 +3093,20 @@ class Global(LSFAS):
             plt.title(r"$G$ ($\mu$ = {} mm)".format(round(self.data["g"].mean(), 1)), loc="left")
             plt.plot(self.data[self.field_datetime], self.data["g"], color=specs["color_G"], label=self.vars["g"]["tex"])
             plt.hlines(
-                y=self.params["g_cap"]["value"],
+                y=self.params["gcap"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="orange",
                 linestyles="--",
-                label=self.params["g_cap"]["tex"]
+                label=self.params["gcap"]["tex"]
             )
             plt.hlines(
-                y=self.params["g_cap"]["value"] - self.params["d_et_a"]["value"],
+                y=self.params["gcap"]["value"] - self.params["dea"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="green",
                 linestyles="--",
-                label=self.params["d_et_a"]["tex"]
+                label=self.params["dea"]["tex"]
             )
             plt.legend(loc="upper left", ncols=1)
 
@@ -3103,7 +3119,7 @@ class Global(LSFAS):
             # normalize Y axis
             ymax_s = specs["ymax_G"]
             if ymax_s is None:
-                ymax_s = 1.1 * self.params["g_cap"]["value"]
+                ymax_s = 1.1 * self.params["gcap"]["value"]
             plt.ylim(0, ymax_s)
 
         if mode == "canopy":
@@ -3124,29 +3140,29 @@ class Global(LSFAS):
             plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
 
             # ------------ E plot ------------
-            e_sum = round(self.data["e_c"].sum(), 1)
+            e_sum = round(self.data["ec"].sum(), 1)
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-            ax2.plot(self.data[self.field_datetime], self.data["e_c"] / n_dt, c="tab:red", zorder=1, label=self.vars["e_c"]["tex"])
-            e_max = self.data["e_c"].max()
+            ax2.plot(self.data[self.field_datetime], self.data["ec"] / n_dt, c="tab:red", zorder=1, label=self.vars["ec"]["tex"])
+            e_max = self.data["ec"].max()
             if e_max == 0:
                 ax2.set_ylim(-1, 1)
             else:
                 ax2.set_ylim(0, 1.2 * e_max / n_dt)
-            ax2.set_title("{} ({} mm)".format(self.vars["e_c"]["tex"], e_sum), loc="right")
+            ax2.set_title("{} ({} mm)".format(self.vars["ec"]["tex"], e_sum), loc="right")
             ax2.set_ylabel("mm/d")
 
             # ------------ Ps plot ------------
-            n_emax = self.data["p_s"].max() / n_dt
-            ps_sum = round(self.data["p_s"].sum(), 1)
-            psf_sum = round(self.data["p_sf"].sum(), 1)
+            n_emax = self.data["ps"].max() / n_dt
+            ps_sum = round(self.data["ps"].sum(), 1)
+            psf_sum = round(self.data["psf"].sum(), 1)
             ax = fig.add_subplot(gs[1, 0], sharex=ax)
             # titles
-            s_symbol1 = self.vars["p_s"]["tex"]
-            s_symbol2 = self.vars["p_sf"]["tex"]
+            s_symbol1 = self.vars["ps"]["tex"]
+            s_symbol2 = self.vars["psf"]["tex"]
             plt.title(f"{s_symbol1} ({ps_sum} mm) and {s_symbol2} ({psf_sum} mm)", loc="left")
             # plots
-            plt.plot(self.data[self.field_datetime], self.data["p_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
-            plt.plot(self.data[self.field_datetime], self.data["p_sf"] / n_dt, color=specs["color_P_sf"], label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["ps"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["psf"] / n_dt, color=specs["color_P_sf"], label=s_symbol2)
             # normalize X axis
             plt.xlim(ls_dates)
             # normalize Y axis
@@ -3193,25 +3209,25 @@ class Global(LSFAS):
             plt.ylabel("mm/{}".format(self.params["dt"]["units"].lower()))
 
             # ------------ Ps plot ------------
-            n_emax = self.data["p_s"].max() / n_dt
-            ps_sum = round(self.data["p_s"].sum(), 1)
+            n_emax = self.data["ps"].max() / n_dt
+            ps_sum = round(self.data["ps"].sum(), 1)
             # titles
-            s_symbol1 = self.vars["p_s"]["tex"]
-            s_title2 = "{} ({} mm)".format(s_symbol1, round(self.data["p_s"].sum(), 1))
+            s_symbol1 = self.vars["ps"]["tex"]
+            s_title2 = "{} ({} mm)".format(s_symbol1, round(self.data["ps"].sum(), 1))
             plt.title(f"{s_title1} and {s_title2}", loc="left")
             # plots
-            plt.plot(self.data[self.field_datetime], self.data["p_s"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["ps"] / n_dt, color=specs["color_P_s"], label=s_symbol1)
             plt.legend(loc="upper left")
 
             # ------------ E plot ------------
-            s_symbol1 = self.vars["e_s"]["tex"]
-            s_symbol2 = self.vars["e_c"]["tex"]
-            es_sum = round(self.data["e_s"].sum(), 1)
-            ec_sum = round(self.data["e_c"].sum(), 1)
+            s_symbol1 = self.vars["es"]["tex"]
+            s_symbol2 = self.vars["ec"]["tex"]
+            es_sum = round(self.data["es"].sum(), 1)
+            ec_sum = round(self.data["ec"].sum(), 1)
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
-            ax2.plot(self.data[self.field_datetime], self.data["e_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
-            ax2.plot(self.data[self.field_datetime], self.data["e_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
-            es_max = np.max([self.data["e_s"].max(), self.data["e_c"].max()])
+            ax2.plot(self.data[self.field_datetime], self.data["ec"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
+            ax2.plot(self.data[self.field_datetime], self.data["es"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
+            es_max = np.max([self.data["es"].max(), self.data["ec"].max()])
             if es_max <= 0.001:
                 ax2.set_ylim(-1, 1)
             else:
@@ -3224,32 +3240,32 @@ class Global(LSFAS):
 
             # ------------ Qof, Quf, Qif plot ------------
             ax = fig.add_subplot(gs[1, 0], sharex=ax)
-            s_symbol1 = self.vars["q_of"]["tex"]
-            s_symbol2 = self.vars["q_uf"]["tex"]
-            s_symbol3 = self.vars["q_if"]["tex"]
-            s_symbol4 = self.vars["q_hf"]["tex"]
+            s_symbol1 = self.vars["qof"]["tex"]
+            s_symbol2 = self.vars["quf"]["tex"]
+            s_symbol3 = self.vars["qif"]["tex"]
+            s_symbol4 = self.vars["qhf"]["tex"]
             # titles
-            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["q_of"].sum(), 1))
-            s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["q_uf"].sum(), 1))
-            s_title3 = "{} ({} mm)".format(s_symbol3, round(self.data["q_if"].sum(), 1))
+            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["qof"].sum(), 1))
+            s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["quf"].sum(), 1))
+            s_title3 = "{} ({} mm)".format(s_symbol3, round(self.data["qif"].sum(), 1))
             plt.title(f"{s_title1}, {s_title2} and {s_title3}", loc="left")
-            plt.plot(self.data[self.field_datetime], self.data["q_hf"] / n_dt, color="navy", label=s_symbol4)
-            plt.plot(self.data[self.field_datetime], self.data["q_of"] / n_dt, color="magenta", label=s_symbol1)
-            plt.plot(self.data[self.field_datetime], self.data["q_uf"] / n_dt, color="red", label=s_symbol2)
-            plt.plot(self.data[self.field_datetime], self.data["q_if"] / n_dt, color="green", label=s_symbol3)
+            plt.plot(self.data[self.field_datetime], self.data["qhf"] / n_dt, color="navy", label=s_symbol4)
+            plt.plot(self.data[self.field_datetime], self.data["qof"] / n_dt, color="magenta", label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["quf"] / n_dt, color="red", label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["qif"] / n_dt, color="green", label=s_symbol3)
             plt.ylim(0, ymax_p)
             ax.set_ylabel("mm/d")
             plt.legend(loc="upper left")
 
             # ------------ Runoff coef plot ------------
             ax2 = ax.twinx()
-            s_symbol1 = self.vars["q_of_f"]["tex"]
-            plt.plot(self.data[self.field_datetime], self.data["q_of_f"], color="gray", label=s_symbol1)
+            s_symbol1 = self.vars["qoff"]["tex"]
+            plt.plot(self.data[self.field_datetime], self.data["qoff"], color="gray", label=s_symbol1)
             plt.ylim(-1, 2)
             ax2.set_yticks([0, 1])
             ax2.set_ylabel("mm/mm")
-            f_mean = round(self.data["q_of_f"].mean(), 2)
-            f_max = round(self.data["q_of_f"].max(), 2)
+            f_mean = round(self.data["qoff"].mean(), 2)
+            f_max = round(self.data["qoff"].max(), 2)
             ax2.set_title(rf"{s_symbol1} ($\mu$ = {f_mean}; max = {f_max})", loc="right")
             plt.legend(loc="upper right")
 
@@ -3260,25 +3276,25 @@ class Global(LSFAS):
             plt.title(r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["s"].mean(), 1)), loc="left")
             plt.plot(self.data[self.field_datetime], self.data["s"], color=specs["color_S"], label=s_symbol1)
             plt.hlines(
-                y=self.params["s_uf_a"]["value"],
+                y=self.params["sufa"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="orange",
-                label=self.params["s_uf_a"]["tex"]
+                label=self.params["sufa"]["tex"]
             )
             plt.hlines(
-                y=self.params["s_uf_cap"]["value"],
+                y=self.params["sufcap"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="purple",
-                label=self.params["s_uf_cap"]["tex"]
+                label=self.params["sufcap"]["tex"]
             )
             plt.hlines(
-                y=self.params["s_of_a"]["value"],
+                y=self.params["sofa"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="red",
-                label=self.params["s_of_a"]["tex"]
+                label=self.params["sofa"]["tex"]
             )
             plt.legend(loc="upper left")
             # ticks
@@ -3298,19 +3314,19 @@ class Global(LSFAS):
         if mode == "soil":
             # ------------ Qif plot ------------
             ax = fig.add_subplot(gs[0, 0])
-            n_emax = self.data["q_if"].max() / n_dt
-            ps_sum = round(self.data["q_if"].sum(), 1)
+            n_emax = self.data["qif"].max() / n_dt
+            ps_sum = round(self.data["qif"].sum(), 1)
             # titles
-            s_symbol0 = self.vars["p_s"]["tex"]
-            s_symbol1 = self.vars["q_if"]["tex"]
-            s_symbol2 = self.vars["q_vf"]["tex"]
-            s_title0 = "{} ({} mm)".format(s_symbol0, round(self.data["p_s"].sum(), 1))
-            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["q_if"].sum(), 1))
-            s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["q_vf"].sum(), 1))
+            s_symbol0 = self.vars["ps"]["tex"]
+            s_symbol1 = self.vars["qif"]["tex"]
+            s_symbol2 = self.vars["qvf"]["tex"]
+            s_title0 = "{} ({} mm)".format(s_symbol0, round(self.data["ps"].sum(), 1))
+            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["qif"].sum(), 1))
+            s_title2 = "{} ({} mm)".format(s_symbol2, round(self.data["qvf"].sum(), 1))
             plt.title(f"{s_title0}, {s_title1} and {s_title2}", loc="left")
             # plots
-            plt.plot(self.data[self.field_datetime], self.data["q_if"] / n_dt, color=specs["color_Q_if"], label=s_symbol1)
-            plt.plot(self.data[self.field_datetime], self.data["q_vf"] / n_dt, color="steelblue", label=s_symbol2)
+            plt.plot(self.data[self.field_datetime], self.data["qif"] / n_dt, color=specs["color_Q_if"], label=s_symbol1)
+            plt.plot(self.data[self.field_datetime], self.data["qvf"] / n_dt, color="steelblue", label=s_symbol2)
             plt.legend(loc="upper left", ncols=3)
             # normalize X axis
             plt.xlim(ls_dates)
@@ -3322,21 +3338,21 @@ class Global(LSFAS):
             plt.ylim(0, ymax_qif)
 
             # ------------ E plot ------------
-            s_symbol1 = self.vars["e_s"]["tex"]
-            s_symbol2 = self.vars["e_c"]["tex"]
-            s_symbol3 = self.vars["e_t"]["tex"]
+            s_symbol1 = self.vars["es"]["tex"]
+            s_symbol2 = self.vars["ec"]["tex"]
+            s_symbol3 = self.vars["eg"]["tex"]
             s_symbol4 = self.vars["e_pot"]["tex"]
-            es_sum = round(self.data["e_s"].sum(), 1)
-            ec_sum = round(self.data["e_c"].sum(), 1)
-            et_sum = round(self.data["e_t"].sum(), 1)
+            es_sum = round(self.data["es"].sum(), 1)
+            ec_sum = round(self.data["ec"].sum(), 1)
+            et_sum = round(self.data["eg"].sum(), 1)
             ax2 = ax.twinx()  # Create a second y-axis that shares the same x-axis
             ax2.plot(self.data[self.field_datetime], self.data["e_pot"] / n_dt, c="tab:gray", alpha=0.5, zorder=2, linestyle="--",
                      label=s_symbol4)
-            ax2.plot(self.data[self.field_datetime], self.data["e_c"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
-            ax2.plot(self.data[self.field_datetime], self.data["e_s"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
-            ax2.plot(self.data[self.field_datetime], self.data["e_t"] / n_dt, c="tab:green", zorder=1, label=s_symbol3)
+            ax2.plot(self.data[self.field_datetime], self.data["ec"] / n_dt, c="tab:orange", zorder=0, label=s_symbol1)
+            ax2.plot(self.data[self.field_datetime], self.data["es"] / n_dt, c="tab:red", zorder=1, label=s_symbol2)
+            ax2.plot(self.data[self.field_datetime], self.data["eg"] / n_dt, c="tab:green", zorder=1, label=s_symbol3)
 
-            es_max = np.max([self.data["e_s"].max(), self.data["e_c"].max(), self.data["e_t"].max()])
+            es_max = np.max([self.data["es"].max(), self.data["ec"].max(), self.data["eg"].max()])
             if es_max <= 0.001:
                 ax2.set_ylim(-1, 1)
             else:
@@ -3350,12 +3366,12 @@ class Global(LSFAS):
 
             # ------------ Qbf  ------------
             ax = fig.add_subplot(gs[1, 0], sharex=ax)
-            s_symbol1 = self.vars["q_bf"]["tex"]
+            s_symbol1 = self.vars["qbf"]["tex"]
             # titles
-            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["q_bf"].sum(), 1))
+            s_title1 = "{} ({} mm)".format(s_symbol1, round(self.data["qbf"].sum(), 1))
             plt.title(f"{s_title1}", loc="left")
-            plt.plot(self.data[self.field_datetime], self.data["q_bf"] / n_dt, color="navy", label=s_symbol1)
-            qb_max = self.data["q_bf"].max() / n_dt
+            plt.plot(self.data[self.field_datetime], self.data["qbf"] / n_dt, color="navy", label=s_symbol1)
+            qb_max = self.data["qbf"].max() / n_dt
             if qb_max == 0:
                 plt.ylim(-1, 1)
             else:
@@ -3369,7 +3385,7 @@ class Global(LSFAS):
             s_symbol1 = self.vars["v"]["tex"]
             s_symbol2 = self.vars["g"]["tex"]
             s_symbol3 = self.vars["d"]["tex"]
-            s_symbol4 = self.vars["d_v"]["tex"]
+            s_symbol4 = self.vars["dv"]["tex"]
             s_title1 = r"{} ($\mu$ = {} mm)".format(s_symbol1, round(self.data["v"].mean(), 1))
             s_title2 = r"{} ($\mu$ = {} mm)".format(s_symbol2, round(self.data["g"].mean(), 1))
             s_title3 = r"{} ($\mu$ = {} mm)".format(s_symbol3, round(self.data["d"].mean(), 1))
@@ -3377,22 +3393,22 @@ class Global(LSFAS):
             plt.plot(self.data[self.field_datetime], self.data["v"], color=specs["color_V"], label=s_symbol1)
             plt.plot(self.data[self.field_datetime], self.data["g"], color=specs["color_G"], label=s_symbol2)
             plt.plot(self.data[self.field_datetime], self.data["d"], color="black", label=s_symbol3)
-            plt.plot(self.data[self.field_datetime], self.data["d_v"], color="black", linestyle="--", label=s_symbol4)
+            plt.plot(self.data[self.field_datetime], self.data["dv"], color="black", linestyle="--", label=s_symbol4)
             plt.hlines(
-                y=self.params["g_cap"]["value"],
+                y=self.params["gcap"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="orange",
                 linestyles="--",
-                label=self.params["g_cap"]["tex"]
+                label=self.params["gcap"]["tex"]
             )
             plt.hlines(
-                y=self.params["g_cap"]["value"] - self.params["d_et_a"]["value"],
+                y=self.params["gcap"]["value"] - self.params["dea"]["value"],
                 xmin=self.data[self.field_datetime].min(),
                 xmax=self.data[self.field_datetime].max(),
                 colors="green",
                 linestyles="--",
-                label=self.params["d_et_a"]["tex"]
+                label=self.params["dea"]["tex"]
             )
             plt.legend(loc="upper left", ncols=6)
             # normalize X axis
@@ -4166,6 +4182,11 @@ class Local(Global):
         # overwriters
         self.object_alias = "Local"
 
+        # simulation variables
+        self.datakey = "map"
+        self.use_g2g = True
+        self.wmask = None
+
         # scenarios
         self.scenario_clim = "obs"
         self.scenario_lulc = "obs"
@@ -4179,39 +4200,60 @@ class Local(Global):
             "soils"
         ]
 
+        # -------------- DATA -------------- #
+        self.basemap = None
+
         # -------------- LOCAL INPUTS -------------- #
 
         # -------------- basins -------------- #
+
+        # single basin data
+        self.filename_data_basin = None
+        self.data_basin = None
+
         # maps -- this will be a Collection
         self.data_basins = None
         self.file_data_basins_ls = None
         self.filename_data_basins = "basins_*.tif"
+        # simulation basin
+        self.sbasin = None
 
         # -------------- topographic saturation index -------------- #
-        # map
+        # tsi map
         self.data_tsi = None
         self.filename_data_tsi = "tsi.tif"
+        self.tsi_n = 100  # default discretization for tsi
 
         # -------------- soils -------------- #
-        # table
+
+        # soil table
         self.data_soils_table = None
+        self.data_soils_table_src = None
         self.file_data_soils_table = None
         self.filename_data_soils_table = "soils.csv"
-        # map
+        self.soils_n = None # number of lulc classes
+
+        # soil map
         self.data_soils = None
         self.file_data_soils = None
         self.filename_data_soils = "soils.tif"
 
         # -------------- lulc -------------- #
+
         # lulc table
         self.data_lulc_table = None
+        self.data_lulc_table_src = None
         self.file_data_lulc_table = None
         self.filename_data_lulc_table = "lulc.csv"
-        # maps -- this will be a Collection
+        self.lulc_n = None # number of lulc classes
+        self.lulc_maps_ls = None
+        self.lulc_maps_dc = None
+        self.lulc_maps_dc_inv = None
+
+        # lulc maps -- this will be a Collection
         self.data_lulc = None
         self.file_data_lulc_ls = None
         self.filename_data_lulc = "lulc_*.tif"
-
 
         '''
         Instructions: make a model that handles both G2G and HRU approach.
@@ -4222,6 +4264,196 @@ class Local(Global):
         - 
              
         '''
+
+
+    def _set_model_vars(self):
+        # todo [docstring]
+        super()._set_model_vars()
+        # include local attribute
+        ls_non_local = ["t", "p", "e_pot", "q_obs", "q", "qbf", "qhf", "qgf"]
+        for v in self.vars:
+            _b = True
+            if v in set(ls_non_local):
+                _b = False
+            self.vars[v]["local"] = _b
+        return None
+
+    # todo [move upstream] -- evaluate to retrofit Global() so it can handle scenarios?
+    def _set_scenario(self, scenario_clim="obs", scenario_lulc="obs"):
+        # todo [docstring]
+        if scenario_clim is not None:
+            self.scenario_clim = scenario_clim
+            self.folder_data_clim = Path(str(self.folders["clim"]) + f"/{self.scenario_clim}")
+
+        if scenario_lulc is not None:
+            self.scenario_lulc = scenario_lulc
+            self.folder_data_lulc = Path(str(self.folders["lulc"]) + f"/{self.scenario_lulc}")
+
+        return None
+
+    def _set_sbasin(self, n=0):
+        # todo [docstring]
+        ls_cols = list(self.data_obs.columns)
+        self.sbasin = ls_cols[n + 1]
+        return None
+
+    def _set_basemap(self):
+        # todo [docstring]
+        if self.use_g2g:
+            shp = self.data_tsi.data.shape
+        else:
+            shp = (self.tsi_n, self.lulc_n * self.soils_n)
+        self.basemap = np.ones(shape=shp, dtype=np.float32)
+        return None
+
+
+    def _setup_wmask(self):
+        # todo [docstring]
+        if self.use_g2g:
+            self.wmask = self.data_basin.data.data
+        else:
+            # todo [develop] URH approach
+            pass
+
+        return None
+
+    def _setup_vars(self):
+        # todo [docstring]
+        for v in self.vars:
+            is_local = self.vars[v]["local"]
+            if is_local:
+                # append a zero 2d map with 2 rows
+                self.vars[v]["map"] = np.array([self.basemap, self.basemap]) * 0.0
+        return None
+
+
+    def _setup_params(self):
+        # todo [docstring]
+        super()._setup_params()
+
+        #
+        # ---------------- parameter maps setup ----------------- #
+        #
+        dc_aux = {
+            "lulc": {
+                "table": self.data_lulc_table,
+                "ids": self.data_lulc_table[self.field_id].values,
+                "fields": set(self.data_lulc_table.columns)
+            },
+            "soils": {
+                "table": self.data_soils_table,
+                "ids": self.data_soils_table[self.field_id].values,
+                "fields": set(self.data_soils_table.columns)
+            },
+        }
+
+        # retrieve only conceptual parameters
+        ls_params = []
+        for p in self.params:
+            p_kind = self.params[p]["kind"]
+            if p_kind == "conceptual":
+                ls_params.append(p)
+
+        # loop over parameters
+        for p in ls_params:
+            p_domain = self.params[p]["domain"]
+            # 1) weights
+            if p_domain in set(dc_aux.keys()):
+
+                # get ids
+                vc_ids = dc_aux[p_domain]["ids"]
+
+                # handle missing fields
+                if p not in dc_aux[p_domain]["fields"]:
+                    # set as constants
+                    vc_weights = (vc_ids * 0.0) + 1.0
+                else:
+                    # grab from table
+                    vc_weights = dc_aux[p_domain]["table"][p].values
+
+                # downscale weights to match global mean
+                vc_down = geo.downscale_linear(
+                    scalar=self.params[p]["value"],
+                    array_covar=vc_weights,
+                    mode="mean"
+                )
+                # reset data table
+                dc_aux[p_domain]["table"][p] = vc_down.copy()
+
+            # [SOILS] parameter maps
+            if p_domain == "soils":
+                grd_src = self.data_soils.data.filled(fill_value=np.nan)
+                # append as "map" key
+                self.params[p]["map"] = geo.convert(array=grd_src, old_values=vc_ids, new_values=vc_down)
+
+            # [LULC] parameter maps
+            if p_domain == "lulc":
+                # run over all available lulcs
+                for lulc in self.lulc_maps_ls:
+                    grd_src = self.data_lulc.collection[lulc].data.filled(fill_value=np.nan)
+                    # append as lulc name
+                    self.params[p][lulc] = geo.convert(array=grd_src, old_values=vc_ids, new_values=vc_down)
+            #
+
+        return None
+
+
+    def _setup_add_lulc_to_data(self):
+        # todo [docstring]
+        df_main = self.data.copy()
+        df_lulc_meta = self.data_lulc.catalog.copy()
+
+        # Convert 'datetime' columns to datetime objects
+        df_main[self.field_datetime] = pd.to_datetime(df_main[self.field_datetime])
+        df_lulc_meta[self.field_datetime] = pd.to_datetime(df_lulc_meta[self.field_datetime])
+
+        # Sort both DataFrames by 'datetime' for merge_asof
+        df_main_sorted = df_main.sort_values(by=self.field_datetime)
+        df_lulc_meta_sorted = df_lulc_meta.sort_values(by=self.field_datetime)
+
+        # Perform a backward merge_asof to find the closest preceding or equal lulc entry
+        merged_df = pd.merge_asof(
+            df_main_sorted,
+            df_lulc_meta_sorted[[self.field_datetime, self.field_name]],
+            on=self.field_datetime,
+            direction='backward'
+        )
+        # Rename the 'name' column to 'lulc'
+        merged_df = merged_df.rename(columns={self.field_name: 'lulc_map'})
+
+        # get ids for lulc
+        self.lulc_maps_dc = {}
+        self.lulc_maps_dc_inv = {}
+        for i in range(len(self.lulc_maps_ls)):
+            self.lulc_maps_dc[self.lulc_maps_ls[i]] = i
+            self.lulc_maps_dc_inv[i] = self.lulc_maps_ls[i]
+
+        # handle fine tuning
+        merged_df["lulc_map_id"] = merged_df['lulc_map'].map(self.lulc_maps_dc).astype(np.int8)
+        merged_df.drop(columns=["lulc_map"], inplace=True)
+
+        # reset clim data
+        self.data = merged_df.copy()
+
+        # append to simulation data also
+        self.sdata["lulc_map_id"] = self.data["lulc_map_id"].values[:]
+
+        return None
+
+
+    def _setup_start(self):
+        # todo [docstring]
+        super()._setup_start()
+        # loop over vars
+        for v in self.vars:
+            # set initial conditions on storages
+            if self.vars[v]["kind"] == "level" and self.vars[v]["local"]:
+                if v == "d" or v == "dv":
+                    pass
+                else:
+                    self.vars[v]["map"][0] = self.vars[v]["map"][0] + self.params["{}0".format(v)]["value"]
+
+        return None
 
     def setter(self, dict_setter):
         """
@@ -4244,36 +4476,39 @@ class Local(Global):
         self.folder_data_basins = self.folders["basins"]
         self.folder_data_obs = self.folders["basins"]
         self.folder_data_pah = self.folders["basins"]
-        self.set_scenario(scenario_clim="obs", scenario_lulc="obs")
+        self._set_scenario(scenario_clim="obs", scenario_lulc="obs")
 
         self.folder_output = Path(str(self.folder_data.parent) + "/outputs")
         # ... continues in downstream objects ... #
         return None
 
-    # todo [move upstream] -- evaluate to retrofit Global() so it can handle scenarios?
-    def set_scenario(self, scenario_clim="obs", scenario_lulc="obs"):
+
+    def get_evaldata(self):
         # todo [docstring]
-
-        if scenario_clim is not None:
-            self.scenario_clim = scenario_clim
-            self.folder_data_clim = Path(str(self.folders["clim"]) + f"/{self.scenario_clim}")
-
-        if scenario_lulc is not None:
-            self.scenario_lulc = scenario_lulc
-            self.folder_data_lulc = Path(str(self.folders["lulc"]) + f"/{self.scenario_lulc}")
-
-        return None
+        data_obs_src = self.data_obs.copy()
+        s_standard = "{}_obs".format(self.var_eval)
+        self.data_obs.rename(columns={self.sbasin: s_standard}, inplace=True)
+        df = super().get_evaldata()
+        # reset values
+        self.data_obs = data_obs_src.copy()
+        #df.rename(columns={s_standard: self.sbasin}, inplace=True)
+        return df
 
 
-    def load_data(self):
-        """
-        Load simulation data. Expected to increment superior methods.
+    def load_basin(self):
+        # todo [docstring]
+        # set simulation basin
+        self._set_sbasin()
+        # load AOI map
+        f = Path(f"{self.folders["basins"]}/{self.sbasin}.tif")
+        self.data_basin = ds.AOI(name=self.sbasin)
+        self.data_basin.alias = self.sbasin
+        self.data_basin.file_data = f
+        self.data_basin.load_data(file_data=f)
 
-        :return: None
-        :rtype: None
-        """
-        super().load_data()
-
+        # todo [refactor]
+        # this code is for multi-basin loading
+        '''
         # -------------- load available basins data -------------- #
         # map Collection
         self.file_data_basins_ls = glob.glob(f"{self.folder_data_basins}/{self.filename_data_basins}")
@@ -4288,53 +4523,96 @@ class Local(Global):
             _aoi.file_data = f
             _aoi.load_data(file_data=f)
             self.data_basins.append(new_object=_aoi)
+        '''
+        return None
 
-        # -------------- load topo data -------------- #
+
+    def load_tsi(self):
+        # todo [docstring]
         # map
         self.file_data_tsi = Path(f"{self.folder_data_topo}/{self.filename_data_tsi}")
         self.data_tsi = ds.HTWI(name=self.name)
         self.data_tsi.load_data(file_data=self.file_data_tsi)
+        return None
 
-        # -------------- load soils data -------------- #
-        # table
+
+    def load_soils(self):
+        # todo [docstring]
+        # soils table
         self.file_data_soils_table = Path(f"{self.folders["soils"]}/{self.filename_data_soils_table}")
         self.data_soils_table = pd.read_csv(
             self.file_data_soils_table,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
         )
-        # map
+        self.data_soils_table_src = self.data_soils_table.copy()
+        self.soils_n = len(self.data_soils_table)
+
+        # soils map
         self.file_data_soils = Path(f"{self.folder_data_soils}/{self.filename_data_soils}")
         self.data_soils = ds.Soils(name=self.name)
         self.data_soils.load_data(
             file_data=self.file_data_soils,
             file_table=self.file_data_soils_table
         )
+        return None
 
-        # -------------- load available lulc data -------------- #
-        # table
+
+    def load_lulc(self):
+        # todo [docstring]
+        # lulc table
         self.file_data_lulc_table = Path(f"{self.folders["lulc"]}/{self.filename_data_lulc_table}")
         self.data_lulc_table = pd.read_csv(
             self.file_data_lulc_table,
             sep=self.file_csv_sep,
             encoding=self.file_encoding,
         )
-        # map Collection
+        self.data_lulc_table_src = self.data_lulc_table.copy()
+        self.lulc_n = len(self.data_lulc_table)
+
+        # lulc map collection
         self.data_lulc = ds.LULCSeries(name=self.name)
-        # todo [DEV] -- feature for handling the file format (tif, etc)
+        # todo [develop] -- feature for handling the file format (tif, etc)
         self.data_lulc.load_folder(
             folder=self.folder_data_lulc,
             file_table=self.file_data_lulc_table,
             name_pattern=self.filename_data_lulc.replace(".tif", ""),
             talk=False
         )
+        self.lulc_maps_ls = list(self.data_lulc.collection.keys())
+        return None
+
+
+    def load_data(self):
+        """
+        Load simulation data. Expected to increment superior methods.
+
+        :return: None
+        :rtype: None
+        """
+        super().load_data()
+
+        # -------------- load basin data -------------- #
+        # todo [develop] multi-site simulation
+        self.load_basin()
+
+        # -------------- load topo data -------------- #
+        self.load_tsi()
+
+        # -------------- load soils data -------------- #
+        self.load_soils()
+
+        # -------------- load lulc data -------------- #
+        self.load_lulc()
 
         # -------------- update other mutables -------------- #
+        self._set_basemap()
         # >>> evaluate using self.update()
 
         # ... continues in downstream objects ... #
 
         return None
+
 
     def setup(self):
         """
@@ -4348,56 +4626,426 @@ class Local(Global):
         :return: None
         :rtype: None
         """
+
+        # set all local variables (this need to be only t and t+1)
+        self._setup_vars()
+
         # setup superior object
         # this sets all global variables to the main data table
         super().setup()
 
-        # now set all local variables (this need to be only t and t+1)
-
-        #
-        # ---------------- lulc setup ----------------- #
-        #
-
         # add lulc to clim series
-        self._setup_add_lulc_to_clim()
+        self._setup_add_lulc_to_data()
 
+        #
+        # ---------------- parameter maps setup ----------------- #
+        #
 
         return None
 
 
+    def solve(self):
+        """
+        Solve the model for inputs and initial conditions by numerical methods.
 
-    def _setup_add_lulc_to_clim(self):
-        # todo [docstring]
-        df_main = self.data_clim
-        df_lulc_meta = self.data_lulc.catalog
+        .. warning::
 
-        # Convert 'datetime' columns to datetime objects
-        df_main[self.field_datetime] = pd.to_datetime(df_main[self.field_datetime])
-        df_lulc_meta[self.field_datetime] = pd.to_datetime(df_lulc_meta[self.field_datetime])
+            This method overwrites model data.
 
-        # Sort both DataFrames by 'datetime' for merge_asof
-        df_main_sorted = df_main.sort_values(by=self.field_datetime)
-        df_lulc_meta_sorted = df_lulc_meta.sort_values(by=self.field_datetime)
+        :return: None
+        :rtype: None
+        """
 
-        # Perform a backward merge_asof to find the closest preceding or equal lulc entry
-        merged_df = pd.merge_asof(
-            df_main_sorted,
-            df_lulc_meta_sorted[[self.field_datetime, self.field_name]],
-            on=self.field_datetime,
-            direction='backward'
+        #
+        # ---------------- simulation setup ----------------
+        #
+
+        # dt is the fraction of 1 Day/(1 simulation time step)
+        dt = self.params["dt"]["value"]
+
+        # full global processes data is a dataframe with numpy arrays
+        gb = self.sdata
+
+        #
+        # ---------------- parameters variables ----------------
+        #
+
+        # [Soil] soil parameters
+        g_cap = self.params["gcap"][self.datakey]
+        # compute the global/basin gcap
+        gb_g_cap = geo.upscale(array=g_cap, weights=self.wmask, mode="mean")
+        k_v = self.params["kv"][self.datakey]
+        g_k = self.params["gk"][self.datakey]
+        # compute the global/basin gk
+        gb_g_k = geo.upscale(array=g_k, weights=self.wmask, mode="mean")
+        g_e_cap = self.params["ecap"][self.datakey]
+        d_e_a = self.params["dea"][self.datakey]
+
+        #
+        # ---------------- derived parameter variables ----------------
+        #
+
+        # [Surface] Conpute shutdown factor for underland flow
+        s_uf_shutdown = Global.compute_s_uf_shutdown(s_uf_cap, s_uf_a)
+
+        # [Surface] Compute effective overland flow activation level
+        s_of_a_eff = Global.compute_sof_a_eff(s_uf_cap, s_of_a)
+
+        #
+        # ---------------- testing features ----------------
+        #
+
+        # [Testing feature] shutdown E_pot
+        if self.shutdown_epot:
+            gb["e_pot"] = np.full(self.slen, 0.0)
+
+        #
+        # ---------------- numerical solution ----------------
+        #
+
+        # ---------------- START TIME LOOP ---------------- #
+        # loop over steps (Euler Method)
+        for t in range(self.n_steps - 1):
+            # reset i
+            i = 0
+            #
+            # [LULC] ---------- variable parameters ---------- #
+            #
+
+            # access the current lulc epoch
+            lulc_map_id = gb["lulc_map_id"][t]
+            lulc_map_name = self.lulc_maps_dc_inv[lulc_map_id]
+
+            # [Canopy] canopy parameters
+            c_k = self.params["ck"][lulc_map_name]
+            c_a = self.params["ca"][lulc_map_name]
+
+            # [Surface] surface parameters
+            s_k = self.params["sk"][lulc_map_name]
+            s_of_a = self.params["sofa"][lulc_map_name]
+            s_of_c = self.params["sofc"][lulc_map_name]
+            s_uf_a = self.params["sufa"][lulc_map_name]
+            s_uf_c = self.params["sufc"][lulc_map_name]
+            s_uf_cap = self.params["sufcap"][lulc_map_name]
+
+            #
+            # [Deficit] ---------- update deficits ---------- #
+            #
+
+            # [Deficit] Phreatic zone deficit
+            ## gb["d"][t] = Global.compute_d(g_cap=g_cap, g=gb["g"][t])
+            gb["d"][t] = Global.compute_d(g_cap=g_cap, g=gb["g"][t])
+
+            # [Deficit] Vadose zone deficit
+            gb["dv"][t] = Global.compute_dv(d=gb["d"][t], v=gb["v"][t])
+
+            #
+            # [Evaporation] ---------- get evaporation flows first ---------- #
+            #
+
+            # [Evaporation] [Canopy] ---- evaporation from canopy
+
+            # [Evaporation] [Canopy] compute potential flow
+            e_c_pot = Global.compute_ec_pot(e_pot=gb["e_pot"][t])
+
+            # [Evaporation] [Canopy] compute capacity flow
+            e_c_cap = Global.compute_ec_cap(c=gb["c"][t], dt=dt)
+
+            # [Evaporation] [Canopy] compute actual flow
+            gb["ec"][t] = Global.compute_ec(e_c_pot, e_c_cap)
+
+
+            # [Evaporation] [Soil] ---- transpiration from soil
+
+            # [Evaporation] [Soil] compute potential flow
+            e_t_pot = Global.compute_et_pot(e_pot=gb["e_pot"][t], ec=gb["ec"][t])
+
+            # [Evaporation] [Soil] compute the root zone depth factor
+            gb["egf"][t] = Global.compute_et_f(dv=gb["dv"][t], d_et_a=d_e_a)
+
+            # [Evaporation] [Soil] compute capacity flow
+            e_t_cap = Global.compute_et_cap(e_t_f=gb["egf"][t], g=gb["g"][t], g_et_cap=g_e_cap, dt=dt)
+
+            # [Evaporation] [Soil] compute actual flow
+            gb["eg"][t] = Global.compute_et(e_t_pot, e_t_cap)
+
+
+            # [Evaporation] [Surface] ---- evaporation from surface
+
+            # [Evaporation] [Surface] compute potential flow
+            e_s_pot = Global.compute_es_pot(e_pot=gb["e_pot"][t], ec=gb["ec"][t], et=gb["eg"][t])
+
+            # [Evaporation] [Surface] compute capacity flow
+            e_s_cap = Global.compute_es_cap(s=gb["s"][t], dt=dt)
+
+            # [Evaporation] [Surface] compute actual flow
+            gb["es"][t] = Global.compute_es(e_s_pot, e_s_cap)
+
+            #
+            # [Evaporation] [Balance] ---- a priori discounts ---------- #
+            #
+
+            # [Evaporation] [Balance] -- apply discount a priori
+            gb["c"][t] = Global.compute_e_discount(storage=gb["c"][t], discount=gb["ec"][t])
+
+            # [Evaporation] [Balance] -- apply discount a priori
+            gb["g"][t] = Global.compute_e_discount(storage=gb["g"][t], discount=gb["eg"][t])
+
+            # [Evaporation] [Balance] water balance -- apply discount a priori
+            gb["s"][t] = Global.compute_e_discount(storage=gb["s"][t], discount=gb["es"][t])
+
+            #
+            # [Canopy] ---------- Solve canopy water balance ---------- #
+            #
+
+            # [Canopy] [Throughfall] --
+
+            # [Canopy] [Throughfall] Compute throughfall fraction
+            gb["ptff"][t] = Global.compute_tf_f(c=gb["c"][t], ca=c_a)
+
+            # [Canopy] [Throughfall] Compute throughfall capacity
+            p_tf_cap = Global.compute_tf_cap(c=gb["c"][t], ca=c_a, p=gb["p"][t], dt=dt)
+
+            # [Canopy] [Throughfall] Compute throughfall
+            gb["ptf"][t] = Global.compute_tf(p_tf_cap=p_tf_cap, p_tf_f=gb["ptff"][t])
+
+
+            # [Canopy] [Stemflow] --
+
+            # [Canopy] [Stemflow] Compute potential stemflow -- only activated storage contributes
+            c_sf_pot = Global.compute_sf_pot(c=gb["c"][t], ca=c_a)
+
+            # [Canopy] [Stemflow] Compute actual stemflow
+            gb["psf"][t] = compute_decay(s=c_sf_pot, dt=dt, k=c_k)
+
+
+            # [Canopy] [Aggflows] --
+
+            # [Canopy] [Aggflows] Compute effective rain on surface
+            gb["ps"][t] = Global.compute_ps(sf=gb["psf"][t], tf=gb["ptf"][t])
+
+            # [Canopy] [Aggflows] Compute effective rain on canopy
+            gb["pc"][t] = Global.compute_pc(p=gb["p"][t], tf_f=gb["ptff"][t])
+
+            # [Canopy] [Water Balance] ---- Apply water balance
+            gb["c"][t + 1] = Global.compute_next_c(c=gb["c"][t], pc=gb["pc"][t], sf=gb["psf"][t])
+
+
+            #
+            # [Surface] ---------- Solve surface water balance ---------- #
+            #
+
+            # [Surface] [Overland] -- Overland flow
+
+            # [Surface] [Overland] Compute surface overland spill storage capacity
+            sof_ss_cap = Global.compute_sof_cap(s=gb["s"][t], sof_a=s_of_a_eff)
+
+            # [Surface] [Overland] Compute overland flow fraction
+            gb["qoff"][t] = Global.compute_qof_f(sof_cap=sof_ss_cap, sof_c=s_of_c)
+
+            # [Surface] [Overland] Compute overland flow capacity
+            q_of_cap = Global.compute_qof_cap(sof_cap=sof_ss_cap, ps=gb["ps"][t], dt=dt)
+
+            # [Surface] [Overland] Compute potential overland
+            q_of_pot = Global.compute_qof_pot(qof_cap=q_of_cap, qof_f=gb["qoff"][t])
+
+
+            # [Surface] [Underland] -- Underland flow
+
+            # [Surface] [Underland] Compute surface underland spill storage capacity
+            suf_ss_cap = Global.compute_suf_cap(s=gb["s"][t], suf_a=s_uf_a, shutdown=s_uf_shutdown)
+
+            # [Surface] [Underland] Compute underland flow fraction
+            gb["quff"][t] = Global.compute_quf_f(suf_cap=suf_ss_cap, suf_c=s_uf_c)
+
+            # [Surface] [Underland] Compute underland flow capacity
+            q_uf_cap = Global.compute_quf_cap(suf_cap=suf_ss_cap, dt=dt)
+
+            # [Surface] [Underland] Compute potential underland flow
+            q_uf_pot = Global.compute_quf_pot(quf_cap=q_uf_cap, quf_f=gb["quff"][t])
+
+
+            # [Surface] [Infiltration] -- Infiltration flow
+
+            # [Surface] [Infiltration] -- Potential infiltration from downstream (soil)
+            q_if_pot_down = Global.compute_qif_pot_down(d=gb["d"][t], v=gb["v"][t], dt=dt)
+
+            # [Surface] [Infiltration] -- Potential infiltration from upstream (hydraulic head)
+            q_if_pot_up = Global.compute_qif_pot_up(s=gb["s"][t], sk=s_k, dt=dt)
+
+            # [Surface] [Infiltration] -- Potential infiltration
+            q_if_pot = Global.compute_qif_pot(if_down=q_if_pot_down, if_up=q_if_pot_up)
+
+            # [Testing feature]
+            if self.shutdown_qif:
+                q_if_pot = 0.0 * q_if_pot
+
+
+            # [Surface] -- Full potential outflow
+            s_out_pot = q_of_pot + q_uf_pot + q_if_pot
+
+            # [Surface] ---- Actual flows
+
+            # [Surface] Compute surface outflow capacity
+            s_out_cap = gb["s"][t]
+
+            # [Surface] Compute Actual outflow
+            s_out_act = np.where(s_out_cap > s_out_pot, s_out_pot, s_out_cap)
+
+            # [Surface] Allocate outflows
+            with np.errstate(divide='ignore', invalid='ignore'):
+                gb["qof"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_of_pot / s_out_pot)
+                gb["quf"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_uf_pot / s_out_pot)
+                gb["qif"][t] = s_out_act * np.where(s_out_pot == 0.0, 0.0, q_if_pot / s_out_pot)
+
+            # [Surface Water Balance] ---- Apply water balance.
+            gb["s"][t + 1] = Global.compute_next_s(
+                s=gb["s"][t],
+                ps=gb["ps"][t],
+                qof=gb["qof"][t],
+                quf=gb["quf"][t],
+                qif=gb["qif"][t],
+            )
+
+            #
+            # [Soil] ---------- Solve soil water balance ---------- #
+            #
+
+            # [Soil Vadose Zone]
+
+            # [Soil Vadose Zone] Get Recharge Fraction
+            gb["qvff"][t] = Global.compute_qvf_f(d=gb["d"][t], v=gb["v"][t])
+
+            # [Soil Vadose Zone] Compute Potential Recharge
+            q_vf_pot = Global.compute_qvf_pot(qvf_f=gb["qvff"][t], kv=k_v, dt=dt)
+
+            # [Soil Vadose Zone] Compute Maximal Recharge
+            q_vf_cap = Global.compute_qvf_cap(v=gb["v"][t], dt=dt)
+
+            # [Soil Vadose Zone] Compute Actual Recharge
+            gb["qvf"][t] = Global.compute_qvf(qvf_pot=q_vf_pot, qvf_cap=q_vf_cap)
+
+            # [Vadose Water Balance] ---- Apply water balance
+            gb["v"][t + 1] = Global.compute_next_v(
+                v=gb["v"][t],
+                qif=gb["qif"][t],
+                qvf=gb["qvf"][t]
+            )
+
+            # [Soil Phreatic Zone]
+
+            # [Soil Phreatic Zone] Compute Base flow (blue water -- discount on green water)
+            #gb["qgf"][t] = (np.max([gb["g"][t] - g_et_cap, 0.0])) * dt / g_k
+            gb["qgf"][t] = Global.compute_qgf(
+                g=gb["g"][t],
+                get_cap=g_e_cap,
+                gk=g_k,
+                dt=dt
+            )
+
+            # [Testing feature]
+            if self.shutdown_qbf:
+                gb["qgf"][t] = 0.0 * gb["qgf"][t]
+
+            # [Phreatic Water Balance] ---- Apply water balance
+            gb["g"][t + 1] = Global.compute_next_g(
+                g=gb["g"][t],
+                qvf=gb["qvf"][t],
+                qgf=gb["qgf"][t]
+            )
+
+            # ---------------- END TIME LOOP ---------------- #
+
+
+        #
+        # [Total Flows] ---------- compute total flows ---------- #
+        #
+
+        # [Total Flows] Total E
+        gb["e"] = Global.compute_e(ec=gb["ec"], es=gb["es"], eg=gb["eg"])
+
+
+        # [Total Flows] Compute Hillslope flow
+        gb["qhf"] = Global.compute_qhf(qof=gb["qof"], quf=gb["quf"], qgf=gb["qgf"])
+
+
+        #
+        # [Streamflow] ---------- Solve flow routing to basin gauge station ---------- #
+        #
+
+        # global basin is considered the first
+        basin = self.basins_ls[0]
+
+        # [Baseflow] Compute river base flow
+        vct_inflow = gb["qgf"]
+        gb["qbf"] = Global.propagate_inflow(
+            inflow=vct_inflow,
+            unit_hydrograph=self.data_guh[basin].values,
         )
-        # Rename the 'name' column to 'lulc'
-        merged_df = merged_df.rename(columns={self.field_name: 'lulc'})
-        # Define desired column order
-        desired_columns = [self.field_datetime, 'lulc', 'P', 'E_pot']
-        # Filter for columns that exist in the merged DataFrame and reorder
-        existing_desired_columns = [col for col in desired_columns if col in merged_df.columns]
-        merged_df = merged_df[existing_desired_columns]
 
-        # reset clim data
-        self.data_clim = merged_df
+        # [Fast Streamflow] Compute Streamflow
+        # todo [feature] evaluate to split into more components
+        vct_inflow = gb["quf"] + gb["qof"]
+        q_fast = Global.propagate_inflow(
+            inflow=vct_inflow,
+            unit_hydrograph=self.data_guh[basin].values
+        )
+        gb["q"] = gb["qbf"] + q_fast
+
+        # set data
+        self.data = pd.DataFrame(gb)
 
         return None
+
+
+
+    def export(self, folder, filename, views=False, mode=None):
+        """
+        Export object resources. Expected to be called after setup.
+
+        :param folder: path to folder
+        :type folder: str
+        :param filename: file name without extension
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        # export model simulation data with views=False
+        super().export(folder, filename=filename, views=views, mode=mode)
+
+        # handle Local views
+        if views:
+            # todo [develop] local views
+            pass
+
+        # export Soils table data
+        fpath = Path(folder + "/" + filename + "_" + self.filename_data_soils_table)
+        self.data_soils_table.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
+        # export LULC table data
+        fpath = Path(folder + "/" + filename + "_" + self.filename_data_lulc_table)
+        self.data_lulc_table.to_csv(
+            fpath, sep=self.file_csv_sep, encoding=self.file_encoding, index=False
+        )
+        # ... continues in downstream objects ... #
+
+
+    @staticmethod
+    def demo():
+        # todo [docstring]
+        # comment
+        output = None
+        r'''
+        [Model Equation]
+        todo [description]
+        $$$
+
+        todo [equation]
+
+        $$$
+        '''
+        return output
 
 if __name__ == "__main__":
     print("Hello World!")

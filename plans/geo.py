@@ -78,9 +78,9 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
 
 # --- basic processing of array values
 
-def convert_values(array, old_values, new_values):
+def convert(array, old_values, new_values):
     """
-    Convert values.
+    Convert values in array from old to new values.
 
     :param array: Numpy array to convert values
     :type array: :class:`numpy.ndarray`
@@ -98,7 +98,85 @@ def convert_values(array, old_values, new_values):
         new = new + (_new * (array == _old))
     return new
 
-def prune_values(array, min_value=None, max_value=None):
+
+def classify(array, upvalues, classes):
+    """
+    Classify array based on list of upper values and list of classes values
+
+    :param array: numpy array to classify
+    :param upvalues: 1d numpy array of upper values
+    :param classes: 1d array of classes values
+    :return: numpy array reclassified
+    """
+    new = array * 0.0
+    for i in range(len(upvalues)):
+        if i == 0:
+            new = new + ((array <= upvalues[i]) * classes[i])
+        else:
+            new = new + (
+                (array > upvalues[i - 1]) * (array <= upvalues[i]) * classes[i]
+            )
+    return new
+
+
+def normalize(array, min_value=0, max_value=100):
+    """
+    Normalize array between min and max values
+
+    :param array: Input array or float
+    :type array: float or :class:`numpy.ndarray`
+    :param min_value: minimum vale
+    :type min_value: float
+    :param max_value: maximum value
+    :type max_value: float
+    :return: Output array or float
+    :rtype: :class:`numpy.ndarray`
+    """
+    # Find the minimum and maximum values in the original array
+    old_min = np.min(array)
+    old_max = np.max(array)
+
+    # Calculate the range of the original array
+    old_range = old_max - old_min
+    # Calculate the range of the desired new scale
+    new_range = max_value - min_value
+
+    # Apply the normalization formula using NumPy's broadcasting capabilities
+    normalized = min_value + ((array - old_min) * new_range) / old_range
+    return normalized
+
+
+def fuzzify(array, min_value=None, max_value=None):
+    """
+    Fuzzify array between min and max values
+
+    :param array: Input array or float
+    :type array: float or :class:`numpy.ndarray`
+    :param min_value: minimum value threshold
+    :type min_value: float
+    :param max_value: maximum value threshold
+    :type max_value: float
+    :return: Output array or float
+    :rtype: :class:`numpy.ndarray`
+    """
+    # Find the minimum and maximum values in the original array
+    if min_value is None:
+        min_value = np.min(array)
+    if max_value is None:
+        max_value = np.max(array)
+
+    # Calculate the range of the original array
+    old_range = max_value - min_value
+    # Calculate the range of the desired new scale
+    new_range = 1
+
+    # Apply the normalization formula using NumPy's broadcasting capabilities
+    # X_normalized = min_value + ((X - old_min) * new_range) / old_range
+    fuzzified = 0.0 + ((array - min_value) * new_range) / old_range
+    return fuzzified
+
+
+def prune(array, min_value=None, max_value=None):
     """
     Inclusive prune values in array
 
@@ -116,6 +194,31 @@ def prune_values(array, min_value=None, max_value=None):
     if max_value is not None:
         array = np.where(array > max_value, max_value, array)
     return array
+
+
+def upscale(array, weights=None, mode="mean"):
+    """
+    Upscales an array using a specified mode.
+
+    :param array: The input array to be upscaled.
+    :type array: :class:`numpy.ndarray`
+    :param weights: [optional] An array of weights to apply. Default value = None
+    :type weights: :class:`numpy.ndarray`
+    :param mode: The mode to use for upscaling, either "mean" or "sum". Default value = "mean"
+    :type mode: str
+    :return: The upscaled value.
+    :rtype: int or float
+    """
+    if weights is None:
+        weights = 1  # scalar 1 for broadcasting
+    weighted_sum = np.sum(array * weights)
+    if mode == "mean":
+        normalization = np.sum(weights)
+        return weighted_sum / normalization
+    elif mode == "sum":
+        return weighted_sum
+    else:
+        return weighted_sum
 
 
 def downscale_linear(scalar, array_covar, mode="mean"):
@@ -174,10 +277,10 @@ def downscale_variance(mean, array_covar, scale_factor, mirror=False, mode="simp
         pass
     elif mode == "prune" or mode == "truncate":
         # this method does not ensure the same input mean
-        grd = prune_values(array=grd, max_value=max_value, min_value=min_value)
+        grd = prune(array=grd, max_value=max_value, min_value=min_value)
     elif mode == "compensate":
         # this method fix the truncation problem
-        grd_pruned = prune_values(array=grd, max_value=max_value, min_value=min_value)
+        grd_pruned = prune(array=grd, max_value=max_value, min_value=min_value)
         grd = downscale_linear(scalar=mean, array_covar=grd_pruned, mode="mean")
 
     return grd
@@ -197,53 +300,11 @@ def downscaling_mask(array_covar, scale):
     return scale * (array_covar - np.mean(array_covar))
 
 
-def normalize_values(array, min_value, max_value):
-    """
-    Normalize array between min and max values
-
-    :param array: Input array or float
-    :type array: float or :class:`numpy.ndarray`
-    :param min_value: minimum vale
-    :type min_value: float
-    :param max_value: maximum value
-    :type max_value: float
-    :return: Output array or float
-    :rtype: :class:`numpy.ndarray`
-    """
-    # Find the minimum and maximum values in the original array
-    old_min = np.min(array)
-    old_max = np.max(array)
-
-    # Calculate the range of the original array
-    old_range = old_max - old_min
-    # Calculate the range of the desired new scale
-    new_range = max_value - min_value
-
-    # Apply the normalization formula using NumPy's broadcasting capabilities
-    # X_normalized = min_value + ((X - old_min) * new_range) / old_range
-    normalized = min_value + ((array - old_min) * new_range) / old_range
-    return normalized
 
 
-def reclassify_values(array, upvalues, classes):
-    """
-    Reclassify array based on list of upper values and list of classes values
 
-    :param array: numpy array to reclassify
-    :param upvalues: 1d numpy array of upper values
-    :param classes: 1d array of classes values
-    :return: numpy array reclassified
-    """
-    new = array * 0.0
-    for i in range(len(upvalues)):
-        if i == 0:
-            new = new + ((array <= upvalues[i]) * classes[i])
-        else:
-            new = new + (
-                (array > upvalues[i - 1]) * (array <= upvalues[i]) * classes[i]
-            )
-    return new
 
+# --- special processing of array values
 
 def soils(slope, hand, slope_threshold=25, hand_threshold=5):
     """
@@ -424,7 +485,7 @@ def shalstab_wetness(
     # force non-negative
     q_t = q_t * (q_t > 0) + 0.0001
 
-    shalstab_classes = reclassify_values(
+    shalstab_classes = classify(
         array=np.log10(q_t),
         upvalues=np.array([-3.1, -2.8, -2.5, -2.2, 10]),
         classes=np.array([6, 5, 4, 3, 2]),
@@ -464,7 +525,7 @@ def usle_l(slope, cellsize):
     """
     slope_rad = np.pi * 2 * slope / 360
     lcl_grad = np.sin(slope_rad)
-    m = reclassify_values(
+    m = classify(
         lcl_grad,
         upvalues=(0.01, 0.03, 0.05, np.max(lcl_grad)),
         classes=(0.2, 0.3, 0.4, 0.5),

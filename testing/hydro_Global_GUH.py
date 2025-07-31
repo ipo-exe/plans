@@ -40,12 +40,13 @@ if __name__ == "__main__":
     m.solve()
     m.view(mode="river")
     df2 = m.data[[m.field_datetime, "q_global"]].copy()
-    delete_inputs(dst_folder=m.folder_data)
+
 
     plt.plot(df1[m.field_datetime], df1["q_global"], "b")
     plt.plot(df2[m.field_datetime], df2["q_global"], "r")
     plt.show()
 
+    delete_inputs(dst_folder=m.folder_data)
     print("\n>>> OK. PASSING.\n")
 
 

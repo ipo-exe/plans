@@ -1989,7 +1989,7 @@ def convert_lulc(folder_src, folder_project, file_conversion_table, prefix_src="
         #
         # -------------------------------------------------------------------------
         # PROCESS
-        grid_output = geo.convert_values(
+        grid_output = geo.convert(
             array=grid_input,
             old_values=ls_src_ids,
             new_values=ls_dst_ids

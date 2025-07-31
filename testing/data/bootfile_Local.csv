@@ -1,6 +1,6 @@
 attribute;value
-name;LCL000
-alias;LCLM000
+name;LOC000
+alias;LM000
 color;blue
 source;Ipo
 description;Rainfall-Runoff model for local processes

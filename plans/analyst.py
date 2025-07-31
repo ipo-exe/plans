@@ -1391,7 +1391,7 @@ class Univar(DataSet):
         :return: Sampled array
         :rtype: :class:`numpy.ndarray`
         """
-        from plans.geo import normalize_values
+        from plans.geo import normalize
         # set gamma shapes
         dc_gamma_shapes = {
             "decay": 1,
@@ -1413,7 +1413,7 @@ class Univar(DataSet):
             n_max = np.max(sample)
 
         # normalize
-        sample_norm = normalize_values(array=sample, min_value=n_min, max_value=n_max)
+        sample_norm = normalize(array=sample, min_value=n_min, max_value=n_max)
 
         return sample_norm
 
