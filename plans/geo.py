@@ -213,8 +213,7 @@ def upscale(array, weights=None, mode="mean"):
         weights = 1  # scalar 1 for broadcasting
     weighted_sum = np.sum(array * weights)
     if mode == "mean":
-        normalization = np.sum(weights)
-        return weighted_sum / normalization
+        return weighted_sum / np.sum(weights)
     elif mode == "sum":
         return weighted_sum
     else:
