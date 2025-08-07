@@ -38,8 +38,8 @@ in porttitor lacus lobortis vitae. In a lacinia nisl.
     auto.export_data(folder="C:/data", append_id=True)
 
 """
-import pandas as pd
 
+import pandas as pd
 
 
 class _StationINMET_:
@@ -571,7 +571,7 @@ class Automatic(_Automatic_):
 if __name__ == "__main__":
     print("Hello")
     # todo [testing]
-    '''
+    """
     # file path
     f = "_inmet_auto_src.csv"
 
@@ -589,4 +589,4 @@ if __name__ == "__main__":
 
     # export to folder
     auto.export_data(folder="C:/data", append_id=True)
-    '''
+    """

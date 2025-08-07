@@ -26,36 +26,19 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import geopandas as gpd
 
 
-def find_array_bbox(image):
-    """
-    Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
+def demo(par):
+    # todo [docstring]
+    return None
 
-    Parameters:
-    - image: 2D numpy array with values 1 (content) and 0 (background)
+# ------------------ Geometry functions ------------------ #
 
-    Returns:
-    - dict: Dictionary with keys "i_min", "i_max", "j_min", "j_max" representing
-            the row and column bounds of the content
-    """
-    # Find rows and columns containing 1's
-    rows_with_content = np.where(image.sum(axis=1) > 0)[0]
-    cols_with_content = np.where(image.sum(axis=0) > 0)[0]
-
-    # If there's content, determine bounds; otherwise, return None for each bound
-    if rows_with_content.size > 0 and cols_with_content.size > 0:
-        i_min, i_max = rows_with_content[0], rows_with_content[-1]
-        j_min, j_max = cols_with_content[0], cols_with_content[-1]
-    else:
-        i_min = i_max = j_min = j_max = None
-
-    return {"i_min": i_min, "i_max": i_max, "j_min": j_min, "j_max": j_max}
-
-
-# GEOMETRY FUNCTIONS
 def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     """
     Returns a WKT box from the given extents (xmin, ymin, xmax, ymax).
@@ -74,7 +57,167 @@ def extents_to_wkt_box(xmin, ymin, xmax, ymax):
     return f"POLYGON(({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
 
 
-# RASTER/MATRIX FUNCTIONS
+# ------------------ Vector functions ------------------ #
+
+def get_basins_by_gauges(basins, gauges, field_gauge, field_basin, field_basin_down, field_geometry="geometry", dissolve=True):
+    """
+    Retrieve a list of upstream basins for a list of gauges. This function identifies the basins in which each gauge
+    is located and then finds all upstream basins for each of these basins.
+    The resulting GeoDataFrame can optionally be dissolved into a single feature for each gauge.
+
+    :param basins: A GeoDataFrame containing the basin features.
+    :type basins: :class:`geopandas.GeoDataFrame`
+    :param gauges: A GeoDataFrame containing the gauge locations.
+    :type gauges: :class:`geopandas.GeoDataFrame`
+    :param field_gauge: The name of the column in `gauges` that contains the unique identifier for each gauge.
+    :type field_gauge: str
+    :param field_basin: The name of the column in `basins` that contains the unique identifier for each basin.
+    :type field_basin: str
+    :param field_basin_down: The name of the column in `basins` that contains the unique identifier of the downstream basin.
+    :type field_basin_down: str
+    :param field_geometry: The name of the geometry column. Default value = "geometry"
+    :type field_geometry: str
+    :param dissolve: If True, dissolves the upstream basins into a single feature for each gauge. Default value = True
+    :type dissolve: bool
+    :return: A GeoDataFrame with the upstream basins for each gauge, including the gauge identifier. Returns None if no gauges are found within any basin.
+    :rtype: :class:`geopandas.GeoDataFrame`
+    """
+    # ensure gauges are in the same crs
+    if basins.crs != gauges.crs:
+        # reproject to basin crs
+        gauges = gauges.to_crs(basins.crs)
+
+    # first get codes from basins in gauges
+    gauges = gpd.sjoin(gauges, basins, how='inner', predicate='within').reset_index(drop=True)
+
+    # check for actual join
+    if len(gauges) > 0:
+        # cleanup
+        ls_fields = [field_gauge, field_basin, field_geometry]
+        gauges = gauges[ls_fields].copy()
+        print("\n")
+        print(gauges)
+        ls_basins = []
+        for i in range(len(gauges)):
+            gauge_id = gauges[field_gauge].values[i]
+            basins_upstream = get_upstream_features(
+                features=basins,
+                field_id=field_basin,
+                field_id_down=field_basin_down,
+                start_id=gauges[field_basin].values[i],
+                include_start=True,
+                field_geometry="geometry"
+            )
+            if basins_upstream is not None:
+                # dissolve into a single feature
+                if dissolve:
+                    basins_upstream = basins_upstream.dissolve()
+                # append the gauge id field
+                basins_upstream[field_gauge] = gauge_id
+                # append to list
+                ls_basins.append(basins_upstream[[field_gauge, field_geometry]].copy())
+        basins_up = pd.concat(ls_basins).reset_index(drop=True)
+        return basins_up
+    else:
+        return None
+
+
+def get_upstream_features(features, field_id, field_id_down, start_id, include_start=True, field_geometry="geometry", is_starting=True):
+    """
+    Retrieves all upstream features from a given starting point.
+
+    :param features: A DataFrame containing all features.
+    :type features: :class:`pandas.DataFrame` or :class:`geopandas.GeoDataFrame`
+    :param field_id: The name of the column containing the feature's unique ID.
+    :type field_id: str
+    :param field_id_down: The name of the column containing the ID of the downstream feature.
+    :type field_id_down: str
+    :param start_id: The ID of the starting feature.
+    :type start_id: int or str
+    :param include_start: [optional] Whether to include the starting feature in the output. Default value = True
+    :type include_start: bool
+    :param field_geometry: [optional] The name of the column containing the geometry of the feature. Default value = "geometry"
+    :type field_geometry: str
+    :param is_starting: [optional] A flag to indicate if it's the initial call of the function. Default value = True
+    :type is_starting: bool
+    :return: A DataFrame with the upstream features, or None if no upstream features are found.
+    :rtype: :class:`pandas.DataFrame` or :class:`geopandas.GeoDataFrame`  or None
+    """
+
+    # assses first step condition
+    if is_starting:
+        # if is first step, clean up useless fields
+        ls_fields = [field_id, field_id_down]
+        # handle geometry field
+        if field_geometry is not None:
+            ls_fields.append(field_geometry)
+        features = features[ls_fields].copy()
+        if include_start:
+            # get the starting feature
+            feature_start = features[features[field_id].isin([start_id])].copy()
+
+    # filter the upstream features
+    features_up = features[features[field_id_down].isin([start_id])].copy()
+
+    # assess halt condition
+    if len(features_up) > 0:
+        # setup a list for concatenation
+        ls_ups = [features_up]
+        # enter upstream loop
+        for i in range(len(features_up)):
+            # assess the local new starting point
+            lcl_start_id = features_up[field_id].values[i]
+            # enter recursive mode
+            output = get_upstream_features(
+                features=features,
+                field_id=field_id,
+                field_id_down=field_id_down,
+                start_id=lcl_start_id,
+                is_starting=False,
+            )
+            # handle output
+            if output is not None:
+                ls_ups.append(output)
+
+        # handle to include start feature
+        if is_starting and include_start:
+            # include the starting feature
+            ls_ups.append(feature_start)
+
+        # concatenate all features
+        features_up = pd.concat(ls_ups).reset_index(drop=True)
+        return features_up
+    else:
+        # handle edge case for upstream feature
+        if is_starting and include_start:
+            return feature_start.reset_index(drop=True)
+        else:
+            return None
+
+
+# ------------------ Raster functions ------------------ #
+
+def get_array_bbox(array):
+    """
+    Finds the bounding box for the content (1s) in a 2D pseudo-boolean array.
+
+    :param array: 2D numpy array with values 1 (content) and 0 (background)
+    :type array: :class:`numpy.ndarray`
+    :return: Dictionary with keys "i_min", "i_max", "j_min", "j_max" representing the row and column bounds of the content
+    :rtype: dict
+    """
+    # Find rows and columns containing 1's
+    rows_with_content = np.where(array.sum(axis=1) > 0)[0]
+    cols_with_content = np.where(array.sum(axis=0) > 0)[0]
+
+    # If there's content, determine bounds; otherwise, return None for each bound
+    if rows_with_content.size > 0 and cols_with_content.size > 0:
+        i_min, i_max = rows_with_content[0], rows_with_content[-1]
+        j_min, j_max = cols_with_content[0], cols_with_content[-1]
+    else:
+        i_min = i_max = j_min = j_max = None
+
+    return {"i_min": i_min, "i_max": i_max, "j_min": j_min, "j_max": j_max}
 
 # --- basic processing of array values
 
@@ -148,7 +291,7 @@ def normalize(array, min_value=0, max_value=100):
 
 def fuzzify(array, min_value=None, max_value=None):
     """
-    Fuzzify array between min and max values
+    Fuzzify array between min and max values with linear membership function
 
     :param array: Input array or float
     :type array: float or :class:`numpy.ndarray`
@@ -233,14 +376,19 @@ def downscale_linear(scalar, array_covar, mode="mean"):
     :return: The linearly downscaled array.
     :rtype: :class:`numpy.ndarray`
     """
-    funcs = {
-        "mean" : np.nanmean,
-        "sum": np.nansum
-    }
+    funcs = {"mean": np.nanmean, "sum": np.nansum}
     return array_covar * scalar / funcs[mode](array_covar)
 
 
-def downscale_variance(mean, array_covar, scale_factor, mirror=False, mode="simple", max_value=None, min_value=None):
+def downscale_variance(
+    mean,
+    array_covar,
+    scale_factor,
+    mirror=False,
+    mode="simple",
+    max_value=None,
+    min_value=None,
+):
     """
     Applies a downscaling operation to a mean array based on a covariance array and a scaling factor.
 
@@ -284,6 +432,7 @@ def downscale_variance(mean, array_covar, scale_factor, mirror=False, mode="simp
 
     return grd
 
+
 # todo [refactor] -- evaluate to rename or move inside
 def downscaling_mask(array_covar, scale):
     """
@@ -299,11 +448,8 @@ def downscaling_mask(array_covar, scale):
     return scale * (array_covar - np.mean(array_covar))
 
 
-
-
-
-
 # --- special processing of array values
+
 
 def soils(slope, hand, slope_threshold=25, hand_threshold=5):
     """
@@ -327,6 +473,7 @@ def soils(slope, hand, slope_threshold=25, hand_threshold=5):
     grd_soils = (slope * 0.0) + 1
     grd_soils = grd_soils + (2 * grd_neosols) + (1 * grd_alluvial)
     return grd_soils
+
 
 def slope(dem, cellsize, degree=True):
     """
@@ -383,6 +530,7 @@ def euclidean_distance(grd_input):
 
     """
     from scipy.ndimage import distance_transform_edt
+
     grd_input = 1 * (grd_input == 0)  # reverse foreground values
     # Calculate the distance map
     return distance_transform_edt(grd_input)
@@ -597,7 +745,9 @@ def rivers_wedge(grd_rivers, wedge_width=3, wedge_depth=3):
 
     """
     grd_dist = euclidean_distance(grd_input=grd_rivers)
-    return (((-wedge_depth / wedge_width) * grd_dist) + wedge_depth) * (grd_dist <= wedge_width)
+    return (((-wedge_depth / wedge_width) * grd_dist) + wedge_depth) * (
+        grd_dist <= wedge_width
+    )
 
 
 def carve_dem(grd_dem, grd_rivers, wedge_width=3, wedge_depth=10):
@@ -622,7 +772,9 @@ def carve_dem(grd_dem, grd_rivers, wedge_width=3, wedge_depth=10):
     - The width `w` controls the width of the trench, and `h` controls its height.
 
     """
-    grd_wedge = rivers_wedge(grd_rivers, wedge_width=wedge_width, wedge_depth=wedge_depth)
+    grd_wedge = rivers_wedge(
+        grd_rivers, wedge_width=wedge_width, wedge_depth=wedge_depth
+    )
     return (grd_dem + wedge_depth) - grd_wedge
 
 

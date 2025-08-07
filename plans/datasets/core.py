@@ -44,12 +44,13 @@ from plans import geo
 
 
 DC_NODATA = {
-    "byte": 255, # categorical/boolean maps
-    "uint8": 255, # categorical/boolean maps
-    "uint16": 0, # zone maps
-    "float16": -99999, # fuzzy maps
-    "float32": -99999, # scientific maps
+    "byte": 255,  # categorical/boolean maps
+    "uint8": 255,  # categorical/boolean maps
+    "uint16": 0,  # zone maps
+    "float16": -99999,  # fuzzy maps
+    "float32": -99999,  # scientific maps
 }
+
 
 def dataframe_prepro(dataframe):
     """Utility function for dataframe pre-processing.
@@ -824,7 +825,6 @@ class TimeSeries(Univar):
             return None
         else:
             return df
-
 
     def get_epochs(self, inplace=False):
         """Get Epochs (periods) for continuous time series (0 = gap epoch).
@@ -2737,6 +2737,7 @@ class TimeSeriesSpatialSamples(TimeSeriesSamples):
 
 # ------------- SPATIAL OBJECTS -------------  #
 
+
 class Raster(DataSet):
     """
     The basic raster map dataset.
@@ -2761,7 +2762,7 @@ class Raster(DataSet):
             "cellsize": None,
             "NODATA_value": None,
             "crs": None,
-            "transform": None
+            "transform": None,
         }
         self.cmap = "jet"
         # extra
@@ -2783,7 +2784,6 @@ class Raster(DataSet):
         self.nodatavalue = self.raster_metadata["NODATA_value"]
         self.cellsize = self.raster_metadata["cellsize"]
 
-
     def __str__(self):
         dct_meta = self.get_metadata()
         lst_ = list()
@@ -2793,7 +2793,6 @@ class Raster(DataSet):
         for k in dct_meta:
             lst_.append("\t{}: {}".format(k, dct_meta[k]))
         return "\n".join(lst_)
-
 
     def _set_fields(self):
         """
@@ -2819,7 +2818,6 @@ class Raster(DataSet):
         self.field_file_prj = "file_prj"
         # ... continues in downstream objects ... #
 
-
     def _set_view_specs(self):
         """
         Set default view specs.
@@ -2832,13 +2830,15 @@ class Raster(DataSet):
         # borrow from Univar
         uv = GeoUnivar()
         self.view_specs.update(uv.view_specs)
-        self.view_specs.update({
-            "cmap": self.cmap,
-            "title": "{} | {}".format(self.varname, self.name),
-            "run_id": None,
-            "zoom_window": None,
-            "subtitle_map": "2D distribution",
-        })
+        self.view_specs.update(
+            {
+                "cmap": self.cmap,
+                "title": "{} | {}".format(self.varname, self.name),
+                "run_id": None,
+                "zoom_window": None,
+                "subtitle_map": "2D distribution",
+            }
+        )
         self.view_specs["ylabel"] = self.units
         self.view_specs["grid_map"] = False
         return None
@@ -2875,7 +2875,6 @@ class Raster(DataSet):
         dict_meta.update(dict_meta_local)
         return dict_meta
 
-
     def update(self):
         """
         Refresh all mutable attributes based on data (includins paths).
@@ -2896,7 +2895,6 @@ class Raster(DataSet):
 
         # ... continues in downstream objects ... #
         return None
-
 
     # refactor ok
     def set_data(self, grid):
@@ -2920,7 +2918,6 @@ class Raster(DataSet):
         self.mask_nodata()
         return None
 
-
     def set_raster_metadata(self, metadata):
         """
         Set metadata for the raster object based on incoming metadata.
@@ -2937,7 +2934,6 @@ class Raster(DataSet):
             if k in metadata:
                 self.raster_metadata[k] = metadata[k]
         return None
-
 
     def load_data(self, file_data, file_prj=None, id_band=1):
         """
@@ -2962,7 +2958,6 @@ class Raster(DataSet):
         self.update()
         return None
 
-
     def load_metadata(self, file_data):
         """
         Load only metadata from files to the raster object.
@@ -2980,7 +2975,6 @@ class Raster(DataSet):
             self.load_tif_metadata(file_input=file_data, id_band=id_band)
         self.update()
         return None
-
 
     def load_image(self, file_input, xxl=False):
         """
@@ -3001,6 +2995,7 @@ class Raster(DataSet):
 
         """
         from PIL import Image
+
         if xxl:
             Image.MAX_IMAGE_PIXELS = None
         # Open the TIF file
@@ -3011,7 +3006,6 @@ class Raster(DataSet):
         self.set_data(grid=grd_data)
         return None
 
-
     def load_tif(self, file_input, id_band=1):
         """
         Load data and metadata from `.tif` raster file.
@@ -3021,12 +3015,13 @@ class Raster(DataSet):
         :return: None
         :rtype: None
         """
-        dc_raster = Raster.read_tif(file_input=file_input, dtype=self.dtype, id_band=id_band, metadata=True)
+        dc_raster = Raster.read_tif(
+            file_input=file_input, dtype=self.dtype, id_band=id_band, metadata=True
+        )
         # Set metadata and grid
         self.set_raster_metadata(metadata=dc_raster["metadata"].copy())
         self.set_data(grid=dc_raster["data"])
         return None
-
 
     def load_tif_metadata(self, file_input, id_band=1):
         """
@@ -3041,7 +3036,6 @@ class Raster(DataSet):
         self.set_raster_metadata(metadata=dc_metadata)
         return None
 
-
     def load_asc(self, file_input):
         """
         Load data and metadata from `.asc` raster file.
@@ -3051,12 +3045,13 @@ class Raster(DataSet):
         :return: None
         :rtype: None
         """
-        dc_raster = Raster.read_asc(file_input=file_input, dtype=self.dtype, metadata=True)
+        dc_raster = Raster.read_asc(
+            file_input=file_input, dtype=self.dtype, metadata=True
+        )
         # Set metadata and grid
         self.set_raster_metadata(metadata=dc_raster["metadata"].copy())
         self.set_data(grid=dc_raster["data"])
         return None
-
 
     def load_asc_metadata(self, file_input):
         """
@@ -3072,7 +3067,6 @@ class Raster(DataSet):
         # set attribute
         self.set_raster_metadata(metadata=meta_dct)
         return None
-
 
     def load_prj(self, file_input):
         """
@@ -3091,7 +3085,6 @@ class Raster(DataSet):
                 with open(file_input) as f:
                     self.prj = f.readline().strip("\n")
         return None
-
 
     def copy_structure(self, raster_ref, n_nodatavalue=None):
         """
@@ -3114,7 +3107,6 @@ class Raster(DataSet):
         self.set_raster_metadata(metadata=dict_meta)
         self.prj = raster_ref.prj[:]
         return None
-
 
     def export(self, folder, filename=None, mode="tif"):
         """
@@ -3140,7 +3132,6 @@ class Raster(DataSet):
         self.export_prj(folder=folder, filename=filename)
         return None
 
-
     def export_tif(self, folder, filename=None):
         """
         Export an ``.tif`` raster file..
@@ -3164,10 +3155,9 @@ class Raster(DataSet):
                 file_output=flenm,
                 dtype=self.dtype,
                 n_bands=1,
-                id_band=1
+                id_band=1,
             )
             return flenm
-
 
     def export_asc(self, folder, filename=None):
         """
@@ -3190,10 +3180,9 @@ class Raster(DataSet):
                 grid_output=self.data,
                 dc_metadata=self.raster_metadata,
                 file_output=flenm,
-                dtype=self.dtype
+                dtype=self.dtype,
             )
             return flenm
-
 
     def export_prj(self, folder, filename=None):
         """
@@ -3216,7 +3205,6 @@ class Raster(DataSet):
             fle.writelines([self.prj])
             fle.close()
             return flenm
-
 
     def reset_nodata(self, new_nodata, ensure=True):
         """
@@ -3242,7 +3230,6 @@ class Raster(DataSet):
         # mask again
         self.mask_nodata()
         return None
-
 
     def mask_nodata(self):
         """
@@ -3288,7 +3275,6 @@ class Raster(DataSet):
                 self.data = np.nan_to_num(self.data, nan=self.nodatavalue)
         return None
 
-
     def insert_nodata(self):
         """
         Set grid cells as NODATA where data is NaN using the static method.
@@ -3300,7 +3286,6 @@ class Raster(DataSet):
         # Call the static method and update the instance's grid
         self.data = Raster.apply_nodata(self.data, self.nodatavalue)
         return None
-
 
     def rebase_grid(self, base_raster, inplace=False, method="linear_model"):
         """
@@ -3345,7 +3330,6 @@ class Raster(DataSet):
         else:
             return grd_zi
 
-
     def load_aoi_mask(self, file_raster, inplace=False):
         """
         Loads an Area of Interest (AOI) mask from a raster file and applies it to the current object's data.
@@ -3358,12 +3342,12 @@ class Raster(DataSet):
         :rtype: None
         """
         from plans.datasets import AOI
+
         r = AOI()
         r.load_data(file_data=file_raster)
         self.apply_aoi_mask(grid_aoi=r.data, inplace=inplace)
         del r
         return None
-
 
     def apply_aoi_mask(self, grid_aoi, inplace=False):
         """
@@ -3405,7 +3389,6 @@ class Raster(DataSet):
             self.is_masked = True
         return None
 
-
     def release_aoi_mask(self):
         """
         Release AOI mask from the main grid. Backup grid is restored.
@@ -3427,7 +3410,6 @@ class Raster(DataSet):
             self.backup_data = None
             self.is_masked = False
         return None
-
 
     def cut_edges(self, upper, lower, inplace=False):
         """
@@ -3461,7 +3443,6 @@ class Raster(DataSet):
             else:
                 return new_grid
 
-
     def get_bbox(self):
         """
         Get the Bounding Box of the map.
@@ -3482,7 +3463,6 @@ class Raster(DataSet):
             + (self.raster_metadata["nrows"] * self.cellsize),
         }
 
-
     def get_extent(self):
         """
         Get the Extent of the map. See get_bbox.
@@ -3493,7 +3473,6 @@ class Raster(DataSet):
         d = self.get_bbox()
         extent = [d["xmin"], d["xmax"], d["ymin"], d["ymax"]]
         return extent
-
 
     def get_grid_datapoints(self, drop_nan=False):
         """
@@ -3559,7 +3538,6 @@ class Raster(DataSet):
             )
             return _df
 
-
     def get_grid_data(self):
         """
         Get flat and cleared grid values.
@@ -3594,6 +3572,7 @@ class Raster(DataSet):
         :rtype: :class:`plans.analyst.Univar`
         """
         from plans.analyst import Univar
+
         uni = Univar()
         uni.set_array(array=self.get_grid_data())
         return uni
@@ -3608,7 +3587,6 @@ class Raster(DataSet):
         """
         uni = self.get_univar()
         return uni.assess_basic_stats()
-
 
     def get_aoi(self, by_value_lo, by_value_hi):
         """
@@ -3638,7 +3616,6 @@ class Raster(DataSet):
         self.mask_nodata()
         return map_aoi
 
-
     def _plot(self, fig, gs, specs):
         """
         Generates a plot visualizing the Raster data.
@@ -3654,6 +3631,7 @@ class Raster(DataSet):
         """
         # todo [DRY] most of this can be run on Univar -- make static method?
         import matplotlib.ticker as mticker
+
         # from matplotlib.ticker import PercentFormatter  # Import PercentFormatter
         formatter = mticker.ScalarFormatter(useOffset=False, useMathText=False)
         formatter.set_scientific(False)  # Ensure scientific notation is off
@@ -3677,19 +3655,23 @@ class Raster(DataSet):
                 r" $\mu$ = {}".format(round(y_mu, 2)),
                 xy=(xmin, y_mu),
                 xytext=(1, 3),
-                textcoords='offset points',
+                textcoords="offset points",
                 color="red",
             )
 
         # ------------- get aux data -------------
         uni = self.get_univar()
-        y_mu = uni.stats_df.loc[uni.stats_df['statistic'] == 'mean', 'value'].values[0]
+        y_mu = uni.stats_df.loc[uni.stats_df["statistic"] == "mean", "value"].values[0]
 
         ylim = specs["range"]
         # handle no range
         if specs["range"] is None:
-            p_low = uni.stats_df.loc[uni.stats_df['statistic'] == 'p01', 'value'].values[0]
-            p_hi = uni.stats_df.loc[uni.stats_df['statistic'] == 'p99', 'value'].values[0]
+            p_low = uni.stats_df.loc[
+                uni.stats_df["statistic"] == "p01", "value"
+            ].values[0]
+            p_hi = uni.stats_df.loc[uni.stats_df["statistic"] == "p99", "value"].values[
+                0
+            ]
             rng = p_hi - p_low
             rng_margin = rng * 0.1
             ylim = (p_low - rng_margin, p_hi + rng_margin)
@@ -3727,8 +3709,8 @@ class Raster(DataSet):
             vmax=ylim[1],
             interpolation="none",
             extent=self.get_extent(),
-            aspect='equal',
-            origin='upper'
+            aspect="equal",
+            origin="upper",
         )
         ax1.set_autoscale_on(False)  # Prevent auto-scaling which might add padding
 
@@ -3747,14 +3729,16 @@ class Raster(DataSet):
             ax1.axis("off")
         ax1.grid(False)
 
-        cbar = fig.colorbar(im, fraction=1, extend="neither", ax=ax_cbar, location="left")
+        cbar = fig.colorbar(
+            im, fraction=1, extend="neither", ax=ax_cbar, location="left"
+        )
         # Set the tick locations to only min and max
         cbar.set_ticks(ylim)
 
         # Format the tick labels to display only these values
         # This custom formatter ensures only the set ticks are labeled
-        #cbar.set_ticklabels(ylim)
-        cbar.ax.yaxis.set_tick_params(which='both', labelleft=True, labelright=False)
+        # cbar.set_ticklabels(ylim)
+        cbar.ax.yaxis.set_tick_params(which="both", labelleft=True, labelright=False)
         ax_cbar.axis("off")
 
         # todo [DRY] -- this can be optimized since is the same plots in Univar._plot()
@@ -3792,14 +3776,12 @@ class Raster(DataSet):
 
         # ------------ CDF plot ------------
         ax3.plot(
-            uni.weibull_df["P(X)"],
-            uni.weibull_df["Data"],
-            color=specs["color_cdf"]
+            uni.weibull_df["P(X)"], uni.weibull_df["Data"], color=specs["color_cdf"]
         )
         if specs["subtitle_cdf"] is not None:
             ax3.set_title(specs["subtitle_cdf"], loc="left")
         ax3.set_xlabel(specs["xlabel_cdf"])
-        #ax3.set_xticklabels([0, 0.5, 1.0])
+        # ax3.set_xticklabels([0, 0.5, 1.0])
         ax3.set_xlim(-0.05, 1.05)
         ax3.xaxis.set_major_formatter(mticker.PercentFormatter(1))
         ax3.set_ylim(ylim)
@@ -3815,9 +3797,10 @@ class Raster(DataSet):
             )
 
         fig = Univar.plot_stats(fig=fig, stats_df=uni.stats_df, x=0.5, y=0.4)
-        fig = Raster.plot_metadata(fig=fig, metadata=self.raster_metadata, x=0.02, y=0.1)
+        fig = Raster.plot_metadata(
+            fig=fig, metadata=self.raster_metadata, x=0.02, y=0.1
+        )
         return fig
-
 
     def view(self, show=True, return_fig=False, helper_geometry=None):
         """
@@ -3854,23 +3837,15 @@ class Raster(DataSet):
         fig = self._plot(fig=fig, gs=gs, specs=specs)
 
         # -------------- SHIP --------------
-        #plt.tight_layout()
+        # plt.tight_layout()
         # create path
         file_path = "{}/{}.{}".format(
-            specs["folder"],
-            specs["filename"],
-            specs["fig_format"]
+            specs["folder"], specs["filename"], specs["fig_format"]
         )
         if return_fig:
             return fig
         else:
-            viewer.ship_fig(
-                fig=fig,
-                show=show,
-                file_output=file_path,
-                dpi=specs["dpi"]
-            )
-
+            viewer.ship_fig(fig=fig, show=show, file_output=file_path, dpi=specs["dpi"])
 
     @staticmethod
     def plot_metadata(fig, metadata, x=0.0, y=0.1):
@@ -3888,6 +3863,7 @@ class Raster(DataSet):
         :return: The modified matplotlib figure object.
         :rtype: :class:`matplotlib.figure.Figure`
         """
+
         def _plot_column(x_position, ls_meta, start_y):
             current_y = start_y
             for m in ls_meta:
@@ -3916,7 +3892,6 @@ class Raster(DataSet):
 
         return fig
 
-
     @staticmethod
     def read_tif_metadata(file_input, n_band=1):
         """
@@ -3933,12 +3908,12 @@ class Raster(DataSet):
         dc_metatada = {
             "ncols": raster_input.width,
             "nrows": raster_input.height,
-            "xllcorner" : raster_input.bounds.left,
+            "xllcorner": raster_input.bounds.left,
             "yllcorner": raster_input.bounds.bottom,
             "cellsize": raster_input.res[0],
             "NODATA_value": raster_input.nodata,
             "crs": raster_input.crs,
-            "transform": raster_input.transform
+            "transform": raster_input.transform,
         }
         raster_input.close()
         return dc_metatada
@@ -3961,9 +3936,7 @@ class Raster(DataSet):
         """
         raster_input = rasterio.open(file_input)
         grid_input = raster_input.read(id_band)
-        dc_raster = {
-            "data": grid_input.astype(dtype)
-        }
+        dc_raster = {"data": grid_input.astype(dtype)}
         if metadata:
             dc_metadata = Raster.read_tif_metadata(file_input, id_band)
             dc_raster["metadata"] = dc_metadata
@@ -3971,7 +3944,9 @@ class Raster(DataSet):
         return dc_raster
 
     @staticmethod
-    def write_tif(grid_output, dc_metadata, file_output, dtype="float32", n_bands=1, id_band=1):
+    def write_tif(
+        grid_output, dc_metadata, file_output, dtype="float32", n_bands=1, id_band=1
+    ):
         """
         Write a raster band to a file.
 
@@ -3992,18 +3967,18 @@ class Raster(DataSet):
         """
         # Define the profile for the new GeoTIFF
         profile = {
-            'driver': 'GTiff',
-            'height': dc_metadata["nrows"],
-            'width': dc_metadata["ncols"],
-            'count': n_bands,
-            'dtype': dtype,
-            'crs': dc_metadata["crs"],
-            'transform': dc_metadata["transform"],
-            'nodata': dc_metadata["NODATA_value"],
-            'compress': 'lzw',  # Using LZW compression
+            "driver": "GTiff",
+            "height": dc_metadata["nrows"],
+            "width": dc_metadata["ncols"],
+            "count": n_bands,
+            "dtype": dtype,
+            "crs": dc_metadata["crs"],
+            "transform": dc_metadata["transform"],
+            "nodata": dc_metadata["NODATA_value"],
+            "compress": "lzw",  # Using LZW compression
         }
         # write
-        with rasterio.open(file_output, 'w', **profile) as dst:
+        with rasterio.open(file_output, "w", **profile) as dst:
             dst.write(grid_output, id_band)
         return file_output
 
@@ -4066,9 +4041,7 @@ class Raster(DataSet):
             lst_file = f_file.readlines()
         # Grid construction using numpy
         grd_data = np.genfromtxt(lst_file[6:], dtype=dtype)
-        dc_raster = {
-            "data": grd_data
-        }
+        dc_raster = {"data": grd_data}
         if metadata:
             dc_raster["metadata"] = Raster.read_asc_metadata(file_input=file_input)
         return dc_raster
@@ -4101,14 +4074,14 @@ class Raster(DataSet):
         ndv = float(dc_metadata["NODATA_value"])
         exp_lst = list()
         for i in range(len(meta_lbls)):
-            line = "{}    {}\n".format(
-                meta_lbls[i], dc_metadata[meta_lbls[i]]
-            )
+            line = "{}    {}\n".format(meta_lbls[i], dc_metadata[meta_lbls[i]])
             exp_lst.append(line)
 
         # ----------------------------------
         # data constructor loop:
-        grid_output_fix = Raster.apply_nodata(grid_input=grid_output, nodatavalue=ndv)  # insert nodatavalue
+        grid_output_fix = Raster.apply_nodata(
+            grid_input=grid_output, nodatavalue=ndv
+        )  # insert nodatavalue
         # force dtype
         grid_output_fix2 = np.astype(grid_output_fix, dtype)
         for i in range(len(grid_output_fix2)):
@@ -4170,7 +4143,7 @@ class Raster(DataSet):
             # Create a new array filled with NaN
             squared_arr = np.full((size, size), np.nan)
         # Place the original array (with masked values converted to NaN) in the upper left corner
-        squared_arr[:grid_input.shape[0], :grid_input.shape[1]] = grid_input
+        squared_arr[: grid_input.shape[0], : grid_input.shape[1]] = grid_input
         return squared_arr
 
 
@@ -4192,7 +4165,6 @@ class SciRaster(Raster):
         self.nodata_default = DC_NODATA[self.dtype]
         self._overwrite_nodata()
 
-
     def _set_view_specs(self):
         """
         Sets the default viewing specifications for the scientific raster, including the default data range.
@@ -4210,7 +4182,6 @@ class SciRaster(Raster):
         self.raster_metadata["NODATA_value"] = self.nodata_default
         self.nodatavalue = self.nodata_default
         return None
-
 
     def set_raster_metadata(self, metadata):
         """
@@ -4257,7 +4228,6 @@ class QualiRaster(Raster):
         self._overwrite_nodata()
         # NOTE: view specs is set by setting table
 
-
     def _set_fields(self):
         """
         Set fields names.
@@ -4271,7 +4241,6 @@ class QualiRaster(Raster):
         self.field_area = "area"
         # ... continues in downstream objects ... #
 
-
     def _overwrite_nodata(self):
         """
         Overwrite Nodata in metadata is set by default
@@ -4279,7 +4248,6 @@ class QualiRaster(Raster):
         self.raster_metadata["NODATA_value"] = self.nodata_default
         self.nodatavalue = self.nodata_default
         return None
-
 
     def set_raster_metadata(self, metadata):
         """
@@ -4293,7 +4261,6 @@ class QualiRaster(Raster):
         super().set_raster_metadata(metadata)
         self._overwrite_nodata()
         return None
-
 
     def rebase_grid(self, base_raster, inplace=False):
         """
@@ -4311,7 +4278,6 @@ class QualiRaster(Raster):
         """
         out = super().rebase_grid(base_raster, inplace, method="nearest")
         return out
-
 
     def reclassify(self, dict_ids, df_new_table, talk=False):
         """
@@ -4341,7 +4307,6 @@ class QualiRaster(Raster):
         self.set_table(dataframe=df_new_table)
         return None
 
-
     def load_data(self, file_data, file_table=None, file_prj=None, id_band=1):
         """
         Load data from files to the raster object.
@@ -4365,7 +4330,6 @@ class QualiRaster(Raster):
         self.update()
         return None
 
-
     def load_table(self, file_table):
         """
         Load attributes dataframe from table file.
@@ -4379,7 +4343,6 @@ class QualiRaster(Raster):
         # set to self
         self.set_table(dataframe=df_aux)
         return None
-
 
     def export(self, folder, filename=None):
         """
@@ -4395,7 +4358,6 @@ class QualiRaster(Raster):
         super().export(folder=folder, filename=filename)
         self.export_table(folder=folder, filename=filename)
         return None
-
 
     def export_table(self, folder, filename=None):
         """
@@ -4414,7 +4376,6 @@ class QualiRaster(Raster):
         self.table.to_csv(flenm, sep=self.file_csv_sep, index=False)
         return flenm
 
-
     def set_table(self, dataframe):
         """
         Set attributes dataframe from incoming :class:`pandas.DataFrame`.
@@ -4428,7 +4389,6 @@ class QualiRaster(Raster):
         # set view specs
         self._set_view_specs()
         return None
-
 
     def clear_table(self):
         """
@@ -4445,7 +4405,6 @@ class QualiRaster(Raster):
             self.set_table(dataframe=filtered_df.reset_index(drop=True))
         return None
 
-
     def set_random_colors(self):
         """
         Set random colors to attribute table.
@@ -4459,7 +4418,6 @@ class QualiRaster(Raster):
             # reaload table for reset viewspecs
             self.set_table(dataframe=self.table)
         return None
-
 
     def get_areas(self, inplace=False):
         """
@@ -4479,7 +4437,9 @@ class QualiRaster(Raster):
                 _cell_size = self.cellsize * 111111  # convert degrees to meters
             _n_unit_area = np.square(_cell_size)
             # get aux dataframe
-            df_aux = self.table[[self.field_id, self.field_name, self.field_alias, self.field_color]].copy()
+            df_aux = self.table[
+                [self.field_id, self.field_name, self.field_alias, self.field_color]
+            ].copy()
             _lst_count = []
             # iterate categories
             for i in range(len(df_aux)):
@@ -4528,7 +4488,6 @@ class QualiRaster(Raster):
             else:
                 return df_aux
 
-
     def get_zonal_stats(self, raster_sample, merge=False, skip_count=False):
         """Get zonal stats from other raster map to sample.
 
@@ -4547,7 +4506,9 @@ class QualiRaster(Raster):
         df_aux1 = self.table.copy()
         self.clear_table()  # clean
         df_aux = self.table.copy()  # get copy
-        df_aux = df_aux[[self.field_id, self.field_name, self.field_alias]].copy()  # filter
+        df_aux = df_aux[
+            [self.field_id, self.field_name, self.field_alias]
+        ].copy()  # filter
         self.set_table(dataframe=df_aux1)  # restore uncleaned table
 
         # store copy of raster
@@ -4643,6 +4604,7 @@ class QualiRaster(Raster):
             pass
         else:
             from matplotlib.colors import ListedColormap
+
             # handle no color field in table:
             if self.field_color in self.table.columns:
                 pass
@@ -4659,7 +4621,8 @@ class QualiRaster(Raster):
 
             # setup
             super()._set_view_specs()
-            self.view_specs.update({
+            self.view_specs.update(
+                {
                     "cmap": ListedColormap(_lst_colors),
                     "color": "tab:gray",
                     "use_alias": False,
@@ -4668,12 +4631,11 @@ class QualiRaster(Raster):
                     "range": (0, self.table[self.field_id].max()),
                     "subtitle_areas": "Aereal ratios",
                     "area_unit": "km2",
-                    "total_area": "Total area"
+                    "total_area": "Total area",
                 }
             )
 
         return None
-
 
     def _plot(self, fig, gs, specs):
         """
@@ -4695,6 +4657,7 @@ class QualiRaster(Raster):
 
         # todo [DRY] most of this can be run on Univar -- make static method?
         import matplotlib.ticker as mticker
+
         # from matplotlib.ticker import PercentFormatter  # Import PercentFormatter
         formatter = mticker.ScalarFormatter(useOffset=False, useMathText=False)
         formatter.set_scientific(False)  # Ensure scientific notation is off
@@ -4718,7 +4681,7 @@ class QualiRaster(Raster):
                 r" $\mu$ = {}".format(round(y_mu, 2)),
                 xy=(xmin, y_mu),
                 xytext=(1, 3),
-                textcoords='offset points',
+                textcoords="offset points",
                 color="red",
             )
 
@@ -4742,7 +4705,9 @@ class QualiRaster(Raster):
             df_top_M = df_sorted.head(M)
 
             # Aggregate the remaining rows into an 'others' category
-            df_others = df_sorted.iloc[M:].copy()  # .copy() to avoid SettingWithCopyWarning
+            df_others = df_sorted.iloc[
+                M:
+            ].copy()  # .copy() to avoid SettingWithCopyWarning
 
             # Create a dictionary for the 'others' aggregated row
             agg_field1 = f"{self.field_area}_f"
@@ -4754,9 +4719,9 @@ class QualiRaster(Raster):
 
             others_data = {
                 self.field_id: np.nan,
-                self.field_name: 'others',  # 'name' instead of 'category'
-                self.field_alias: 'Etc',  # Specific alias for 'others'
-                self.field_color: 'black',  # Specific color for 'others'
+                self.field_name: "others",  # 'name' instead of 'category'
+                self.field_alias: "Etc",  # Specific alias for 'others'
+                self.field_color: "black",  # Specific color for 'others'
                 agg_field1: df_others[agg_field1].sum(),
                 agg_field2: df_others[agg_field2].sum(),
                 agg_field3: df_others[agg_field3].sum(),
@@ -4791,14 +4756,14 @@ class QualiRaster(Raster):
             df_areas = _categorize_and_limit(df=df_areas, M=specs["max_classes"])
         elif n_len < 10 and n_len >= 6:
             n_max = 10
-        elif n_len < 6 :
+        elif n_len < 6:
             n_max = 6
 
         # setup dataframe
         df_areas.sort_values(by="count", ascending=True, inplace=True)
         df_areas.reset_index(drop=True, inplace=True)
 
-        #print(df_areas.to_string())
+        # print(df_areas.to_string())
 
         # ------------ setup axes ------------
         ax1 = fig.add_subplot(gs[2:14, 0:12])
@@ -4828,8 +4793,8 @@ class QualiRaster(Raster):
             vmax=ylim[1],
             interpolation="none",
             extent=self.get_extent(),
-            aspect='equal',
-            origin='upper'
+            aspect="equal",
+            origin="upper",
         )
         ax1.set_autoscale_on(False)  # Prevent auto-scaling which might add padding
 
@@ -4859,17 +4824,25 @@ class QualiRaster(Raster):
             color=df_areas[self.field_color],
             edgecolor="k",
             linewidth=0.16 * viewer.MM_TO_PT,
-            zorder=2
+            zorder=2,
         )
         ax2.barh(
             df_areas[s_field],
             df_areas[self.field_area + "_f"],
             color=specs["color"],
-            zorder=1
+            zorder=1,
         )
         # Add value labels on each bar
         for index, value in enumerate(df_areas[self.field_area + "_f"].values):
-            plt.text(value + 0.05, index, "{:.1f}%".format(value * 100), ha='left', va='center', fontfamily='Arial', fontsize=6)  # Add text label: (x, y, text)
+            plt.text(
+                value + 0.05,
+                index,
+                "{:.1f}%".format(value * 100),
+                ha="left",
+                va="center",
+                fontfamily="Arial",
+                fontsize=6,
+            )  # Add text label: (x, y, text)
         if specs["subtitle_areas"] is not None:
             ax2.set_title(specs["subtitle_areas"], loc="left")
         dc_units = {
@@ -4878,14 +4851,19 @@ class QualiRaster(Raster):
             "ha": "ha",
         }
         total_area = df_areas["{}_{}".format(self.field_area, specs["area_unit"])].sum()
-        ax2.set_xlabel("{}: {:.1f} {}".format(specs["total_area"], total_area, dc_units[specs["area_unit"]]))
+        ax2.set_xlabel(
+            "{}: {:.1f} {}".format(
+                specs["total_area"], total_area, dc_units[specs["area_unit"]]
+            )
+        )
         ax2.set_xlim(-n_w_legend, 1)
         ax2.set_xticks([0, 0.25, 0.5, 0.75, 1])
         ax2.xaxis.set_major_formatter(mticker.PercentFormatter(1))
 
-        fig = Raster.plot_metadata(fig=fig, metadata=self.raster_metadata, x=0.02, y=0.1)
+        fig = Raster.plot_metadata(
+            fig=fig, metadata=self.raster_metadata, x=0.02, y=0.1
+        )
         return fig
-
 
     def view(self, show=True, return_fig=False, helper_geometry=None):
         """
@@ -4928,19 +4906,12 @@ class QualiRaster(Raster):
         # -------------- SHIP --------------
         # create path
         file_path = "{}/{}.{}".format(
-            specs["folder"],
-            specs["filename"],
-            specs["fig_format"]
+            specs["folder"], specs["filename"], specs["fig_format"]
         )
         if return_fig:
             return fig
         else:
-            viewer.ship_fig(
-                fig=fig,
-                show=show,
-                file_output=file_path,
-                dpi=specs["dpi"]
-            )
+            viewer.ship_fig(fig=fig, show=show, file_output=file_path, dpi=specs["dpi"])
 
 
 class QualiHard(QualiRaster):
@@ -5043,7 +5014,9 @@ class Zones(QualiRaster):
                 }
             )
             self.table = self.table.drop(
-                self.table[self.table[self.field_id] == self.raster_metadata["NODATA_value"]].index
+                self.table[
+                    self.table[self.field_id] == self.raster_metadata["NODATA_value"]
+                ].index
             )
             self.table[self.field_id] = self.table[self.field_id].astype(int)
             self.table = self.table.sort_values(by=self.field_id)
@@ -5084,7 +5057,6 @@ class Zones(QualiRaster):
         self.load_asc(file=asc_file)
         self.load_prj(file=prj_file)
         return None
-
 
     def get_aoi(self, zone_id):
         """
@@ -5165,8 +5137,10 @@ class Zones(QualiRaster):
         del map_zones_aux
         return None
 
+
 # -----------------------------------------
 # Raster Collection data structures
+
 
 class RasterCollection(Collection):
     """
@@ -5184,7 +5158,9 @@ class RasterCollection(Collection):
         obj_aux = Raster
         super().__init__(base_object=obj_aux, name=name)
         # set up date fields and special attributes
-        self.catalog[self.field_datetime] = pd.to_datetime(self.catalog[self.field_datetime])
+        self.catalog[self.field_datetime] = pd.to_datetime(
+            self.catalog[self.field_datetime]
+        )
         self.short_catalog_ls = [
             "name",
             "alias",
@@ -5195,7 +5171,7 @@ class RasterCollection(Collection):
             "columns",
             "xll",
             "yll",
-            "nodata_value"
+            "nodata_value",
         ]
 
     def _set_fields(self):
@@ -5209,7 +5185,6 @@ class RasterCollection(Collection):
         # Attribute fields
         self.field_datetime = Raster().field_datetime
         # ... continues in downstream objects ... #
-
 
     def load_data(
         self,
@@ -5267,7 +5242,15 @@ class RasterCollection(Collection):
 
         return None
 
-    def load_folder(self, folder, name_pattern, talk=False, file_format="tif", parallel=False, isseries=False):
+    def load_folder(
+        self,
+        folder,
+        name_pattern,
+        talk=False,
+        file_format="tif",
+        parallel=False,
+        isseries=False,
+    ):
         """
         Load all rasters from a folder by following a name pattern. Datetime is expected to be at the end of name before file extension.
 
@@ -5294,7 +5277,7 @@ class RasterCollection(Collection):
         if parallel:
             pass
             # todo [develop] -- parallel loading
-            '''
+            """
             import threading
             # Prepare data for parallel processing
             file_info_list = [
@@ -5318,7 +5301,7 @@ class RasterCollection(Collection):
             # Wait for all threads to complete
             for thread in threads:
                 thread.join()
-            '''
+            """
         else:
             # enter serial loop
             for i in range(len(lst_maps)):
@@ -5352,7 +5335,6 @@ class RasterCollection(Collection):
 
         self.update(details=True)
         return None
-
 
     def is_same_grid(self):
         """
@@ -5616,7 +5598,7 @@ class RasterCollection(Collection):
         fig_format="jpg",
         talk=False,
         specs=None,
-        suffix=None
+        suffix=None,
     ):
         """
         Plot all basic pannel of raster maps in collection.
@@ -5777,7 +5759,6 @@ class RasterCollection(Collection):
             return self.catalog[ls]
 
 
-
 class QualiRasterCollection(RasterCollection):
     """
     The raster collection base dataset.
@@ -5798,7 +5779,6 @@ class QualiRasterCollection(RasterCollection):
         """
         super().__init__(name=name)
 
-
     def load_data(self, name, file_data, file_table=None, prj_file=None):
         """
         Load a :class:`QualiRaster`` from file.
@@ -5818,11 +5798,7 @@ class QualiRasterCollection(RasterCollection):
 
         # todo evaluate to include other attributes
         # read file
-        rst_aux.load_data(
-            file_data=file_data,
-            file_table=file_table,
-            prj_file=prj_file
-        )
+        rst_aux.load_data(file_data=file_data, file_table=file_table, prj_file=prj_file)
 
         # append to collection
         self.append(new_object=rst_aux)
@@ -5857,7 +5833,9 @@ class RasterSeries(RasterCollection):
         self.units = units
         self.dtype = dtype
 
-    def load_data(self, name, datetime, file_data, prj_file=None, dtype="float32", skip_grid=False):
+    def load_data(
+        self, name, datetime, file_data, prj_file=None, dtype="float32", skip_grid=False
+    ):
         """
         Load a :class:`Raster`` object from raster file.
 
@@ -5883,12 +5861,13 @@ class RasterSeries(RasterCollection):
             units=self.units,
             datetime=datetime,
             dtype=dtype,
-            skip_grid=skip_grid
+            skip_grid=skip_grid,
         )
         return None
 
-
-    def load_folder(self, folder, name_pattern, talk=False, file_format="tif", parallel=False):
+    def load_folder(
+        self, folder, name_pattern, talk=False, file_format="tif", parallel=False
+    ):
         """
         Load all rasters from a folder by following a name pattern. Datetime is expected to be at the end of name before file extension.
 
@@ -5911,7 +5890,7 @@ class RasterSeries(RasterCollection):
             talk=talk,
             file_format=file_format,
             parallel=parallel,
-            isseries=True
+            isseries=True,
         )
         return None
 
@@ -5969,10 +5948,12 @@ class RasterSeries(RasterCollection):
         rst_aux = Raster()
         df_stats = self.get_collection_stats()
         df_series = pd.merge(
-            self.catalog[[rst_aux.field_name, rst_aux.field_datetime]], df_stats, how="left", on=rst_aux.field_name
+            self.catalog[[rst_aux.field_name, rst_aux.field_datetime]],
+            df_stats,
+            how="left",
+            on=rst_aux.field_name,
         )
         return df_series
-
 
     def view_series_stats(
         self,
@@ -6008,7 +5989,9 @@ class RasterSeries(RasterCollection):
         ts = DailySeries(
             name=self.name, varname="{}_{}".format(self.varname, statistic)
         )
-        ts.set_data(dataframe=df_series, varfield=statistic, datefield=self.field_datetime)
+        ts.set_data(
+            dataframe=df_series, varfield=statistic, datefield=self.field_datetime
+        )
         default_specs = {
             "title": "{} | {} {} series".format(self.name, self.varname, statistic),
             "ylabel": self.units,
@@ -6077,10 +6060,11 @@ class QualiRasterSeries(RasterSeries):
                         [self.table, self.collection[_name].table.copy()]
                     )
         # clear from duplicates
-        self.table = self.table.drop_duplicates(subset=QualiRaster().field_id, keep="last")
+        self.table = self.table.drop_duplicates(
+            subset=QualiRaster().field_id, keep="last"
+        )
         self.table = self.table.reset_index(drop=True)
         return None
-
 
     def append(self, raster):
         """
@@ -6093,7 +6077,6 @@ class QualiRasterSeries(RasterSeries):
         super().append(new_object=raster)
         self.update_table()
         return None
-
 
     def load_data(self, name, datetime, file_data, prj_file=None, table_file=None):
         """
@@ -6131,7 +6114,6 @@ class QualiRasterSeries(RasterSeries):
         # delete aux
         del rst_aux
 
-
     def w_load_file(self, file_info):
         """
         Worker function to load a single file.
@@ -6146,7 +6128,15 @@ class QualiRasterSeries(RasterSeries):
         )
 
     # todo [DRY] -- this seems duplicated except by the file_table parameters
-    def load_folder(self, folder, file_table, name_pattern, talk=False, file_format="tif", parallel=False):
+    def load_folder(
+        self,
+        folder,
+        file_table,
+        name_pattern,
+        talk=False,
+        file_format="tif",
+        parallel=False,
+    ):
         """
         Load all rasters from a folder by following a name pattern.
         Datetime is expected to be at the end of name before file extension.
@@ -6176,7 +6166,7 @@ class QualiRasterSeries(RasterSeries):
         if parallel:
             pass
             # todo [develop] -- parallel loading
-            '''
+            """
             import threading
             # Prepare data for parallel processing
             file_info_list = [
@@ -6200,7 +6190,7 @@ class QualiRasterSeries(RasterSeries):
             # Wait for all threads to complete
             for thread in threads:
                 thread.join()
-            '''
+            """
         else:
             # enter serial loop
             for i in range(len(lst_maps)):
@@ -6227,7 +6217,6 @@ class QualiRasterSeries(RasterSeries):
         self.update(details=True)
         return None
 
-
     def get_series_areas(self):
         """
         Get areas prevalance for all series
@@ -6243,30 +6232,36 @@ class QualiRasterSeries(RasterSeries):
             # compute
             df_areas = self.collection[s_raster_name].get_areas()
             # insert name and date fields
-            df_areas.insert(loc=0, column="{}_raster".format(self.field_name), value=s_raster_name)
+            df_areas.insert(
+                loc=0, column="{}_raster".format(self.field_name), value=s_raster_name
+            )
             df_areas.insert(loc=1, column="Date", value=s_raster_date)
             # concat dataframes
             if i == 0:
                 df_areas_full = df_areas.copy()
             else:
                 df_areas_full = pd.concat([df_areas_full, df_areas])
-        df_areas_full[self.field_name] = df_areas_full[self.field_name].astype("category")
-        df_areas_full[self.field_datetime] = pd.to_datetime(df_areas_full[self.field_datetime])
+        df_areas_full[self.field_name] = df_areas_full[self.field_name].astype(
+            "category"
+        )
+        df_areas_full[self.field_datetime] = pd.to_datetime(
+            df_areas_full[self.field_datetime]
+        )
 
         return df_areas_full
 
     # todo [refactor]
     @staticmethod
     def view_series_areas(
-            df_table,
-            df_areas,
-            specs=None,
-            show=True,
-            export_areas=True,
-            folder="./output",
-            filename=None,
-            dpi=300,
-            fig_format="jpg",
+        df_table,
+        df_areas,
+        specs=None,
+        show=True,
+        export_areas=True,
+        folder="./output",
+        filename=None,
+        dpi=300,
+        fig_format="jpg",
     ):
         """
         View series areas
@@ -6397,5 +6392,3 @@ class QualiRasterSeries(RasterSeries):
 
 if __name__ == "__main__":
     print("Hello World!")
-
-

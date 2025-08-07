@@ -35,6 +35,7 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 import os
 import numpy as np
 import pandas as pd
@@ -120,7 +121,6 @@ class Univar(DataSet):
         self.freq_df = None
         self.weibull_df = None
 
-
     def _set_view_specs(self):
         """
         Set view specifications. Expected to overwrite superior methods.
@@ -159,11 +159,10 @@ class Univar(DataSet):
                 "x_stats": 0.01,
                 "scheme_cmap": None,
                 "cmap": "viridis",
-                "colorize_scatter": False
+                "colorize_scatter": False,
             }
         )
         return None
-
 
     def load_data(self, file_data):
         """
@@ -202,7 +201,6 @@ class Univar(DataSet):
 
         return None
 
-
     def set_array(self, array):
         """
         Set array to data
@@ -212,11 +210,7 @@ class Univar(DataSet):
         :return: None
         :rtype: None
         """
-        self.data = pd.DataFrame(
-            {
-                self.varfield: array
-            }
-        )
+        self.data = pd.DataFrame({self.varfield: array})
         self.update()
         return None
 
@@ -318,6 +312,7 @@ class Univar(DataSet):
         :return: DataFrame with statistics (Count, Sum, Mean, SD, Min, percentiles, Max) and their values.
         :rtype: :class:`pandas.DataFrame`
         """
+
         def _compute(data):
             return {
                 "count": len(data),
@@ -360,7 +355,6 @@ class Univar(DataSet):
         df_result = pd.DataFrame({"statistic": list(dct.keys()), "value": ls_values})
         return df_result
 
-
     def assess_weibull_cdf(self):
         """
         Get the Weibull model
@@ -377,12 +371,11 @@ class Univar(DataSet):
         r = np.arange(0, len(x)) + 1
         px = Univar.weibull_px(ranks=r)
         result_df = pd.DataFrame({"Data": vr, "P(X)": px, "F(X)": 1 - px})
-        '''
+        """
         print(result_df.head())
         print(result_df.tail())
-        '''
+        """
         return result_df
-
 
     def assess_gumbel_cdf(self):
         """
@@ -660,7 +653,7 @@ class Univar(DataSet):
         plt.text(
             mu,
             plt.gca().get_ylim()[1] * 0.92,
-            fr"$\mu$ = {mu:.1f}",
+            rf"$\mu$ = {mu:.1f}",
             ha="left",
             va="bottom",
             fontsize=10,
@@ -691,7 +684,6 @@ class Univar(DataSet):
                 dpi=dpi,
                 bbox_inches="tight",
             )
-
 
     # todo [evaluate]
     def plot_qqplot(
@@ -761,7 +753,6 @@ class Univar(DataSet):
         else:
             plt.savefig("{}/{}_{}.png".format(folder, self.name, filename), dpi=dpi)
 
-
     def _plot(self, fig, gs, specs):
         # todo [docstring]
 
@@ -781,8 +772,12 @@ class Univar(DataSet):
         # ------- handle specs issues --------
         ylim = specs["range"]
         if specs["range"] is None:
-            p_low = self.stats_df.loc[self.stats_df['statistic'] == 'p01', 'value'].values[0]
-            p_hi = self.stats_df.loc[self.stats_df['statistic'] == 'p99', 'value'].values[0]
+            p_low = self.stats_df.loc[
+                self.stats_df["statistic"] == "p01", "value"
+            ].values[0]
+            p_hi = self.stats_df.loc[
+                self.stats_df["statistic"] == "p99", "value"
+            ].values[0]
             rng = p_hi - p_low
             rng_margin = rng * 0.1
             ylim = (p_low - rng_margin, p_hi + rng_margin)
@@ -811,7 +806,6 @@ class Univar(DataSet):
             formatter=formatter,
         )
 
-
         # ------------ hist plot ------------
         Univar.plot_histh(
             data=data,
@@ -833,9 +827,24 @@ class Univar(DataSet):
         # ------------ Plot mean ------------
         if specs["plot_mean"]:
             y_mu = np.nanmean(data)
-            Univar.plot_mean(ax_scatter, y_mu=y_mu, xmin=x_rng[0], xmax=x_rng[1],)
-            Univar.plot_mean(ax_histh, y_mu=y_mu, xmin=0, xmax=1,)
-            Univar.plot_mean(ax_cdf, y_mu=y_mu, xmin=-0.05, xmax=1.05,)
+            Univar.plot_mean(
+                ax_scatter,
+                y_mu=y_mu,
+                xmin=x_rng[0],
+                xmax=x_rng[1],
+            )
+            Univar.plot_mean(
+                ax_histh,
+                y_mu=y_mu,
+                xmin=0,
+                xmax=1,
+            )
+            Univar.plot_mean(
+                ax_cdf,
+                y_mu=y_mu,
+                xmin=-0.05,
+                xmax=1.05,
+            )
 
         # ------------ Plot stats ------------
         if specs["mode"] == "full":
@@ -888,7 +897,6 @@ class Univar(DataSet):
 
         return specs
 
-
     def view(self, show=True, return_fig=False):
         # todo [docstring]
 
@@ -904,20 +912,12 @@ class Univar(DataSet):
         # -------------- SHIP --------------
         # create path
         file_path = "{}/{}.{}".format(
-            specs["folder"],
-            specs["filename"],
-            specs["fig_format"]
+            specs["folder"], specs["filename"], specs["fig_format"]
         )
         if return_fig:
             return fig
         else:
-            viewer.ship_fig(
-                fig=fig,
-                show=show,
-                file_output=file_path,
-                dpi=specs["dpi"]
-            )
-
+            viewer.ship_fig(fig=fig, show=show, file_output=file_path, dpi=specs["dpi"])
 
     @staticmethod
     def plot_mean(ax, y_mu, xmin, xmax):
@@ -932,7 +932,7 @@ class Univar(DataSet):
             r" $\mu$ = {}".format(round(y_mu, 2)),
             xy=(xmin, y_mu),
             xytext=(1, 3),
-            textcoords='offset points',
+            textcoords="offset points",
             color="red",
         )
         return None
@@ -943,8 +943,12 @@ class Univar(DataSet):
         x_values = np.arange(len(data))
         # handle scheme
         if specs["colorize_scatter"]:
-            color_data = Univar.classify(data=data, n_classes=5, scheme=specs["scheme_cmap"])
-            color_cmap = viewer.get_discrete_cmap(n_classes=5, base_cmap_name=specs["cmap"])
+            color_data = Univar.classify(
+                data=data, n_classes=5, scheme=specs["scheme_cmap"]
+            )
+            color_cmap = viewer.get_discrete_cmap(
+                n_classes=5, base_cmap_name=specs["cmap"]
+            )
             # plot
             ax.scatter(
                 x_values,
@@ -953,7 +957,7 @@ class Univar(DataSet):
                 c=color_data,
                 cmap=color_cmap,
                 alpha=specs["alpha"],
-                s=0.8 * viewer.MM_TO_PT
+                s=0.8 * viewer.MM_TO_PT,
             )
         else:
             ax.scatter(
@@ -962,7 +966,7 @@ class Univar(DataSet):
                 marker=".",
                 color=specs["color"],
                 alpha=specs["alpha"],
-                s=0.8 * viewer.MM_TO_PT
+                s=0.8 * viewer.MM_TO_PT,
             )
 
         if specs["subtitle_scatter"] is not None:
@@ -970,7 +974,7 @@ class Univar(DataSet):
         ax.set_ylim(ylim)
         ax.set_xlabel(specs["xlabel"])
         ax.set_ylabel(specs["ylabel"])
-        ax.grid(axis='x', visible=False)
+        ax.grid(axis="x", visible=False)
         if formatter is not None:
             ax.yaxis.set_major_formatter(formatter)
 
@@ -984,7 +988,13 @@ class Univar(DataSet):
         # handle cbars
         # ------------ cbar plot ------------
         if specs["colorize_scatter"]:
-            Univar.plot_cbar(data=data, ax=ax, scheme=specs["scheme_cmap"], cmap=specs["cmap"], side="right")
+            Univar.plot_cbar(
+                data=data,
+                ax=ax,
+                scheme=specs["scheme_cmap"],
+                cmap=specs["cmap"],
+                side="right",
+            )
         return (x_low, x_hi)
 
     @staticmethod
@@ -1031,11 +1041,7 @@ class Univar(DataSet):
     @staticmethod
     def plot_cdf(cdf_df, ax, ylim, specs, formatter=None):
         # todo [docstring]
-        ax.plot(
-            cdf_df["P(X)"],
-            cdf_df["Data"],
-            color=specs["color_cdf"]
-        )
+        ax.plot(cdf_df["P(X)"], cdf_df["Data"], color=specs["color_cdf"])
         if specs["subtitle_cdf"] is not None:
             ax.set_title(specs["subtitle_cdf"], loc="left")
         ax.set_xlabel(specs["xlabel_cdf"])
@@ -1059,9 +1065,9 @@ class Univar(DataSet):
                 display_stat = "p50" if stat == "median" else stat
 
                 # Ensure the stat exists in the DataFrame before attempting to access
-                stat_row = stats_df.loc[stats_df['statistic'] == display_stat]
+                stat_row = stats_df.loc[stats_df["statistic"] == display_stat]
                 if not stat_row.empty:
-                    s_value = stat_row['value'].values[0]
+                    s_value = stat_row["value"].values[0]
                     s_head = stat  # Use the original name for display if needed, or display_stat
 
                     # Determine formatting based on value magnitude
@@ -1114,7 +1120,9 @@ class Univar(DataSet):
         return fig
 
     @staticmethod
-    def plot_cbar(data, ax, scheme, cmap="viridis", n_classes=5, side="right", width_factor=16):
+    def plot_cbar(
+        data, ax, scheme, cmap="viridis", n_classes=5, side="right", width_factor=16
+    ):
         # todo [docstring]
 
         # handle bins
@@ -1142,10 +1150,11 @@ class Univar(DataSet):
             lower_bound = bins[i]
             upper_bound = bins[i + 1]
             color = colors[i]
-            ax.fill_between(vrange, lower_bound, upper_bound, color=color, edgecolor='none')
+            ax.fill_between(
+                vrange, lower_bound, upper_bound, color=color, edgecolor="none"
+            )
 
         return None
-
 
     @staticmethod
     def test_distribution(test_name, stat, p, clevel=0.95, distr="normal"):
@@ -1392,6 +1401,7 @@ class Univar(DataSet):
         :rtype: :class:`numpy.ndarray`
         """
         from plans.geo import normalize
+
         # set gamma shapes
         dc_gamma_shapes = {
             "decay": 1,
@@ -1416,7 +1426,6 @@ class Univar(DataSet):
         sample_norm = normalize(array=sample, min_value=n_min, max_value=n_max)
 
         return sample_norm
-
 
     @staticmethod
     def nbins_fd(data):
@@ -1573,7 +1582,7 @@ class Univar(DataSet):
             "linear": Univar.bins_equal,
             "equal": Univar.bins_equal,
             "quantiles": Univar.bins_quantiles,
-            "quantile": Univar.bins_quantiles
+            "quantile": Univar.bins_quantiles,
         }
         v = dc[scheme](data=data, n_bins=n_bins)
         return v
@@ -1614,7 +1623,7 @@ class Univar(DataSet):
             data,
             q=n_bins,
             retbins=True,
-            duplicates='drop'  # Essential for handling non-unique quantiles
+            duplicates="drop",  # Essential for handling non-unique quantiles
         )
         return bins
 
@@ -1655,7 +1664,7 @@ class Univar(DataSet):
 
         # `classes` will be 0 for x <= bins[0], 1 for x in (bins[0], bins[1]], etc.
         # For x > bins[-1], it will be `num_classes` (len(bins) - 1).
-        classes = np.searchsorted(bins, data, side='right') - 1
+        classes = np.searchsorted(bins, data, side="right") - 1
 
         # Clamp the results to ensure they fall within the valid 0 to num_classes-1 range.
         # This handles values outside the `bins` range by assigning them to the
@@ -1663,7 +1672,6 @@ class Univar(DataSet):
         classified_array = np.clip(classes, 0, num_classes - 1)
 
         return classified_array
-
 
     @staticmethod
     def quantiles_classify(data, n_classes=5):
@@ -1682,7 +1690,7 @@ class Univar(DataSet):
 
         values = Univar.classify(data, bins=bins)
 
-        '''
+        """
         # Use pandas qcut, which is efficient and handles duplicates well
         # labels=False ensures integer class labels (0 to n_classes-1)
         # duplicates='drop' handles cases where fewer unique quantiles than n_classes exist
@@ -1692,7 +1700,7 @@ class Univar(DataSet):
             labels=False,
             duplicates='drop'
         )#.to_numpy()  # Convert the pandas Series back to a NumPy array
-        '''
+        """
 
         return quantile_classes
 
@@ -1715,7 +1723,6 @@ class GeoUnivar(Univar):
         # Attribute fields
         self.field_geometry = "geometry"
         # ... continues in downstream objects ... #
-
 
     def _set_view_specs(self):
         """
@@ -1746,7 +1753,6 @@ class GeoUnivar(Univar):
         )
         return None
 
-
     def load_data(self, file_data, layer_name):
         """
         Load data from file. Expected to overwrite superior methods.
@@ -1767,7 +1773,6 @@ class GeoUnivar(Univar):
         default_columns = {
             #'DateTime': 'datetime64[1s]',
             self.varfield: float,
-
         }
         ls_cols = [self.varfield, self.field_geometry]
         # -------------- call loading function -------------- #
@@ -1802,7 +1807,6 @@ class GeoUnivar(Univar):
             fig.add_subplot(gs[2:10, 29:])
         return fig
 
-
     def _get_fig_specs(self):
         # todo [docstring]
         # handle specs
@@ -1832,7 +1836,6 @@ class GeoUnivar(Univar):
 
         return specs
 
-
     def _plot(self, fig, gs, specs):
         # todo [docstring]
         fig = super()._plot(fig=fig, gs=gs, specs=specs)
@@ -1842,12 +1845,7 @@ class GeoUnivar(Univar):
         # ------------ map plot ------------
         ax_map = all_axes[specs["ax_map"]]
 
-        GeoUnivar.plot_map(
-            data=self.data,
-            ax=ax_map,
-            column=self.varfield,
-            specs=specs
-        )
+        GeoUnivar.plot_map(data=self.data, ax=ax_map, column=self.varfield, specs=specs)
 
         # ------------ scatter cbar plot ------------
         # handle plotting conflict
@@ -1872,15 +1870,18 @@ class GeoUnivar(Univar):
 
         return fig
 
-
     @staticmethod
     def plot_map(data, ax, column, specs, legend=False):
         if not specs["empty_map"]:
 
             # handle scheme
             if specs["colorize_map"]:
-                color_data = Univar.classify(data=data[column].values, n_classes=5, scheme=specs["scheme_cmap"])
-                color_cmap = viewer.get_discrete_cmap(n_classes=5, base_cmap_name=specs["cmap"])
+                color_data = Univar.classify(
+                    data=data[column].values, n_classes=5, scheme=specs["scheme_cmap"]
+                )
+                color_cmap = viewer.get_discrete_cmap(
+                    n_classes=5, base_cmap_name=specs["cmap"]
+                )
                 # set new column
                 data[f"{column}_plot"] = color_data
 
@@ -1891,7 +1892,9 @@ class GeoUnivar(Univar):
                     cmap=color_cmap,
                     legend=legend,
                     marker=specs["marker_map"],  # Use a circle marker for dots
-                    markersize=specs["markersize_map"],  # Set the size of the points (adjust as needed)
+                    markersize=specs[
+                        "markersize_map"
+                    ],  # Set the size of the points (adjust as needed)
                     edgecolor=specs["edgecolor_map"],
                 )
             else:
@@ -1902,27 +1905,26 @@ class GeoUnivar(Univar):
                     cmap=specs["cmap"],
                     legend=legend,
                     marker=specs["marker_map"],  # Use a circle marker for dots
-                    markersize=specs["markersize_map"],  # Set the size of the points (adjust as needed)
+                    markersize=specs[
+                        "markersize_map"
+                    ],  # Set the size of the points (adjust as needed)
                     edgecolor=specs["edgecolor_map"],
                 )
         # Set the Y-axis tick labels orientation
         ax.tick_params(
-            axis='y',  # Apply to the y-axis
+            axis="y",  # Apply to the y-axis
             labelrotation=90,  # Rotate labels by 90 degrees (vertical)
-
         )
 
         for label in ax.get_yticklabels():
             # Option A: Often looks good for vertical Y-labels on the left
-            label.set_horizontalalignment('right')
-            label.set_verticalalignment('center')
+            label.set_horizontalalignment("right")
+            label.set_verticalalignment("center")
         if specs["subtitle_map"] is not None:
             ax.set_title(specs["subtitle_map"], loc="left")
         ax.grid(visible=specs["grid_map"])
 
         return None
-
-
 
 
 # todo [upgrade] make it a child of Dataset()
@@ -1933,6 +1935,7 @@ class Bivar:
     # [major docstring]
 
     """
+
     def __init__(self, df_data, x_name="x", y_name="y", name="myvars"):
 
         # set inputs attributes
@@ -2576,6 +2579,7 @@ class Bivar:
         return 1 - (
             np.sum(np.power(pred - obs, 2)) / np.sum(np.power(obs - np.mean(obs), 2))
         )
+
 
 # todo [upgrade] make it a child of some MbaE class
 class Bayes:

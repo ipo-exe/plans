@@ -27,6 +27,7 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 import glob, re
 import os, copy, shutil, datetime, pprint
 from pathlib import Path
@@ -480,7 +481,7 @@ class Collection(MbaE):
         # Update details if specified
         if details:
             # Create a new empty catalog
-            #df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
+            # df_new_catalog = pd.DataFrame(columns=self.catalog.columns)
 
             # retrieve details from collection
             ls_dfs = list()
@@ -725,7 +726,6 @@ class DataSet(MbaE):
                 str_super, str_df_data_head, str_df_data_tail
             )
         return str_out
-
 
     def _set_fields(self):
         """
@@ -1040,6 +1040,7 @@ class DataSet(MbaE):
             dc_main[f] = _ls[:]
 
         return pd.DataFrame(dc_main)
+
 
 class Note(MbaE):
 
@@ -2751,7 +2752,9 @@ class FileSys(DataSet):
                 # make a dir
                 FileSys.make_dir(str_path=_d)
                 # now move down:
-                FileSys.fill(dict_struct=dict_struct[k], folder=_d, handle_files=handle_files)
+                FileSys.fill(
+                    dict_struct=dict_struct[k], folder=_d, handle_files=handle_files
+                )
 
             # bottom is an expected file
             else:

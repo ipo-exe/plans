@@ -46,6 +46,7 @@ def get_file_size_mb(file_path):
     file_size_mb = file_size_bytes / (1024 * 1024)
     return file_size_mb
 
+
 class Project(FileSys):
 
     def __init__(self, root, name):
@@ -53,45 +54,40 @@ class Project(FileSys):
 
         self.structure = {
             "inputs": {
-                "topo":
-                    {
-                        "_aux": {0:0},
-                        "htwi": {0: 0},
-                    },
-                "lulc":
-                    {
-                        "obs": {
-                            "_aux": {0: 0},
-                        },
-                        "bsl": {
-                                "_aux": {0:0},
-                        },
-                        "bau": {
-                            "_aux": {0:0},
-                        }
-                    },
-                "clim":
-                    {
-                        "obs": {
-                            "_aux": {0: 0},
-                        },
-                        "bsl": {
-                            "_aux": {0:0},
-                        },
-                        "bau": {
-                            "_aux": {0:0},
-                        }
-                    },
-                "basins":
-                    {
-                        "_aux": {0:0},
-                    },
-                "soils":
-                    {
+                "topo": {
+                    "_aux": {0: 0},
+                    "htwi": {0: 0},
+                },
+                "lulc": {
+                    "obs": {
                         "_aux": {0: 0},
                     },
+                    "bsl": {
+                        "_aux": {0: 0},
+                    },
+                    "bau": {
+                        "_aux": {0: 0},
+                    },
+                },
+                "clim": {
+                    "obs": {
+                        "_aux": {0: 0},
+                    },
+                    "bsl": {
+                        "_aux": {0: 0},
+                    },
+                    "bau": {
+                        "_aux": {0: 0},
+                    },
+                },
+                "basins": {
+                    "_aux": {0: 0},
+                },
+                "soils": {
+                    "_aux": {0: 0},
+                },
             },
-            "outputs": {0:0}
+            "outputs": {0: 0},
         }
         self.make_dir(str_path=self.folder_main)
         self.fill(
@@ -99,7 +95,7 @@ class Project(FileSys):
         )
 
         # load standard data
-        #self.load_data()
+        # self.load_data()
 
     def load_data(self):
         """Load data from file. Expected to overwrite superior methods.
@@ -123,6 +119,7 @@ class Project(FileSys):
         ].copy()
 
         return None
+
 
 # todo [refactor] -- here we got some very interesting stuff
 class Project_(FileSys):

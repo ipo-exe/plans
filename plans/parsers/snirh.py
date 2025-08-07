@@ -26,7 +26,9 @@ Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 """
+
 import pandas as pd
+
 
 class Stage:
     # todo [major doctring]
@@ -184,7 +186,7 @@ class Stage:
 if __name__ == "__main__":
     print("Hello world!")
     # todo [testing]
-    '''
+    """
     d = "C:/gis/snirh/rhn/src/Estacao_87382000_CSV_2025-02-27T18_02_48.292Z"
     f = f"{d}/87382000_Cotas.csv"
     c = Stage(name="SaoLeo")
@@ -201,5 +203,4 @@ if __name__ == "__main__":
     )
     plt.plot(c.data["DateTime"], c.data["Stage"], ".")
     plt.show()
-    '''
-
+    """

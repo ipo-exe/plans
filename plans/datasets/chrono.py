@@ -741,7 +741,7 @@ class __StageSeries(TimeSeries):
 if __name__ == "__main__":
     print("Hello World")
     # todo [move to testing]
-    '''
+    """
     import matplotlib.pyplot as plt
 
     plt.style.use("seaborn-v0_8")
@@ -764,4 +764,4 @@ if __name__ == "__main__":
     FlowSeries.view_cfcs(
         freqs=[freq, freq2], specs=specs, colors=["blue", "red"], show=False
     )
-    '''
+    """

@@ -27,6 +27,7 @@ In a lacinia nisl. Mauris gravida ex quam, in porttitor lacus lobortis vitae.
 In a lacinia nisl.
 
 """
+
 from plans.datasets.core import *
 
 
@@ -56,11 +57,9 @@ class Elevation(SciRaster):
         self.range_default = (0, 2000)
         self._set_view_specs()
 
-
     def get_tpi(self, cell_radius):
         # todo [DEV]
         print("hi")
-
 
     def get_tpi_landforms(self, radius_micro, radius_macro):
         # todo [DEV]
@@ -261,7 +260,6 @@ class ET24h(SciRaster):
         self.range_default = (0, 15)
         self._set_view_specs()
 
-
     def set_data(self, grid):
         super().set_data(grid)
         self.cut_edges(upper=100, lower=0)
@@ -289,8 +287,7 @@ class Hydrology(SciRaster):
 
         self.varalias = varalias.lower()
         str_cmap_id = "{} {}".format(
-            self.vars_dc[self.varalias]["type"],
-            self.vars_dc[self.varalias]["subtype"]
+            self.vars_dc[self.varalias]["type"], self.vars_dc[self.varalias]["subtype"]
         )
         self.cmap = self.cmaps_dc[str_cmap_id]
         self.varname = self.vars_dc[self.varalias][self.field_varname]
@@ -322,7 +319,6 @@ class Hydrology(SciRaster):
             "stock deficit": "gist_earth",
         }
         return None
-
 
     def _set_vars(self):
         # todo evaluate load this from csv
@@ -730,7 +726,6 @@ class Soils(QualiRaster):
         return None
 
 
-
 class AOI(QualiHard):
     """
     AOI map dataset
@@ -762,7 +757,6 @@ class AOI(QualiHard):
         # ... continues in downstream objects ... #
         return None
 
-
     def get_table(self):
         """
         Retrieves a sample DataFrame representing an AOI classification table.
@@ -780,11 +774,9 @@ class AOI(QualiHard):
         )
         return df_aux
 
-
     def set_area(self):
         self.area = self.cellsize * np.nansum(self.data)
         return None
-
 
     def get_metadata(self):
         """
@@ -808,7 +800,6 @@ class AOI(QualiHard):
         # update
         dict_meta.update(dict_meta_local)
         return dict_meta
-
 
     def view(
         self,

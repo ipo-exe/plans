@@ -308,8 +308,67 @@ def retrieve_raster_tiles(
     return output_file
 
 
+def retrieve_upstream_basins(db_basins, layer_basin, db_gauges, layer_gauges, db_output, layer_output, field_gauge, field_basin, field_basin_down, field_geometry="geometry"):
+    """
+    Retrieves and saves upstream basins for a given set of gauges.
+
+    This function loads basin and gauge data from GeoPackage files, identifies the upstream basins for each gauge, and then saves the resulting GeoDataFrame to a new GeoPackage file. The upstream basins for each gauge are dissolved into a single feature before saving.
+
+    :param db_basins: The path to the GeoPackage database containing the basin features.
+    :type db_basins: str
+    :param layer_basin: The name of the layer in `db_basins` containing the basin features.
+    :type layer_basin: str
+    :param db_gauges: The path to the GeoPackage database containing the gauge features.
+    :type db_gauges: str
+    :param layer_gauges: The name of the layer in `db_gauges` containing the gauge features.
+    :type layer_gauges: str
+    :param db_output: The path to the output GeoPackage database where the results will be saved.
+    :type db_output: str
+    :param layer_output: The name of the layer to be created in `db_output`.
+    :type layer_output: str
+    :param field_gauge: The name of the column in `gauges` that contains the unique identifier for each gauge.
+    :type field_gauge: str
+    :param field_basin: The name of the column in `basins` that contains the unique identifier for each basin.
+    :type field_basin: str
+    :param field_basin_down: The name of the column in `basins` that contains the unique identifier of the downstream basin.
+    :type field_basin_down: str
+    :param field_geometry: The name of the geometry column. Default value = "geometry"
+    :type field_geometry: str
+    :return: None
+    :rtype: None
+    """
+    # load from geopackages
+    basins = gpd.read_file(db_basins, layer=layer_basin)
+    gauges = gpd.read_file(db_gauges, layer=layer_gauges)
+    # get geodataframe
+    basins_upstream = geo.get_basins_by_gauges(
+        basins=basins,
+        gauges=gauges,
+        field_gauge=field_gauge,
+        field_basin=field_basin,
+        field_basin_down=field_basin_down,
+        field_geometry=field_geometry,
+        dissolve=True
+    )
+    # export to file
+    basins_upstream.to_file(db_output, layer=layer_output, driver="GPKG")
+
+    return None
+
+
 def get_basins_areas(file_basins, ids_basins):
-    # todo [docstring]
+    """
+    Calculates the area of specified basins from a raster file.
+
+    This function reads a raster file representing different basins, identifies the cells corresponding to each basin ID provided, calculates the total area for each basin in square kilometers, and returns the results in a dictionary.
+
+    :param file_basins: The file path to the raster containing the basin IDs.
+    :type file_basins: str
+    :param ids_basins: A list of basin IDs for which to calculate the area.
+    :type ids_basins: list
+    :return: A dictionary containing the basin IDs and their corresponding upstream areas in square kilometers.
+    :rtype: dict
+    """
     # -------------------------------------------------------------------------
     # LOAD BASINS
 
@@ -390,7 +449,23 @@ def get_blank(file_input, file_output, blank_value=0, dtype="byte"):
 
 
 def get_boolean(file_input, file_output, bool_value, condition="ET"):
-    # todo [docstring]
+    """
+    Generates a boolean raster based on a condition applied to an input raster.
+    This function reads a raster, applies a user-defined condition (greater than, less than, or equal to)
+    with a specified value, and creates a new raster where cells meeting the
+    condition are set to 1 and all others are set to 0. The output is saved as a byte integer raster file.
+
+    :param file_input: The file path to the input raster.
+    :type file_input: str
+    :param file_output: The file path where the output boolean raster will be saved.
+    :type file_output: str
+    :param bool_value: The value against which to apply the condition.
+    :type bool_value: int or float
+    :param condition: The condition to apply ("GT" for greater than, "LT" for less than, "ET" for equal to). Default value = "ET"
+    :type condition: str
+    :return: The file path of the created output raster.
+    :rtype: str
+    """
     # -------------------------------------------------------------------------
     # LOAD
     dc_raster = qgdal.read_raster(file_input=file_input)
